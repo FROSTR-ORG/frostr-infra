@@ -1,0 +1,28 @@
+[submodule "repos/igloo-core"]
+	path = repos/igloo-core
+	url = git@github.com:FROSTR-ORG/igloo-core.git
+	branch = master
+[submodule "repos/bifrost-ts"]
+	path = repos/bifrost-ts
+	url = git@github.com:FROSTR-ORG/bifrost.git
+	branch = dev
+[submodule "repos/frost2x"]
+	path = repos/frost2x
+	url = git@github.com:FROSTR-ORG/frost2x.git
+	branch = master
+[submodule "repos/android"]
+	path = repos/android
+	url = git@github.com:FROSTR-ORG/igloo-pwa.git
+	branch = dev
+[submodule "repos/igloo-cli"]
+	path = repos/igloo-cli
+	url = git@github.com:FROSTR-ORG/igloo-cli.git
+	branch = master
+[submodule "repos/igloo-server"]
+	path = repos/igloo-server
+	url = git@github.com:FROSTR-ORG/igloo-server.git
+	branch = master
+[submodule "repos/igloo-web"]
+	path = repos/igloo-web
+	url = git@github.com:FROSTR-ORG/igloo-web.git
+	branch = master

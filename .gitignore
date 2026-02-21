@@ -1,0 +1,15 @@
+.env
+.env.local
+compose.override.yml
+node_modules/
+**/node_modules/
+logs/*
+!logs/.gitkeep
+!logs/*/.gitkeep
+data/*
+!data/.gitkeep
+!data/*/.gitkeep
+build/*
+!build/.gitkeep
+!build/README.md
+.DS_Store
