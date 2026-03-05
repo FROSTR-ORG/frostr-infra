@@ -25,4 +25,8 @@
 [submodule "repos/igloo-web"]
 	path = repos/igloo-web
 	url = git@github.com:FROSTR-ORG/igloo-web.git
+	branch = v2
+[submodule "repos/bifrost-rs"]
+	path = repos/bifrost-rs
+	url = git@github.com:FROSTR-ORG/bifrost-rs.git
 	branch = master
