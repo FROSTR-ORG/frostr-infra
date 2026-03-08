@@ -1,0 +1,22 @@
+{
+  "name": "frostr-infra-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:e2e": "npm run test:e2e:igloo-web && npm run test:e2e:igloo-chrome",
+    "test:e2e:igloo-web": "playwright test -c ./igloo-web/playwright.config.ts",
+    "test:e2e:igloo-chrome": "playwright test -c ./igloo-chrome/playwright.config.ts",
+    "test:typecheck": "tsc --noEmit",
+    "test:install-browsers": "playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@noble/curves": "^2.0.1",
+    "@playwright/test": "^1.58.2",
+    "@scure/base": "^1.2.6",
+    "@types/node": "^24.10.1",
+    "@types/ws": "^8.18.1",
+    "nostr-tools": "^2.17.2",
+    "typescript": "^5.9.3",
+    "ws": "^8.18.3"
+  }
+}

@@ -4,6 +4,11 @@ on:
   pull_request:
     paths:
       - "repos/igloo-web/**"
+      - "test/package.json"
+      - "test/package-lock.json"
+      - "test/tsconfig.json"
+      - "test/shared/**"
+      - "test/igloo-web/**"
       - "repos/bifrost-rs/Cargo.toml"
       - "repos/bifrost-rs/Cargo.lock"
       - "repos/bifrost-rs/crates/bifrost-bridge-core/**"
@@ -13,6 +18,11 @@ on:
       - main
     paths:
       - "repos/igloo-web/**"
+      - "test/package.json"
+      - "test/package-lock.json"
+      - "test/tsconfig.json"
+      - "test/shared/**"
+      - "test/igloo-web/**"
       - "repos/bifrost-rs/Cargo.toml"
       - "repos/bifrost-rs/Cargo.lock"
       - "repos/bifrost-rs/crates/bifrost-bridge-core/**"
@@ -32,7 +42,9 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: repos/igloo-web/package-lock.json
+          cache-dependency-path: |
+            repos/igloo-web/package-lock.json
+            test/package-lock.json
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -52,8 +64,12 @@ jobs:
         working-directory: repos/igloo-web
         run: npm ci
 
+      - name: Install infra test dependencies
+        working-directory: test
+        run: npm install
+
       - name: Install Playwright browser
-        working-directory: repos/igloo-web
+        working-directory: test
         run: npx playwright install --with-deps chromium
 
       - name: Build bridge wasm artifacts
@@ -68,8 +84,8 @@ jobs:
         run: npm run test:int
 
       - name: E2E smoke tests
-        working-directory: repos/igloo-web
-        run: npm run test:e2e
+        working-directory: test
+        run: npm run test:e2e:igloo-web
 
       - name: Cargo checks
         working-directory: repos/bifrost-rs

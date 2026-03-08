@@ -1,7 +1,0 @@
-FROM node:20-bookworm
-
-WORKDIR /app
-COPY services/containers/igloo-cli/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]

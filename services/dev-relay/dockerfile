@@ -1,0 +1,11 @@
+FROM ubuntu:24.04
+
+RUN apt-get update \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends bash ca-certificates libssl3 \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+COPY services/dev-relay/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

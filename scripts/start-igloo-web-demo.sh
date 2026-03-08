@@ -32,6 +32,7 @@ need_cmd cargo
 need_cmd node
 need_cmd npm
 need_cmd tmux
+need_cmd ss
 
 cleanup_demo_state() {
   rm -f \
@@ -52,6 +53,24 @@ has_demo_material() {
     [[ -f "${DEMO_DIR}/share-alice.json" ]] &&
     [[ -f "${DEMO_DIR}/share-bob.json" ]] &&
     [[ -f "${DEMO_DIR}/bifrost-alice.json" ]]
+}
+
+demo_material_compatible() {
+  node --input-type=module - <<'EOF' "${DEMO_DIR}/group.json" "${DEMO_DIR}/bifrost-alice.json" >/dev/null 2>&1
+import fs from 'node:fs';
+
+const [groupPath, cfgPath] = process.argv.slice(2);
+const group = JSON.parse(fs.readFileSync(groupPath, 'utf8'));
+const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+
+if (typeof group.group_pk !== 'string' || group.group_pk.length !== 64) process.exit(1);
+if (!Array.isArray(group.members) || group.members.length < 2) process.exit(1);
+if (!group.members.every((m) => typeof m.pubkey === 'string' && m.pubkey.length === 66)) process.exit(1);
+
+if (!Array.isArray(cfg.peers) || cfg.peers.length < 1) process.exit(1);
+if (!cfg.peers.every((p) => typeof p.pubkey === 'string' && p.pubkey.length === 64)) process.exit(1);
+process.exit(0);
+EOF
 }
 
 wait_for_tmux_panes() {
@@ -108,12 +127,17 @@ should_build_wasm() {
     return 0
   fi
 
-  if find \
-    "${BIFROST_RS_DIR}/crates/bifrost-bridge-wasm" \
-    "${BIFROST_RS_DIR}/crates/bifrost-bridge-core" \
-    "${BIFROST_RS_DIR}/crates/bifrost-bridge" \
-    "${BIFROST_RS_DIR}/crates/bifrost-signer" \
-    -type f -newer "${WASM_TARGET}" -print -quit | grep -q .; then
+  local watch_dirs=(
+    "${BIFROST_RS_DIR}/crates"
+  )
+  local existing_dirs=()
+  local dir
+  for dir in "${watch_dirs[@]}"; do
+    if [[ -d "${dir}" ]]; then
+      existing_dirs+=("${dir}")
+    fi
+  done
+  if (( ${#existing_dirs[@]} > 0 )) && find "${existing_dirs[@]}" -type f -newer "${WASM_TARGET}" -print -quit | grep -q .; then
     return 0
   fi
 
@@ -121,6 +145,22 @@ should_build_wasm() {
     return 0
   fi
 
+  return 1
+}
+
+wait_for_listener() {
+  local host="$1"
+  local port="$2"
+  local timeout_secs="${3:-30}"
+  local waited=0
+  while (( waited < timeout_secs * 10 )); do
+    if ss -ltn "sport = :${port}" | awk 'NR>1 {found=1} END {exit !found}'; then
+      return 0
+    fi
+    sleep 0.1
+    (( waited++ ))
+  done
+  echo "error: timed out waiting for ${host}:${port} listener" >&2
   return 1
 }
 
@@ -137,7 +177,7 @@ fi
 mkdir -p "${DEMO_DIR}"
 mkdir -p "${LOG_DIR}"
 
-if [[ "${FORCE_KEYGEN}" == "1" ]] || ! has_demo_material; then
+if [[ "${FORCE_KEYGEN}" == "1" ]] || ! has_demo_material || ! demo_material_compatible; then
   echo "==> Generating 2-of-2 demo keyset in ${DEMO_DIR}"
   cleanup_demo_state
   (
@@ -151,7 +191,13 @@ if [[ "${FORCE_KEYGEN}" == "1" ]] || ! has_demo_material; then
   )
 else
   echo "==> Reusing existing demo keyset in ${DEMO_DIR} (set FORCE_KEYGEN=1 to regenerate)"
-  rm -f "${DEMO_DIR}/state-alice.lock" "${DEMO_DIR}/state-bob.lock"
+  rm -f \
+    "${DEMO_DIR}/state-alice.json" \
+    "${DEMO_DIR}/state-bob.json" \
+    "${DEMO_DIR}/state-alice.run.json" \
+    "${DEMO_DIR}/state-bob.run.json" \
+    "${DEMO_DIR}/state-alice.lock" \
+    "${DEMO_DIR}/state-bob.lock"
 fi
 
 echo "==> Ensuring igloo-web dependencies are installed"
@@ -160,6 +206,12 @@ echo "==> Ensuring igloo-web dependencies are installed"
   if [[ ! -d node_modules ]]; then
     npm install
   fi
+)
+
+echo "==> Prebuilding rust demo binaries"
+(
+  cd "${BIFROST_RS_DIR}"
+  cargo build -p bifrost-dev -p bifrost-app --bins
 )
 
 if should_build_wasm; then
@@ -216,11 +268,17 @@ fi
 
 echo "==> Starting tmux session ${SESSION_NAME}"
 tmux new-session -d -s "${SESSION_NAME}" -n demo \
-  "cd '${BIFROST_RS_DIR}' && cargo run -p bifrost-dev --bin bifrost-devtools -- relay ${RELAY_PORT}"
+  "cd '${BIFROST_RS_DIR}' && ./target/debug/bifrost-devtools relay ${RELAY_PORT}"
+
+if ! wait_for_listener "${RELAY_HOST}" "${RELAY_PORT}" 30; then
+  tmux capture-pane -p -t "${SESSION_NAME}:demo.0" 2>/dev/null | tail -n 80 >&2 || true
+  tmux kill-session -t "${SESSION_NAME}" || true
+  exit 1
+fi
 
 RELAY_PANE="$(tmux display-message -p -t "${SESSION_NAME}:demo.0" '#{pane_id}')"
 PEER_PANE="$(tmux split-window -h -t "${SESSION_NAME}:demo" -P -F '#{pane_id}' \
-  "cd '${BIFROST_RS_DIR}' && echo 'Peer node output (alice) -> ${LOG_DIR}/peer-alice.log' && echo '---' && cargo run -p bifrost-app --bin bifrost -- --config '${DEMO_DIR}/bifrost-alice.json' listen 2>&1 | tee '${LOG_DIR}/peer-alice.log'"
+  "cd '${BIFROST_RS_DIR}' && echo 'Peer node output (alice) -> ${LOG_DIR}/peer-alice.log' && echo '---' && ./target/debug/bifrost --config '${DEMO_DIR}/bifrost-alice.json' listen 2>&1 | tee '${LOG_DIR}/peer-alice.log'"
 )"
 
 WEB_PANE="$(tmux split-window -v -t "${SESSION_NAME}:demo.0" -P -F '#{pane_id}' \

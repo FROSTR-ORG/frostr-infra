@@ -22,10 +22,10 @@ echo "Stopping compose services..."
 docker compose -f "$ROOT_DIR/compose.yml" down || true
 
 echo "Resetting data directories..."
-rm -rf "$ROOT_DIR/data/igloo-server"/* "$ROOT_DIR/data/igloo-web"/* "$ROOT_DIR/data/igloo-cli"/*
+rm -rf "$ROOT_DIR/data/igloo-web"/*
 
 echo "Removing app node_modules if present..."
-for svc in igloo-server igloo-web igloo-cli; do
+for svc in igloo-web; do
   if [ -d "$ROOT_DIR/repos/$svc/node_modules" ]; then
     rm -rf "$ROOT_DIR/repos/$svc/node_modules"
     echo "  - removed repos/$svc/node_modules"

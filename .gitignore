@@ -12,4 +12,10 @@ data/*
 build/*
 !build/.gitkeep
 !build/README.md
+test/**/results/
+test/**/playwright-report/
+test/**/test-results/
+test/**/.last-run.json
+services/onboard-helper/target/
+CLAUDE.md
 .DS_Store

@@ -1,13 +1,14 @@
-# bifrost-infra
+# frostr-infra
 
 Monorepo infrastructure scaffold for running Frostr services with Docker Compose.
 Each service is launched from an infra-owned container image with a dedicated
-`Dockerfile` and `entrypoint.sh` in `services/containers/`.
+`Dockerfile` and `entrypoint.sh` in `services/`.
 
 ## Included submodule layout
 
-- `repos/`: `bifrost-ts`, `frost2x`, `igloo-core`, `android`, `igloo-web`, `igloo-cli`, `igloo-server`
+- `repos/`: `bifrost-rs`, `igloo-chrome`, `igloo-web`
 - `services/`: container Dockerfiles and entrypoints for the compose services
+- `test/`: infra-owned cross-repo browser E2E suites for submodules that depend on shared runtime code
 
 ## Submodule Policy
 
@@ -24,15 +25,15 @@ make health
 ```
 
 Open services:
-- `igloo-server`: `http://localhost:8002`
 - `igloo-web`: `http://localhost:5173`
 
-`igloo-web` is allowed to start even when `igloo-server` is unavailable.
+Set `VITE_IGLOO_SERVER_URL` if `igloo-web` should target a non-default backend.
 
-Use CLI container:
+Bring up the manual pairing relay + bifrost harness:
 
 ```bash
-make shell
+make demo-harness BG=1
+make demo-harness-onboard
 ```
 
 ## Common commands
@@ -43,3 +44,8 @@ make shell
 - `make stop` - stop all services
 - `make reset` - clear data and local dependency caches
 - `make check` - validate local setup
+- `npm --prefix test run test:e2e` - run infra-owned browser E2E suites
+- `make demo-harness BG=1` - start `dev-relay` + `bifrost-demo` for manual pairing and live/E2E testing
+- `make demo-harness-onboard` - print the current `bfonboard...` packages and passwords from the harness
+
+`make demo-harness` prebuilds the required `bifrost` and `bifrost-devtools` binaries on the host and reuses them from the mounted `repos/bifrost-rs/target/debug` directory inside the harness containers.

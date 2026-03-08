@@ -1,0 +1,95 @@
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "25m"
+    max-file: "3"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 5s
+  timeout: 5s
+  retries: 20
+  start_period: 10s
+
+x-test-service: &test-service
+  restart: unless-stopped
+  init: true
+  tty: true
+  logging: *default-logging
+  platform: ${DOCKER_PLATFORM:-linux/x86_64}
+
+services:
+  dev-relay:
+    <<: *test-service
+    build:
+      context: .
+      dockerfile: services/dev-relay/dockerfile
+    image: bifrost-infra-dev-relay:dev
+    container_name: bifrost-infra-dev-relay
+    hostname: dev-relay
+    working_dir: /workspace
+    environment:
+      DEV_RELAY_PORT: ${DEV_RELAY_PORT:-8194}
+      BIFROST_RELAY_HOST: 0.0.0.0
+      CARGO_TARGET_DIR: /cargo-target
+    ports:
+      - "${DEV_RELAY_PORT:-8194}:${DEV_RELAY_PORT:-8194}"
+    volumes:
+      - ./repos/bifrost-rs:/workspace/repos/bifrost-rs:rw
+      - cargo-target:/cargo-target
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+    healthcheck:
+      <<: *healthcheck-defaults
+      test:
+        [
+          "CMD-SHELL",
+          "bash -lc 'exec 3<>/dev/tcp/127.0.0.1/${DEV_RELAY_PORT:-8194} && exec 3>&-'"
+        ]
+
+  bifrost-demo:
+    <<: *test-service
+    build:
+      context: .
+      dockerfile: services/bifrost-demo/dockerfile
+    image: bifrost-infra-bifrost-demo:dev
+    container_name: bifrost-infra-bifrost-demo
+    hostname: bifrost-demo
+    working_dir: /workspace
+    depends_on:
+      dev-relay:
+        condition: service_healthy
+    environment:
+      DEV_RELAY_HOST: dev-relay
+      DEV_RELAY_PORT: ${DEV_RELAY_PORT:-8194}
+      DEV_RELAY_INTERNAL_URL: ws://dev-relay:${DEV_RELAY_PORT:-8194}
+      DEV_RELAY_EXTERNAL_HOST: ${DEV_RELAY_EXTERNAL_HOST:-127.0.0.1}
+      DEV_RELAY_EXTERNAL_URL: ws://${DEV_RELAY_EXTERNAL_HOST:-127.0.0.1}:${DEV_RELAY_PORT:-8194}
+      BIFROST_DEMO_MEMBER: ${BIFROST_DEMO_MEMBER:-alice}
+      BIFROST_DEMO_INVITE_MEMBERS: ${BIFROST_DEMO_INVITE_MEMBERS:-bob,carol}
+      BIFROST_DEMO_THRESHOLD: ${BIFROST_DEMO_THRESHOLD:-2}
+      BIFROST_DEMO_COUNT: ${BIFROST_DEMO_COUNT:-3}
+      BIFROST_DEMO_DIR: /workspace/data/test-harness/demo-2of3
+      BIFROST_DEMO_ARTIFACT_DIR: /workspace/data/test-harness
+      BIFROST_DEMO_CONTROL_SOCKET: /workspace/data/test-harness/bifrost-${BIFROST_DEMO_MEMBER:-alice}.sock
+      BIFROST_DEMO_CONTROL_TOKEN: ${BIFROST_DEMO_CONTROL_TOKEN:-dev-harness-token}
+      BIFROST_DEMO_CONTROL_TOKEN_FILE: /workspace/data/test-harness/bifrost-${BIFROST_DEMO_MEMBER:-alice}.token
+      CARGO_TARGET_DIR: /cargo-target
+    volumes:
+      - ./repos/bifrost-rs:/workspace/repos/bifrost-rs:rw
+      - ./services:/workspace/services:ro
+      - ./data/test-harness:/workspace/data/test-harness:rw
+      - cargo-target:/cargo-target
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+    healthcheck:
+      <<: *healthcheck-defaults
+      test:
+        [
+          "CMD-SHELL",
+          "test -s /workspace/data/test-harness/onboard-bob.txt && test -s /workspace/data/test-harness/onboard-carol.txt && test -S /workspace/data/test-harness/bifrost-${BIFROST_DEMO_MEMBER:-alice}.sock"
+        ]
+
+volumes:
+  cargo-target: {}
+  cargo-registry: {}
+  cargo-git: {}
