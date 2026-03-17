@@ -1,5 +1,7 @@
 import { test, expect, TEST_PEER_PUBLIC_KEY, TEST_PUBLIC_KEY } from '../fixtures/extension';
 
+const formatPeerPubkey = (value: string) => `${value.slice(0, 14)}...${value.slice(-8)}`;
+
 test.describe('extension dashboard smoke', () => {
   test('renders onboarding flow on a fresh profile', async ({
     openExtensionPage,
@@ -9,7 +11,7 @@ test.describe('extension dashboard smoke', () => {
 
     const page = await openExtensionPage('options.html');
 
-    await expect(page.getByText('Welcome to igloo web')).toBeVisible();
+    await expect(page.getByText('Welcome to igloo chrome')).toBeVisible();
     await page.getByRole('button', { name: 'Continue to Setup' }).click();
     await expect(page.getByPlaceholder('e.g. Laptop Signer, Browser Node A')).toBeVisible();
     await expect(page.getByPlaceholder('bfonboard1...')).toBeVisible();
@@ -31,7 +33,7 @@ test.describe('extension dashboard smoke', () => {
     await popup.close();
   });
 
-  test('configured options page exposes runtime, permissions, and settings tabs', async ({
+  test('configured options page exposes signer, permissions, and settings tabs', async ({
     openExtensionPage,
     seedProfile
   }) => {
@@ -39,56 +41,50 @@ test.describe('extension dashboard smoke', () => {
 
     const page = await openExtensionPage('options.html');
 
-    await expect(page.getByRole('button', { name: /Signer runtime console/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Runtime background \+ offscreen/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Permissions site and peer policies/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Settings operator controls/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Signer/i }).first()).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Permissions/i }).first()).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Settings/i }).first()).toBeVisible();
 
-    await page.getByRole('button', { name: /Runtime background \+ offscreen/i }).click();
-    await expect(page.getByText('Runtime Status')).toBeVisible();
-    await expect(page.getByText('Offscreen Runtime')).toBeVisible();
-    await expect(page.getByText('Runtime Snapshot')).toBeVisible();
+    await expect(page.getByText('Share Public Key')).toBeVisible();
+    await expect(page.getByText('Group Public Key')).toBeVisible();
+    await expect(page.getByText('Pending Operations')).toBeVisible();
 
-    await page.getByRole('button', { name: /Permissions site and peer policies/i }).click();
-    await expect(page.getByText('Site Policies')).toBeVisible();
+    await page.getByRole('tab', { name: /Permissions/i }).first().click();
+    await expect(page.getByRole('heading', { name: 'Site Policies' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Peer Policies' })).toBeVisible();
 
-    await page.getByRole('button', { name: /Settings operator controls/i }).click();
-    await expect(page.getByText('Profile Settings')).toBeVisible();
+    await page.getByRole('tab', { name: /Settings/i }).first().click();
+    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
     await expect(page.getByText('Maintenance')).toBeVisible();
 
     await page.close();
   });
 
-  test('runtime tab surfaces live nonce pool diagnostics', async ({
+  test('signer tab surfaces live nonce pool diagnostics @live', async ({
     callOffscreenRpc,
-    liveSigner,
     openExtensionPage,
-    seedProfile
+    onboardedLiveSignerProfile,
+    seedProfile,
+    stableLiveSigner,
   }) => {
-    await seedProfile(liveSigner.profile);
+    await seedProfile(onboardedLiveSignerProfile);
     await callOffscreenRpc('runtime.ensure', {
-      profile: liveSigner.profile
+      profile: onboardedLiveSignerProfile
     });
 
     const page = await openExtensionPage('options.html');
-    await page.getByRole('button', { name: /Runtime background \+ offscreen/i }).click();
 
-    await expect(page.getByText('Nonce Pools')).toBeVisible();
-    await expect(page.getByText('Pending Operations')).toBeVisible();
-    await expect(page.getByText('Known Peers')).toBeVisible();
-    await expect(page.getByText('Boot Mode')).toBeVisible();
-    await expect(page.getByText('cold_boot')).toBeVisible();
-    await expect(page.getByText('Replay Cache')).toBeVisible();
-    await expect(page.getByText(TEST_PEER_PUBLIC_KEY)).toBeVisible();
-    await expect(page.getByText('No operations are currently pending.')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pending Operations' })).toBeVisible();
+    await expect(page.getByText('Share Public Key')).toBeVisible();
+    await expect(page.getByText('Group Public Key')).toBeVisible();
+    await expect(page.getByText(formatPeerPubkey(stableLiveSigner.profile.peerPubkey))).toBeVisible();
+    await expect(page.getByText('sign-ready').first()).toBeVisible();
 
     await page.close();
   });
 
-  test('permissions page lists and revokes stored site policies', async ({
+  test('permissions page lists stored site policies and shows live peer policy as unavailable while cold', async ({
     openExtensionPage,
-    seedPeerPolicies,
     seedPermissionPolicies,
     seedProfile,
     server
@@ -102,33 +98,23 @@ test.describe('extension dashboard smoke', () => {
         createdAt: Date.UTC(2026, 2, 6, 12, 0, 0)
       }
     ]);
-    await seedPeerPolicies([
-      {
-        pubkey: TEST_PEER_PUBLIC_KEY,
-        send: true,
-        receive: false
-      }
-    ]);
 
     const page = await openExtensionPage('options.html');
-    await page.getByRole('button', { name: /Permissions site and peer policies/i }).click();
+    await page.getByRole('tab', { name: /Permissions/i }).first().click();
 
     await expect(page.getByText(new URL(server.origin).host)).toBeVisible();
     await expect(page.getByText('Method: getPublicKey • all kinds')).toBeVisible();
-    await expect(page.getByText(TEST_PEER_PUBLIC_KEY)).toBeVisible();
-    await expect(page.getByText('send: allow')).toBeVisible();
-    await expect(page.getByText('receive: deny')).toBeVisible();
+    await expect(page.getByText('Start the signer to inspect and edit live peer policy state.')).toBeVisible();
 
     await page.getByRole('button', { name: 'Revoke' }).click();
     await expect(page.getByText('No website permissions have been granted yet.')).toBeVisible();
-    await expect(page.getByText(TEST_PEER_PUBLIC_KEY)).toBeVisible();
+    await expect(page.getByText('Start the signer to inspect and edit live peer policy state.')).toBeVisible();
 
     await page.close();
   });
 
-  test('settings page clears stored policies and resets the profile', async ({
+  test('settings page wipes stored state and resets the profile', async ({
     openExtensionPage,
-    seedPeerPolicies,
     seedPermissionPolicies,
     seedProfile,
     server
@@ -141,30 +127,16 @@ test.describe('extension dashboard smoke', () => {
         allow: true
       }
     ]);
-    await seedPeerPolicies([
-      {
-        pubkey: TEST_PEER_PUBLIC_KEY,
-        send: true,
-        receive: true
-      }
-    ]);
 
     const page = await openExtensionPage('options.html');
 
-    await page.getByRole('button', { name: /Settings operator controls/i }).click();
-    await page.getByRole('button', { name: 'Clear Website Policies' }).click();
-    await expect(page.getByText('Website permissions cleared')).toBeVisible();
+    await page.getByRole('tab', { name: /Permissions/i }).first().click();
+    await expect(page.getByText(new URL(server.origin).host)).toBeVisible();
+    await expect(page.getByText('Start the signer to inspect and edit live peer policy state.')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Clear Peer Policies' }).click();
-    await expect(page.getByText('Peer policies cleared')).toBeVisible();
-
-    await page.getByRole('button', { name: /Permissions site and peer policies/i }).click();
-    await expect(page.getByText('No website permissions have been granted yet.')).toBeVisible();
-    await expect(page.getByText('No peer policy state has been saved yet.')).toBeVisible();
-
-    await page.getByRole('button', { name: /Settings operator controls/i }).click();
-    await page.getByRole('button', { name: 'Clear Profile' }).click();
-    await expect(page.getByText('Welcome to igloo web')).toBeVisible();
+    await page.getByRole('tab', { name: /Settings/i }).first().click();
+    await page.getByRole('button', { name: 'Wipe All Data' }).click();
+    await expect(page.getByText('Welcome to igloo chrome')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Continue to Setup' })).toBeVisible();
 
     await page.close();
@@ -204,7 +176,7 @@ test.describe('extension dashboard smoke', () => {
     });
 
     const page = await openExtensionPage('options.html');
-    await page.getByRole('button', { name: /Permissions site and peer policies/i }).click();
+    await page.getByRole('tab', { name: /Permissions/i }).first().click();
     await expect(page.getByText(new URL(server.origin).host)).toBeVisible();
     await expect(page.getByText('Method: getRelays • all kinds')).toBeVisible();
     await expect(page.locator('span').filter({ hasText: /^allow$/ })).toHaveCount(1);

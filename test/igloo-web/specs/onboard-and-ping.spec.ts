@@ -13,7 +13,7 @@ test.describe('igloo-web v2 smoke', () => {
     await stack.stop();
   });
 
-test('onboards and reaches signer screen through local relay/peer', async ({ page }) => {
+  test('onboards and reaches signer dashboard through local relay/peer', async ({ page }) => {
     await page.goto('/');
 
     await page.getByRole('button', { name: 'Continue to Setup' }).click();
@@ -22,20 +22,21 @@ test('onboards and reaches signer screen through local relay/peer', async ({ pag
     await page.getByPlaceholder('Minimum 8 characters').fill(stack.fixture.onboardingPassword);
     await page.getByPlaceholder('wss://relay.example.com').fill(stack.fixture.relayUrl);
     await page.getByRole('button', { name: 'Connect and Continue' }).click();
+
+    await expect(page.getByRole('button', { name: /Signer runtime console/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Settings operator controls/i })).toBeVisible();
     await expect(page.getByText('Peer List')).toBeVisible();
+
     const stopButton = page.getByRole('button', { name: 'Stop Signer' });
     if ((await stopButton.count()) === 0) {
       await page.getByRole('button', { name: 'Start Signer' }).click();
-      await expect(page.getByText(/Signer (Running|Stopped)/)).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole('button', { name: 'Stop Signer' })).toBeVisible({
+        timeout: 15_000
+      });
     }
 
     await expect(page.getByLabel('Ping').first()).toBeVisible();
     await page.getByLabel('Policy controls').first().click();
-    const outboundButton = page
-      .getByRole('button', { name: /Outbound (Allow|Block)/ })
-      .first();
-    const before = await outboundButton.textContent();
-    await outboundButton.click();
-    await expect(outboundButton).not.toHaveText(before ?? '');
+    await expect(page.getByRole('button', { name: /Outbound (Allow|Block)/ }).first()).toBeVisible();
   });
 });

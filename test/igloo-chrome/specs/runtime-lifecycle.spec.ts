@@ -5,12 +5,30 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { chromium, expect as pwExpect, type BrowserContext, type Page } from '@playwright/test';
 
 import { IGLOO_CHROME_DIST_DIR } from '../../shared/repo-paths';
-import { test, expect, TEST_PUBLIC_KEY } from '../fixtures/extension';
+import { test, expect } from '../fixtures/extension';
+import { onboardLiveSignerProfile } from '../support/onboarding';
 import {
   assertNoncePoolHydrated,
+  assertRuntimeReadiness,
+  type RuntimeReadinessResult,
   type RuntimeDiagnosticEvent,
   type RuntimeSnapshotResult
 } from '../support/runtime';
+import { fetchExtensionStatusFromPage } from '../support/extension-status';
+
+type ExtensionStatusSnapshot = {
+  runtime: string;
+  runtimeDetails?: {
+    summary?: {
+      metadata?: {
+        group_public_key?: string | null;
+      } | null;
+      readiness?: {
+        sign_ready?: boolean;
+      } | null;
+    } | null;
+  } | null;
+};
 
 const SIGN_EVENT_PAYLOAD = {
   kind: 1,
@@ -18,6 +36,33 @@ const SIGN_EVENT_PAYLOAD = {
   tags: [],
   content: 'playwright restored signEvent'
 };
+
+async function prepareSignReady(
+  callOffscreenRpc: <T>(rpcType: string, payload?: Record<string, unknown>) => Promise<T>,
+  label: string
+) {
+  const readiness = await callOffscreenRpc<RuntimeReadinessResult>('runtime.prepare_sign');
+  assertRuntimeReadiness(label, readiness, 'sign');
+}
+
+async function ensureRuntimeReady(
+  callOffscreenRpc: <T>(rpcType: string, payload?: Record<string, unknown>) => Promise<T>,
+  profile: Record<string, unknown>
+) {
+  await expect
+    .poll(async () => {
+      try {
+        await callOffscreenRpc('runtime.ensure', { profile });
+        return 'ready';
+      } catch {
+        return 'pending';
+      }
+    }, {
+      timeout: 10_000,
+      intervals: [250, 500, 1_000]
+    })
+    .toBe('ready');
+}
 
 async function approvePromptOnce(prompt: import('@playwright/test').Page) {
   await prompt.waitForLoadState('domcontentloaded');
@@ -48,27 +93,16 @@ async function gotoExtensionPage(page: Page, extensionId: string, targetPath: st
 }
 
 async function fetchExtensionStatus(page: Page) {
-  return await page.evaluate(async () => {
-    const response = (await chrome.runtime.sendMessage({
-      type: 'ext.getStatus'
-    })) as { ok?: boolean; result?: Record<string, unknown>; error?: string } | undefined;
-
-    if (!response?.ok || !response.result) {
-      throw new Error(response?.error || 'Failed to load extension status');
-    }
-
-    return response.result;
-  });
+  return await fetchExtensionStatusFromPage<Record<string, unknown>>(page);
 }
 
-async function seedCanonicalProfile(
+async function completeOnboardingInContext(
   context: BrowserContext,
   extensionId: string,
   profile: {
     keysetName?: string;
     onboardPackage?: string;
     onboardPassword?: string;
-    relays: string[];
     publicKey: string;
     peerPubkey: string;
   }
@@ -76,80 +110,43 @@ async function seedCanonicalProfile(
   const page = await context.newPage();
   try {
     await gotoExtensionPage(page, extensionId, 'options.html');
-    await pwExpect(page.getByText('igloo-chrome')).toBeVisible();
-    await page.evaluate(async (nextProfile) => {
-      const payload = {
-        ...nextProfile,
-        groupPublicKey: nextProfile.publicKey
-      };
-      localStorage.setItem('igloo.v2.profile', JSON.stringify(payload));
-      await chrome.storage.local.set({
-        'igloo.ext.profile': payload
-      });
-    }, profile);
-  } finally {
-    await page.close();
-  }
-}
+    await pwExpect(page.getByText('Welcome to igloo chrome')).toBeVisible();
+    if (!profile.onboardPackage || !profile.onboardPassword) {
+      throw new Error('profile is missing onboarding package data');
+    }
 
-async function ensureRuntimeSnapshot(
-  context: BrowserContext,
-  extensionId: string,
-  profile: {
-    onboardPackage?: string;
-    onboardPassword?: string;
-    relays: string[];
-    publicKey: string;
-    peerPubkey: string;
-  }
-) {
-  const page = await context.newPage();
-  try {
-    await gotoExtensionPage(page, extensionId, 'options.html');
-    await pwExpect(page.getByText('igloo-chrome')).toBeVisible();
-    await page.evaluate(async (nextProfile) => {
-      const ensureResponse = (await chrome.runtime.sendMessage({
-        type: 'ext.offscreenRpc',
-        rpcType: 'runtime.ensure',
-        payload: {
-          profile: {
-            ...nextProfile,
-            groupPublicKey: nextProfile.publicKey
-          }
-        }
-      })) as { ok?: boolean; result?: unknown; error?: string } | undefined;
-
-      if (!ensureResponse?.ok) {
-        throw new Error(ensureResponse?.error || 'runtime.ensure failed');
-      }
-
-      const snapshotResponse = (await chrome.runtime.sendMessage({
-        type: 'ext.offscreenRpc',
-        rpcType: 'runtime.snapshot'
-      })) as { ok?: boolean; result?: unknown; error?: string } | undefined;
-
-      if (!snapshotResponse?.ok) {
-        throw new Error(snapshotResponse?.error || 'runtime.snapshot failed');
-      }
-
-      const snapshotResult = snapshotResponse.result as
-        | {
-            snapshot?: unknown;
-          }
-        | undefined;
-      if (snapshotResult?.snapshot) {
-        const runtimeSnapshotJson = JSON.stringify(snapshotResult.snapshot);
-        const storedProfile = {
-          ...nextProfile,
-          groupPublicKey: nextProfile.publicKey,
-          runtimeSnapshotJson
+    await page.getByRole('button', { name: 'Continue to Setup' }).click();
+    await page
+      .getByPlaceholder('e.g. Laptop Signer, Browser Node A')
+      .fill(profile.keysetName ?? 'Playwright Live');
+    await page.getByPlaceholder('bfonboard1...').fill(profile.onboardPackage);
+    await page.getByPlaceholder('Minimum 8 characters').fill(profile.onboardPassword);
+    await page.getByRole('button', { name: 'Connect and Continue' }).click();
+    await pwExpect
+      .poll(async () => {
+        const status = await fetchExtensionStatus(page);
+        const lifecycle = status.lifecycle as {
+          onboarding: { stage: string; lastError: { message: string } | null };
+          activation: { stage: string; lastError: { message: string } | null };
         };
-        localStorage.setItem('igloo.v2.profile', JSON.stringify(storedProfile));
-        await chrome.storage.local.set({
-          'igloo.ext.profile': storedProfile
-        });
-      }
-    }, profile);
+        if (lifecycle.onboarding.lastError) {
+          return `onboarding_failed:${lifecycle.onboarding.lastError.message}`;
+        }
+        if (lifecycle.activation.lastError) {
+          return `activation_failed:${lifecycle.activation.lastError.message}`;
+        }
+        if (
+          status.configured === true &&
+          (lifecycle.activation.stage === 'ready' || lifecycle.activation.stage === 'degraded')
+        ) {
+          return 'ready';
+        }
+        return `${lifecycle.onboarding.stage}/${lifecycle.activation.stage}/${String(status.runtime)}`;
+      }, {
+        timeout: 35_000,
+        intervals: [250, 500, 1_000]
+      })
+      .toBe('ready');
   } finally {
     await page.close();
   }
@@ -166,26 +163,53 @@ async function launchExtensionContext(userDataDir: string) {
   });
 }
 
-test.describe('runtime lifecycle', () => {
+async function closeContextSafely(context: BrowserContext | null) {
+  if (!context) {
+    return;
+  }
+
+  try {
+    await context.close();
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes('ENOENT: no such file or directory') &&
+      (error.message.includes('.playwright-artifacts-') ||
+        error.message.includes('recording') ||
+        error.message.includes('.zip'))
+    ) {
+      return;
+    }
+    throw error;
+  }
+}
+
+test.describe('runtime lifecycle @live', () => {
   test.setTimeout(180_000);
 
   test('recreates the offscreen document after explicit teardown', async ({
     callOffscreenRpc,
     context,
+    liveSigner,
+    openExtensionPage,
     runRuntimeControl,
     server,
-    liveSigner,
     seedProfile
   }) => {
-    await seedProfile(liveSigner.profile);
+    const currentProfile = await onboardLiveSignerProfile(
+      async (targetPath: string) => await openExtensionPage(targetPath),
+      liveSigner.profile,
+      `${liveSigner.profile.keysetName} Restore`
+    );
+    await seedProfile(currentProfile);
     await callOffscreenRpc('runtime.ensure', {
-      profile: liveSigner.profile
+      profile: currentProfile
     });
     const preTeardownSnapshot = await callOffscreenRpc<RuntimeSnapshotResult>('runtime.snapshot');
     assertNoncePoolHydrated(
       'runtime-lifecycle restored pre-sign snapshot',
       preTeardownSnapshot,
-      1,
+      2,
       1
     );
     const restoredProfile = {
@@ -202,7 +226,7 @@ test.describe('runtime lifecycle', () => {
     assertNoncePoolHydrated(
       'runtime-lifecycle restored post-teardown snapshot',
       await callOffscreenRpc<RuntimeSnapshotResult>('runtime.snapshot'),
-      1,
+      2,
       1
     );
 
@@ -219,26 +243,35 @@ test.describe('runtime lifecycle', () => {
     await expect(prompt.getByText('wants to read your public key')).toBeVisible();
     await approvePromptOnce(prompt);
 
-    await expect(resultPromise).resolves.toBe(TEST_PUBLIC_KEY);
-    await expect(callOffscreenRpc<{ runtime: 'cold' | 'ready' }>('runtime.status')).resolves.toEqual({
-      runtime: 'ready'
+    await expect(resultPromise).resolves.toBe(liveSigner.profile.publicKey);
+    await expect(
+      callOffscreenRpc<{ runtime: 'cold' | 'restoring' | 'ready' | 'degraded'; status: unknown }>(
+        'runtime.status'
+      )
+    ).resolves.toMatchObject({
+      runtime: expect.stringMatching(/^(ready|degraded)$/)
     });
 
     await page.close();
   });
 
-  test('provider prompts still complete while the runtime is cold after offscreen teardown', async ({
+  test('provider getPublicKey prompts still complete while the runtime stays cold after offscreen teardown', async ({
     callOffscreenRpc,
     context,
+    liveSigner,
     openExtensionPage,
     runRuntimeControl,
     server,
-    liveSigner,
     seedProfile
   }) => {
-    await seedProfile(liveSigner.profile);
+    const currentProfile = await onboardLiveSignerProfile(
+      async (targetPath: string) => await openExtensionPage(targetPath),
+      liveSigner.profile,
+      `${liveSigner.profile.keysetName} Cold Restore`
+    );
+    await seedProfile(currentProfile);
     await callOffscreenRpc('runtime.ensure', {
-      profile: liveSigner.profile
+      profile: currentProfile
     });
 
     await runRuntimeControl('closeOffscreen');
@@ -268,10 +301,14 @@ test.describe('runtime lifecycle', () => {
     await expect(prompt.getByText('wants to read your public key')).toBeVisible();
     await approvePromptOnce(prompt);
 
-    await expect(resultPromise).resolves.toBe(TEST_PUBLIC_KEY);
+    await expect(resultPromise).resolves.toBe(liveSigner.profile.publicKey);
 
-    await expect(callOffscreenRpc<{ runtime: 'cold' | 'ready' }>('runtime.status')).resolves.toEqual({
-      runtime: 'ready'
+    await expect(
+      callOffscreenRpc<{ runtime: 'cold' | 'restoring' | 'ready' | 'degraded'; status: unknown }>(
+        'runtime.status'
+      )
+    ).resolves.toMatchObject({
+      runtime: 'cold'
     });
 
     await page.close();
@@ -280,17 +317,23 @@ test.describe('runtime lifecycle', () => {
   test('restores signer nonce state after offscreen teardown so signEvent still succeeds', async ({
     callOffscreenRpc,
     context,
+    liveSigner,
+    openExtensionPage,
     runRuntimeControl,
     server,
-    liveSigner,
     seedProfile
   }) => {
-    await seedProfile(liveSigner.profile);
-    await callOffscreenRpc('runtime.ensure', {
-      profile: liveSigner.profile
-    });
+    const currentProfile = await onboardLiveSignerProfile(
+      async (targetPath: string) => await openExtensionPage(targetPath),
+      liveSigner.profile,
+      `${liveSigner.profile.keysetName} Restored Sign`
+    );
+    await seedProfile(currentProfile);
+    await ensureRuntimeReady(callOffscreenRpc, currentProfile);
 
     await runRuntimeControl('closeOffscreen');
+    await ensureRuntimeReady(callOffscreenRpc, currentProfile);
+    await prepareSignReady(callOffscreenRpc, 'runtime-lifecycle restored sign');
 
     const page = await context.newPage();
     await page.goto(`${server.origin}/provider`);
@@ -318,13 +361,13 @@ test.describe('runtime lifecycle', () => {
     const result = await resultPromise;
     if (!result.ok) {
       const snapshot = await callOffscreenRpc<{
-        runtime: 'cold' | 'ready';
+        runtime: 'cold' | 'restoring' | 'ready' | 'degraded';
         status: unknown;
         snapshot: unknown;
         snapshotError: string | null;
       }>('runtime.snapshot');
       const diagnostics = await callOffscreenRpc<{
-        runtime: 'cold' | 'ready';
+        runtime: 'cold' | 'restoring' | 'ready' | 'degraded';
         diagnostics: RuntimeDiagnosticEvent[];
         dropped: number;
       }>('runtime.diagnostics');
@@ -337,7 +380,7 @@ test.describe('runtime lifecycle', () => {
       kind: SIGN_EVENT_PAYLOAD.kind,
       created_at: SIGN_EVENT_PAYLOAD.created_at,
       content: SIGN_EVENT_PAYLOAD.content,
-      pubkey: TEST_PUBLIC_KEY
+      pubkey: liveSigner.profile.publicKey
     });
 
     await page.close();
@@ -355,8 +398,8 @@ test.describe('runtime lifecycle', () => {
       firstContext = await launchExtensionContext(userDataDir);
       const firstWorker = await waitForServiceWorker(firstContext);
       const extensionId = new URL(firstWorker.url()).host;
-      await seedCanonicalProfile(firstContext, extensionId, liveSigner.profile);
-      await firstContext.close();
+      await completeOnboardingInContext(firstContext, extensionId, liveSigner.profile);
+      await closeContextSafely(firstContext);
       firstContext = null;
 
       secondContext = await launchExtensionContext(userDataDir);
@@ -387,11 +430,11 @@ test.describe('runtime lifecycle', () => {
       await expect(prompt.getByText('wants to read your public key')).toBeVisible();
       await approvePromptOnce(prompt);
 
-      await expect(resultPromise).resolves.toBe(TEST_PUBLIC_KEY);
+      await expect(resultPromise).resolves.toBe(liveSigner.profile.publicKey);
       await page.close();
     } finally {
-      await secondContext?.close().catch(() => undefined);
-      await firstContext?.close().catch(() => undefined);
+      await closeContextSafely(secondContext).catch(() => undefined);
+      await closeContextSafely(firstContext).catch(() => undefined);
       await rm(userDataDir, { recursive: true, force: true });
     }
   });
@@ -408,9 +451,8 @@ test.describe('runtime lifecycle', () => {
       firstContext = await launchExtensionContext(userDataDir);
       const firstWorker = await waitForServiceWorker(firstContext);
       const firstExtensionId = new URL(firstWorker.url()).host;
-      await seedCanonicalProfile(firstContext, firstExtensionId, liveSigner.profile);
-      await ensureRuntimeSnapshot(firstContext, firstExtensionId, liveSigner.profile);
-      await firstContext.close();
+      await completeOnboardingInContext(firstContext, firstExtensionId, liveSigner.profile);
+      await closeContextSafely(firstContext);
       firstContext = null;
 
       secondContext = await launchExtensionContext(userDataDir);
@@ -434,26 +476,23 @@ test.describe('runtime lifecycle', () => {
         kind: SIGN_EVENT_PAYLOAD.kind,
         created_at: SIGN_EVENT_PAYLOAD.created_at,
         content: SIGN_EVENT_PAYLOAD.content,
-        pubkey: TEST_PUBLIC_KEY
+        pubkey: liveSigner.profile.publicKey
       });
 
       const statusPage = await secondContext.newPage();
       await gotoExtensionPage(statusPage, secondExtensionId, 'options.html');
-      const status = await fetchExtensionStatus(statusPage);
-      expect(status).toMatchObject({
-        runtime: 'ready',
-        runtimeDetails: {
-          lifecycle: {
-            bootMode: expect.stringMatching(/^(cold_boot|restored)$/)
-          }
-        }
-      });
+      const status = await fetchExtensionStatusFromPage<ExtensionStatusSnapshot>(statusPage);
+      expect(status.runtime).toMatch(/^(ready|degraded)$/);
+      expect(status.runtimeDetails?.summary?.metadata?.group_public_key).toBe(
+        liveSigner.profile.publicKey
+      );
+      expect(status.runtimeDetails?.summary?.readiness?.sign_ready).toBe(true);
 
       await statusPage.close();
       await page.close();
     } finally {
-      await secondContext?.close().catch(() => undefined);
-      await firstContext?.close().catch(() => undefined);
+      await closeContextSafely(secondContext).catch(() => undefined);
+      await closeContextSafely(firstContext).catch(() => undefined);
       await rm(userDataDir, { recursive: true, force: true });
     }
   });

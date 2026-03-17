@@ -1,6 +1,8 @@
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import net from 'node:net';
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 
@@ -16,8 +18,18 @@ import {
 
 import { clearE2EEvents, getE2EEvents, logE2E, withLoggedStep } from '../../shared/observability';
 import { IGLOO_CHROME_DIR, IGLOO_CHROME_DIST_DIR, REPO_ROOT_DIR } from '../../shared/repo-paths';
+import { onboardLiveSignerProfile, type StoredProfile as OnboardedStoredProfile } from '../support/onboarding';
+import {
+  fetchExtensionStatusFromPage,
+  fetchRuntimeDiagnosticsFromPage,
+  fetchWorkerStorageSnapshot
+} from '../support/extension-status';
 import { TEST_PEER_PUBLIC_KEY, TEST_PROFILE, TEST_PUBLIC_KEY } from './constants';
-import { startLiveSignerFixture, type LiveSignerFixture } from './live-signer';
+import {
+  startLiveSignerFixture,
+  type LiveSignerController,
+  type LiveSignerFixture
+} from './live-signer';
 import { startTestServer, type TestServer } from './server';
 
 type ExtensionFixtures = {
@@ -26,6 +38,7 @@ type ExtensionFixtures = {
   serviceWorker: Worker;
   server: TestServer;
   liveSigner: LiveSignerFixture;
+  stableLiveSigner: LiveSignerFixture;
   demoHarness: DemoHarnessFixture;
   openExtensionPage: (path: string) => Promise<Page>;
   callOffscreenRpc: <T>(rpcType: string, payload?: Record<string, unknown>) => Promise<T>;
@@ -43,6 +56,11 @@ type ExtensionFixtures = {
   seedPermissionPolicies: (policies: SeedPermissionPolicy[]) => Promise<void>;
   seedPeerPolicies: (policies: SeedPeerPolicy[]) => Promise<void>;
   clearExtensionStorage: () => Promise<void>;
+};
+
+type WorkerFixtures = {
+  liveSignerWorker: LiveSignerController;
+  onboardedLiveSignerProfile: OnboardedStoredProfile;
 };
 
 type SeedPermissionPolicy = {
@@ -64,24 +82,45 @@ type DemoHarnessFixture = {
   recipient: string;
   onboardPackage: string;
   onboardPassword: string;
+  cleanup: () => Promise<void>;
 };
 
 const extensionPath = IGLOO_CHROME_DIST_DIR;
-const DEMO_HARNESS_DIR = path.join(REPO_ROOT_DIR, 'data', 'test-harness');
 const DEMO_HARNESS_BUILD_SCRIPT = path.join(REPO_ROOT_DIR, 'scripts', 'build-demo-harness-binaries.sh');
+const EXTENSION_MANIFEST_PATH = path.join(IGLOO_CHROME_DIST_DIR, 'manifest.json');
+const DEMO_RELAY_HOST = process.env.DEV_RELAY_EXTERNAL_HOST ?? 'localhost';
+const DEMO_RELAY_PORT = Number(process.env.IGLOO_DEMO_RELAY_PORT ?? '43194');
 let buildPrepared = false;
+let workerOnboardingFailureBundle: Record<string, unknown> | null = null;
+const extensionPageErrors = new Map<string, string[]>();
 
-async function waitForHarnessArtifact(
-  filePath: string,
-  timeoutMs: number,
-  minMtimeMs?: number
-) {
+function extensionLaunchArgs() {
+  const secureOrigins = [
+    `http://127.0.0.1:${DEMO_RELAY_PORT}`,
+    `http://localhost:${DEMO_RELAY_PORT}`
+  ];
+  return [
+    `--unsafely-treat-insecure-origin-as-secure=${secureOrigins.join(',')}`,
+    `--disable-extensions-except=${extensionPath}`,
+    `--load-extension=${extensionPath}`
+  ];
+}
+
+function recordPageDiagnostic(page: Page, message: string) {
+  const existing = extensionPageErrors.get(page.url()) ?? [];
+  existing.push(message);
+  if (existing.length > 25) {
+    existing.splice(0, existing.length - 25);
+  }
+  extensionPageErrors.set(page.url(), existing);
+}
+
+async function waitForHarnessArtifact(filePath: string, timeoutMs: number) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
       const info = await stat(filePath);
-      const freshEnough = typeof minMtimeMs !== 'number' || info.mtimeMs >= minMtimeMs;
-      if (info.size > 0 && freshEnough) {
+      if (info.size > 0) {
         return await readFile(filePath, 'utf8');
       }
     } catch {
@@ -92,14 +131,12 @@ async function waitForHarnessArtifact(
   throw new Error(`Timed out waiting for harness artifact ${filePath}`);
 }
 
-async function waitForHarnessSocket(socketPath: string, minMtimeMs: number, timeoutMs: number) {
+async function waitForHarnessSocket(socketPath: string, timeoutMs: number) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const info = await stat(socketPath);
-      if (info.mtimeMs >= minMtimeMs) {
-        return;
-      }
+      await stat(socketPath);
+      return;
     } catch {
       // Keep polling until timeout.
     }
@@ -128,14 +165,15 @@ async function waitForRelayPort(host: string, port: number, timeoutMs: number) {
   throw new Error(`Timed out waiting for relay ${host}:${port}`);
 }
 
-function readHarnessLogs() {
+function readHarnessLogs(projectName: string, env: NodeJS.ProcessEnv) {
   try {
     return execFileSync(
       'docker',
-      ['compose', '-f', 'compose.test.yml', 'logs', '--tail=200', 'dev-relay', 'bifrost-demo'],
+      ['compose', '-p', projectName, '-f', 'compose.test.yml', 'logs', '--tail=200', 'dev-relay', 'igloo-demo'],
       {
         cwd: REPO_ROOT_DIR,
-        encoding: 'utf8'
+        encoding: 'utf8',
+        env
       }
     );
   } catch (error) {
@@ -144,18 +182,48 @@ function readHarnessLogs() {
 }
 
 async function startDemoHarnessFixture(): Promise<DemoHarnessFixture> {
-  const relayHost = process.env.DEV_RELAY_EXTERNAL_HOST ?? '127.0.0.1';
-  const relayPort = process.env.DEV_RELAY_PORT ?? '8194';
-  const relayPortNumber = Number.parseInt(relayPort, 10);
+  const projectName = `igloo-chrome-${process.pid}-${randomBytes(4).toString('hex')}`;
+  const hostArtifactDir = await mkdtemp(path.join(os.tmpdir(), 'igloo-chrome-demo-'));
+  const demoMember = process.env.IGLOO_SHELL_DEMO_MEMBER ?? 'alice';
+  const inviteMembers = process.env.IGLOO_SHELL_DEMO_INVITE_MEMBERS ?? 'bob,carol';
+  const containerArtifactDir = `/workspace/test-harness/${projectName}`;
+  const relayPortNumber = DEMO_RELAY_PORT;
+  const relayHost = DEMO_RELAY_HOST;
+  const relayPort = String(relayPortNumber);
   const relayUrl = `ws://${relayHost}:${relayPort}`;
-  const recipient = process.env.BIFROST_DEMO_E2E_MEMBER ?? 'bob';
-  const startedAt = Date.now();
-  const packagePath = path.join(DEMO_HARNESS_DIR, `onboard-${recipient}.txt`);
-  const passwordPath = path.join(DEMO_HARNESS_DIR, `onboard-${recipient}.password.txt`);
-  const socketPath = path.join(
-    DEMO_HARNESS_DIR,
-    `bifrost-${process.env.BIFROST_DEMO_MEMBER ?? 'alice'}.sock`
-  );
+  const recipient = process.env.IGLOO_SHELL_DEMO_E2E_MEMBER ?? 'bob';
+  const composeEnv = {
+    ...process.env,
+    DEV_RELAY_PORT: relayPort,
+    DEV_RELAY_EXTERNAL_HOST: relayHost,
+    IGLOO_TRACE: process.env.IGLOO_TRACE ?? '',
+    IGLOO_TRACE_LEVEL: process.env.IGLOO_TRACE_LEVEL ?? '',
+    IGLOO_SHELL_DEMO_MEMBER: demoMember,
+    IGLOO_SHELL_DEMO_INVITE_MEMBERS: inviteMembers,
+    IGLOO_SHELL_DEMO_HOST_ARTIFACT_DIR: hostArtifactDir,
+    IGLOO_SHELL_DEMO_ARTIFACT_DIR: containerArtifactDir,
+    IGLOO_SHELL_DEMO_DIR: `${containerArtifactDir}/demo-2of3`,
+    IGLOO_SHELL_DEMO_CONTROL_SOCKET: `${containerArtifactDir}/igloo-shell-${demoMember}.sock`,
+    IGLOO_SHELL_DEMO_CONTROL_TOKEN_FILE: `${containerArtifactDir}/igloo-shell-${demoMember}.token`
+  };
+  const packagePath = path.join(hostArtifactDir, `onboard-${recipient}.txt`);
+  const passwordPath = path.join(hostArtifactDir, `onboard-${recipient}.password.txt`);
+  const socketPath = path.join(hostArtifactDir, `igloo-shell-${demoMember}.sock`);
+
+  const cleanup = async () => {
+    await withLoggedStep('chrome.demo-harness', 'compose-down', { projectName }, async () => {
+      try {
+        execFileSync('docker', ['compose', '-p', projectName, '-f', 'compose.test.yml', 'down', '-v'], {
+          cwd: REPO_ROOT_DIR,
+          stdio: 'inherit',
+          env: composeEnv
+        });
+      } catch {
+        // Best-effort cleanup only.
+      }
+    });
+    await cleanupArtifactDir(hostArtifactDir);
+  };
 
   await withLoggedStep('chrome.demo-harness', 'build-binaries', undefined, async () => {
     execFileSync(DEMO_HARNESS_BUILD_SCRIPT, {
@@ -165,14 +233,7 @@ async function startDemoHarnessFixture(): Promise<DemoHarnessFixture> {
   });
 
   await withLoggedStep('chrome.demo-harness', 'compose-up-relay', { relayUrl }, async () => {
-    execFileSync(
-      'docker',
-      ['compose', '-f', 'compose.test.yml', 'up', '-d', '--build', 'dev-relay'],
-      {
-        cwd: REPO_ROOT_DIR,
-        stdio: 'inherit'
-      }
-    );
+    execCompose(projectName, composeEnv, ['up', '-d', '--build', 'dev-relay']);
   });
 
   try {
@@ -183,21 +244,14 @@ async function startDemoHarnessFixture(): Promise<DemoHarnessFixture> {
       async () => await waitForRelayPort(relayHost, relayPortNumber, 300_000)
     );
     await withLoggedStep('chrome.demo-harness', 'compose-up-demo', { recipient }, async () => {
-      execFileSync(
-        'docker',
-        ['compose', '-f', 'compose.test.yml', 'up', '-d', '--build', '--no-deps', 'bifrost-demo'],
-        {
-          cwd: REPO_ROOT_DIR,
-          stdio: 'inherit'
-        }
-      );
+      execCompose(projectName, composeEnv, ['up', '-d', '--build', '--no-deps', 'igloo-demo']);
     });
     const [onboardPackage, onboardPassword] = await Promise.all([
       withLoggedStep(
         'chrome.demo-harness',
         'wait-onboard-package',
         { packagePath, recipient },
-        async () => await waitForHarnessArtifact(packagePath, 300_000, startedAt)
+        async () => await waitForHarnessArtifact(packagePath, 300_000)
       ),
       withLoggedStep(
         'chrome.demo-harness',
@@ -209,7 +263,7 @@ async function startDemoHarnessFixture(): Promise<DemoHarnessFixture> {
         'chrome.demo-harness',
         'wait-control-socket',
         { socketPath },
-        async () => await waitForHarnessSocket(socketPath, startedAt, 300_000)
+        async () => await waitForHarnessSocket(socketPath, 300_000)
       )
     ]);
 
@@ -223,42 +277,69 @@ async function startDemoHarnessFixture(): Promise<DemoHarnessFixture> {
       relayUrl,
       recipient,
       onboardPackage: onboardPackage.trim(),
-      onboardPassword: onboardPassword.trim()
+      onboardPassword: onboardPassword.trim(),
+      cleanup
     };
   } catch (error) {
     try {
-      await stopDemoHarnessFixture();
+      await cleanup();
     } catch {
       // Preserve the original startup error.
     }
     throw new Error(
-      `Failed to start demo harness: ${error instanceof Error ? error.message : String(error)}\n${readHarnessLogs()}`
+      `Failed to start demo harness: ${error instanceof Error ? error.message : String(error)}\n${readHarnessLogs(projectName, composeEnv)}`
     );
   }
 }
 
-async function stopDemoHarnessFixture() {
-  await withLoggedStep('chrome.demo-harness', 'compose-down', undefined, async () => {
-    execFileSync('docker', ['compose', '-f', 'compose.test.yml', 'down'], {
-      cwd: REPO_ROOT_DIR,
-      stdio: 'inherit'
-    });
+function execCompose(projectName: string, env: NodeJS.ProcessEnv, args: string[]) {
+  execFileSync('docker', ['compose', '-p', projectName, '-f', 'compose.test.yml', ...args], {
+    cwd: REPO_ROOT_DIR,
+    stdio: 'inherit',
+    env
   });
+}
+
+async function cleanupArtifactDir(dir: string) {
+  try {
+    await rm(dir, { recursive: true, force: true });
+    return;
+  } catch {
+    try {
+      execFileSync(
+        'docker',
+        [
+          'run',
+          '--rm',
+          '-v',
+          `${dir}:/target`,
+          'ubuntu:24.04',
+          'bash',
+          '-lc',
+          'chmod -R a+rwX /target || true; rm -rf /target/* /target/.[!.]* /target/..?* || true'
+        ],
+        {
+          cwd: REPO_ROOT_DIR,
+          stdio: 'ignore'
+        }
+      );
+    } catch {
+      // Best-effort only.
+    }
+    await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+  }
 }
 
 function buildExtensionOnce() {
   if (buildPrepared) return;
-  logE2E('chrome.fixture', 'build-extension:start');
-  execFileSync('npm', ['run', 'build'], {
-    cwd: IGLOO_CHROME_DIR,
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      VITE_IGLOO_VERBOSE: process.env.VITE_IGLOO_VERBOSE ?? '1',
-      VITE_IGLOO_DEBUG: process.env.VITE_IGLOO_DEBUG ?? '0'
-    }
+  if (!existsSync(EXTENSION_MANIFEST_PATH)) {
+    throw new Error(
+      `Missing built extension at ${EXTENSION_MANIFEST_PATH}. Run the Playwright global setup or npm run build in repos/igloo-chrome first.`
+    );
+  }
+  logE2E('chrome.fixture', 'build-extension:ready', {
+    manifestPath: EXTENSION_MANIFEST_PATH
   });
-  logE2E('chrome.fixture', 'build-extension:ok');
   buildPrepared = true;
 }
 
@@ -268,7 +349,12 @@ async function waitForServiceWorker(context: BrowserContext) {
   return await context.waitForEvent('serviceworker');
 }
 
-async function gotoExtensionPage(page: Page, extensionId: string, targetPath: string) {
+async function gotoExtensionPage(
+  page: Page,
+  extensionId: string,
+  targetPath: string,
+  options?: { waitForAppReady?: boolean }
+) {
   const url = `chrome-extension://${extensionId}/${targetPath}`;
   await page.goto(url).catch(async (error) => {
     const message = error instanceof Error ? error.message : String(error);
@@ -277,12 +363,24 @@ async function gotoExtensionPage(page: Page, extensionId: string, targetPath: st
     }
   });
   await page.waitForURL(url);
+  await page.waitForLoadState('domcontentloaded');
+  if (options?.waitForAppReady && targetPath === 'options.html') {
+    await page
+      .waitForFunction(() => document.body.dataset.appHydrating === 'false', undefined, {
+        timeout: 3_000
+      })
+      .catch((error) => {
+        recordPageDiagnostic(
+          page,
+          `app-ready-timeout: ${error instanceof Error ? error.message : String(error)}`
+        );
+      });
+  }
 }
 
 async function openPageForStorage(context: BrowserContext, extensionId: string) {
   const page = await context.newPage();
-  await gotoExtensionPage(page, extensionId, 'options.html');
-  await expect(page.getByText('igloo-chrome')).toBeVisible();
+  await gotoExtensionPage(page, extensionId, 'options.html', { waitForAppReady: false });
   return page;
 }
 
@@ -291,26 +389,28 @@ async function collectFailureBundle(context: BrowserContext, extensionId: string
   if (!page) {
     return {
       e2eEvents: getE2EEvents(),
-      extensionDiagnosticsError: 'failed to open extension storage page'
+      extensionDiagnosticsError: 'failed to open extension storage page',
+      workerOnboardingFailureBundle
     };
   }
 
   try {
-    const runtimeDiagnostics = await page.evaluate(async () => {
-      const response = await chrome.runtime.sendMessage({
-        type: 'ext.offscreenRpc',
-        rpcType: 'runtime.diagnostics'
-      });
-      return response?.ok ? response.result : { error: response?.error || 'runtime diagnostics unavailable' };
-    });
-    const status = await page.evaluate(async () => {
-      const response = await chrome.runtime.sendMessage({ type: 'ext.getStatus' });
-      return response?.ok ? response.result : { error: response?.error || 'status unavailable' };
-    });
+    const runtimeDiagnostics = await fetchRuntimeDiagnosticsFromPage(page).catch((error) => ({
+      error: error instanceof Error ? error.message : String(error)
+    }));
+    const status = await fetchExtensionStatusFromPage(page).catch((error) => ({
+      error: error instanceof Error ? error.message : String(error)
+    }));
+    const storageSnapshot = await fetchWorkerStorageSnapshot(page).catch((error) => ({
+      error: error instanceof Error ? error.message : String(error)
+    }));
     return {
       e2eEvents: getE2EEvents(),
       runtimeDiagnostics,
-      status
+      status,
+      storageSnapshot,
+      pageDiagnostics: Object.fromEntries(extensionPageErrors),
+      workerOnboardingFailureBundle
     };
   } finally {
     await page.close().catch(() => undefined);
@@ -331,9 +431,37 @@ async function writeFailureBundle(
   });
 }
 
-export const test = base.extend<ExtensionFixtures>({
+function isIgnorableContextCloseError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    error.message.includes('ENOENT: no such file or directory') &&
+    (error.message.includes('.playwright-artifacts-') ||
+      error.message.includes('recording') ||
+      error.message.includes('.zip'))
+  );
+}
+
+async function closeContextSafely(context: BrowserContext) {
+  try {
+    await context.close();
+  } catch (error) {
+    if (!isIgnorableContextCloseError(error)) {
+      throw error;
+    }
+    logE2E('chrome.fixture', 'close-context:ignoring-playwright-artifact-error', {
+      error_message: error.message
+    });
+  }
+}
+
+export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
   context: async ({}, use, testInfo) => {
     clearE2EEvents();
+    workerOnboardingFailureBundle = null;
+    extensionPageErrors.clear();
     buildExtensionOnce();
     const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'igloo-chrome-pw-'));
     const context = await withLoggedStep(
@@ -344,10 +472,7 @@ export const test = base.extend<ExtensionFixtures>({
         await chromium.launchPersistentContext(userDataDir, {
           channel: 'chromium',
           headless: true,
-          args: [
-            `--disable-extensions-except=${extensionPath}`,
-            `--load-extension=${extensionPath}`
-          ]
+          args: extensionLaunchArgs()
         })
     );
 
@@ -361,7 +486,7 @@ export const test = base.extend<ExtensionFixtures>({
         await writeFailureBundle(testInfo, context, extensionId).catch(() => undefined);
       }
       logE2E('chrome.fixture', 'close-context:start');
-      await context.close();
+      await closeContextSafely(context);
       await rm(userDataDir, { recursive: true, force: true });
       logE2E('chrome.fixture', 'close-context:ok');
     }
@@ -392,16 +517,101 @@ export const test = base.extend<ExtensionFixtures>({
     }
   },
 
-  liveSigner: async ({}, use) => {
-    const fixture = await withLoggedStep('chrome.fixture', 'start-live-signer', undefined, async () =>
-      await startLiveSignerFixture()
+  liveSignerWorker: [async ({}, use) => {
+    const controller = await withLoggedStep(
+      'chrome.fixture',
+      'start-live-signer-worker',
+      undefined,
+      async () => await startLiveSignerFixture()
+    );
+    try {
+      await use(controller);
+    } finally {
+      logE2E('chrome.fixture', 'stop-live-signer-worker:start');
+      await controller.close();
+      logE2E('chrome.fixture', 'stop-live-signer-worker:ok');
+    }
+  }, { scope: 'worker', timeout: 180_000 }],
+
+  onboardedLiveSignerProfile: [async ({ liveSignerWorker }, use) => {
+    buildExtensionOnce();
+    const fixture = await withLoggedStep(
+      'chrome.fixture',
+      'prepare-onboarded-live-profile',
+      undefined,
+      async () => await liveSignerWorker.resetForTest()
+    );
+    const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'igloo-chrome-pw-worker-onboard-'));
+    const context = await chromium.launchPersistentContext(userDataDir, {
+      channel: 'chromium',
+      headless: true,
+      args: extensionLaunchArgs()
+    });
+
+    try {
+      const serviceWorker = await waitForServiceWorker(context);
+      const extensionId = new URL(serviceWorker.url()).host;
+      let lastOnboardingPage: Page | null = null;
+      const profile = await onboardLiveSignerProfile(async (targetPath: string) => {
+        const page = await context.newPage();
+        lastOnboardingPage = page;
+        await gotoExtensionPage(page, extensionId, targetPath, {
+          waitForAppReady: targetPath === 'options.html'
+        });
+        return page;
+      }, fixture.profile, `${fixture.profile.keysetName} Seed`).catch(async (error) => {
+        const status = lastOnboardingPage
+          ? await fetchExtensionStatusFromPage(lastOnboardingPage).catch((inner) => ({
+              error: inner instanceof Error ? inner.message : String(inner)
+            }))
+          : null;
+        const runtimeDiagnostics = lastOnboardingPage
+          ? await fetchRuntimeDiagnosticsFromPage(lastOnboardingPage).catch((inner) => ({
+              error: inner instanceof Error ? inner.message : String(inner)
+            }))
+          : null;
+        const storageSnapshot = lastOnboardingPage
+          ? await fetchWorkerStorageSnapshot(lastOnboardingPage).catch((inner) => ({
+              error: inner instanceof Error ? inner.message : String(inner)
+            }))
+          : null;
+        workerOnboardingFailureBundle = {
+          error: error instanceof Error ? error.message : String(error),
+          status,
+          runtimeDiagnostics,
+          storageSnapshot
+        };
+        throw error;
+      });
+      await use(profile);
+    } finally {
+      await context.close();
+      await rm(userDataDir, { recursive: true, force: true });
+    }
+  }, { scope: 'worker', timeout: 180_000 }],
+
+  stableLiveSigner: async ({ liveSignerWorker, onboardedLiveSignerProfile }, use) => {
+    void onboardedLiveSignerProfile;
+    const fixture = await withLoggedStep(
+      'chrome.fixture',
+      'prepare-stable-live-signer',
+      undefined,
+      async () => await liveSignerWorker.currentForTest()
+    );
+    await use(fixture);
+  },
+
+  liveSigner: async ({ liveSignerWorker }, use) => {
+    const fixture = await withLoggedStep(
+      'chrome.fixture',
+      'start-isolated-live-signer',
+      undefined,
+      async () => await liveSignerWorker.resetForTest()
     );
     try {
       await use(fixture);
     } finally {
-      logE2E('chrome.fixture', 'stop-live-signer:start');
-      await fixture.close();
-      logE2E('chrome.fixture', 'stop-live-signer:ok');
+      logE2E('chrome.fixture', 'release-isolated-live-signer:ok');
     }
   },
 
@@ -410,14 +620,24 @@ export const test = base.extend<ExtensionFixtures>({
     try {
       await use(fixture);
     } finally {
-      await stopDemoHarnessFixture();
+      await fixture.cleanup();
     }
   },
 
   openExtensionPage: async ({ context, extensionId }, use) => {
     await use(async (targetPath: string) => {
       const page = await context.newPage();
-      await gotoExtensionPage(page, extensionId, targetPath);
+      page.on('pageerror', (error) => {
+        recordPageDiagnostic(page, `pageerror: ${error.message}`);
+      });
+      page.on('console', (message) => {
+        if (message.type() === 'error' || message.type() === 'warning') {
+          recordPageDiagnostic(page, `console.${message.type()}: ${message.text()}`);
+        }
+      });
+      await gotoExtensionPage(page, extensionId, targetPath, {
+        waitForAppReady: targetPath === 'options.html'
+      });
       return page;
     });
   },

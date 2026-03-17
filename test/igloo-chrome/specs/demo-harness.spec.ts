@@ -9,6 +9,7 @@ import {
   type RuntimeDiagnosticEvent,
   type RuntimeSnapshotResult
 } from '../support/runtime';
+import { onboardLiveSignerProfile } from '../support/onboarding';
 
 const SIGN_EVENT_PAYLOAD = {
   kind: 1,
@@ -21,14 +22,6 @@ type ProviderSignResult = {
   ok: boolean;
   event: unknown;
   message: string | null;
-};
-
-type StoredProfile = {
-  keysetName?: string;
-  relays: string[];
-  publicKey?: string;
-  groupPublicKey?: string;
-  peerPubkey?: string;
 };
 
 async function approvePromptOnce(prompt: import('@playwright/test').Page) {
@@ -104,42 +97,10 @@ async function requestProviderSign(
   return await resultPromise;
 }
 
-async function waitForSignerUiOrError(page: Page, recipient: string) {
-  const signerName = `Demo Harness ${recipient}`;
-  const errorBanner = page.locator('div').filter({
-    hasText: /Connection timed out|Failed to connect onboarding|Failed during onboard|error/i
-  });
-  let outcome: 'signer' | 'error';
-  try {
-    outcome = await Promise.race([
-      page
-        .getByText(signerName)
-        .waitFor({ state: 'visible', timeout: 10_000 })
-        .then(() => 'signer' as const),
-      errorBanner
-        .first()
-        .waitFor({ state: 'visible', timeout: 10_000 })
-        .then(() => 'error' as const)
-    ]);
-  } catch (error) {
-    const bodyText = ((await page.locator('body').textContent()) ?? '').replace(/\s+/g, ' ').trim();
-    throw new Error(
-      `Onboarding did not reach signer UI: ${error instanceof Error ? error.message : String(error)} | page=${bodyText.slice(0, 600)}`
-    );
-  }
-
-  if (outcome === 'error') {
-    const errorText = (await errorBanner.first().textContent())?.trim() || 'unknown onboarding error';
-    throw new Error(`Onboarding did not reach signer UI: ${errorText}`);
-  }
-
-  await expect(page.getByRole('button', { name: /Signer runtime console/i })).toBeVisible();
-}
-
-test.describe('demo harness onboarding', () => {
+test.describe('demo harness onboarding @live', () => {
   test.setTimeout(360_000);
 
-  test('onboards from bifrost-demo and signs through the live demo node', async ({
+  test('onboards from igloo-demo and signs through the live demo node', async ({
     callOffscreenRpc,
     clearExtensionStorage,
     context,
@@ -151,82 +112,31 @@ test.describe('demo harness onboarding', () => {
       await clearExtensionStorage();
     });
 
-    const page = await withLoggedStep(
-      'chrome.demo-harness.spec',
-      'open-options',
-      undefined,
-      async () => await openExtensionPage('options.html')
-    );
-    attachPageConsoleLogging(page, 'options');
-
-    await withLoggedStep('chrome.demo-harness.spec', 'fill-onboarding', {
-      recipient: demoHarness.recipient,
-      relayUrl: demoHarness.relayUrl,
-      onboardLength: demoHarness.onboardPackage.length
-    }, async () => {
-      await expect(page.getByText('Welcome to igloo web')).toBeVisible();
-      await page.getByRole('button', { name: 'Continue to Setup' }).click();
-      await page.getByPlaceholder('e.g. Laptop Signer, Browser Node A').fill(
-        `Demo Harness ${demoHarness.recipient}`
-      );
-      await page.getByPlaceholder('bfonboard1...').fill(demoHarness.onboardPackage);
-      await page.getByPlaceholder('Minimum 8 characters').fill(demoHarness.onboardPassword);
-      await page.locator('textarea').nth(1).fill(demoHarness.relayUrl);
-    });
-
-    await withLoggedStep('chrome.demo-harness.spec', 'submit-onboarding', undefined, async () => {
-      await page.getByRole('button', { name: 'Connect and Continue' }).click();
-    });
-
-    await withLoggedStep('chrome.demo-harness.spec', 'wait-signer-ui', undefined, async () => {
-      await waitForSignerUiOrError(page, demoHarness.recipient);
-    });
-
     const storedProfile = await withLoggedStep(
       'chrome.demo-harness.spec',
-      'read-stored-profile',
-      undefined,
+      'onboard-via-helper',
+      {
+        recipient: demoHarness.recipient,
+        relayUrl: demoHarness.relayUrl,
+        onboardLength: demoHarness.onboardPackage.length
+      },
       async () =>
-        await page.evaluate(() => {
-          const raw = window.localStorage.getItem('igloo.v2.profile');
-          if (!raw) {
-            throw new Error('missing stored profile after onboarding');
-          }
-          return JSON.parse(raw) as StoredProfile;
-        })
+        await onboardLiveSignerProfile(
+          async (targetPath: string) => {
+            const page = await openExtensionPage(targetPath);
+            attachPageConsoleLogging(page, 'options');
+            return page;
+          },
+          {
+            keysetName: `Demo Harness ${demoHarness.recipient}`,
+            onboardPackage: demoHarness.onboardPackage,
+            onboardPassword: demoHarness.onboardPassword,
+            publicKey: '',
+            peerPubkey: ''
+          },
+          `Demo Harness ${demoHarness.recipient}`
+        )
     );
-
-    const localSnapshot = await withLoggedStep(
-      'chrome.demo-harness.spec',
-      'read-local-runtime-snapshot',
-      undefined,
-      async () =>
-        await page.evaluate(() => {
-          const raw = window.localStorage.getItem('igloo.ext.runtimeSnapshot');
-          if (!raw) {
-            throw new Error('missing local runtime snapshot after onboarding');
-          }
-          return {
-            runtime: 'ready' as const,
-            status: null,
-            snapshot: JSON.parse(raw),
-            snapshotError: null
-          } satisfies RuntimeSnapshotResult;
-        })
-    );
-
-    await withLoggedStep(
-      'chrome.demo-harness.spec',
-      'assert-local-nonce-hydration',
-      undefined,
-      async () => {
-        assertNoncePoolHydrated('local onboarding snapshot', localSnapshot, 2, 1);
-      }
-    );
-
-    await withLoggedStep('chrome.demo-harness.spec', 'close-options-after-onboarding', undefined, async () => {
-      await page.close();
-    });
 
     await withLoggedStep(
       'chrome.demo-harness.spec',
@@ -272,7 +182,7 @@ test.describe('demo harness onboarding', () => {
 
     if (!result.ok) {
       const diagnostics = await callOffscreenRpc<{
-        runtime: 'cold' | 'ready';
+        runtime: 'cold' | 'restoring' | 'ready' | 'degraded';
         diagnostics: RuntimeDiagnosticEvent[];
         dropped: number;
       }>('runtime.diagnostics');

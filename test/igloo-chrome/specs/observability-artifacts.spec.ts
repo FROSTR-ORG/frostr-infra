@@ -24,7 +24,7 @@ async function collectFiles(rootDir: string): Promise<string[]> {
   return results;
 }
 
-test.describe('observability artifacts', () => {
+test.describe('observability artifacts @live', () => {
   test.setTimeout(180_000);
 
   test('writes a failure-only observability bundle', async () => {

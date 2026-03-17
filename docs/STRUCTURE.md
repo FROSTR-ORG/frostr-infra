@@ -1,16 +1,33 @@
 # Repository Structure
 
 - `compose.yml`: main Docker Compose stack.
-- `compose.test.yml`: relay + bifrost demo harness for manual pairing and live/E2E testing.
+- `compose.test.yml`: relay + igloo-shell demo harness for manual pairing and live/E2E testing.
 - `compose.prod.yml`: production-style compose overrides (no source bind mounts).
 - `compose.override.yml`: generated local package mount overrides.
-- `make start`: uses only `compose.yml`.
-- `make dev`: uses `compose.yml` + `compose.override.yml`.
+- `./run.sh infra start`: uses only `compose.yml`.
+- `./run.sh infra dev`: uses `compose.yml` + `compose.override.yml`.
 - `build/`: local build artifacts (intentionally available for generated outputs).
-- `repos/`: remaining upstream repos tracked as submodules (`bifrost-rs`, `igloo-chrome`, `igloo-web`).
+- `run.sh`: curated public command router for repo-local infra, demo, test, and browser tasks.
+- `repos/`: remaining upstream repos tracked as submodules (`bifrost-rs`, `igloo-shell`, `igloo-chrome`, `igloo-web`, `igloo-ui`).
 - `services/`: infra-owned Dockerfiles and entrypoints per service container.
-- `scripts/`: setup/check/reset/update helpers.
+- `scripts/`: private helper scripts used by `run.sh` and test harnesses.
 - `test/`: infra-owned cross-repo Playwright suites and harness code.
 - `data/`: persistent runtime state.
 - `logs/`: service log mounts.
 - Submodule operations in this repo are intentionally non-recursive.
+
+## Ownership Boundaries
+
+- `repos/bifrost-rs`: signer core, routing, bridge runtimes, host layer, and protocol implementation.
+- `repos/igloo-shell`: CLI, TUI, relay, keygen, package tooling, and shell-owned runtime E2E.
+  Active script surface: `repos/igloo-shell/scripts/` and `repos/igloo-shell/dev/scripts/`.
+- `repos/igloo-chrome`: browser host/control plane over `bifrost-rs` plus provider/UI surfaces.
+- `repos/igloo-web`: separate web app surface; infra owns any cross-repo E2E that spans multiple repos.
+- `repos/igloo-ui`: shared presentational UI package consumed by `igloo-web` and `igloo-chrome`.
+- `docs/`: cross-repo architecture, ADRs, and guidance docs that should not live inside one submodule.
+
+## Shared Runtime Model
+
+- `bifrost-rs` is the source of truth for signer status, readiness, runtime events, and reset semantics.
+- `igloo-chrome` hosts that runtime in the browser and surfaces it through background, offscreen, and UI.
+- `test/` owns browser-level and cross-repo E2E harnesses, including live signer fixtures and the Docker demo harness.

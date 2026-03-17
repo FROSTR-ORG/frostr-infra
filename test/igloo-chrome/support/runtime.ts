@@ -17,7 +17,7 @@ export type RuntimeSnapshotPeer = {
 };
 
 export type RuntimeSnapshotResult = {
-  runtime: 'cold' | 'ready';
+  runtime: 'cold' | 'restoring' | 'ready' | 'degraded';
   status: unknown;
   snapshot: {
     state?: {
@@ -29,14 +29,33 @@ export type RuntimeSnapshotResult = {
   snapshotError: string | null;
 };
 
+export type RuntimeReadiness = {
+  runtime_ready: boolean;
+  restore_complete: boolean;
+  sign_ready: boolean;
+  ecdh_ready: boolean;
+  threshold: number;
+  signing_peer_count: number;
+  ecdh_peer_count: number;
+  last_refresh_at: number | null;
+  degraded_reasons?: string[];
+};
+
+export type RuntimeReadinessResult = {
+  runtime: 'cold' | 'restoring' | 'ready' | 'degraded';
+  readiness: RuntimeReadiness | null;
+};
+
+const RECOVERED_PENDING_OPS_REASON = 'pending_operations_recovered';
+
 export function assertNoncePoolHydrated(
   label: string,
   snapshotResult: RuntimeSnapshotResult,
   expectedPeers: number,
   minSignReadyPeers: number
 ) {
-  if (snapshotResult.runtime !== 'ready') {
-    throw new Error(`${label}: runtime is not ready`);
+  if (snapshotResult.runtime !== 'ready' && snapshotResult.runtime !== 'degraded') {
+    throw new Error(`${label}: runtime is neither ready nor degraded`);
   }
   if (snapshotResult.snapshotError) {
     throw new Error(`${label}: snapshot error: ${snapshotResult.snapshotError}`);
@@ -57,6 +76,35 @@ export function assertNoncePoolHydrated(
         null,
         2
       )}`
+    );
+  }
+}
+
+export function assertRuntimeReadiness(
+  label: string,
+  readinessResult: RuntimeReadinessResult,
+  operation: 'sign' | 'ecdh'
+) {
+  if (readinessResult.runtime === 'cold') {
+    throw new Error(`${label}: runtime is cold`);
+  }
+  if (!readinessResult.readiness) {
+    throw new Error(`${label}: readiness payload is missing`);
+  }
+  const degradedReasons = readinessResult.readiness.degraded_reasons ?? [];
+  const canProceedWhileDegraded =
+    degradedReasons.length > 0 &&
+    degradedReasons.every((reason) => reason === RECOVERED_PENDING_OPS_REASON);
+  if (!readinessResult.readiness.restore_complete && !canProceedWhileDegraded) {
+    throw new Error(`${label}: runtime restore is not complete`);
+  }
+  const ready =
+    operation === 'sign'
+      ? readinessResult.readiness.sign_ready
+      : readinessResult.readiness.ecdh_ready;
+  if (!ready) {
+    throw new Error(
+      `${label}: ${operation} is not ready\n${JSON.stringify(readinessResult.readiness, null, 2)}`
     );
   }
 }

@@ -19,3 +19,5 @@ test/**/.last-run.json
 services/onboard-helper/target/
 CLAUDE.md
 .DS_Store
+NOTES.md
+TODO.md

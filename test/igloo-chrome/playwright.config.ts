@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig({
   testDir: path.join(__dirname, 'specs'),
+  globalSetup: path.join(__dirname, 'global-setup.ts'),
   timeout: 60_000,
   reporter: [['line']],
   reportSlowTests: {
@@ -20,7 +21,7 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: 1,
+  workers: 2,
   outputDir: path.join(__dirname, 'results'),
   use: {
     headless: true,
