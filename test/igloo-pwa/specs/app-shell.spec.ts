@@ -9,7 +9,7 @@ test.describe('igloo-pwa ui-first shell', () => {
     await expect(
       page.getByText('Choose one path to initialize this browser workspace.'),
     ).toBeVisible();
-    await page.getByRole('button', { name: 'Start Creating' }).first().click();
+    await page.getByRole('button', { name: 'Start' }).first().click();
     await page.getByLabel('Keyset Name').fill('Playwright Treasury');
     await page.getByRole('button', { name: 'Generate Keyset' }).click();
     await expect(page.getByText('Select the Device Share')).toBeVisible();

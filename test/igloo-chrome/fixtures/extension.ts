@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import net from 'node:net';
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { lstat, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 
 import {
   chromium,
@@ -41,20 +41,33 @@ type ExtensionFixtures = {
   stableLiveSigner: LiveSignerFixture;
   demoHarness: DemoHarnessFixture;
   openExtensionPage: (path: string) => Promise<Page>;
+  activateProfile: (profileId: string) => Promise<void>;
   callOffscreenRpc: <T>(rpcType: string, payload?: Record<string, unknown>) => Promise<T>;
   runRuntimeControl: (action: 'closeOffscreen' | 'reloadExtension') => Promise<void>;
   reloadExtension: () => Promise<void>;
   seedProfile: (
     overrides?: Partial<typeof TEST_PROFILE> & {
+      id?: string;
+      sharePublicKey?: string;
       publicKey?: string;
       groupPublicKey?: string;
       peerPubkey?: string;
+      runtimeSnapshotJson?: string;
       onboardPackage?: string;
       onboardPassword?: string;
+      storedBlobRecord?: {
+        id: string;
+        label: string;
+        blob: unknown;
+        createdAt: number;
+        updatedAt: number;
+      };
+      sessionKeyB64?: string;
     }
   ) => Promise<void>;
   seedPermissionPolicies: (policies: SeedPermissionPolicy[]) => Promise<void>;
   seedPeerPolicies: (policies: SeedPeerPolicy[]) => Promise<void>;
+  clearSessionUnlocks: () => Promise<void>;
   clearExtensionStorage: () => Promise<void>;
 };
 
@@ -86,10 +99,12 @@ type DemoHarnessFixture = {
 };
 
 const extensionPath = IGLOO_CHROME_DIST_DIR;
-const DEMO_HARNESS_BUILD_SCRIPT = path.join(REPO_ROOT_DIR, 'scripts', 'build-demo-harness-binaries.sh');
+const DEMO_SCRIPT = path.join(REPO_ROOT_DIR, 'scripts', 'demo.sh');
 const EXTENSION_MANIFEST_PATH = path.join(IGLOO_CHROME_DIST_DIR, 'manifest.json');
 const DEMO_RELAY_HOST = process.env.DEV_RELAY_EXTERNAL_HOST ?? 'localhost';
-const DEMO_RELAY_PORT = Number(process.env.IGLOO_DEMO_RELAY_PORT ?? '43194');
+const DEMO_RELAY_PORT = Number(
+  process.env.IGLOO_DEMO_RELAY_PORT ?? String(43000 + (process.pid % 1000))
+);
 let buildPrepared = false;
 let workerOnboardingFailureBundle: Record<string, unknown> | null = null;
 const extensionPageErrors = new Map<string, string[]>();
@@ -135,7 +150,10 @@ async function waitForHarnessSocket(socketPath: string, timeoutMs: number) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      await stat(socketPath);
+      const info = await lstat(socketPath);
+      if (info.isSocket() || info.isSymbolicLink()) {
+        return;
+      }
       return;
     } catch {
       // Keep polling until timeout.
@@ -226,7 +244,7 @@ async function startDemoHarnessFixture(): Promise<DemoHarnessFixture> {
   };
 
   await withLoggedStep('chrome.demo-harness', 'build-binaries', undefined, async () => {
-    execFileSync(DEMO_HARNESS_BUILD_SCRIPT, {
+    execFileSync(DEMO_SCRIPT, ['build-binaries'], {
       cwd: REPO_ROOT_DIR,
       stdio: 'inherit'
     });
@@ -675,6 +693,27 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
     });
   },
 
+  activateProfile: async ({ context, extensionId }, use) => {
+    await use(async (profileId: string) => {
+      await withLoggedStep('chrome.fixture', 'activate-profile', { profileId }, async () => {
+        const page = await openPageForStorage(context, extensionId);
+        try {
+          await page.evaluate(async (nextProfileId) => {
+            const response = (await chrome.runtime.sendMessage({
+              type: 'ext.activateProfile',
+              profileId: nextProfileId
+            })) as { ok?: boolean; error?: string } | undefined;
+            if (!response?.ok) {
+              throw new Error(response?.error || 'Profile activation failed');
+            }
+          }, profileId);
+        } finally {
+          await page.close();
+        }
+      });
+    });
+  },
+
   runRuntimeControl: async ({ context, extensionId }, use) => {
     await use(async (action: 'closeOffscreen' | 'reloadExtension') => {
       await withLoggedStep(
@@ -737,21 +776,134 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
           const page = await openPageForStorage(context, extensionId);
           await page.evaluate(
             async ({ profile, publicKey, groupPublicKey, peerPubkey }) => {
-              const localProfile = {
-                ...profile,
-                ...(groupPublicKey
-                  ? { groupPublicKey }
-                  : publicKey
-                    ? { groupPublicKey: publicKey }
-                    : {}),
-                ...(publicKey ? { publicKey } : {}),
-                ...(peerPubkey ? { peerPubkey } : {})
+              if (profile.storedBlobRecord && typeof profile.sessionKeyB64 === 'string') {
+                await chrome.storage.local.set({
+                  'igloo.ext.profiles': [profile.storedBlobRecord],
+                  'igloo.ext.activeProfileId': profile.storedBlobRecord.id
+                });
+                await chrome.storage.session.set({
+                  'igloo.ext.sessionUnlocks': {
+                    [profile.storedBlobRecord.id]: {
+                      keyB64: profile.sessionKeyB64,
+                      updatedAt: Date.now()
+                    }
+                  }
+                });
+                return;
+              }
+              const encoder = new TextEncoder();
+              const bytesToBase64 = (bytes: Uint8Array) => {
+                let binary = '';
+                for (const value of bytes) binary += String.fromCharCode(value);
+                return btoa(binary);
               };
-              localStorage.removeItem('igloo.ext.runtimeSnapshot');
-              localStorage.setItem('igloo.v2.profile', JSON.stringify(localProfile));
+              const profileId =
+                profile.id ??
+                (profile.sharePublicKey as string | undefined) ??
+                (groupPublicKey as string | undefined) ??
+                (publicKey as string | undefined) ??
+                '11'.repeat(32);
+              const label = (profile.keysetName as string | undefined)?.trim() || 'Playwright Smoke';
+              const password = 'playwright-passphrase';
+              const shareSecret = '22'.repeat(32);
+              const salt = crypto.getRandomValues(new Uint8Array(16));
+              const iv = crypto.getRandomValues(new Uint8Array(12));
+              const baseKey = await crypto.subtle.importKey(
+                'raw',
+                encoder.encode(password),
+                'PBKDF2',
+                false,
+                ['deriveKey']
+              );
+              const aesKey = await crypto.subtle.deriveKey(
+                {
+                  name: 'PBKDF2',
+                  hash: 'SHA-256',
+                  salt,
+                  iterations: 200000
+                },
+                baseKey,
+                {
+                  name: 'AES-GCM',
+                  length: 256
+                },
+                true,
+                ['encrypt', 'decrypt']
+              );
+              const payload = {
+                version: 1,
+                profile: {
+                  profileId,
+                  version: 1,
+                  device: {
+                    name: label,
+                    shareSecret,
+                    manualPeerPolicyOverrides: [],
+                    remotePeerPolicyObservations: [],
+                    relays: Array.isArray(profile.relays) ? profile.relays : []
+                  },
+                  group: {
+                    keysetName: label,
+                    groupPublicKey:
+                      (groupPublicKey as string | undefined) ??
+                      (publicKey as string | undefined) ??
+                      '33'.repeat(32),
+                    threshold: 2,
+                    totalCount: 3,
+                    members: [
+                      {
+                        index: 1,
+                        sharePublicKey: '44'.repeat(32)
+                      }
+                    ]
+                  }
+                },
+                signerSettings: {
+                  sign_timeout_secs: 30,
+                  ping_timeout_secs: 15,
+                  request_ttl_secs: 300,
+                  state_save_interval_secs: 30,
+                  peer_selection_strategy: 'deterministic_sorted'
+                },
+                runtimeSnapshotJson:
+                  typeof profile.runtimeSnapshotJson === 'string' ? profile.runtimeSnapshotJson : undefined,
+                peerPubkey: peerPubkey ?? profile.peerPubkey ?? undefined
+              };
+              const ciphertext = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv },
+                aesKey,
+                encoder.encode(JSON.stringify(payload))
+              );
+              const exportedKey = await crypto.subtle.exportKey('raw', aesKey);
               await chrome.storage.local.set({
-                'igloo.ext.profile': {
-                  ...localProfile
+                'igloo.ext.profiles': [
+                  {
+                    id: profileId,
+                    label,
+                    blob: {
+                      version: 1,
+                      kdf: {
+                        saltB64: bytesToBase64(salt),
+                        iterations: 200000,
+                        hash: 'SHA-256'
+                      },
+                      cipher: {
+                        ivB64: bytesToBase64(iv),
+                        ciphertextB64: bytesToBase64(new Uint8Array(ciphertext))
+                      }
+                    },
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                  }
+                ],
+                'igloo.ext.activeProfileId': profileId
+              });
+              await chrome.storage.session.set({
+                'igloo.ext.sessionUnlocks': {
+                  [profileId]: {
+                    keyB64: bytesToBase64(new Uint8Array(exportedKey)),
+                    updatedAt: Date.now()
+                  }
                 }
               });
             },
@@ -799,14 +951,22 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
     });
   },
 
+  clearSessionUnlocks: async ({ context, extensionId }, use) => {
+    await use(async () => {
+      const page = await openPageForStorage(context, extensionId);
+      await page.evaluate(async () => {
+        await chrome.storage.session.clear();
+      });
+      await page.close();
+    });
+  },
+
   clearExtensionStorage: async ({ context, extensionId }, use) => {
     await use(async () => {
       const page = await openPageForStorage(context, extensionId);
       await page.evaluate(async () => {
-        localStorage.removeItem('igloo.v2.profile');
-        localStorage.removeItem('igloo.policies');
-        localStorage.removeItem('igloo.ext.runtimeSnapshot');
         await chrome.storage.local.clear();
+        await chrome.storage.session.clear();
       });
       await page.close();
     });

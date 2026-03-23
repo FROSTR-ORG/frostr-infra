@@ -54,8 +54,10 @@ the focused Docker-backed onboarding path can be run independently.
 
 - `test/` owns the automated browser matrix and shared Playwright fixtures.
 - `services/dev-relay` and `services/igloo-demo` own the Docker-backed manual/demo environment.
-- `scripts/test-demo-harness-onboard.sh` owns the automated `smoke` tier.
+- `test/scripts/test-demo-harness-onboard.sh` owns the automated `smoke` tier.
 - `./run.sh demo ...` wraps the manual Docker demo flow but does not replace direct compose usage.
+
+Root `scripts/` are private implementation detail. Public root workflows should use `./run.sh ...`.
 
 ## Chrome Live Fixture Policy
 

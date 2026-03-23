@@ -6,7 +6,7 @@ Accepted
 
 ## Current Source of Truth
 
-Current package, backup, and `profileId` format details live in `docs/BROWSER-PACKAGES-AND-BACKUPS.md`.
+Current package, backup, and `profileId` format details live in `docs/BACKUP.md`.
 
 ## Context
 

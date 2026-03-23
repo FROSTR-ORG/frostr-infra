@@ -34,7 +34,7 @@ npm run test:e2e:igloo-chrome:live
 ```
 
 Canonical tiers:
-- `smoke`: Docker-backed demo harness smoke via `../scripts/test-demo-harness-onboard.sh`
+- `smoke`: Docker-backed demo harness smoke via `./scripts/test-demo-harness-onboard.sh`
 - `fast`: `igloo-pwa` plus non-live `igloo-chrome`
 - `live`: Chrome live relay/runtime/provider coverage
 - `demo`: Docker-backed Chrome onboarding/sign-through against `dev-relay` + `igloo-demo`

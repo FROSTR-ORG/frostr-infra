@@ -6,7 +6,7 @@ Accepted
 
 ## Current Source of Truth
 
-Current peer-permission runtime and serialization details live in `docs/PROTOCOL.md` and `docs/BROWSER-PACKAGES-AND-BACKUPS.md`.
+Current peer-permission runtime and serialization details live in `docs/PROTOCOL.md` and `docs/BACKUP.md`.
 
 ## Context
 

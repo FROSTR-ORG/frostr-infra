@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PROJECT_NAME="igloo-demo-smoke-$$"
 RELAY_PORT="${RELAY_PORT:-8394}"
 RECIPIENT="${RECIPIENT:-bob}"
@@ -49,7 +49,7 @@ need_cmd() {
 need_cmd docker
 need_cmd cargo
 
-"${ROOT_DIR}/scripts/build-demo-harness-binaries.sh"
+"${ROOT_DIR}/scripts/demo.sh" build-binaries
 
 env \
   DEV_RELAY_PORT="${RELAY_PORT}" \

@@ -3,10 +3,25 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$ROOT_DIR/scripts/common.sh"
 
 APP_NAME="${1:-}"
 APP_ACTION="${2:-dev}"
+
+status() {
+  printf '\033[0;34m%s\033[0m\n' "$1"
+}
+
+success() {
+  printf '\033[0;32m%s\033[0m\n' "$1"
+}
+
+warn() {
+  printf '\033[1;33m%s\033[0m\n' "$1"
+}
+
+error() {
+  printf '\033[0;31m%s\033[0m\n' "$1" >&2
+}
 
 case "$APP_NAME" in
   igloo-pwa|igloo-chrome)

@@ -18,19 +18,14 @@ test.describe('provider bridge live signer @live', () => {
   });
 
   test('runtime snapshot reports nonce pool state once peers are hydrated', async ({
+    activateProfile,
     callOffscreenRpc,
     onboardedLiveSignerProfile,
     seedProfile,
     stableLiveSigner
   }) => {
     await seedProfile(onboardedLiveSignerProfile);
-    await expect(
-      callOffscreenRpc('runtime.ensure', {
-        profile: onboardedLiveSignerProfile
-      })
-    ).resolves.toMatchObject({
-      runtime: expect.stringMatching(/^(ready|degraded)$/)
-    });
+    await activateProfile(onboardedLiveSignerProfile.id!);
 
     await expect
       .poll(async () => {

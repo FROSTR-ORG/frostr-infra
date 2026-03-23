@@ -10,8 +10,12 @@ Top-level docs in this repo describe cross-repo architecture, protocol, and revi
 ## Shared Architecture
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md): system-level view of signer, host, and infra responsibilities.
-- [PROTOCOL.md](./PROTOCOL.md): high-level FROSTR protocol, onboarding, sign, and ECDH flows.
-- [BROWSER-PACKAGES-AND-BACKUPS.md](./BROWSER-PACKAGES-AND-BACKUPS.md): canonical `bfshare`, `bfonboard`, `bfprofile`, and encrypted backup formats.
+- [PROTOCOL.md](./PROTOCOL.md): peer-to-peer protocol semantics between FROSTR devices.
+- [WIRE.md](./WIRE.md): Nostr/NIP-44 wire format, encrypted envelopes, and recipient routing.
+- [PROFILE.md](./PROFILE.md): conceptual model for FROSTR device identity, durable profile state, and `bfprofile`.
+- [BACKUP.md](./BACKUP.md): `bfprofile`, `bfshare`, encrypted relay backups, and recovery semantics.
+- [ONBOARD.md](./ONBOARD.md): onboarding model, handshake, and `bfonboard` semantics.
+- [ROTATION.md](./ROTATION.md): trusted share rotation, rotated distribution, and device adoption semantics.
 
 ## Architecture Decisions
 

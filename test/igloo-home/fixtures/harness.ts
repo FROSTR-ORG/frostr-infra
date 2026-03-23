@@ -3,7 +3,7 @@ import os from 'node:os';
 import net from 'node:net';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { access, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { access, lstat, mkdtemp, readFile, readlink, rm, stat } from 'node:fs/promises';
 
 import { REPO_ROOT_DIR } from '../../shared/repo-paths';
 import { requestControl, waitForControlReady, type ControlResponse } from '../../shared/control-socket';
@@ -123,8 +123,14 @@ export async function ensureDemoHarness(): Promise<DemoHarness> {
       cleanup,
     };
   } catch (error) {
+    const diagnostics = await buildHarnessFailureDiagnostics(
+      projectName,
+      composeEnv,
+      path.join(hostArtifactDir, `igloo-shell-${demoMember}.sock`),
+    );
     await cleanup();
-    throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${message}\n\n${diagnostics}`);
   }
 }
 
@@ -220,6 +226,46 @@ async function waitForHarnessArtifacts(paths: string[], timeoutMs = 60_000) {
   }
 
   throw new Error(`timed out waiting for demo harness artifacts: ${paths.join(', ')}`);
+}
+
+async function buildHarnessFailureDiagnostics(
+  projectName: string,
+  env: NodeJS.ProcessEnv,
+  socketPath: string,
+) {
+  const parts: string[] = [];
+  parts.push(`project=${projectName}`);
+  parts.push(`socket_path=${socketPath}`);
+  try {
+    const info = await lstat(socketPath);
+    parts.push(`socket_lstat=${info.isSocket() ? 'socket' : info.isSymbolicLink() ? 'symlink' : 'other'}`);
+    if (info.isSymbolicLink()) {
+      const target = await readlink(socketPath);
+      parts.push(`socket_symlink_target=${target}`);
+    }
+  } catch (error) {
+    parts.push(`socket_lstat_error=${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  try {
+    const logs = execFileSync(
+      'docker',
+      ['compose', '-p', projectName, '-f', 'compose.test.yml', 'logs', '--tail=200', 'igloo-demo'],
+      {
+        cwd: REPO_ROOT_DIR,
+        env,
+        encoding: 'utf8',
+      },
+    );
+    if (logs.trim().length > 0) {
+      parts.push('igloo_demo_logs:');
+      parts.push(logs.trim());
+    }
+  } catch (error) {
+    parts.push(`compose_logs_error=${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  return parts.join('\n');
 }
 
 export async function pingBob(harness: DemoHarness): Promise<ControlResponse> {

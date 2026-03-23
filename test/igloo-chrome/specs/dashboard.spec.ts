@@ -11,11 +11,9 @@ test.describe('extension dashboard smoke', () => {
 
     const page = await openExtensionPage('options.html');
 
-    await expect(page.getByText('Welcome to igloo chrome')).toBeVisible();
-    await page.getByRole('button', { name: 'Continue to Setup' }).click();
-    await expect(page.getByPlaceholder('e.g. Laptop Signer, Browser Node A')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Onboard Device' })).toBeVisible();
     await expect(page.getByPlaceholder('bfonboard1...')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Connect and Continue' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Connect' })).toBeDisabled();
     await page.close();
   });
 
@@ -61,6 +59,7 @@ test.describe('extension dashboard smoke', () => {
   });
 
   test('signer tab surfaces live nonce pool diagnostics @live', async ({
+    activateProfile,
     callOffscreenRpc,
     openExtensionPage,
     onboardedLiveSignerProfile,
@@ -68,9 +67,7 @@ test.describe('extension dashboard smoke', () => {
     stableLiveSigner,
   }) => {
     await seedProfile(onboardedLiveSignerProfile);
-    await callOffscreenRpc('runtime.ensure', {
-      profile: onboardedLiveSignerProfile
-    });
+    await activateProfile(onboardedLiveSignerProfile.id!);
 
     const page = await openExtensionPage('options.html');
 
@@ -136,8 +133,55 @@ test.describe('extension dashboard smoke', () => {
 
     await page.getByRole('tab', { name: /Settings/i }).first().click();
     await page.getByRole('button', { name: 'Wipe All Data' }).click();
-    await expect(page.getByText('Welcome to igloo chrome')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Continue to Setup' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Onboard Device' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible();
+
+    await page.close();
+  });
+
+  test('stored profiles relock after session clear and require unlock again', async ({
+    clearSessionUnlocks,
+    openExtensionPage,
+    seedProfile
+  }) => {
+    await seedProfile({ publicKey: TEST_PUBLIC_KEY });
+    await clearSessionUnlocks();
+
+    const page = await openExtensionPage('options.html');
+
+    await expect(page.getByText('Stored Profiles', { exact: true })).toBeVisible();
+    await expect(page.getByText('Playwright Smoke')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Unlock' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Unlock' }).click();
+    await expect(page.getByText('Unlock Stored Profile')).toBeVisible();
+    await page.getByPlaceholder('Enter profile password').fill('wrongpass');
+    await page.getByRole('button', { name: 'Unlock Profile' }).click();
+    await expect(page.getByText('Invalid profile password.')).toBeVisible();
+
+    await page.getByPlaceholder('Enter profile password').fill('playwright-passphrase');
+    await page.getByRole('button', { name: 'Unlock Profile' }).click();
+    await expect(page.getByRole('tab', { name: /Signer/i }).first()).toBeVisible();
+
+    await page.close();
+  });
+
+  test('logout keeps stored profiles but clears the active unlocked session', async ({
+    openExtensionPage,
+    seedProfile
+  }) => {
+    await seedProfile({ publicKey: TEST_PUBLIC_KEY });
+
+    const page = await openExtensionPage('options.html');
+
+    await expect(page.getByRole('tab', { name: /Settings/i }).first()).toBeVisible();
+    await page.getByRole('tab', { name: /Settings/i }).first().click();
+    await page.getByRole('button', { name: 'Log Out' }).click();
+
+    await expect(page.getByText('Stored Profiles', { exact: true })).toBeVisible();
+    await expect(page.getByText('Playwright Smoke')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Unlock' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Onboard Device' })).toBeVisible();
 
     await page.close();
   });

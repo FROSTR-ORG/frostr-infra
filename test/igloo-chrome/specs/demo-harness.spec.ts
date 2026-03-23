@@ -101,6 +101,7 @@ test.describe('demo harness onboarding @live', () => {
   test.setTimeout(360_000);
 
   test('onboards from igloo-demo and signs through the live demo node', async ({
+    activateProfile,
     callOffscreenRpc,
     clearExtensionStorage,
     context,
@@ -143,9 +144,7 @@ test.describe('demo harness onboarding @live', () => {
       'ensure-offscreen-runtime',
       undefined,
       async () => {
-        await callOffscreenRpc('runtime.ensure', {
-          profile: storedProfile
-        });
+        await activateProfile(storedProfile.id!);
       }
     );
 

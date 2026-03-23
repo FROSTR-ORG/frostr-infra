@@ -46,13 +46,13 @@ async function prepareSignReady(
 }
 
 async function ensureRuntimeReady(
-  callOffscreenRpc: <T>(rpcType: string, payload?: Record<string, unknown>) => Promise<T>,
-  profile: Record<string, unknown>
+  activateProfile: (profileId: string) => Promise<void>,
+  profileId: string
 ) {
   await expect
     .poll(async () => {
       try {
-        await callOffscreenRpc('runtime.ensure', { profile });
+        await activateProfile(profileId);
         return 'ready';
       } catch {
         return 'pending';
@@ -110,18 +110,26 @@ async function completeOnboardingInContext(
   const page = await context.newPage();
   try {
     await gotoExtensionPage(page, extensionId, 'options.html');
-    await pwExpect(page.getByText('Welcome to igloo chrome')).toBeVisible();
+    const onboardCard = page.locator('section').filter({
+      has: page.getByRole('heading', { name: 'Onboard Device' })
+    });
+    await pwExpect(onboardCard.getByRole('heading', { name: 'Onboard Device' })).toBeVisible();
     if (!profile.onboardPackage || !profile.onboardPassword) {
       throw new Error('profile is missing onboarding package data');
     }
 
-    await page.getByRole('button', { name: 'Continue to Setup' }).click();
-    await page
+    await onboardCard.getByPlaceholder('bfonboard1...').fill(profile.onboardPackage);
+    await onboardCard.getByPlaceholder('Minimum 8 characters').fill(profile.onboardPassword);
+    await onboardCard.getByRole('button', { name: 'Connect' }).click();
+    const saveCard = page.locator('section').filter({
+      has: page.getByRole('heading', { name: 'Save Onboarded Device' })
+    });
+    await pwExpect(saveCard.getByRole('heading', { name: 'Save Onboarded Device' })).toBeVisible();
+    await saveCard
       .getByPlaceholder('e.g. Laptop Signer, Browser Node A')
       .fill(profile.keysetName ?? 'Playwright Live');
-    await page.getByPlaceholder('bfonboard1...').fill(profile.onboardPackage);
-    await page.getByPlaceholder('Minimum 8 characters').fill(profile.onboardPassword);
-    await page.getByRole('button', { name: 'Connect and Continue' }).click();
+    await saveCard.getByPlaceholder('Minimum 8 characters').fill(profile.onboardPassword);
+    await saveCard.getByRole('button', { name: 'Save Device' }).click();
     await pwExpect
       .poll(async () => {
         const status = await fetchExtensionStatus(page);
@@ -137,7 +145,7 @@ async function completeOnboardingInContext(
         }
         if (
           status.configured === true &&
-          (lifecycle.activation.stage === 'ready' || lifecycle.activation.stage === 'degraded')
+          (status.runtime === 'ready' || status.runtime === 'degraded')
         ) {
           return 'ready';
         }
@@ -147,6 +155,25 @@ async function completeOnboardingInContext(
         intervals: [250, 500, 1_000]
       })
       .toBe('ready');
+  } finally {
+    await page.close();
+  }
+}
+
+async function unlockStoredProfileInContext(
+  context: BrowserContext,
+  extensionId: string,
+  password: string
+) {
+  const page = await context.newPage();
+  try {
+    await gotoExtensionPage(page, extensionId, 'options.html');
+    await pwExpect(page.getByText('Stored Profiles', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Unlock' }).click();
+    await pwExpect(page.getByText('Unlock Stored Profile')).toBeVisible();
+    await page.getByPlaceholder('Enter profile password').fill(password);
+    await page.getByRole('button', { name: 'Unlock Profile' }).click();
+    await pwExpect(page.getByRole('tab', { name: /Signer/i }).first()).toBeVisible();
   } finally {
     await page.close();
   }
@@ -188,6 +215,7 @@ test.describe('runtime lifecycle @live', () => {
   test.setTimeout(180_000);
 
   test('recreates the offscreen document after explicit teardown', async ({
+    activateProfile,
     callOffscreenRpc,
     context,
     liveSigner,
@@ -202,9 +230,7 @@ test.describe('runtime lifecycle @live', () => {
       `${liveSigner.profile.keysetName} Restore`
     );
     await seedProfile(currentProfile);
-    await callOffscreenRpc('runtime.ensure', {
-      profile: currentProfile
-    });
+    await activateProfile(currentProfile.id!);
     const preTeardownSnapshot = await callOffscreenRpc<RuntimeSnapshotResult>('runtime.snapshot');
     assertNoncePoolHydrated(
       'runtime-lifecycle restored pre-sign snapshot',
@@ -212,17 +238,9 @@ test.describe('runtime lifecycle @live', () => {
       2,
       1
     );
-    const restoredProfile = {
-      ...liveSigner.profile,
-      onboardPackage: undefined,
-      onboardPassword: undefined,
-      runtimeSnapshotJson: JSON.stringify(preTeardownSnapshot.snapshot)
-    };
 
     await runRuntimeControl('closeOffscreen');
-    await callOffscreenRpc('runtime.ensure', {
-      profile: restoredProfile
-    });
+    await activateProfile(currentProfile.id!);
     assertNoncePoolHydrated(
       'runtime-lifecycle restored post-teardown snapshot',
       await callOffscreenRpc<RuntimeSnapshotResult>('runtime.snapshot'),
@@ -256,6 +274,7 @@ test.describe('runtime lifecycle @live', () => {
   });
 
   test('provider getPublicKey prompts still complete while the runtime stays cold after offscreen teardown', async ({
+    activateProfile,
     callOffscreenRpc,
     context,
     liveSigner,
@@ -270,9 +289,7 @@ test.describe('runtime lifecycle @live', () => {
       `${liveSigner.profile.keysetName} Cold Restore`
     );
     await seedProfile(currentProfile);
-    await callOffscreenRpc('runtime.ensure', {
-      profile: currentProfile
-    });
+    await activateProfile(currentProfile.id!);
 
     await runRuntimeControl('closeOffscreen');
 
@@ -315,6 +332,7 @@ test.describe('runtime lifecycle @live', () => {
   });
 
   test('restores signer nonce state after offscreen teardown so signEvent still succeeds', async ({
+    activateProfile,
     callOffscreenRpc,
     context,
     liveSigner,
@@ -329,10 +347,10 @@ test.describe('runtime lifecycle @live', () => {
       `${liveSigner.profile.keysetName} Restored Sign`
     );
     await seedProfile(currentProfile);
-    await ensureRuntimeReady(callOffscreenRpc, currentProfile);
+    await ensureRuntimeReady(activateProfile, currentProfile.id!);
 
     await runRuntimeControl('closeOffscreen');
-    await ensureRuntimeReady(callOffscreenRpc, currentProfile);
+    await ensureRuntimeReady(activateProfile, currentProfile.id!);
     await prepareSignReady(callOffscreenRpc, 'runtime-lifecycle restored sign');
 
     const page = await context.newPage();
@@ -404,6 +422,7 @@ test.describe('runtime lifecycle @live', () => {
 
       secondContext = await launchExtensionContext(userDataDir);
       await waitForServiceWorker(secondContext);
+      await unlockStoredProfileInContext(secondContext, extensionId, liveSigner.profile.onboardPassword);
 
       const page = await secondContext.newPage();
       await page.goto(`${server.origin}/provider`);
@@ -458,6 +477,11 @@ test.describe('runtime lifecycle @live', () => {
       secondContext = await launchExtensionContext(userDataDir);
       const secondWorker = await waitForServiceWorker(secondContext);
       const secondExtensionId = new URL(secondWorker.url()).host;
+      await unlockStoredProfileInContext(
+        secondContext,
+        secondExtensionId,
+        liveSigner.profile.onboardPassword
+      );
 
       const page = await secondContext.newPage();
       await page.goto(`${server.origin}/provider`);

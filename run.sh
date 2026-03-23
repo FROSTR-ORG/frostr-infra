@@ -4,7 +4,6 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICES=(igloo-web)
-DEMO_HARNESS_SERVICES=(dev-relay igloo-demo)
 
 die() {
   echo "error: $*" >&2
@@ -45,6 +44,10 @@ Usage:
   ./run.sh compose restart <service> [service...]
   ./run.sh compose logs <service> [service...]
   ./run.sh browser <igloo-pwa|igloo-chrome> <dev|build|test:unit|test:e2e>
+
+Notes:
+  ./run.sh is the only supported root command interface.
+  scripts/ is private implementation detail.
 
 Examples:
   ./run.sh infra dev --bg
@@ -131,20 +134,6 @@ docker_compose_main() {
 
 docker_compose_prod() {
   docker compose -f "${ROOT_DIR}/compose.yml" -f "${ROOT_DIR}/compose.prod.yml" "$@"
-}
-
-docker_compose_demo() {
-  docker compose -f "${ROOT_DIR}/compose.test.yml" "$@"
-}
-
-parse_bg_flag() {
-  local bg=false
-  if [[ "${1:-}" == "--bg" ]]; then
-    bg=true
-    shift
-  fi
-  printf '%s\n' "${bg}"
-  printf '%s\n' "$#"
 }
 
 run_infra() {
@@ -270,23 +259,22 @@ run_demo() {
         esac
       done
       case "${action}" in
-        start) "${ROOT_DIR}/scripts/run-demo-stack.sh" start "${port}" ;;
-        foreground) "${ROOT_DIR}/scripts/run-demo-stack.sh" foreground "${port}" ;;
-        smoke) RELAY_PORT="${port}" "${ROOT_DIR}/scripts/test-demo-harness-onboard.sh" ;;
+        start) "${ROOT_DIR}/scripts/demo.sh" start "${port}" ;;
+        foreground) "${ROOT_DIR}/scripts/demo.sh" foreground "${port}" ;;
+        smoke) RELAY_PORT="${port}" "${ROOT_DIR}/test/scripts/test-demo-harness-onboard.sh" ;;
       esac
       ;;
     stop)
       [[ "$#" -eq 0 ]] || die "demo stop does not accept extra arguments"
-      "${ROOT_DIR}/scripts/stop-demo-stacks.sh"
-      rm -f "${ROOT_DIR}/data/test-harness/demo-relay-port.txt"
+      "${ROOT_DIR}/scripts/demo.sh" stop
       ;;
     logs)
       [[ "$#" -eq 0 ]] || die "demo logs does not accept extra arguments"
-      docker_compose_demo logs -f "${DEMO_HARNESS_SERVICES[@]}"
+      "${ROOT_DIR}/scripts/demo.sh" logs
       ;;
     onboard)
       [[ "$#" -eq 0 ]] || die "demo onboard does not accept extra arguments"
-      "${ROOT_DIR}/scripts/print-demo-harness-onboard.sh"
+      "${ROOT_DIR}/scripts/demo.sh" onboard
       ;;
     *)
       die "unknown demo command: ${action}"

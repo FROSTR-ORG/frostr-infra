@@ -38,6 +38,7 @@ test.describe('provider bridge live signer sign flow @live', () => {
   });
 
   test('signEvent succeeds against a live responder after bootstrap hydration', async ({
+    activateProfile,
     callOffscreenRpc,
     context,
     server,
@@ -46,9 +47,7 @@ test.describe('provider bridge live signer sign flow @live', () => {
     stableLiveSigner
   }) => {
     await seedProfile(onboardedLiveSignerProfile);
-    await callOffscreenRpc('runtime.ensure', {
-      profile: onboardedLiveSignerProfile
-    });
+    await activateProfile(onboardedLiveSignerProfile.id!);
     await prepareSignReady(callOffscreenRpc, 'provider-live pre-sign readiness');
 
     const page = await context.newPage();
@@ -98,6 +97,7 @@ test.describe('provider bridge live signer sign flow @live', () => {
   });
 
   test('signEvent fails cleanly when the live responder disappears mid-session', async ({
+    activateProfile,
     callOffscreenRpc,
     context,
     server,
@@ -106,9 +106,7 @@ test.describe('provider bridge live signer sign flow @live', () => {
     seedProfile
   }) => {
     await seedProfile(onboardedLiveSignerProfile);
-    await callOffscreenRpc('runtime.ensure', {
-      profile: onboardedLiveSignerProfile
-    });
+    await activateProfile(onboardedLiveSignerProfile.id!);
     await callOffscreenRpc<RuntimeSnapshotResult>('runtime.snapshot');
     await stableLiveSigner.stopResponder();
 

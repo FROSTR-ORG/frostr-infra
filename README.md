@@ -63,3 +63,5 @@ Print the current onboarding packages:
 - `./run.sh demo smoke` - verify a fresh local `igloo-shell` can onboard against `igloo-demo`
 
 `./run.sh demo start` prebuilds the required `bifrost-devtools` and `igloo-shell` binaries on the host and reuses them from the mounted workspace target directories inside the harness containers.
+
+`./run.sh` is the supported root command interface. Root `scripts/` are private implementation detail.

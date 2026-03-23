@@ -26,11 +26,13 @@ IGLOO_SHELL_DEMO_PASSWORD_BYTES="${IGLOO_SHELL_DEMO_PASSWORD_BYTES:-16}"
 IGLOO_SHELL_DEMO_VAULT_PASSPHRASE="${IGLOO_SHELL_DEMO_VAULT_PASSPHRASE:-dev-harness-vault-pass}"
 IGLOO_SHELL_DEMO_XDG_ROOT="${IGLOO_SHELL_DEMO_XDG_ROOT:-${IGLOO_SHELL_DEMO_ARTIFACT_DIR}/igloo-shell-home}"
 IGLOO_SHELL_DEMO_STATE_LINK="${IGLOO_SHELL_DEMO_STATE_LINK:-/w}"
+IGLOO_SHELL_DEMO_TMPDIR="${IGLOO_SHELL_DEMO_TMPDIR:-${IGLOO_SHELL_DEMO_ARTIFACT_DIR}/tmp}"
 
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/data}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-${IGLOO_SHELL_DEMO_STATE_LINK}}"
 export IGLOO_SHELL_VAULT_PASSPHRASE="${IGLOO_SHELL_DEMO_VAULT_PASSPHRASE}"
+export TMPDIR="${TMPDIR:-${IGLOO_SHELL_DEMO_TMPDIR}}"
 
 declare -a ONBOARD_MEMBERS=()
 DEMO_PROFILE_ID=""
@@ -174,6 +176,7 @@ cleanup_shell_home() {
 
 prepare_shell_home() {
   mkdir -p \
+    "${TMPDIR}" \
     "${IGLOO_SHELL_DEMO_XDG_ROOT}/config" \
     "${IGLOO_SHELL_DEMO_XDG_ROOT}/data" \
     "${IGLOO_SHELL_DEMO_XDG_ROOT}/state"
@@ -297,22 +300,30 @@ start_demo_daemon() {
   local daemon_json
   local daemon_token
   local daemon_socket_bind
-  local daemon_socket_rel
+  local daemon_socket_link_name
+  local daemon_socket_link_target
 
   daemon_json="$("${IGLOO_SHELL_BIN}" daemon start --profile "${DEMO_PROFILE_ID}")"
   daemon_token="$(printf '%s\n' "${daemon_json}" | json_string_field "token")"
-  daemon_socket_bind="${IGLOO_SHELL_DEMO_XDG_ROOT}/state/igloo-shell/profiles/${DEMO_PROFILE_ID}/daemon.sock"
-  daemon_socket_rel="igloo-shell-home/state/igloo-shell/profiles/${DEMO_PROFILE_ID}/daemon.sock"
+  daemon_socket_bind="$(printf '%s\n' "${daemon_json}" | json_string_field "socket_path")"
+  daemon_socket_link_name="$(basename "${IGLOO_SHELL_DEMO_CONTROL_SOCKET}")"
   DEMO_DAEMON_LOG="${IGLOO_SHELL_DEMO_XDG_ROOT}/state/igloo-shell/profiles/${DEMO_PROFILE_ID}/daemon.log"
-  if [ -z "${daemon_token}" ]; then
+  if [ -z "${daemon_token}" ] || [ -z "${daemon_socket_bind}" ]; then
     echo "failed to determine daemon transport for profile ${DEMO_PROFILE_ID}"
     printf '%s\n' "${daemon_json}"
     exit 1
   fi
 
+  daemon_socket_link_target="${daemon_socket_bind}"
+  case "${daemon_socket_bind}" in
+    "${IGLOO_SHELL_DEMO_ARTIFACT_DIR}"/*)
+      daemon_socket_link_target="${daemon_socket_bind#${IGLOO_SHELL_DEMO_ARTIFACT_DIR}/}"
+      ;;
+  esac
+
   (
     cd "${IGLOO_SHELL_DEMO_ARTIFACT_DIR}"
-    ln -sfn "${daemon_socket_rel}" "$(basename "${IGLOO_SHELL_DEMO_CONTROL_SOCKET}")"
+    ln -sfn "${daemon_socket_link_target}" "${daemon_socket_link_name}"
   )
   printf '%s\n' "${daemon_token}" > "${IGLOO_SHELL_DEMO_CONTROL_TOKEN_FILE}"
   chmod 0777 "$(dirname "${daemon_socket_bind}")" "${daemon_socket_bind}" >/dev/null 2>&1 || true

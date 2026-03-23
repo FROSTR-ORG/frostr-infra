@@ -279,7 +279,6 @@ async function generateDemoResponderConfig(
     async () =>
       runIglooShellJson(
         [
-          'profile',
           'import',
           '--group',
           path.join(demoDir, 'group.json'),
@@ -287,8 +286,11 @@ async function generateDemoResponderConfig(
           path.join(demoDir, 'share-alice.json'),
           '--label',
           'alice-live',
+          '--vault-secret',
+          'playwright-live-passphrase',
           '--relay-profile',
-          'local'
+          'local',
+          '--json'
         ],
         shellEnv
       )
@@ -338,7 +340,6 @@ async function buildLiveProfile(
           execFileSync(
             await ensureIglooShellBinary(),
             [
-              'profile',
               'export',
               profileId,
               '--format',
@@ -609,7 +610,13 @@ class SharedLiveSignerController implements LiveSignerController {
       { profileId: this.responderProfileId, relayUrl: this.relay.url() },
       async () =>
         runIglooShellJson(
-          ['profile', 'publish-backup', this.responderProfileId],
+          [
+            'profile',
+            'backup',
+            this.responderProfileId,
+            '--vault-passphrase-env',
+            'IGLOO_SHELL_VAULT_PASSPHRASE'
+          ],
           this.shellEnv!,
         ),
     );

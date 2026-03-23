@@ -48,12 +48,20 @@ export async function fetchRuntimeDiagnosticsFromPage<T>(page: Page): Promise<T>
 }
 
 export async function fetchWorkerStorageSnapshot(page: Page) {
-  return await page.evaluate(() => ({
-    profileRaw: window.localStorage.getItem('igloo.v2.profile'),
-    runtimeSnapshotRaw: window.localStorage.getItem('igloo.ext.runtimeSnapshot'),
-    profilePresent: !!window.localStorage.getItem('igloo.v2.profile'),
-    runtimeSnapshotPresent: !!window.localStorage.getItem('igloo.ext.runtimeSnapshot'),
-    href: window.location.href,
-    bodyText: (document.body?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 1_500)
-  }));
+  return await page.evaluate(async () => {
+    const chromeStorage =
+      typeof chrome !== 'undefined' && chrome.storage?.local
+        ? await chrome.storage.local.get(null)
+        : null;
+    const chromeSession =
+      typeof chrome !== 'undefined' && chrome.storage?.session
+        ? await chrome.storage.session.get(null)
+        : null;
+    return {
+      chromeStorage,
+      chromeSession,
+      href: window.location.href,
+      bodyText: (document.body?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 1_500)
+    };
+  });
 }

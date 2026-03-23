@@ -7,6 +7,7 @@ test.describe('provider bridge live signer nip44 flow @live', () => {
   test.setTimeout(180_000);
 
   test('nip44 encrypt fails cleanly when the relay disconnects mid-session', async ({
+    activateProfile,
     callOffscreenRpc,
     context,
     server,
@@ -15,9 +16,7 @@ test.describe('provider bridge live signer nip44 flow @live', () => {
     seedProfile
   }) => {
     await seedProfile(onboardedLiveSignerProfile);
-    await callOffscreenRpc('runtime.ensure', {
-      profile: onboardedLiveSignerProfile
-    });
+    await activateProfile(onboardedLiveSignerProfile.id!);
     await stableLiveSigner.stopRelay();
 
     const page = await context.newPage();
@@ -57,6 +56,7 @@ test.describe('provider bridge live signer nip44 flow @live', () => {
   });
 
   test('nip44 encrypt and decrypt succeed against a live responder', async ({
+    activateProfile,
     callOffscreenRpc,
     context,
     server,
@@ -65,9 +65,7 @@ test.describe('provider bridge live signer nip44 flow @live', () => {
     stableLiveSigner
   }) => {
     await seedProfile(onboardedLiveSignerProfile);
-    await callOffscreenRpc('runtime.ensure', {
-      profile: onboardedLiveSignerProfile
-    });
+    await activateProfile(onboardedLiveSignerProfile.id!);
     const page = await context.newPage();
     await page.goto(`${server.origin}/provider`);
 
