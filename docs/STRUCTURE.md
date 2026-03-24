@@ -19,7 +19,7 @@
 ## Ownership Boundaries
 
 - `repos/bifrost-rs`: signer core, routing, bridge runtimes, host layer, and protocol implementation.
-- `repos/igloo-shell`: CLI, TUI, relay, keygen, package tooling, and shell-owned runtime E2E.
+- `repos/igloo-shell`: CLI, relay, keygen, package tooling, and shell-owned runtime E2E.
   Active script surface: `repos/igloo-shell/scripts/` and `repos/igloo-shell/dev/scripts/`.
 - `repos/igloo-chrome`: browser host/control plane over `bifrost-rs` plus provider/UI surfaces.
 - `repos/igloo-web`: separate web app surface; infra owns any cross-repo E2E that spans multiple repos.

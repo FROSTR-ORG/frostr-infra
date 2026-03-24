@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The hard-cut `igloo-shell` V2 surface needs a long-lived per-profile daemon for CLI and TUI workflows, but the repo already has a layered runtime stack in `bifrost-rs`:
+The hard-cut `igloo-shell` V2 surface needs a long-lived per-profile daemon for CLI workflows, but the repo already has a layered runtime stack in `bifrost-rs`:
 
 - `bifrost-signer` owns signer state and protocol logic
 - `bifrost-router` owns runtime coordination and request lifecycle

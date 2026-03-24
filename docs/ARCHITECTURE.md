@@ -469,7 +469,7 @@ High-level ownership:
 - `bifrost-app`
   - native host/bootstrap and runtime hosting layer
 - `igloo-shell`
-  - operator CLI/TUI, managed profile/vault UX, daemon lifecycle UX
+  - operator CLI, managed profile/vault UX, daemon lifecycle UX
 - `igloo-chrome`
   - browser host, provider surface, operator UI, extension lifecycle wiring
 - `frostr-infra`
