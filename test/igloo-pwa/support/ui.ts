@@ -65,7 +65,9 @@ export async function loadStoredPwaProfile(page: Page, label: string) {
 
 export async function expectPwaDashboard(page: Page, profileLabel?: string) {
   await expect(page.getByText('Device Dashboard')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Stop Signer' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Signer\s+runtime console/i })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Permissions\s+peer policies/i })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Settings\s+operator controls/i })).toBeVisible();
   if (profileLabel) {
     await expect(page.getByRole('heading', { name: new RegExp(profileLabel) })).toBeVisible();
   }

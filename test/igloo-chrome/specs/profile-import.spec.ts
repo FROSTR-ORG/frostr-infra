@@ -38,7 +38,7 @@ test.describe('extension bfprofile import', () => {
       );
 
       await expect(page.getByRole('tab', { name: /Signer/i }).first()).toBeVisible();
-      await expect(page.getByText('Chrome Imported Device 1', { exact: true })).toBeVisible();
+      await expect(page.getByText('Chrome Import', { exact: true })).toBeVisible();
       await page.close();
     } finally {
       await relay.close();

@@ -146,10 +146,11 @@ It is the portable artifact used for full device import/export.
 Conceptually, `bfprofile` contains:
 
 - `profile_id`
+- `keyset_name`
 - device label
 - share secret
 - relay list
-- group metadata
+- structured `group_package`
 - manual peer policy overrides
 - remote peer policy observations
 
@@ -160,6 +161,13 @@ Conceptually, `bfprofile` contains:
 - effective peer policy
 
 Semantically, `bfprofile` is the complete portable device profile.
+
+The canonical serialized shape stores:
+
+- top-level `keyset_name`
+- top-level `group_package`
+
+`group_package` is structured `GroupPackage` data with full compressed member pubkeys. Hosts must preserve it losslessly rather than reconstructing group members from x-only share public keys.
 
 Use `bfprofile` when:
 

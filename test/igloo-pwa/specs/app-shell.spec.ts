@@ -20,7 +20,7 @@ test.describe('igloo-pwa ui-first shell', () => {
     await page.getByRole('button', { name: 'Continue to Review' }).click();
     await expect(page.getByText('Preview and Confirm')).toBeVisible();
     await page.getByRole('button', { name: 'Accept and Continue' }).click();
-    await expect(page.getByRole('heading', { name: 'Distribute the Keyset', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Remaining Shares', exact: true })).toBeVisible();
 
     const shareCard = page.locator('.igloo-generated-card').first();
     await shareCard.getByLabel('Share Name').fill('Remote Tablet');

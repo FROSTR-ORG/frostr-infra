@@ -49,7 +49,7 @@ test.describe('igloo-pwa rotation operator flow', () => {
       await page.getByRole('button', { name: 'Continue to Review' }).click();
       await page.getByRole('button', { name: 'Accept and Continue' }).click();
 
-      await expect(page.getByRole('heading', { name: 'Distribute the Keyset', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Remaining Shares', exact: true })).toBeVisible();
       const distributeCard = page.locator('.igloo-generated-card').filter({ hasText: /Member 2/ }).first();
       await distributeCard.getByLabel('Share Name').fill('Rotated Remote Device');
       await distributeCard.getByLabel('Password', { exact: true }).fill('rotate-remote-pass');

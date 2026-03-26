@@ -88,6 +88,7 @@ Before encryption, the plaintext is canonical JSON:
 {
   "version": 1,
   "profileId": "<hex64>",
+  "keysetName": "Treasury",
   "device": {
     "name": "Primary Browser Device",
     "shareSecret": "<hex32>",
@@ -115,17 +116,24 @@ Before encryption, the plaintext is canonical JSON:
     ],
     "relays": ["wss://relay.example.com"]
   },
-  "group": {
-    "keysetName": "Treasury",
-    "groupPublicKey": "<hex32>",
+  "groupPackage": {
+    "groupPk": "<hex32>",
     "threshold": 2,
-    "totalCount": 3,
     "members": [
-      { "index": 1, "sharePublicKey": "<hex32>" }
+      { "idx": 1, "pubkey": "<compressed_hex33>" }
     ]
   }
 }
 ```
+
+`groupPackage` is structured `GroupPackage` data.
+
+Rules:
+
+- it is stored losslessly inside `bfprofile` and encrypted relay backups
+- member public keys are full compressed secp256k1 points
+- decoders must not reconstruct member pubkeys from x-only share public keys
+- `keysetName` is a top-level sibling of `groupPackage`, not part of the group schema
 
 ### Validation Rules for `bfprofile`
 
@@ -200,6 +208,7 @@ The encrypted JSON contains:
 ```json
 {
   "version": 1,
+  "keysetName": "Treasury",
   "device": {
     "name": "Primary Browser Device",
     "sharePublicKey": "<hex32>",
@@ -227,19 +236,24 @@ The encrypted JSON contains:
     ],
     "relays": ["wss://relay.example.com"]
   },
-  "group": {
-    "keysetName": "Treasury",
-    "groupPublicKey": "<hex32>",
+  "groupPackage": {
+    "groupPk": "<hex32>",
     "threshold": 2,
-    "totalCount": 3,
     "members": [
-      { "index": 1, "sharePublicKey": "<hex32>" }
+      { "idx": 1, "pubkey": "<compressed_hex33>" }
     ]
   }
 }
 ```
 
 The backup excludes the share secret and effective peer policy by design.
+
+Rules:
+
+- `keysetName` is top-level package metadata
+- `groupPackage` is structured, lossless group data
+- member pubkeys are full compressed secp256k1 points
+- decoders must not reconstruct member pubkeys from x-only share pubkeys
 
 ### Backup Encryption Key
 

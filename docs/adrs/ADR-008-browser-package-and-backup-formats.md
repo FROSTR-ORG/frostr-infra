@@ -61,12 +61,13 @@ The canonical encrypted backup event is:
 `bfprofile` is the only full local device-profile package and includes:
 
 - canonical `profileId`
+- top-level `keysetName`
 - share secret
 - device name
 - manual peer policy overrides
 - remote peer policy observations
 - relays
-- group metadata
+- structured `groupPackage`
 
 `bfprofile` is encoded as one single `bfprofile1...` token whose decoded bytes are:
 
@@ -91,5 +92,6 @@ Backup decryption uses a symmetric conversation key derived from the share secre
 - `bfshare` recovery can start from share secret + relays alone
 - `bfonboard` stays type-distinct from `bfshare`, preserving onboarding callback semantics
 - `bfprofile` stays the sole full device-profile import/export package
+- `bfprofile` and encrypted backups preserve full compressed member pubkeys through structured `groupPackage` data
 - runtime snapshot data remains outside the package spec
 - relay publish/query/fetch is explicitly out of scope for `frostr-utils`

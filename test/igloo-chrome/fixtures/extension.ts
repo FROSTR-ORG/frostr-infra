@@ -15,6 +15,7 @@ import {
   type TestInfo,
   type Worker
 } from '@playwright/test';
+import { getPublicKey } from 'nostr-tools';
 
 import { clearE2EEvents, getE2EEvents, logE2E, withLoggedStep } from '../../shared/observability';
 import { IGLOO_CHROME_DIR, IGLOO_CHROME_DIST_DIR, REPO_ROOT_DIR } from '../../shared/repo-paths';
@@ -774,8 +775,10 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
         },
         async () => {
           const page = await openPageForStorage(context, extensionId);
+          const shareSecret = '22'.repeat(32);
+          const compressedSharePubkey = `02${getPublicKey(Uint8Array.from(Buffer.from(shareSecret, 'hex'))).toLowerCase()}`;
           await page.evaluate(
-            async ({ profile, publicKey, groupPublicKey, peerPubkey }) => {
+            async ({ profile, publicKey, groupPublicKey, peerPubkey, shareSecret, compressedSharePubkey }) => {
               if (profile.storedBlobRecord && typeof profile.sessionKeyB64 === 'string') {
                 await chrome.storage.local.set({
                   'igloo.ext.profiles': [profile.storedBlobRecord],
@@ -805,7 +808,6 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
                 '11'.repeat(32);
               const label = (profile.keysetName as string | undefined)?.trim() || 'Playwright Smoke';
               const password = 'playwright-passphrase';
-              const shareSecret = '22'.repeat(32);
               const salt = crypto.getRandomValues(new Uint8Array(16));
               const iv = crypto.getRandomValues(new Uint8Array(12));
               const baseKey = await crypto.subtle.importKey(
@@ -835,6 +837,7 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
                 profile: {
                   profileId,
                   version: 1,
+                  keysetName: label,
                   device: {
                     name: label,
                     shareSecret,
@@ -842,18 +845,16 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
                     remotePeerPolicyObservations: [],
                     relays: Array.isArray(profile.relays) ? profile.relays : []
                   },
-                  group: {
-                    keysetName: label,
-                    groupPublicKey:
+                  groupPackage: {
+                    groupPk:
                       (groupPublicKey as string | undefined) ??
                       (publicKey as string | undefined) ??
                       '33'.repeat(32),
                     threshold: 2,
-                    totalCount: 3,
                     members: [
                       {
-                        index: 1,
-                        sharePublicKey: '44'.repeat(32)
+                        idx: 1,
+                        pubkey: compressedSharePubkey
                       }
                     ]
                   }
@@ -911,7 +912,9 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
               profile: { ...TEST_PROFILE, ...overrides },
               publicKey: overrides.publicKey,
               groupPublicKey: overrides.groupPublicKey,
-              peerPubkey: overrides.peerPubkey
+              peerPubkey: overrides.peerPubkey,
+              shareSecret,
+              compressedSharePubkey
             }
           );
           await page.close();

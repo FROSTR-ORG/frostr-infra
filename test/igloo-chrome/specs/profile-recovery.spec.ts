@@ -39,7 +39,7 @@ test.describe('extension bfshare recovery', () => {
       );
 
       await expect(page.getByRole('tab', { name: /Signer/i }).first()).toBeVisible();
-      await expect(page.getByText('Chrome Recovered Device 1', { exact: true })).toBeVisible();
+      await expect(page.getByText('Chrome Recovery', { exact: true })).toBeVisible();
       await page.close();
     } finally {
       await relay.close();

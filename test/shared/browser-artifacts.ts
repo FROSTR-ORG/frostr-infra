@@ -10,7 +10,8 @@ import {
   deriveProfileIdFromShareSecret,
   encodeBfOnboardPackage,
   type BrowserOnboardPackagePayload,
-  type BrowserProfileGroupMember,
+  groupPublicKeyFromPackage,
+  type BrowserGroupPackageMember,
   type BrowserProfilePackagePayload,
 } from '../../repos/igloo-shared/src/profile-package';
 import { publishEncryptedProfileBackup } from '../../repos/igloo-shared/src/profile-backup-host';
@@ -94,10 +95,10 @@ async function ensureInjectedWasmModule() {
   return module;
 }
 
-function buildMembers(members: Array<{ idx: number; pubkey: string }>): BrowserProfileGroupMember[] {
+function buildMembers(members: Array<{ idx: number; pubkey: string }>): BrowserGroupPackageMember[] {
   return members.map((member) => ({
-    index: member.idx,
-    sharePublicKey: member.pubkey.toLowerCase().replace(/^02|^03/, ''),
+    idx: member.idx,
+    pubkey: member.pubkey.toLowerCase(),
   }));
 }
 
@@ -107,13 +108,14 @@ function buildProfilePayload(input: {
   relays: string[];
   groupPublicKey: string;
   threshold: number;
-  members: BrowserProfileGroupMember[];
+  members: BrowserGroupPackageMember[];
   shareSecret: string;
   profileId: string;
 }): BrowserProfilePackagePayload {
   return {
     profileId: input.profileId,
     version: 1,
+    keysetName: input.keysetName,
     device: {
       name: input.label,
       shareSecret: input.shareSecret,
@@ -121,25 +123,20 @@ function buildProfilePayload(input: {
       remotePeerPolicyObservations: [],
       relays: input.relays,
     },
-    group: {
-      keysetName: input.keysetName,
-      groupPublicKey: input.groupPublicKey,
+    groupPackage: {
+      groupPk: input.groupPublicKey,
       threshold: input.threshold,
-      totalCount: input.members.length,
       members: input.members,
     },
   };
 }
 
-function buildGroupPackageJson(groupPublicKey: string, threshold: number, members: BrowserProfileGroupMember[]) {
+function buildGroupPackageJson(groupPublicKey: string, threshold: number, members: BrowserGroupPackageMember[]) {
   return JSON.stringify(
     {
       group_pk: groupPublicKey,
       threshold,
-      members: members.map((member) => ({
-        idx: member.index,
-        pubkey: `02${member.sharePublicKey}`,
-      })),
+      members,
     },
     null,
     2,
@@ -367,7 +364,7 @@ export function createPwaStoredProfileSeed(input: {
     id: input.artifact.profileId,
     label,
     share_public_key: input.artifact.sharePublicKey,
-    group_public_key: input.artifact.profilePayload.group.groupPublicKey,
+    group_public_key: groupPublicKeyFromPackage(input.artifact.profilePayload.groupPackage),
     relays: [...input.artifact.profilePayload.device.relays],
     group_package_json: input.groupPackageJson,
     share_package_json: input.artifact.sharePackageJson,

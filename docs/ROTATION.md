@@ -154,11 +154,19 @@ That rotated device state includes:
 - a fresh share secret
 - a fresh share public key
 - a new canonical `profile_id`
-- rotated group metadata
+- top-level `keyset_name`
+- structured `group_package`
 - the chosen relay set
 - local durable policy inputs
 
 At this stage, the operator has the new share material and the rotated durable profile state, but it is not yet distributed to every target device.
+
+When that durable state is serialized into `bfprofile` or encrypted relay backups, it uses the same canonical package shape as the rest of the system:
+
+- top-level `keyset_name`
+- top-level `group_package`
+
+Rotation does not introduce a separate shadow group schema.
 
 ### 4. Distribute Rotated Shares
 
