@@ -45,7 +45,13 @@ That gives FROSTR three central architectural layers:
    - one local profile per share-holding device
    - one runtime that uses that share to participate in threshold operations
 3. host/product structure
-   - browser, shell, and other surfaces that store profiles, bootstrap devices, and expose signing functionality
+- browser, shell, and other surfaces that store profiles, bootstrap devices, and expose signing functionality
+
+Host roles are intentionally asymmetric:
+
+- `igloo-shell` is the strongest operator host and the primary enterprise/business surface
+- browser hosts prioritize device management, onboarding, and end-user adoption flows
+- operator-only workflows such as staged trusted rotation can therefore be most explicit in `igloo-shell` without requiring every host to expose the same control surface
 
 ## Core Model
 

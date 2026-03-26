@@ -35,7 +35,7 @@ Top-level docs in this repo describe cross-repo architecture, protocol, and revi
 ## Repo-Local Manuals
 
 - `repos/bifrost-rs/docs/`: implementation, operations, and API details for the Rust stack.
-- `repos/igloo-shell/docs/`: CLI/relay/keygen/package/operator manuals for the shell surface.
+- `repos/igloo-shell/docs/`: CLI/relay/keygen/package/operator manuals for the shell surface, including enterprise rotation generation.
 - `repos/igloo-shell/scripts/`: active devnet, relay, soak, and shell-owned E2E entrypoints.
 - `repos/igloo-chrome/*.md`: extension-specific workflow, testing, release, and security docs.
 - `repos/igloo-web/*.md`: web-app-specific workflow and runtime docs.

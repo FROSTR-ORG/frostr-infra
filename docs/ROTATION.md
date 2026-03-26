@@ -94,6 +94,19 @@ The rotated group public key is the same as the old one.
 
 The rotated member verifying shares, threshold, and member count may differ from the previous configuration.
 
+## Operator Hosts
+
+FROSTR hosts do not all own the same rotation responsibilities.
+
+- `igloo-shell` is the strongest operator host
+  - it is intended for business and enterprise environments
+  - it owns first-class operator-side rotation generation through `rotate-keyset`
+- browser hosts focus on device adoption and simpler operator flows
+  - `igloo-home` and `igloo-pwa` support rotation-oriented UI workflows
+  - `igloo-chrome` remains a device-management and onboarding host, not a keyset-generation host
+
+This means the conceptual rotation model stays the same across hosts, but the shell is the most explicit environment for staged, manifest-driven rotation work.
+
 ## Rotation Phases
 
 FROSTR rotation proceeds in five conceptual phases.
@@ -161,6 +174,15 @@ The operator may still assign intent for each rotated target:
 But both intents produce the same artifact:
 
 - `bfonboard`
+
+In `igloo-shell`, the operator-side generation workflow is explicit:
+
+1. `rotate-keyset init`
+2. edit or review `rotation.json`
+3. `rotate-keyset show`
+4. `rotate-keyset generate`
+
+`rotate-keyset generate` replaces the selected local source profile immediately and emits `bfonboard` packages for the remaining rotated targets.
 
 ### 5. Adopt Rotated State
 
