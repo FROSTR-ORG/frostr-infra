@@ -19,6 +19,7 @@ Use these companion docs for adjacent domains:
 - [ONBOARD.md](./ONBOARD.md): onboarding flow and `bfonboard`
 - [ROTATION.md](./ROTATION.md): trusted share rotation and rotated device distribution
 - [PROTOCOL.md](./PROTOCOL.md): high-level runtime protocol
+- [GLOSSARY.md](./GLOSSARY.md): canonical terminology for package, backup, recovery, and identity terms
 
 ## Scope
 

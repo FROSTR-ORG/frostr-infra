@@ -16,8 +16,10 @@ Use this document for wire-level transport and envelope structure.
 
 Use these companion docs for adjacent domains:
 
+- [INTERFACES.md](./INTERFACES.md): boundary map for runtime, protocol, and wire interfaces
 - [PROTOCOL.md](./PROTOCOL.md): peer-protocol semantics between devices
 - [ONBOARD.md](./ONBOARD.md): onboarding/bootstrap flow
+- [GLOSSARY.md](./GLOSSARY.md): canonical terminology for relay, envelope, routing, and identity terms
 
 ## Transport Layer
 

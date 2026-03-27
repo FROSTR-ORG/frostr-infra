@@ -61,7 +61,7 @@ The serialization and runtime-status boundary follows the same split:
 - separate `Policies` control/status commands are removed
 - operator hosts read permission state from runtime status, not from a parallel policy RPC or coarse manifest view
 
-This is a hard cut for the alpha stack:
+This is a hard cut for the beta stack:
 
 - legacy coarse `send` / `receive` policy is removed
 - compatibility readers and dual-shape loaders are removed

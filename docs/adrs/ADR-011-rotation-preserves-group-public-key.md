@@ -52,7 +52,7 @@ Because threshold and member verifying shares may change, a rotated group config
 
 ## Current Hard-Cut Implication
 
-The alpha utility code must not expose any successor-keyset reissue feature.
+The beta utility code must not expose any successor-keyset reissue feature.
 
 - rotation is the only supported same-key share renewal path
 - generating a new keyset is the supported way to get a different group public key

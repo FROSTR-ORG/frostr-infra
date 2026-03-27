@@ -17,6 +17,9 @@ Use this document for the system-level picture.
 
 Use these companion docs for lower-level detail:
 
+- [INTERFACES.md](./INTERFACES.md): interface map across hosts, packages, peer protocol, and relay transport
+- [GLOSSARY.md](./GLOSSARY.md): canonical terminology used across the shared specs
+- [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md): FROST-side keyset, share, nonce, signing, and ECDH mechanics
 - [PROTOCOL.md](./PROTOCOL.md): peer-to-peer protocol semantics
 - [WIRE.md](./WIRE.md): wire format over Nostr relays
 - [PROFILE.md](./PROFILE.md): durable device/profile state

@@ -21,6 +21,7 @@ Use these companion docs for adjacent domains:
 - [BACKUP.md](./BACKUP.md): `bfprofile`, `bfshare`, relay backups, and recovery artifacts
 - [ONBOARD.md](./ONBOARD.md): onboarding flow and `bfonboard`
 - [ARCHITECTURE.md](./ARCHITECTURE.md): system-level architecture
+- [GLOSSARY.md](./GLOSSARY.md): canonical terminology for rotation, replacement, and identity terms
 
 ## What Rotation Is
 
@@ -39,7 +40,7 @@ If the group public key changes, that is a brand-new keyset, not a rotation.
 
 ## Trusted-Dealer Rotation Model
 
-The current alpha rotation model is trusted-dealer rotation.
+The current beta rotation model is trusted-dealer rotation.
 
 The operator supplies a threshold set of existing `bfshare` packages exported from current devices. Those threshold shares are used to reconstruct the existing signing key, and that same signing key is then split into a new rotated share set.
 

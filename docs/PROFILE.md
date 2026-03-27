@@ -21,6 +21,7 @@ Use these companion docs for adjacent domains:
 - [ROTATION.md](./ROTATION.md): share rotation and rotated device adoption
 - [PROTOCOL.md](./PROTOCOL.md): high-level runtime protocol
 - [ARCHITECTURE.md](./ARCHITECTURE.md): host/runtime ownership boundaries
+- [GLOSSARY.md](./GLOSSARY.md): canonical terminology for profile, device, runtime, and identity terms
 
 ## What a Device Profile Is
 

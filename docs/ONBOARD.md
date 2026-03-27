@@ -20,6 +20,7 @@ Use these companion docs for adjacent domains:
 - [BACKUP.md](./BACKUP.md): backup, recovery, `bfshare`, and full-profile package details
 - [ROTATION.md](./ROTATION.md): trusted share rotation and rotated share distribution
 - [PROTOCOL.md](./PROTOCOL.md): high-level runtime protocol
+- [GLOSSARY.md](./GLOSSARY.md): canonical terminology for onboarding, import, recovery, and package terms
 
 ## What Onboarding Is
 

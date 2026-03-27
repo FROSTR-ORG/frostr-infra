@@ -9,6 +9,7 @@ It focuses on:
 - the device-to-device model
 - peer identities and recipient routing
 - the request/response operation model
+- nonce-pool lifecycle as part of runtime signing readiness
 - the core peer operations:
   - `ping`
   - `onboard`
@@ -19,10 +20,13 @@ Use this document for protocol semantics between devices.
 
 Use these companion docs for adjacent domains:
 
+- [INTERFACES.md](./INTERFACES.md): boundary map for identities, packages, and protocol layers
+- [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md): FROST-side keyset, share, nonce, signing, and ECDH mechanics
 - [WIRE.md](./WIRE.md): wire format and Nostr/NIP-44 transport details
 - [ONBOARD.md](./ONBOARD.md): onboarding bootstrap flow and `bfonboard`
 - [PROFILE.md](./PROFILE.md): durable device/profile identity and state
 - [BACKUP.md](./BACKUP.md): `bfprofile`, `bfshare`, encrypted backups, and recovery
+- [GLOSSARY.md](./GLOSSARY.md): canonical terminology for peer, routing, identity, and operation terms
 
 ## Model
 
@@ -34,6 +38,7 @@ At the peer-protocol level:
 - each device holds one share secret and one corresponding share public key
 - devices communicate over relays using encrypted peer messages
 - one device may initiate an operation, but multiple peers may participate in completing it
+- sign-capable devices must maintain valid nonce-pool state as part of runtime readiness
 
 The peer protocol is the runtime coordination layer between devices after a device already exists and can communicate over relays.
 
@@ -75,6 +80,30 @@ Conceptually:
 6. the initiator validates responses and either completes the operation or fails it
 
 Each round is scoped by a request identifier. Responses are matched to the initiating round, not treated as free-floating peer messages.
+
+## Nonce Pools in the Protocol
+
+Nonce pools are runtime-owned operational state used for threshold signing readiness.
+
+At the protocol level, the important facts are:
+
+- sign-capable devices must have valid nonce material available before participating in a signing round
+- nonce material is consumed as part of the round and cannot be reused
+- a device with missing, exhausted, or invalid nonce state is not sign-ready for that round
+
+That makes nonce pools part of the operational readiness model for `sign`, even though the cryptographic meaning of nonce material lives in [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md).
+
+Conceptually:
+
+```text
+runtime
+  -> prepare nonce pool
+  -> accept sign request only if nonce state is valid
+  -> consume nonce material during the round
+  -> replenish later for future rounds
+```
+
+Nonce pools are not part of durable portable profile state. They belong to the live runtime.
 
 ## Core Peer Operations
 
@@ -122,6 +151,8 @@ Conceptually:
 5. if the round succeeds, the initiator aggregates the final signature
 
 If a required locked peer fails to provide a valid response, the round fails and must be restarted as a new request.
+
+Operationally, signing readiness also depends on valid available nonce-pool state on the participating devices. A device that cannot supply safe nonce material must refuse or fail the round rather than participate unsafely.
 
 ### `ecdh`
 
@@ -181,6 +212,7 @@ A peer operation may fail because:
 - the message is stale or replayed
 - the peer is not reachable
 - the peer denies the operation by local policy
+- the peer lacks valid nonce-pool state for the signing round
 - the peer returns invalid operation material
 - a required locked peer does not respond in time
 
@@ -194,6 +226,7 @@ These rules should hold across the device-to-device protocol:
 - relay metadata is not the protocol payload
 - recipient routing is enforced per message
 - peer identity for routing is the share public key, not `profile_id`
+- signing nonce pools are runtime-owned one-time-use operational state, not portable profile artifacts
 - `ping`, `onboard`, `sign`, and `ecdh` are the core peer operations
 - `sign` and `ecdh` rounds fail if required locked-peer responses are missing or invalid
 - onboarding at the peer-protocol layer is only one part of the larger host bootstrap flow
