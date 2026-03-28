@@ -578,7 +578,7 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
           waitForAppReady: targetPath === 'options.html'
         });
         return page;
-      }, fixture.profile, `${fixture.profile.keysetName} Seed`).catch(async (error) => {
+      }, fixture.profile, `${fixture.profile.groupName} Seed`).catch(async (error) => {
         const status = lastOnboardingPage
           ? await fetchExtensionStatusFromPage(lastOnboardingPage).catch((inner) => ({
               error: inner instanceof Error ? inner.message : String(inner)
@@ -806,7 +806,7 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
                 (groupPublicKey as string | undefined) ??
                 (publicKey as string | undefined) ??
                 '11'.repeat(32);
-              const label = (profile.keysetName as string | undefined)?.trim() || 'Playwright Smoke';
+              const label = (profile.groupName as string | undefined)?.trim() || 'Playwright Smoke';
               const password = 'playwright-passphrase';
               const salt = crypto.getRandomValues(new Uint8Array(16));
               const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -837,15 +837,14 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
                 profile: {
                   profileId,
                   version: 1,
-                  keysetName: label,
                   device: {
                     name: label,
                     shareSecret,
                     manualPeerPolicyOverrides: [],
-                    remotePeerPolicyObservations: [],
                     relays: Array.isArray(profile.relays) ? profile.relays : []
                   },
                   groupPackage: {
+                    groupName: label,
                     groupPk:
                       (groupPublicKey as string | undefined) ??
                       (publicKey as string | undefined) ??

@@ -2,231 +2,398 @@
 
 ## Summary
 
-This document is the living spec for the peer-to-peer protocol between FROSTR devices.
+This document is the runtime protocol spec for peer-to-peer coordination between FROSTR devices.
 
-It focuses on:
-
-- the device-to-device model
-- peer identities and recipient routing
-- the request/response operation model
-- nonce-pool lifecycle as part of runtime signing readiness
-- the core peer operations:
+It defines:
+- actor roles
+- request lifecycle
+- peer selection and responder validation
+- timeout and failure semantics
+- the operation contracts for:
   - `ping`
   - `onboard`
   - `sign`
   - `ecdh`
 
-Use this document for protocol semantics between devices.
+It does not define:
+- relay event bytes and envelope encoding
+- package formats
+- cryptographic math
 
-Use these companion docs for adjacent domains:
+Those live in:
+- [WIRE.md](./WIRE.md)
+- [BACKUP.md](./BACKUP.md)
+- [ONBOARD.md](./ONBOARD.md)
+- [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md)
 
-- [INTERFACES.md](./INTERFACES.md): boundary map for identities, packages, and protocol layers
-- [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md): FROST-side keyset, share, nonce, signing, and ECDH mechanics
-- [WIRE.md](./WIRE.md): wire format and Nostr/NIP-44 transport details
-- [ONBOARD.md](./ONBOARD.md): onboarding bootstrap flow and `bfonboard`
-- [PROFILE.md](./PROFILE.md): durable device/profile identity and state
-- [BACKUP.md](./BACKUP.md): `bfprofile`, `bfshare`, encrypted backups, and recovery
-- [GLOSSARY.md](./GLOSSARY.md): canonical terminology for peer, routing, identity, and operation terms
+## Actors
 
-## Model
+### Initiator
 
-FROSTR is a threshold signing system with one group public key and multiple share-holding devices.
+The device that starts an operation round.
 
-At the peer-protocol level:
+The initiator is responsible for:
+- choosing the target peer set
+- generating the round request id
+- sending request messages
+- matching responses back to the round
+- deciding terminal success or failure
 
-- no single device holds the full signing secret
-- each device holds one share secret and one corresponding share public key
-- devices communicate over relays using encrypted peer messages
-- one device may initiate an operation, but multiple peers may participate in completing it
-- sign-capable devices must maintain valid nonce-pool state as part of runtime readiness
+### Responder
 
-The peer protocol is the runtime coordination layer between devices after a device already exists and can communicate over relays.
+Any peer device that receives an operation request and decides whether to respond.
 
-## Peer Identities
+The responder is responsible for:
+- validating recipient routing
+- validating freshness and replay constraints
+- applying policy and readiness checks
+- validating operation-specific inputs before returning a response
 
-At the peer-protocol level, devices care about these identities:
+### Locked Peer
 
+A selected peer whose valid response is required for the round to succeed.
+
+Locked-peer semantics matter most for:
+- `sign`
+- `ecdh`
+
+If a locked peer does not return a valid response in time, the round fails.
+
+### Provisioning Responder
+
+The already-running device that answers onboarding requests from a recipient that has imported `bfonboard`.
+
+This role is a specialized responder in the onboarding flow.
+
+## Core Protocol Identities
+
+The peer protocol uses:
 - share public key
-  - the device/member identity used for peer routing and peer policy
+  - peer-routing identity
 - group public key
-  - the threshold keyset identity
+  - keyset identity
+- request id
+  - round correlation token
 
-`profile_id` is a host/profile concept, not a peer-routing identity.
+It does not use:
+- `profile_id`
 
-Peers route messages to each other using the recipient device identity, not `profile_id`.
+`profile_id` is host-local durable identity, not a peer-routing identity.
 
-## Transport Assumptions
+## Request Lifecycle
 
-The peer protocol assumes:
+Every peer round follows the same high-level lifecycle.
 
-- relays are transport only
-- relay metadata is not trusted as protocol payload
-- protocol content is carried inside encrypted peer envelopes
-- devices validate recipient routing, freshness, replay constraints, and operation-specific invariants before accepting a message
+### 1. Round Creation
 
-The low-level transport and envelope format live in [WIRE.md](./WIRE.md).
+The initiator:
+- decides which operation to run
+- selects eligible target peers
+- creates a fresh request id
+- binds operation-specific context to that request id
 
-## Operation Model
+### 2. Request Dispatch
 
-The peer protocol uses an encrypted request/response model.
+The initiator:
+- encrypts one or more request messages
+- addresses them to specific recipient share public keys
+- publishes them over relays
 
-Conceptually:
+### 3. Responder Validation
 
-1. an initiating device decides to start an operation
-2. it selects one or more peer recipients
-3. it sends encrypted request message(s)
-4. recipient peers validate and process the request
-5. recipients send encrypted response message(s)
-6. the initiator validates responses and either completes the operation or fails it
+Each responder validates, in order:
+- recipient routing
+- freshness and replay constraints
+- local policy eligibility
+- local operation readiness
+- operation-specific request structure and semantics
 
-Each round is scoped by a request identifier. Responses are matched to the initiating round, not treated as free-floating peer messages.
+If validation fails, the responder either:
+- ignores the request, or
+- returns an explicit error response when the operation semantics allow it
 
-## Nonce Pools in the Protocol
+### 4. Response Matching
 
-Nonce pools are runtime-owned operational state used for threshold signing readiness.
+The initiator:
+- receives encrypted responses
+- decrypts and parses them
+- matches them to the active round by request id
+- rejects unrelated, stale, invalid, or duplicate responses
 
-At the protocol level, the important facts are:
+### 5. Terminal Result
 
-- sign-capable devices must have valid nonce material available before participating in a signing round
-- nonce material is consumed as part of the round and cannot be reused
-- a device with missing, exhausted, or invalid nonce state is not sign-ready for that round
+A round terminates in one of two states:
+- success
+- failure
 
-That makes nonce pools part of the operational readiness model for `sign`, even though the cryptographic meaning of nonce material lives in [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md).
+A failed round is terminal. Retrying the operation creates a new request id and a new round.
 
-Conceptually:
+## Initiator Responsibilities
 
-```text
-runtime
-  -> prepare nonce pool
-  -> accept sign request only if nonce state is valid
-  -> consume nonce material during the round
-  -> replenish later for future rounds
-```
+The initiator must:
+- select peers that are eligible for the operation
+- respect local policy and remote observed policy where required
+- distinguish locked peers from non-required peers where the operation requires it
+- reject missing, malformed, duplicate, stale, or mismatched responses
+- fail the round if required locked-peer conditions are not met
 
-Nonce pools are not part of durable portable profile state. They belong to the live runtime.
+For `sign`, the initiator must also ensure:
+- all selected signing participants are sign-capable
+- the round is bound to valid cryptographic signing context
 
-## Core Peer Operations
+For `ecdh`, the initiator must ensure:
+- all selected participants are ECDH-capable
+- the returned contributions are validated before combination
 
-The current peer protocol has four core operations.
+## Responder Responsibilities
+
+Before responding, a responder must validate:
+
+### Routing
+
+- exactly one recipient `p` tag is present at the wire layer
+- the recipient matches a local share public key
+
+### Freshness And Replay
+
+- the message is within acceptable freshness bounds
+- the request id has not already been consumed in a way that makes the message invalid
+
+### Policy
+
+- the operation is permitted by local policy
+- any additional local gating rules for the operation are satisfied
+
+### Readiness
+
+- the responder is ready for the requested operation
+- for `sign`, this includes valid available nonce state
+
+### Operation-Specific Semantics
+
+- the request payload is structurally valid
+- required operation-specific fields are well-formed
+- the request is consistent with the responder’s local keyset and runtime state
+
+## Peer Selection Rules
+
+Peer selection is initiator-owned.
+
+At operation start, the initiator considers:
+- local manual peer-permission overrides
+- remote observed peer policy
+- runtime readiness and capability
+- operation-specific locked-peer requirements
+
+High-level rule:
+- outbound `sign` and `ecdh` require both local allow and remote observed allow
+- `ping` and `onboard` are not suppressed by remote observed policy in the same way
+
+## Nonce Pools In The Protocol
+
+Nonce pools are runtime-owned operational state that affect protocol eligibility for signing.
+
+At the protocol layer:
+- a responder without valid nonce state is not sign-ready
+- a device must not participate in a signing round if doing so would require nonce reuse
+- nonce exhaustion or invalid nonce state is a legitimate round-failure reason
+
+Nonce pools are not portable profile state and are not shared as part of profile import/export or recovery artifacts.
+
+The cryptographic meaning of nonce material lives in [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md).
+
+## Operation Contracts
 
 ### `ping`
 
-`ping` is the peer reachability and policy-observation operation.
+Purpose:
+- confirm peer reachability
+- refresh remote observed policy/profile information
 
-It is used to:
+Preconditions:
+- initiator knows the target peer share public key
+- target peer is routable over the active relay set
 
-- confirm that a peer is reachable through the current relay path
-- fetch the peer's reported policy profile
-- refresh remote observed peer-permission state
+Initiator behavior:
+- sends a ping request to one peer
+- treats the round as successful only if a valid ping response is received
 
-`ping` is part of normal runtime coordination and peer discovery.
+Responder validation:
+- routing is valid
+- request is fresh and not replayed
+- local policy allows ping response behavior
+
+Response expectations:
+- peer identity matches the addressed peer
+- response is correlated to the request id
+- response may include peer-status or policy-observation data
+
+Success criteria:
+- initiator receives and validates the response from the targeted peer
+
+Failure criteria:
+- peer unreachable
+- response missing or stale
+- policy deny
+- invalid response payload
 
 ### `onboard`
 
-`onboard` is the peer operation used during the onboarding bootstrap handshake.
+Purpose:
+- bootstrap a new device that has already imported `bfonboard`
 
-It is used only after a recipient has imported a `bfonboard` package and dialed the provisioning signer.
+Preconditions:
+- recipient has decrypted `bfonboard`
+- recipient knows the callback peer public key and relay set
+- provisioning responder is reachable
 
-At the peer-protocol layer, `onboard` carries:
+Initiator behavior:
+- sends an onboarding request to the provisioning responder
+- includes bootstrap nonce material needed by the bootstrap flow
 
-- the onboarding request
-- bootstrap nonce material
-- the onboarding response
-- the returned group/bootstrap material needed to construct the new local device
+Responder validation:
+- routing is valid
+- request is fresh and not replayed
+- request comes from a valid requester identity
+- onboarding-specific bootstrap state is valid and acceptable
 
-The host/bootstrap side of onboarding is documented in [ONBOARD.md](./ONBOARD.md). This protocol document only covers the device-to-device exchange itself.
+Response expectations:
+- returns the group/bootstrap material needed by the new device
+- includes responder bootstrap nonce material required by the onboarding flow
+
+Success criteria:
+- recipient receives a valid onboarding response
+- recipient can materialize complete local durable state from the result
+
+Failure criteria:
+- package import/decryption was wrong upstream
+- provisioning responder unavailable
+- onboarding request rejected or times out
+- returned bootstrap material is invalid
+
+The host/bootstrap side of onboarding lives in [ONBOARD.md](./ONBOARD.md). This protocol spec covers only the device-to-device exchange.
 
 ### `sign`
 
-`sign` is the threshold signing operation.
+Purpose:
+- complete one threshold signing round
 
-It is used when an initiating device wants peers to participate in a signing round.
+Preconditions:
+- initiator has a valid signing context
+- selected peers are sign-capable
+- required participants have valid nonce state
 
-Conceptually:
+Initiator behavior:
+- selects the signing peer set
+- marks required locked peers
+- sends signing requests
+- validates returned partial-signature material
+- aggregates the final signature only after required responses are valid
 
-1. the initiator selects a peer set that is currently sign-capable
-2. it sends signing requests to those peers
-3. peers validate the request and return partial-signature material
-4. the initiator validates the locked peer responses
-5. if the round succeeds, the initiator aggregates the final signature
+Responder validation:
+- routing is valid
+- request is fresh and not replayed
+- local policy allows signing
+- runtime is sign-ready
+- valid signing nonce state is available
+- signing request is structurally and cryptographically acceptable
 
-If a required locked peer fails to provide a valid response, the round fails and must be restarted as a new request.
+Response expectations:
+- one valid response per participating responder
+- response is bound to the request id
+- response contains the responder’s signing-round contribution
 
-Operationally, signing readiness also depends on valid available nonce-pool state on the participating devices. A device that cannot supply safe nonce material must refuse or fail the round rather than participate unsafely.
+Success criteria:
+- all required locked peers return valid responses
+- initiator validates and aggregates the result successfully
+
+Failure criteria:
+- missing locked-peer response
+- invalid locked-peer response
+- duplicate or stale response
+- nonce-state failure
+- explicit deny
+- timeout
+
+Retry model:
+- a failed signing round must be restarted as a new round with a new request id
 
 ### `ecdh`
 
-`ecdh` is the threshold ECDH/shared-secret operation.
+Purpose:
+- complete one threshold shared-secret derivation round
 
-It follows the same general request/response pattern as signing:
+Preconditions:
+- initiator has a valid ECDH context
+- selected peers are ECDH-capable
 
-1. the initiator selects an ECDH-capable peer set
-2. it sends encrypted ECDH requests
-3. peers validate and return ECDH response material
-4. the initiator validates the locked peer responses
-5. the initiator combines the resulting shared-secret material
+Initiator behavior:
+- selects the ECDH peer set
+- marks required locked peers
+- sends ECDH requests
+- validates returned ECDH contribution material
+- combines the final shared-secret result only after required responses are valid
 
-## Peer Selection and Policy
+Responder validation:
+- routing is valid
+- request is fresh and not replayed
+- local policy allows ECDH
+- runtime is ECDH-ready
+- ECDH request is structurally and cryptographically acceptable
 
-The peer protocol does not treat all peers as always eligible.
+Response expectations:
+- one valid response per participating responder
+- response is bound to the request id
+- response contains the responder’s ECDH-round contribution
 
-At operation start, the initiating device must consider:
+Success criteria:
+- all required locked peers return valid responses
+- initiator validates and combines the final result successfully
 
-- local manual peer-permission overrides
-- remote observed peer policy
-- operation capability and readiness
+Failure criteria:
+- missing locked-peer response
+- invalid locked-peer response
+- duplicate or stale response
+- explicit deny
+- timeout
 
-Current high-level rule:
+Retry model:
+- a failed ECDH round must be restarted as a new round with a new request id
 
-- outbound `sign` and `ecdh` require both local allow and remote observed allow
-- `ping` and `onboard` are not suppressed by remote observed policy
+## Timeout And Failure Semantics
 
-The full permission model lives in ADR-009 and the related living specs. This protocol doc records only the operational effect on peer-to-peer message eligibility.
+A round fails if any of the following happens:
+- recipient routing is invalid
+- the request is stale or replayed
+- a responder denies the operation by policy
+- a responder is not ready for the operation
+- for signing, nonce-state requirements are not satisfied
+- a locked peer does not respond in time
+- a locked peer returns invalid response material
+- the initiator cannot validate the response set
 
-## Onboarding in the Peer Protocol
+The initiator must treat missing or invalid required responses as terminal failure, not partial success.
 
-Onboarding has two layers:
+## Retry Semantics
 
-- host/bootstrap layer
-  - import `bfonboard`
-  - decrypt bootstrap credential
-  - prepare local bootstrap context
-- peer-protocol layer
-  - send onboarding request event
-  - exchange bootstrap nonce material
-  - receive returned group/bootstrap material
+There is no implicit resume of a failed round.
 
-At the protocol level, requester identity is inferred from the signed event pubkey, not from a separate free-form identity field.
+A retry means:
+- new request id
+- new request messages
+- fresh round state
 
-After the onboarding exchange succeeds, the recipient host materializes:
-
-- a full local `bfprofile`
-- a local `bfshare`
-- an encrypted profile backup
-
-## Failure Model
-
-A peer operation may fail because:
-
-- the recipient routing is invalid
-- the message is stale or replayed
-- the peer is not reachable
-- the peer denies the operation by local policy
-- the peer lacks valid nonce-pool state for the signing round
-- the peer returns invalid operation material
-- a required locked peer does not respond in time
-
-The initiator must treat missing or invalid required responses as round failure, not as partial success.
+For signing, retrying also means the initiator must use fresh valid signing-round state and must not attempt unsafe reuse of prior nonce-bound context.
 
 ## Protocol Invariants
 
-These rules should hold across the device-to-device protocol:
-
+These rules should always hold:
 - devices communicate through encrypted request/response messages over relays
 - relay metadata is not the protocol payload
-- recipient routing is enforced per message
-- peer identity for routing is the share public key, not `profile_id`
-- signing nonce pools are runtime-owned one-time-use operational state, not portable profile artifacts
-- `ping`, `onboard`, `sign`, and `ecdh` are the core peer operations
+- share public key is the peer-routing identity
+- `profile_id` is not a peer-routing identity
+- request id binds one operation round
+- responders validate routing, freshness, policy, and readiness before replying
+- signing readiness depends on valid nonce-pool state
 - `sign` and `ecdh` rounds fail if required locked-peer responses are missing or invalid
-- onboarding at the peer-protocol layer is only one part of the larger host bootstrap flow
+- retries are new rounds, not resumptions

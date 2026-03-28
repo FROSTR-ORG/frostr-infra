@@ -100,7 +100,7 @@ async function completeOnboardingInContext(
   context: BrowserContext,
   extensionId: string,
   profile: {
-    keysetName?: string;
+    groupName?: string;
     onboardPackage?: string;
     onboardPassword?: string;
     publicKey: string;
@@ -127,7 +127,7 @@ async function completeOnboardingInContext(
     await pwExpect(saveCard.getByRole('heading', { name: 'Save Onboarded Device' })).toBeVisible();
     await saveCard
       .getByPlaceholder('e.g. Laptop Signer, Browser Node A')
-      .fill(profile.keysetName ?? 'Playwright Live');
+      .fill(profile.groupName ?? 'Playwright Live');
     await saveCard.getByPlaceholder('Minimum 8 characters').fill(profile.onboardPassword);
     await saveCard.getByRole('button', { name: 'Save Device' }).click();
     await pwExpect
@@ -227,7 +227,7 @@ test.describe('runtime lifecycle @live', () => {
     const currentProfile = await onboardLiveSignerProfile(
       async (targetPath: string) => await openExtensionPage(targetPath),
       liveSigner.profile,
-      `${liveSigner.profile.keysetName} Restore`
+      `${liveSigner.profile.groupName} Restore`
     );
     await seedProfile(currentProfile);
     await activateProfile(currentProfile.id!);
@@ -286,7 +286,7 @@ test.describe('runtime lifecycle @live', () => {
     const currentProfile = await onboardLiveSignerProfile(
       async (targetPath: string) => await openExtensionPage(targetPath),
       liveSigner.profile,
-      `${liveSigner.profile.keysetName} Cold Restore`
+      `${liveSigner.profile.groupName} Cold Restore`
     );
     await seedProfile(currentProfile);
     await activateProfile(currentProfile.id!);
@@ -344,7 +344,7 @@ test.describe('runtime lifecycle @live', () => {
     const currentProfile = await onboardLiveSignerProfile(
       async (targetPath: string) => await openExtensionPage(targetPath),
       liveSigner.profile,
-      `${liveSigner.profile.keysetName} Restored Sign`
+      `${liveSigner.profile.groupName} Restored Sign`
     );
     await seedProfile(currentProfile);
     await ensureRuntimeReady(activateProfile, currentProfile.id!);

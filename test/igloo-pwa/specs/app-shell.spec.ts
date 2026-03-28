@@ -10,7 +10,7 @@ test.describe('igloo-pwa ui-first shell', () => {
       page.getByText('Choose one path to initialize this browser workspace.'),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Start' }).first().click();
-    await page.getByLabel('Keyset Name').fill('Playwright Treasury');
+    await page.getByLabel('Group Name').fill('Playwright Treasury');
     await page.getByRole('button', { name: 'Generate Keyset' }).click();
     await expect(page.getByText('Select the Device Share')).toBeVisible();
 
@@ -56,7 +56,8 @@ test.describe('igloo-pwa ui-first shell', () => {
                 share_public_key: 'share-pub-1',
                 group_public_key: 'group-pub-1',
                 relays: ['wss://relay.primal.net'],
-                group_package_json: '{"group":"demo"}',
+                group_package_json:
+                  '{"group_name":"Playwright Group","group_pk":"group-pub-1","threshold":2,"members":[]}',
                 share_package_json: '{"share":"demo"}',
                 source: 'bfprofile',
                 relay_profile: 'browser',
@@ -97,7 +98,7 @@ test.describe('igloo-pwa ui-first shell', () => {
             },
             drafts: {
               createForm: {
-                keysetName: '',
+                groupName: '',
                 secretKey: '',
                 detectedFormat: null,
                 threshold: '2',
@@ -146,7 +147,8 @@ test.describe('igloo-pwa ui-first shell', () => {
                 share_public_key: 'share-pub-1',
                 group_public_key: 'group-pub-1',
                 relays: ['wss://relay.primal.net'],
-                group_package_json: '{"group":"demo"}',
+                group_package_json:
+                  '{"group_name":"Playwright Group","group_pk":"group-pub-1","threshold":2,"members":[]}',
                 share_package_json: '{"share":"demo"}',
                 source: 'bfprofile',
                 relay_profile: 'wss://relay.primal.net',
@@ -187,7 +189,7 @@ test.describe('igloo-pwa ui-first shell', () => {
             },
             drafts: {
               createForm: {
-                keysetName: '',
+                groupName: '',
                 secretKey: '',
                 detectedFormat: null,
                 threshold: '2',

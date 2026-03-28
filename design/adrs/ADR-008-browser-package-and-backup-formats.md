@@ -61,13 +61,15 @@ The canonical encrypted backup event is:
 `bfprofile` is the only full local device-profile package and includes:
 
 - canonical `profileId`
-- top-level `keysetName`
 - share secret
 - device name
 - manual peer policy overrides
-- remote peer policy observations
 - relays
 - structured `groupPackage`
+  - including `groupName`
+
+`groupName` is durable metadata carried inside `groupPackage`.
+It is not a separate top-level mutable field and does not affect cryptographic identity.
 
 `bfprofile` is encoded as one single `bfprofile1...` token whose decoded bytes are:
 

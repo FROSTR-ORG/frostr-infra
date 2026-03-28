@@ -21,7 +21,7 @@ test.describe('igloo-pwa bfonboard onboarding', () => {
     let secondaryContext;
     try {
       const generated = await createGeneratedBrowserArtifacts({
-        keysetName: 'PWA Onboard',
+        groupName: 'PWA Onboard',
         labelPrefix: 'Onboard Source',
         relays: [relay.url],
       });

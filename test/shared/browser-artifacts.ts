@@ -30,7 +30,7 @@ export type GeneratedBrowserShareArtifact = {
 };
 
 export type GeneratedBrowserArtifacts = {
-  keysetName: string;
+  groupName: string;
   threshold: number;
   count: number;
   groupPackageJson: string;
@@ -63,7 +63,6 @@ export type PwaStoredProfileSeed = {
     peer_selection_strategy: 'deterministic_sorted';
   };
   manual_peer_policy_overrides: [];
-  remote_peer_policy_observations: [];
   peer_pubkey: null;
   runtime_snapshot_json: null;
   onboarding_package: null;
@@ -103,7 +102,7 @@ function buildMembers(members: Array<{ idx: number; pubkey: string }>): BrowserG
 }
 
 function buildProfilePayload(input: {
-  keysetName: string;
+  groupName: string;
   label: string;
   relays: string[];
   groupPublicKey: string;
@@ -115,15 +114,14 @@ function buildProfilePayload(input: {
   return {
     profileId: input.profileId,
     version: 1,
-    keysetName: input.keysetName,
     device: {
       name: input.label,
       shareSecret: input.shareSecret,
       manualPeerPolicyOverrides: [],
-      remotePeerPolicyObservations: [],
       relays: input.relays,
     },
     groupPackage: {
+      groupName: input.groupName,
       groupPk: input.groupPublicKey,
       threshold: input.threshold,
       members: input.members,
@@ -131,9 +129,15 @@ function buildProfilePayload(input: {
   };
 }
 
-function buildGroupPackageJson(groupPublicKey: string, threshold: number, members: BrowserGroupPackageMember[]) {
+function buildGroupPackageJson(
+  groupName: string,
+  groupPublicKey: string,
+  threshold: number,
+  members: BrowserGroupPackageMember[],
+) {
   return JSON.stringify(
     {
+      group_name: groupName,
       group_pk: groupPublicKey,
       threshold,
       members,
@@ -155,14 +159,14 @@ function buildSharePackageJson(memberIdx: number, shareSecret: string) {
 }
 
 export async function createGeneratedBrowserArtifacts(input?: {
-  keysetName?: string;
+  groupName?: string;
   labelPrefix?: string;
   threshold?: number;
   count?: number;
   password?: string;
   relays?: string[];
 }) {
-  const keysetName = input?.keysetName?.trim() || 'Playwright Keyset';
+  const groupName = input?.groupName?.trim() || 'Playwright Keyset';
   const labelPrefix = input?.labelPrefix?.trim() || 'Playwright Device';
   const threshold = input?.threshold ?? 2;
   const count = input?.count ?? 3;
@@ -175,6 +179,7 @@ export async function createGeneratedBrowserArtifacts(input?: {
   const bundle = JSON.parse(
     wasm.create_keyset_bundle(
       JSON.stringify({
+        group_name: groupName,
         threshold,
         count,
       }),
@@ -190,7 +195,7 @@ export async function createGeneratedBrowserArtifacts(input?: {
 
   const members = buildMembers(bundle.group.members);
   const groupPublicKey = bundle.group.group_pk.toLowerCase();
-  const groupPackageJson = buildGroupPackageJson(groupPublicKey, bundle.group.threshold, members);
+  const groupPackageJson = buildGroupPackageJson(groupName, groupPublicKey, bundle.group.threshold, members);
 
   const shares = await Promise.all(
     bundle.shares.map(async (share) => {
@@ -198,7 +203,7 @@ export async function createGeneratedBrowserArtifacts(input?: {
       const sharePublicKey = publicKeyFromSecret(shareSecret);
       const profileId = await deriveProfileIdFromShareSecret(shareSecret);
       const profilePayload = buildProfilePayload({
-        keysetName,
+        groupName,
         label: `${labelPrefix} ${share.idx}`,
         relays,
         groupPublicKey,
@@ -222,7 +227,7 @@ export async function createGeneratedBrowserArtifacts(input?: {
   );
 
   return {
-    keysetName,
+    groupName,
     threshold: bundle.group.threshold,
     count: bundle.group.members.length,
     groupPackageJson,
@@ -234,7 +239,7 @@ export async function createGeneratedBrowserArtifacts(input?: {
 export async function createRotatedBrowserArtifacts(input: {
   current: GeneratedBrowserArtifacts;
   sourceMemberIndices: number[];
-  keysetName?: string;
+  groupName?: string;
   labelPrefix?: string;
   threshold?: number;
   count?: number;
@@ -244,7 +249,7 @@ export async function createRotatedBrowserArtifacts(input: {
   const wasm = (await ensureInjectedWasmModule()) as unknown as {
     rotate_keyset_bundle: (inputJson: string) => string;
   };
-  const keysetName = input.keysetName?.trim() || input.current.keysetName;
+  const groupName = input.groupName?.trim() || input.current.groupName;
   const labelPrefix = input.labelPrefix?.trim() || 'Rotated Device';
   const threshold = input.threshold ?? input.current.threshold;
   const count = input.count ?? input.current.count;
@@ -282,14 +287,14 @@ export async function createRotatedBrowserArtifacts(input: {
 
   const members = buildMembers(rotated.next.group.members);
   const groupPublicKey = rotated.next.group.group_pk.toLowerCase();
-  const groupPackageJson = buildGroupPackageJson(groupPublicKey, rotated.next.group.threshold, members);
+  const groupPackageJson = buildGroupPackageJson(groupName, groupPublicKey, rotated.next.group.threshold, members);
   const shares = await Promise.all(
     rotated.next.shares.map(async (share) => {
       const shareSecret = share.seckey.toLowerCase();
       const sharePublicKey = publicKeyFromSecret(shareSecret);
       const profileId = await deriveProfileIdFromShareSecret(shareSecret);
       const profilePayload = buildProfilePayload({
-        keysetName,
+        groupName,
         label: `${labelPrefix} ${share.idx}`,
         relays,
         groupPublicKey,
@@ -313,7 +318,7 @@ export async function createRotatedBrowserArtifacts(input: {
   );
 
   return {
-    keysetName,
+    groupName,
     threshold: rotated.next.group.threshold,
     count: rotated.next.group.members.length,
     groupPackageJson,
@@ -385,7 +390,6 @@ export function createPwaStoredProfileSeed(input: {
       peer_selection_strategy: 'deterministic_sorted',
     },
     manual_peer_policy_overrides: [],
-    remote_peer_policy_observations: [],
     peer_pubkey: null,
     runtime_snapshot_json: null,
     onboarding_package: null,

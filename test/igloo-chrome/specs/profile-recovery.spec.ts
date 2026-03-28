@@ -12,7 +12,7 @@ test.describe('extension bfshare recovery', () => {
     const relay = await startLocalRelay();
     try {
       const generated = await createGeneratedBrowserArtifacts({
-        keysetName: 'Chrome Recovery',
+        groupName: 'Chrome Recovery',
         labelPrefix: 'Chrome Recovered Device',
         relays: [relay.url],
       });

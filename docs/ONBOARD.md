@@ -2,32 +2,29 @@
 
 ## Summary
 
-This document is the living spec for onboarding a FROSTR device.
+This document is the shared spec for onboarding a FROSTR device.
 
 It covers:
-
 - what onboarding is for
 - the roles involved
 - the `bfonboard` bootstrap package
 - the relay-based onboarding handshake
 - the artifacts produced by successful onboarding
 
-Use this document for the conceptual onboarding model.
+Use this document for the onboarding and bootstrap model.
 
 Use these companion docs for adjacent domains:
-
-- [PROFILE.md](./PROFILE.md): device profile identity and durable state
-- [BACKUP.md](./BACKUP.md): backup, recovery, `bfshare`, and full-profile package details
-- [ROTATION.md](./ROTATION.md): trusted share rotation and rotated share distribution
-- [PROTOCOL.md](./PROTOCOL.md): high-level runtime protocol
-- [GLOSSARY.md](./GLOSSARY.md): canonical terminology for onboarding, import, recovery, and package terms
+- [PROFILE.md](./PROFILE.md)
+- [BACKUP.md](./BACKUP.md)
+- [ROTATION.md](./ROTATION.md)
+- [PROTOCOL.md](./PROTOCOL.md)
+- [GLOSSARY.md](./GLOSSARY.md)
 
 ## What Onboarding Is
 
 Onboarding is the process of bringing a new device into an existing FROSTR keyset.
 
 It is not the same as:
-
 - importing an existing full device profile with `bfprofile`
 - recovering an existing device from relays with `bfshare`
 
@@ -37,30 +34,28 @@ Onboarding is the bootstrap path for a new local device that has not yet materia
 
 Onboarding involves three roles.
 
-### 1. Provisioning Side
+### Provisioning Side
 
 This is the already-running signer or operator flow that prepares onboarding for a recipient device.
 
 Its job is to:
-
 - choose the target recipient share
 - choose the relay set
 - produce the encrypted `bfonboard` package
 - remain reachable for the callback onboarding handshake
 
-### 2. Recipient Device
+### Recipient Device
 
 This is the new device being brought online.
 
 Its job is to:
-
 - import the encrypted `bfonboard` package
 - decrypt it with the provided password
 - contact the provisioning signer over relays
 - complete the onboarding handshake
 - materialize local durable device state
 
-### 3. Relays
+### Relays
 
 Relays carry the onboarding request and onboarding response events between the recipient device and the provisioning signer.
 
@@ -71,7 +66,6 @@ Relays are transport only. They do not interpret onboarding semantics.
 `bfonboard` is the compact encrypted onboarding/bootstrap package.
 
 Conceptually, it contains:
-
 - the share secret
 - one or more relay URLs
 - the callback peer public key (`peer_pk`)
@@ -79,18 +73,38 @@ Conceptually, it contains:
 It is intentionally distinct from `bfshare` because onboarding requires callback metadata that recovery does not.
 
 What `bfonboard` is for:
-
 - bootstrap a new device into an existing keyset
 - provide the minimum credential needed to dial the provisioning signer
-- distribute a rotated share during a rotation workflow:
-  - to a newly provisioned device
-  - or to an existing device through an in-place `Rotate Key` flow
+- distribute a rotated share during a rotation workflow
 
 What `bfonboard` is not:
-
 - not a full device profile
 - not a long-term runtime artifact
 - not the final local device state
+
+## Onboarding Boundaries
+
+Onboarding spans two distinct boundaries.
+
+### Host/bootstrap boundary
+
+Owns:
+- importing `bfonboard`
+- decrypting it
+- creating temporary bootstrap context
+- materializing durable local state after success
+
+### Peer protocol boundary
+
+Owns:
+- sending the onboarding request
+- validating the request
+- exchanging bootstrap nonce material
+- returning the group/bootstrap material needed by the recipient
+
+Keeping those boundaries distinct is important:
+- `ONBOARD.md` owns the full flow
+- `PROTOCOL.md` owns the runtime request/response contract inside that flow
 
 ## Onboarding Flow
 
@@ -99,7 +113,6 @@ FROSTR onboarding proceeds in four conceptual phases.
 ### 1. Provisioning
 
 The provisioning side assembles:
-
 - recipient share secret
 - relay set
 - callback peer public key
@@ -107,10 +120,9 @@ The provisioning side assembles:
 
 It encrypts that material into a `bfonboard` package and hands the package plus password to the recipient device through an out-of-band channel.
 
-### 2. Import and Connect
+### 2. Import And Connect
 
 The recipient device:
-
 1. imports the `bfonboard` package
 2. decrypts it with the password
 3. extracts:
@@ -127,13 +139,11 @@ At this stage, the recipient has enough information to begin onboarding, but it 
 The recipient sends a signed onboarding request event.
 
 Important properties of the request:
-
 - it is sent over relays
 - requester identity is inferred from the signed event pubkey
 - it carries bootstrap nonce material for the new device
 
 The provisioning signer:
-
 - validates the request
 - stores the incoming bootstrap nonces
 - returns the keyset/group material needed by the recipient
@@ -144,7 +154,6 @@ This handshake is what turns the compact onboarding credential into a complete l
 ### 4. Local Materialization
 
 After the handshake succeeds, the recipient device:
-
 1. constructs the full durable local device profile
 2. materializes a local `bfprofile`
 3. materializes a local `bfshare`
@@ -153,10 +162,9 @@ After the handshake succeeds, the recipient device:
 
 At this point, onboarding is complete and the device is no longer dependent on the original `bfonboard` package.
 
-## Result of Successful Onboarding
+## Result Of Successful Onboarding
 
 Successful onboarding should leave the recipient with:
-
 - a full local device profile equivalent to `bfprofile`
 - a local recovery credential equivalent to `bfshare`
 - a published encrypted profile backup on relays
@@ -164,9 +172,7 @@ Successful onboarding should leave the recipient with:
 
 That means onboarding is a bootstrap path into the same durable device state that later import/export and recovery flows operate on.
 
-## Relationship to Other Artifacts
-
-Onboarding sits alongside, but separate from, the other durable profile artifacts.
+## Relationship To Other Artifacts
 
 - `bfonboard`
   - compact onboarding/bootstrap credential
@@ -179,32 +185,26 @@ Onboarding sits alongside, but separate from, the other durable profile artifact
   - used to recover a previously onboarded/imported device from relays
 
 In short:
-
 - onboarding starts from `bfonboard`
 - full import starts from `bfprofile`
 - recovery starts from `bfshare`
 
-## Security and Persistence Properties
+## Security And Persistence Properties
 
 Important onboarding properties:
-
 - `bfonboard` is encrypted and password-protected
 - the package is a bootstrap artifact, not long-term runtime state
 - the callback peer public key is required so the recipient can reach the provisioning signer
 - after successful onboarding, durable local state should replace the package
 
 The long-term durable artifacts are:
-
 - local `bfprofile`
 - local `bfshare`
 - encrypted relay backup
 
-The onboarding package itself should be treated as a transient secret bootstrap credential.
-
 ## Failure Model
 
 Onboarding can fail in a few main places:
-
 - package decryption fails
 - relay connection fails
 - provisioning signer is unavailable
@@ -219,9 +219,8 @@ If onboarding completes locally but backup publication fails, the host may have 
 ## Invariants
 
 These rules should hold across the system:
-
 - onboarding is the bootstrap path for a new device, not a full-profile import path
 - `bfonboard` is never the final durable local device profile
 - successful onboarding produces the same durable profile class represented by `bfprofile`
 - successful onboarding should also produce `bfshare` recovery material
-- after onboarding, runtime state should be derived from the new local durable profile, not from continued dependence on the original onboarding package
+- after onboarding, runtime state should be derived from the new local durable profile

@@ -22,14 +22,14 @@ test.describe('extension rotate key', () => {
     let inviterSession: BrowserRuntimeSession | null = null;
     try {
       const current = await createGeneratedBrowserArtifacts({
-        keysetName: 'Chrome Rotation',
+        groupName: 'Chrome Rotation',
         labelPrefix: 'Chrome Rotation Device',
         relays: [relay.url],
       });
       const rotated = await createRotatedBrowserArtifacts({
         current,
         sourceMemberIndices: [1, 2],
-        keysetName: 'Chrome Rotation',
+        groupName: 'Chrome Rotation',
         labelPrefix: 'Chrome Rotated Device',
         relays: [relay.url],
       });
@@ -40,7 +40,7 @@ test.describe('extension rotate key', () => {
         password: 'rotate-package-pass',
       });
       inviterSession = await startBrowserRuntimeSession({
-        keysetName: 'Chrome Rotation Inviter',
+        groupName: 'Chrome Rotation Inviter',
         relays: [relay.url],
         groupPublicKey: rotated.groupPublicKey,
         sharePublicKey: rotated.shares[1].sharePublicKey,

@@ -1,48 +1,102 @@
 # Documentation Index
 
-Top-level docs in this repo describe shared FROSTR architecture, protocol, and cross-repo guidance.
+Top-level docs in this repository are the shared FROSTR system manual.
+
+They are the canonical source for:
+- shared architecture
+- cross-host interfaces
+- peer protocol semantics
+- cryptographic model
+- profile, backup, onboarding, rotation, and wire contracts
+- shared terminology
+
+Submodule docs should explain only the project they belong to. They should not redefine the shared FROSTR system model.
 
 ## Start Here
 
-- [STRUCTURE.md](./STRUCTURE.md): workspace layout and ownership boundaries.
-- [ARCHITECTURE.md](./ARCHITECTURE.md): system-level view of signer, host, and infra responsibilities.
+Recommended reading order for most engineers:
 
-## Shared Architecture
+1. [STRUCTURE.md](./STRUCTURE.md)
+2. [ARCHITECTURE.md](./ARCHITECTURE.md)
+3. [INTERFACES.md](./INTERFACES.md)
+4. [PROTOCOL.md](./PROTOCOL.md)
+5. [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md)
 
-- [INTERFACES.md](./INTERFACES.md): boundary map for identities, packages, runtime interfaces, peer protocol, and relay transport.
-- [GLOSSARY.md](./GLOSSARY.md): canonical terminology used across the shared FROSTR specs.
-- [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md): FROST-side keyset, share, nonce, signing, and threshold ECDH model.
-- [PROTOCOL.md](./PROTOCOL.md): peer-to-peer protocol semantics between FROSTR devices.
-- [WIRE.md](./WIRE.md): Nostr/NIP-44 wire format, encrypted envelopes, and recipient routing.
-- [PROFILE.md](./PROFILE.md): conceptual model for FROSTR device identity, durable profile state, and `bfprofile`.
-- [BACKUP.md](./BACKUP.md): `bfprofile`, `bfshare`, encrypted relay backups, and recovery semantics.
-- [ONBOARD.md](./ONBOARD.md): onboarding model, handshake, and `bfonboard` semantics.
-- [ROTATION.md](./ROTATION.md): trusted share rotation, rotated distribution, and device adoption semantics.
+Then read the artifact and flow specs you need:
+- [PROFILE.md](./PROFILE.md)
+- [BACKUP.md](./BACKUP.md)
+- [ONBOARD.md](./ONBOARD.md)
+- [ROTATION.md](./ROTATION.md)
+- [WIRE.md](./WIRE.md)
+- [GLOSSARY.md](./GLOSSARY.md)
+
+## Shared Architecture And Specs
+
+### System model
+
+- [STRUCTURE.md](./STRUCTURE.md)
+  - workspace and documentation ownership boundaries
+- [ARCHITECTURE.md](./ARCHITECTURE.md)
+  - system-level view of signer, host, relay, and artifact responsibilities
+- [INTERFACES.md](./INTERFACES.md)
+  - contract map across identities, packages, host/runtime, peer protocol, and relay transport
+- [GLOSSARY.md](./GLOSSARY.md)
+  - canonical shared terminology
+
+### Runtime and cryptographic behavior
+
+- [PROTOCOL.md](./PROTOCOL.md)
+  - device-to-device request/response semantics
+- [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md)
+  - keysets, shares, nonces, signing, ECDH, and same-key rotation
+- [WIRE.md](./WIRE.md)
+  - Nostr/NIP-44 event, envelope, and recipient-routing model
+
+### Durable artifacts and lifecycle flows
+
+- [PROFILE.md](./PROFILE.md)
+  - durable device-profile model
+- [BACKUP.md](./BACKUP.md)
+  - `bfprofile`, `bfshare`, and encrypted relay backups
+- [ONBOARD.md](./ONBOARD.md)
+  - onboarding model and `bfonboard`
+- [ROTATION.md](./ROTATION.md)
+  - same-key trusted rotation and rotated-share adoption
 
 ## Architecture Decisions
 
-- [adrs/INDEX.md](./adrs/INDEX.md): architecture decision records for the current hard-cut design.
-
-## Guidance for Future Work
-
-- [policies/architecture-guidance.md](./policies/architecture-guidance.md)
-- [policies/host-transport-guidance.md](./policies/host-transport-guidance.md)
-- [policies/mobile-and-wasm-host-guidance.md](./policies/mobile-and-wasm-host-guidance.md)
-- [policies/profile-and-secret-material-guidance.md](./policies/profile-and-secret-material-guidance.md)
-- [policies/runtime-and-persistence-guidance.md](./policies/runtime-and-persistence-guidance.md)
-- [policies/observability-and-debugging-guidance.md](./policies/observability-and-debugging-guidance.md)
-- [policies/testing-guidance.md](./policies/testing-guidance.md)
-- [policies/documentation-guidance.md](./policies/documentation-guidance.md)
+- [design/adrs/INDEX.md](../design/adrs/INDEX.md)
+  - architecture decision records for the current hard-cut design
 
 ## Repo-Local Manuals
 
-- `repos/bifrost-rs/README.md` and `repos/bifrost-rs/docs/`: project entrypoint plus implementation, operations, and API details for the Rust stack.
-- `repos/igloo-shell/README.md`, `TESTING.md`, and `CONTRIBUTING.md`: shell CLI/operator manual, validation, and contributor guidance.
-- `repos/igloo-shell/scripts/`: active devnet, relay, soak, and shell-owned E2E entrypoints.
-- `repos/igloo-chrome/README.md`: extension-specific workflow, testing, release, and security docs.
-- `repos/igloo-home/README.md`: desktop host overview, testing, and contributor guidance.
-- `repos/igloo-pwa/README.md`: PWA host overview, testing, and contributor guidance.
-- `repos/igloo-shared/README.md`: shared browser/runtime adapter and package-contract guidance.
-- `repos/igloo-ui/README.md`: shared UI package boundary and ownership notes.
-- `repos/igloo-chrome/*.md`: extension-specific workflow, testing, release, and security docs.
-- `test/DEMO_STRATEGY.md`: infra/demo-harness and browser E2E release workflow for this monorepo.
+Project-specific manuals live in the relevant repo, not in this shared doc set.
+
+- `repos/bifrost-rs/README.md`, `TESTING.md`, `CONTRIBUTING.md`, `RELEASE.md`
+  - Rust signer/runtime, bridge, codec, and utility stack
+- `repos/igloo-shell/README.md`, `TESTING.md`, `CONTRIBUTING.md`
+  - shell/operator host
+- `repos/igloo-chrome/README.md`, `TESTING.md`, `CONTRIBUTING.md`, `RELEASE.md`, `SECURITY.md`
+  - browser-extension host
+- `repos/igloo-home/README.md`, `TESTING.md`, `CONTRIBUTING.md`
+  - desktop host
+- `repos/igloo-pwa/README.md`, `TESTING.md`, `CONTRIBUTING.md`
+  - PWA host
+- `repos/igloo-shared/README.md`, `TESTING.md`, `CONTRIBUTING.md`
+  - shared browser/runtime adapter layer
+- `repos/igloo-ui/README.md`, `TESTING.md`, `CONTRIBUTING.md`
+  - shared UI package
+
+Cross-repo demo-harness and browser E2E guidance lives in:
+- [test/DEMO_STRATEGY.md](../test/DEMO_STRATEGY.md)
+
+## Guidance For Future Work
+
+- [design/policies/architecture-guidance.md](../design/policies/architecture-guidance.md)
+- [design/policies/host-transport-guidance.md](../design/policies/host-transport-guidance.md)
+- [design/policies/mobile-and-wasm-host-guidance.md](../design/policies/mobile-and-wasm-host-guidance.md)
+- [design/policies/profile-and-secret-material-guidance.md](../design/policies/profile-and-secret-material-guidance.md)
+- [design/policies/runtime-and-persistence-guidance.md](../design/policies/runtime-and-persistence-guidance.md)
+- [design/policies/observability-and-debugging-guidance.md](../design/policies/observability-and-debugging-guidance.md)
+- [design/policies/testing-guidance.md](../design/policies/testing-guidance.md)
+- [design/policies/documentation-guidance.md](../design/policies/documentation-guidance.md)

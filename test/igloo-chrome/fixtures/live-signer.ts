@@ -18,7 +18,7 @@ import {
 } from '../../shared/igloo-shell-binaries';
 
 type LiveSignerProfile = {
-  keysetName: string;
+  groupName: string;
   onboardPackage?: string;
   onboardPassword?: string;
   relays: string[];
@@ -367,7 +367,7 @@ async function buildLiveProfile(
       const onboardingPackage = (await readFile(onboardingPath, 'utf8')).trim();
 
       return {
-        keysetName: 'Playwright Live',
+        groupName: 'Playwright Live',
         onboardPackage: onboardingPackage,
         onboardPassword: onboardingPassword,
         relays: [relayUrl],

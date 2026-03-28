@@ -12,7 +12,7 @@ test.describe('extension bfprofile import', () => {
     const relay = await startLocalRelay();
     try {
       const generated = await createGeneratedBrowserArtifacts({
-        keysetName: 'Chrome Import',
+        groupName: 'Chrome Import',
         labelPrefix: 'Chrome Imported Device',
         relays: [relay.url],
       });

@@ -9,7 +9,7 @@ test.describe('igloo-pwa bfshare recovery', () => {
     const relay = await startLocalRelay();
     try {
       const generated = await createGeneratedBrowserArtifacts({
-        keysetName: 'PWA Recovery',
+        groupName: 'PWA Recovery',
         labelPrefix: 'Recovered Browser Device',
         relays: [relay.url],
       });

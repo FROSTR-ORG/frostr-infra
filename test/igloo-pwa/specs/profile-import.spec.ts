@@ -9,7 +9,7 @@ test.describe('igloo-pwa bfprofile import', () => {
     const relay = await startLocalRelay();
     try {
       const generated = await createGeneratedBrowserArtifacts({
-        keysetName: 'PWA Import',
+        groupName: 'PWA Import',
         labelPrefix: 'Imported Browser Device',
         relays: [relay.url],
       });

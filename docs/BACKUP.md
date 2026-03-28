@@ -1,25 +1,23 @@
-# Device Backup and Recovery
+# Device Backup And Recovery
 
 ## Summary
 
-This document is the living spec for FROSTR device backup and recovery artifacts.
+This document is the shared spec for FROSTR device backup and recovery artifacts.
 
 It covers:
-
+- `bfprofile`
 - `bfshare`
 - encrypted relay profile backups
 - recovery from relay backups
-- the low-level package details for `bfprofile`
 
-Use this document for the package-level and payload-level model for portable full-profile export, compact recovery, and encrypted relay backups.
+Use this document for package-level and payload-level behavior for full-profile export/import, compact recovery, and encrypted relay backups.
 
 Use these companion docs for adjacent domains:
-
-- [PROFILE.md](./PROFILE.md): device profile identity and durable state
-- [ONBOARD.md](./ONBOARD.md): onboarding flow and `bfonboard`
-- [ROTATION.md](./ROTATION.md): trusted share rotation and rotated device distribution
-- [PROTOCOL.md](./PROTOCOL.md): high-level runtime protocol
-- [GLOSSARY.md](./GLOSSARY.md): canonical terminology for package, backup, recovery, and identity terms
+- [PROFILE.md](./PROFILE.md)
+- [ONBOARD.md](./ONBOARD.md)
+- [ROTATION.md](./ROTATION.md)
+- [PROTOCOL.md](./PROTOCOL.md)
+- [GLOSSARY.md](./GLOSSARY.md)
 
 ## Scope
 
@@ -30,14 +28,28 @@ This document covers the durable profile artifacts used after a device exists or
 - `bfshare`
   - the compact encrypted recovery package
 - encrypted profile backup event
-  - the latest relay-published backup used by `bfshare` recovery
+  - the relay-published backup used by `bfshare` recovery
 
 `bfonboard` is intentionally out of scope here. Onboarding is covered in [ONBOARD.md](./ONBOARD.md).
+
+## Artifact Roles
+
+These artifacts play different roles:
+
+- `bfprofile`
+  - full portable device profile
+- `bfshare`
+  - compact recovery credential and threshold rotation input
+- encrypted backup event
+  - relay-published durable profile backup used with `bfshare`
+
+Recovery always depends on both:
+- `bfshare`
+- the encrypted backup event located through the share-derived author identity
 
 ## Common Package Envelope
 
 `bfprofile` and `bfshare` both use:
-
 - bech32m encoding
 - a distinct HRP:
   - `bfprofile`
@@ -52,7 +64,6 @@ This document covers the durable profile artifacts used after a device exists or
   - `cipherText`
 
 Current defaults:
-
 - iterations: `600000`
 - salt bytes: `16`
 - IV bytes: `24`
@@ -63,8 +74,6 @@ Current defaults:
 
 `bfprofile` is the full local device-profile package.
 
-From the backup/recovery point of view, `bfprofile` is the portable full-state artifact that recovery reconstructs.
-
 ### Wire Layout
 
 Its bech32m-decoded bytes are:
@@ -74,7 +83,6 @@ Its bech32m-decoded bytes are:
 ```
 
 Rules:
-
 - `<profile_id_ascii_hex_64>` is the canonical lowercase hex profile id
 - it is exactly 64 ASCII bytes
 - the remaining bytes are the protected-envelope JSON payload
@@ -83,63 +91,29 @@ Rules:
 
 ### Plaintext Payload
 
-Before encryption, the plaintext is canonical JSON:
-
-```json
-{
-  "version": 1,
-  "profileId": "<hex64>",
-  "keysetName": "Treasury",
-  "device": {
-    "name": "Primary Browser Device",
-    "shareSecret": "<hex32>",
-    "manualPeerPolicyOverrides": [
-      {
-        "pubkey": "<hex32>",
-        "policy": {
-          "request": { "ping": "unset", "onboard": "unset", "sign": "deny", "ecdh": "unset" },
-          "respond": { "ping": "unset", "onboard": "unset", "sign": "unset", "ecdh": "unset" }
-        }
-      }
-    ],
-    "remotePeerPolicyObservations": [
-      {
-        "pubkey": "<hex32>",
-        "profile": {
-          "forPeer": "<hex32>",
-          "revision": 3,
-          "updated": 1773472608,
-          "blockAll": false,
-          "request": { "echo": true, "ping": true, "onboard": true, "sign": true, "ecdh": true },
-          "respond": { "echo": true, "ping": true, "onboard": true, "sign": false, "ecdh": true }
-        }
-      }
-    ],
-    "relays": ["wss://relay.example.com"]
-  },
-  "groupPackage": {
-    "groupPk": "<hex32>",
-    "threshold": 2,
-    "members": [
-      { "idx": 1, "pubkey": "<compressed_hex33>" }
-    ]
-  }
-}
-```
+Before encryption, the plaintext is canonical JSON containing:
+- `version`
+- `profileId`
+- `device`
+  - `name`
+  - `shareSecret`
+  - `manualPeerPolicyOverrides`
+  - `relays`
+- `groupPackage`
+  - including `groupName`
 
 `groupPackage` is structured `GroupPackage` data.
 
 Rules:
-
 - it is stored losslessly inside `bfprofile` and encrypted relay backups
 - member public keys are full compressed secp256k1 points
 - decoders must not reconstruct member pubkeys from x-only share public keys
-- `keysetName` is a top-level sibling of `groupPackage`, not part of the group schema
+- `groupName` lives inside `groupPackage`, not alongside it
+- `groupName` is durable group metadata carried with the issued artifact, not a separate mutable local label
 
-### Validation Rules for `bfprofile`
+### Validation Rules For `bfprofile`
 
 Decoders must reject the package unless:
-
 - the bech32m text and HRP are valid
 - the outer prefix is valid lowercase 64-char hex
 - the outer prefix matches `profileId`
@@ -152,7 +126,7 @@ Decoders must reject the package unless:
 
 It does not contain the full device profile.
 
-Its purpose is to carry the minimum credential needed to recover the full profile from relays.
+Its purpose is to carry the minimum credential needed to recover the full profile from relays and to supply threshold input to trusted rotation.
 
 ### Plaintext Form
 
@@ -163,7 +137,6 @@ Before encryption, the plaintext is:
 ```
 
 Rules:
-
 - `<secret_share>` is the raw 32-byte share secret encoded as lowercase hex
 - one or more `relay=` query parameters are required
 - multiple relays are represented only by repeated `relay=` parameters
@@ -173,21 +146,18 @@ Rules:
 ### Semantics
 
 `bfshare` is used for recovery:
-
 1. decrypt `bfshare`
-2. derive the author pubkey from the share secret
+2. derive the backup author pubkey from the share secret
 3. fetch the latest encrypted profile backup by that author from the provided relays
 4. decrypt the backup
 5. reconstruct a full local `bfprofile`
 
-`bfshare` is also used as operator input during trusted rotation, because a threshold set of existing recovery credentials is used to reconstruct the current signing key before issuing rotated shares.
+`bfshare` is also used as operator input during trusted rotation.
 
 `bfshare` never includes:
-
 - device name
 - `profile_id`
 - manual peer policy overrides
-- remote peer policy observations
 - group metadata
 - runtime snapshot data
 
@@ -205,100 +175,62 @@ Each share publishes its own encrypted profile backup as a Nostr event.
 ### Backup Payload
 
 The encrypted JSON contains:
+- `version`
+- `device`
+  - `name`
+  - `sharePublicKey`
+  - `manualPeerPolicyOverrides`
+  - `relays`
+- `groupPackage`
+  - including `groupName`
 
-```json
-{
-  "version": 1,
-  "keysetName": "Treasury",
-  "device": {
-    "name": "Primary Browser Device",
-    "sharePublicKey": "<hex32>",
-    "manualPeerPolicyOverrides": [
-      {
-        "pubkey": "<hex32>",
-        "policy": {
-          "request": { "ping": "unset", "onboard": "unset", "sign": "deny", "ecdh": "unset" },
-          "respond": { "ping": "unset", "onboard": "unset", "sign": "unset", "ecdh": "unset" }
-        }
-      }
-    ],
-    "remotePeerPolicyObservations": [
-      {
-        "pubkey": "<hex32>",
-        "profile": {
-          "forPeer": "<hex32>",
-          "revision": 3,
-          "updated": 1773472608,
-          "blockAll": false,
-          "request": { "echo": true, "ping": true, "onboard": true, "sign": true, "ecdh": true },
-          "respond": { "echo": true, "ping": true, "onboard": true, "sign": false, "ecdh": true }
-        }
-      }
-    ],
-    "relays": ["wss://relay.example.com"]
-  },
-  "groupPackage": {
-    "groupPk": "<hex32>",
-    "threshold": 2,
-    "members": [
-      { "idx": 1, "pubkey": "<compressed_hex33>" }
-    ]
-  }
-}
-```
-
-The backup excludes the share secret and effective peer policy by design.
+The backup excludes the share secret, remote peer policy observations, and effective peer policy by design.
 
 Rules:
-
-- `keysetName` is top-level package metadata
 - `groupPackage` is structured, lossless group data
+- `groupName` is part of `groupPackage`
 - member pubkeys are full compressed secp256k1 points
 - decoders must not reconstruct member pubkeys from x-only share pubkeys
+- `groupName` is preserved as issued group metadata, not rewritten from host-local labels during backup creation
+
+### Backup Author Identity
+
+The backup author pubkey is derived from the share secret.
+
+This is why `bfshare` recovery works:
+1. decrypt `bfshare`
+2. derive the backup author identity from the share secret
+3. query relays for the latest matching backup event
+4. decrypt backup content
+5. reconstruct the full durable profile
 
 ### Backup Encryption Key
 
-The backup encryption key is not ECDH-derived.
+The backup conversation key is derived from the share secret alone with the domain string:
 
-The host derives a 32-byte conversation key from the share secret alone using domain-separated key derivation:
+```text
+frostr-profile-backup/v1
+```
 
-- input: share secret bytes
-- domain/info string: `frostr-profile-backup/v1`
-- KDF: HMAC-SHA256 or HKDF-SHA256
-- output length: 32 bytes
+That derived symmetric key is then used for backup content encryption.
 
-That derived key is used directly as the NIP-44 conversation key.
+## Recovery Model
 
-This keeps recovery possible from `bfshare` alone and avoids a circular dependency on group metadata before decryption.
+Recovery reconstructs a full durable device profile from:
+- one decrypted `bfshare`
+- the latest matching encrypted relay backup
 
-## Recovery Flow
+Successful recovery should yield:
+- the same durable profile class represented by `bfprofile`
+- a usable local profile on the recovering host
+- the ability to start runtime state from that recovered durable state
 
-`Recover from Share` uses the following sequence:
+## Invariants
 
-1. decrypt `bfshare`
-2. extract `shareSecret + relays`
-3. derive the share public key from the share secret
-4. fetch the latest `kind: 10000` event by that author from the relays
-5. derive the backup conversation key from the share secret
-6. decrypt the NIP-44 content
-7. validate the decrypted backup payload
-8. reconstruct a full `bfprofile`
-
-## Validation Rules
-
-Implementations must reject:
-
-- malformed bech32m text or wrong HRP
-- malformed relay URLs
-- malformed 32-byte hex secrets or pubkeys
-- malformed or incomplete `bfprofile` JSON
-- malformed backup payloads after decryption
-
-## Ownership
-
-- `frostr-utils` owns package formats, payload validation, backup payload encryption/decryption, and backup-event construction/parsing
-- host layers own relay transport:
-  - `igloo-shared` for browser hosts
-  - `igloo-shell` for native/operator flows
-- `igloo-pwa` and `igloo-chrome` consume the shared browser host semantics
-- `igloo-ui` remains UI-only
+These rules should hold across backup and recovery:
+- `bfprofile` is the full portable profile artifact
+- `bfshare` is the compact recovery and rotation-input artifact
+- encrypted backups are relay-published durable profile backups
+- recovery uses `bfshare` plus encrypted backup, not `bfonboard`
+- structured `groupPackage`, including `groupName`, is the canonical group payload field
+- `groupPackage` must be preserved losslessly

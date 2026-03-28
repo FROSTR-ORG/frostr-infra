@@ -2,13 +2,12 @@
 
 ## Summary
 
-This document is the living architecture overview for FROSTR.
+This document is the shared architecture overview for FROSTR as a released system.
 
 It explains:
-
 - the core FROSTR model
-- how keysets and shares work
-- how signing devices are modeled
+- how keysets, shares, and devices relate
+- how durable artifacts and live runtimes fit together
 - how devices communicate over relays
 - how onboarding, backup, recovery, rotation, and keyset replacement fit together
 - how host surfaces relate to the runtime
@@ -16,45 +15,51 @@ It explains:
 Use this document for the system-level picture.
 
 Use these companion docs for lower-level detail:
-
-- [INTERFACES.md](./INTERFACES.md): interface map across hosts, packages, peer protocol, and relay transport
-- [GLOSSARY.md](./GLOSSARY.md): canonical terminology used across the shared specs
-- [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md): FROST-side keyset, share, nonce, signing, and ECDH mechanics
-- [PROTOCOL.md](./PROTOCOL.md): peer-to-peer protocol semantics
-- [WIRE.md](./WIRE.md): wire format over Nostr relays
-- [PROFILE.md](./PROFILE.md): durable device/profile state
-- [BACKUP.md](./BACKUP.md): backup and recovery artifacts
-- [ONBOARD.md](./ONBOARD.md): onboarding/bootstrap flow
-- [ROTATION.md](./ROTATION.md): trusted share rotation and rotated distribution flows
-- [adrs/INDEX.md](./adrs/INDEX.md): architectural decisions and history
+- [INTERFACES.md](./INTERFACES.md)
+- [GLOSSARY.md](./GLOSSARY.md)
+- [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md)
+- [PROTOCOL.md](./PROTOCOL.md)
+- [WIRE.md](./WIRE.md)
+- [PROFILE.md](./PROFILE.md)
+- [BACKUP.md](./BACKUP.md)
+- [ONBOARD.md](./ONBOARD.md)
+- [ROTATION.md](./ROTATION.md)
 
 ## System Overview
 
 FROSTR is a threshold-signing system built around a keyset shared across multiple devices.
 
 At a high level:
-
 - one keyset has one group public key
 - the signing secret is split into multiple shares
 - each signing device holds one share secret
 - no single device can sign alone unless the threshold is `1`
 - devices coordinate over relays using encrypted peer-to-peer messages
 
-That gives FROSTR three central architectural layers:
+That gives FROSTR four central architectural layers:
 
 1. cryptographic structure
    - keysets, shares, threshold signing, ECDH
 2. device/runtime structure
    - one local profile per share-holding device
    - one runtime that uses that share to participate in threshold operations
-3. host/product structure
-- browser, shell, and other surfaces that store profiles, bootstrap devices, and expose signing functionality
+3. artifact and lifecycle structure
+   - durable profiles
+   - recovery artifacts
+   - onboarding artifacts
+   - rotation-distribution artifacts
+4. host/product structure
+   - browser, shell, and other surfaces that store profiles, bootstrap devices, and expose signing functionality
 
-Host roles are intentionally asymmetric:
+## Host Asymmetry
+
+Hosts do not all own the same responsibilities.
 
 - `igloo-shell` is the strongest operator host and the primary enterprise/business surface
-- browser hosts prioritize device management, onboarding, and end-user adoption flows
-- operator-only workflows such as staged trusted rotation can therefore be most explicit in `igloo-shell` without requiring every host to expose the same control surface
+- browser hosts prioritize profile management, onboarding, recovery, and rotated-share adoption
+- operator-only workflows such as staged trusted rotation are therefore most explicit in `igloo-shell`
+
+The shared architecture does not require every host to expose the same control surface. It requires all hosts to preserve the same identities, artifacts, and runtime contracts.
 
 ## Core Model
 
@@ -63,7 +68,6 @@ Host roles are intentionally asymmetric:
 A FROSTR keyset is the threshold-signing unit.
 
 It has:
-
 - one group public key
 - one threshold `t`
 - one participant count `n`
@@ -78,26 +82,11 @@ keyset
   -> n member shares
 ```
 
-Example:
-
-```text
-2-of-3 keyset
-
-group public key: G
-members:
-  share 1 -> device A
-  share 2 -> device B
-  share 3 -> device C
-
-any 2 valid participants can complete a signing round
-```
-
 ### Share
 
 A share is the per-device secret material derived from keyset generation and, in a mature system, from share-refresh/rotation operations that preserve the same group public key.
 
 Each share corresponds to:
-
 - one share secret
 - one share public key
 - one member index in the keyset
@@ -109,7 +98,6 @@ Each device holds exactly one share for the keyset it belongs to.
 A FROSTR device is one host-local signer instance holding one share.
 
 A device has:
-
 - one share secret
 - one share public key
 - one local device label
@@ -118,44 +106,14 @@ A device has:
 - one local policy view
 - one durable local profile
 
-The local profile is the durable identity/configuration for the device. The runtime is the live process built from that profile.
+The local profile is the durable identity and configuration for the device. The runtime is the live process built from that profile.
 
-## Architectural Shape
+## Device State Model
 
-The system can be understood with this simplified picture:
+Each device has three major state classes:
 
-```text
-                    +----------------------+
-                    |      Keyset          |
-                    |  group public key G  |
-                    |    threshold t/n     |
-                    +----------+-----------+
-                               |
-               +---------------+---------------+
-               |               |               |
-               v               v               v
-        +-------------+ +-------------+ +-------------+
-        |  Device A   | |  Device B   | |  Device C   |
-        |  share s1   | |  share s2   | |  share s3   |
-        | profile p1  | | profile p2  | | profile p3  |
-        +------+------+ +------+------+ +------+------+
-               |               |               |
-               +---------------+---------------+
-                               |
-                               v
-                    +----------------------+
-                    |    Nostr Relays      |
-                    | encrypted p2p msgs   |
-                    +----------------------+
-```
-
-The relays do not hold the secret or interpret the protocol. They carry encrypted peer traffic and encrypted profile-backup events.
-
-## Device Architecture
-
-Each device has two major states:
-
-- durable profile state
+- durable portable profile state
+- host-local state
 - live runtime state
 
 Conceptually:
@@ -165,8 +123,10 @@ device
   -> durable profile
      -> share secret
      -> relays
-     -> group metadata
+     -> structured group_package, including group_name
      -> peer policy inputs
+  -> host-local state
+     -> selection, manifests, vault references, local bookkeeping
   -> runtime
      -> relay connections
      -> nonce pool state
@@ -175,10 +135,68 @@ device
 ```
 
 This split matters because:
-
 - onboarding/bootstrap creates the durable profile
 - runtime can be restarted or recreated from that durable profile
-- backup/recovery is about reconstructing the durable profile, not preserving a live process
+- backup/recovery reconstructs durable profile state, not a live process
+- host-local state may survive runtime restarts, but it is not the portable profile contract
+
+## Artifact Architecture
+
+FROSTR has three major portable artifact classes:
+
+- `bfprofile`
+  - full portable device profile
+- `bfshare`
+  - compact recovery artifact and threshold rotation input
+- `bfonboard`
+  - bootstrap and rotated-share adoption artifact
+
+These artifacts are intentionally distinct:
+- `bfprofile` moves complete durable device state
+- `bfshare` enables recovery and operator rotation input
+- `bfonboard` enables onboarding and rotated-share adoption
+
+Encrypted relay backups complement those artifacts by publishing durable backup state derived from a device profile.
+
+## Host And Runtime Architecture
+
+Hosts and runtimes meet at a concrete control and read-model boundary built on the durable profile.
+
+Hosts own:
+- profile storage
+- local manifests and selection state
+- UX and operator workflows
+- runtime lifecycle orchestration
+- issuing config and policy updates
+- issuing operation requests such as `ping`, `onboard`, `sign`, and `ecdh`
+
+The runtime owns:
+- readiness
+- peer status
+- live policy/effective policy computation
+- nonce pools
+- pending operations
+- live diagnostics
+- operation completions and failures
+- runtime events
+
+The host/runtime boundary therefore has two directions:
+
+- host -> runtime
+  - durable profile inputs
+  - start/stop/reset
+  - config and policy mutation
+  - operation requests
+- runtime -> host
+  - `status`
+  - `runtime_status`
+  - `readiness`
+  - peer status
+  - effective peer policy state
+  - completions/failures
+  - diagnostics and runtime events
+
+Hosts should treat `runtime_status()` as the canonical aggregated read model rather than inferring readiness or round-state truth from local heuristics.
 
 ## Protocol Architecture
 
@@ -196,45 +214,26 @@ initiating device
 ```
 
 The core peer operations are:
-
 - `ping`
-  - reachability and policy observation
 - `onboard`
-  - bootstrap exchange for a new device
 - `sign`
-  - threshold signing round
 - `ecdh`
-  - threshold ECDH/shared-secret round
 
-Lower-level transport details live in [WIRE.md](./WIRE.md).
+The request lifecycle, responder validation rules, locked-peer semantics, and timeout/failure model live in [PROTOCOL.md](./PROTOCOL.md).
 
-## Relay and Wire Architecture
+## Relay And Wire Architecture
 
 Relays are transport infrastructure, not trusted protocol interpreters.
 
 At the wire level:
-
 - peer messages are Nostr events
 - event `content` is NIP-44 encrypted
 - the recipient is indicated by a single `p` tag
 - decrypted content is a peer envelope with a request id, timestamp, and typed payload
 
-Conceptually:
-
-```text
-Nostr event
-  -> tags
-     -> single recipient p tag
-  -> content
-     -> NIP-44 encrypted blob
-        -> peer envelope
-           -> typed protocol payload
-```
-
 That separation is intentional:
-
 - relays can route and store events
-- devices alone can interpret the protocol payload
+- devices alone interpret protocol payloads
 
 ## Signing Architecture
 
@@ -252,311 +251,81 @@ caller
      -> aggregate final signature
 ```
 
-ASCII view:
-
-```text
-            sign request
-caller ----------------------> initiator device
-                                 |
-                                 | encrypted sign requests
-                                 v
-                       +---------+---------+
-                       |                   |
-                       v                   v
-                  peer device B       peer device C
-                       |                   |
-                       | partial responses |
-                       +---------+---------+
-                                 |
-                                 v
-                          initiator verifies
-                          and aggregates
-                                 |
-                                 v
-                           final signature
-```
-
-Important architectural property:
-
-- the initiator may coordinate the round
-- but a threshold-valid peer set must participate
-- if required locked peers fail or return invalid material, the round fails
+Signing readiness is partly cryptographic and partly operational:
+- the runtime must have valid nonce state
+- selected peers must be sign-capable
+- required locked-peer responses must be valid
 
 ## ECDH Architecture
 
-ECDH follows the same broad architecture as signing:
+Threshold ECDH follows a similar model:
 
-- choose an eligible peer set
-- exchange encrypted request/response material
-- validate locked peer responses
-- combine the final shared-secret result
+```text
+caller
+  -> local device runtime
+     -> choose ECDH-capable peers
+     -> send ECDH requests
+     -> collect ECDH responses
+     -> verify required peer responses
+     -> combine shared secret
+```
 
-The main difference is the operation semantics, not the communication model.
+The output is shared-secret material, not a signature, but the request/response lifecycle is parallel to signing.
 
 ## Onboarding Architecture
 
-Onboarding is how a new device enters an existing keyset.
+Onboarding has two layers:
 
-It has two layers:
+- host/bootstrap layer
+  - import `bfonboard`
+  - decrypt bootstrap credential
+  - create temporary bootstrap context
+  - materialize durable local state after success
+- peer protocol layer
+  - send onboarding request
+  - exchange bootstrap nonce material
+  - receive returned group/bootstrap material
 
-1. bootstrap artifact layer
-   - the recipient gets a `bfonboard` package and password
-2. peer protocol layer
-   - the recipient contacts an existing signer and completes the onboarding exchange
+Successful onboarding should leave the recipient with:
+- a local durable profile
+- a local `bfshare`
+- an encrypted relay backup
+- initialized runtime state
 
-Conceptually:
+## Backup And Recovery Architecture
 
-```text
-existing signer/operator
-  -> produces bfonboard
-  -> hands package + password to recipient
+Recovery reconstructs a device profile from:
+- one `bfshare`
+- the latest encrypted profile backup event addressed by the share-derived backup author identity
 
-recipient device
-  -> decrypts bfonboard
-  -> contacts provisioning signer over relays
-  -> completes onboard request/response exchange
-  -> materializes local profile
-  -> materializes recovery package
-  -> publishes encrypted backup
-```
+The recovered result is durable device state, not runtime state.
 
-ASCII view:
+`bfprofile` is the full portable export/import artifact for that same durable profile state.
 
-```text
-provisioning side                    recipient device
-------------------                   ----------------
-build bfonboard  ----------------->  import + decrypt
-                                     |
-                                     | onboard request over relays
-                                     v
-                              provisioning signer runtime
-                                     |
-                                     | onboard response
-                                     v
-                              materialize local profile
-                              materialize bfshare
-                              publish encrypted backup
-```
+## Rotation Architecture
 
-Onboarding is therefore not just file import. It is a bootstrap exchange that ends by creating the same durable local device state used by later import/export and recovery flows.
+Rotation is same-key redistribution, not keyset replacement.
 
-## Backup and Recovery Architecture
+Current rotation is trusted-dealer rotation:
+- operator gathers threshold `bfshare` inputs
+- current signing key is reconstructed
+- the same signing key is re-split into a fresh share set
+- the group public key stays the same
+- new shares are distributed as `bfonboard`
 
-FROSTR separates full profile export from compact recovery.
+This means:
+- `bfshare` is rotation input
+- `bfonboard` is rotation adoption output
+- successful adoption of a rotated share yields a new share public key and therefore a new `profile_id`
 
-Artifacts:
+## Invariants
 
-- `bfprofile`
-  - full local device profile package
-- `bfshare`
-  - compact recovery credential
-- encrypted relay profile backup
-  - latest share-authored backup event on relays
-
-Conceptually:
-
-```text
-full export/import:
-  device profile <-> bfprofile
-
-compact recovery:
-  bfshare + relays
-    -> fetch encrypted backup
-    -> decrypt backup
-    -> reconstruct full profile
-```
-
-ASCII view:
-
-```text
-             +--------------------+
-             |   local profile    |
-             +----+----------+----+
-                  |          |
-        export/import        | publish encrypted backup
-                  |          v
-                  |    +-----------+
-                  |    |  relays   |
-                  |    +-----------+
-                  |          ^
-                  v          |
-             +-----------+   |
-             | bfprofile  |   |
-             +-----------+   |
-                             |
-                    +--------+--------+
-                    |     bfshare     |
-                    | share + relays  |
-                    +-----------------+
-```
-
-This architecture gives two different operational modes:
-
-- full portability through `bfprofile`
-- compact recovery through `bfshare` plus relay backup retrieval
-
-## Rotation and Keyset Replacement
-
-FROSTR needs a strict distinction between:
-
-- rotation / share refresh
-  - preserves the same group public key
-  - refreshes the per-device share material
-- keyset replacement / rollover
-  - produces a new group public key
-  - creates a new keyset identity
-
-Conceptually:
-
-```text
-same keyset identity
-  -> same group public key
-  -> refreshed device shares
-
-new keyset identity
-  -> new group public key
-  -> replacement device shares
-```
-
-Implications:
-
-- true rotation should not change the group public key
-- if the group public key changes, that is a new keyset, not a rotation
-- trusted-dealer rotation is implemented by reconstructing the existing signing key from threshold shares and re-splitting that same key into new shares
-- both rotation and keyset replacement require new local share material on participating devices
-- device profiles and backups must be refreshed whenever the underlying share material changes
-- runtime readiness must be rebuilt from the updated profile state
-
-Conceptually:
-
-```text
-rotation / share refresh
-  old shares  -> new shares
-  group pk G  -> group pk G
-
-keyset replacement / rollover
-  old shares  -> new shares
-  group pk G1 -> group pk G2
-```
-
-This distinction is important because FROSTR relies on the group public key as the stable identity of a keyset.
-
-Detailed rotation inputs, distribution paths, and device-adoption behavior live in [ROTATION.md](./ROTATION.md).
-
-## Recovery Architecture
-
-Recovery is distinct from onboarding, rotation, and keyset replacement.
-
-- onboarding
-  - bootstrap a new device into an existing keyset
-- recovery
-  - reconstruct a previously existing device from compact credentials and relay backups
-- rotation
-  - refresh shares while preserving the same group public key
-- keyset replacement
-  - replace the keyset with a new group public key
-
-Recovery starts from:
-
-- `bfshare`
-- relay access
-- the latest encrypted backup
-
-and ends at:
-
-- reconstructed local durable profile state
-- a runtime that can be started from that profile
-
-## Host Architecture
-
-FROSTR separates the runtime/signer core from host surfaces.
-
-High-level ownership:
-
-- `bifrost-rs`
-  - threshold signing, ECDH, peer capability, readiness, protocol validation, and runtime logic
-- `bifrost-app`
-  - native host/bootstrap and runtime hosting layer
-- `igloo-shell`
-  - operator CLI, managed profile/vault UX, daemon lifecycle UX
-- `igloo-chrome`
-  - browser host, provider surface, operator UI, extension lifecycle wiring
-- `frostr-infra`
-  - cross-repo docs, orchestration, demo environments, and cross-repo E2E coverage
-
-The architectural rule is:
-
-- hosts own storage UX, lifecycle UX, and integration UX
-- the runtime owns signer truth, readiness, peer capability, and protocol behavior
-
-## Host/Runtime Boundary
-
-The host/runtime boundary is one of the most important architectural lines in FROSTR.
-
-The runtime owns:
-
-- signer state
-- peer capability
-- readiness
-- protocol validation
-- threshold operation behavior
-
-Hosts own:
-
-- profile import/export
-- onboarding UX
-- backup/recovery UX
-- storage management
-- prompts, permissions, and operator workflows
-
-Hosts should not reconstruct signer truth from heuristics when the runtime already owns that state.
-
-## End-to-End System View
-
-The whole architecture can be summarized like this:
-
-```text
-                 +-----------------------------+
-                 |         Keyset              |
-                 |   group pk + threshold      |
-                 +-------------+---------------+
-                               |
-                     split into member shares
-                               |
-         +---------------------+---------------------+
-         |                     |                     |
-         v                     v                     v
-   +-----------+         +-----------+         +-----------+
-   | Device A  |         | Device B  |         | Device C  |
-   | profile   |         | profile   |         | profile   |
-   | runtime   |         | runtime   |         | runtime   |
-   +-----+-----+         +-----+-----+         +-----+-----+
-         \                     |                     /
-          \                    |                    /
-           \                   |                   /
-            +------------------------------------+
-            |          Nostr Relay Layer         |
-            |   encrypted p2p protocol traffic   |
-            |   encrypted profile backup events  |
-            +----------------+-------------------+
-                             |
-                   host surfaces and operators
-                             |
-       +---------------------+----------------------+
-       |                                            |
-       v                                            v
-  igloo-shell                                  igloo-chrome
-  native/operator host                         browser/provider host
-```
-
-## Architectural Invariants
-
-These rules should hold across FROSTR:
-
-- a keyset is shared across multiple devices through per-device shares
-- no single device should hold the full signing secret in normal threshold operation
-- the runtime peer protocol operates over encrypted relay traffic
-- device routing uses share public keys, not `profile_id`
-- onboarding, backup/recovery, rotation, and keyset replacement are distinct lifecycle paths
-- the durable local device profile is the reconstruction point for runtime state
-- hosts own UX and storage integration, while the runtime owns signer truth and protocol behavior
+These rules should hold across the system:
+- group public key is the keyset identity
+- share public key is the peer-routing identity
+- `profile_id` is the durable host-facing profile identity
+- durable profile state is distinct from host-local and runtime-only state
+- `bfprofile`, `bfshare`, and `bfonboard` have distinct roles
+- rotation preserves the group public key
+- keyset replacement changes the group public key
+- relays carry encrypted traffic but do not interpret the protocol

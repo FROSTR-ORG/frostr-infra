@@ -32,7 +32,7 @@ export function buildPwaPersistedState(input?: {
     drafts: {
       createForm: {
         mode: 'new',
-        keysetName: '',
+        groupName: '',
         threshold: '2',
         count: '3',
       },

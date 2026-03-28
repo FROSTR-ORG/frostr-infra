@@ -10,7 +10,7 @@ import {
 const ONBOARDING_UI_TIMEOUT_MS = 10_000;
 
 type LiveOnboardingProfile = {
-  keysetName?: string;
+  groupName?: string;
   onboardPackage?: string;
   onboardPassword?: string;
   publicKey: string;
@@ -19,7 +19,7 @@ type LiveOnboardingProfile = {
 
 export type StoredProfile = {
   id?: string;
-  keysetName?: string;
+  groupName?: string;
   relays: string[];
   publicKey?: string;
   groupPublicKey?: string;
@@ -60,7 +60,7 @@ async function fetchLifecycleStatus(page: Page): Promise<LifecycleStatus> {
   return await fetchExtensionStatusFromPage<LifecycleStatus>(page);
 }
 
-async function waitForSignerUi(page: Page, keysetName: string) {
+async function waitForSignerUi(page: Page, groupName: string) {
   const errorBanner = page.locator('div').filter({
     hasText: /Connection timed out|Failed to connect onboarding|Failed during onboard|error/i
   });
@@ -186,7 +186,7 @@ async function waitForSignerUi(page: Page, keysetName: string) {
 export async function onboardLiveSignerProfile(
   openExtensionPage: (targetPath: string) => Promise<Page>,
   profile: LiveOnboardingProfile,
-  keysetName = 'Playwright Live'
+  groupName = 'Playwright Live'
 ): Promise<StoredProfile> {
   if (!profile.onboardPackage || !profile.onboardPassword) {
     throw new Error('Live signer profile is missing onboarding package material');
@@ -204,13 +204,13 @@ export async function onboardLiveSignerProfile(
     logE2E('chrome.support.onboarding', 'connect-inputs-filled');
     await onboardCard.getByRole('button', { name: 'Connect' }).click();
     await expect(page.getByRole('heading', { name: 'Save Onboarded Device' })).toBeVisible();
-    await page.getByPlaceholder('e.g. Laptop Signer, Browser Node A').fill(keysetName);
+    await page.getByPlaceholder('e.g. Laptop Signer, Browser Node A').fill(groupName);
     await page.getByPlaceholder('Minimum 8 characters').fill(profile.onboardPassword);
-    logE2E('chrome.support.onboarding', 'save-inputs-filled', { keysetName });
+    logE2E('chrome.support.onboarding', 'save-inputs-filled', { groupName });
     await page.getByRole('button', { name: 'Save Device' }).click();
     logE2E('chrome.support.onboarding', 'save-clicked');
 
-    await waitForSignerUi(page, keysetName);
+    await waitForSignerUi(page, groupName);
     logE2E('chrome.support.onboarding', 'signer-ui-ready');
 
     const appState = await fetchExtensionAppStateFromPage<{ profile: StoredProfile | null }>(page);

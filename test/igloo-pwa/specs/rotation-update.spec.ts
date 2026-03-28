@@ -26,14 +26,14 @@ test.describe('igloo-pwa rotate key', () => {
     let inviterContext;
     try {
       const current = await createGeneratedBrowserArtifacts({
-        keysetName: 'Rotation Update',
+        groupName: 'Rotation Update',
         labelPrefix: 'Rotation Device',
         relays: [relay.url],
       });
       const rotated = await createRotatedBrowserArtifacts({
         current,
         sourceMemberIndices: [1, 2],
-        keysetName: 'Rotation Update',
+        groupName: 'Rotation Update',
         labelPrefix: 'Rotated Device',
         relays: [relay.url],
       });

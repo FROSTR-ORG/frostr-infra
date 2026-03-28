@@ -20,11 +20,11 @@ This caused two problems:
 - the runtime could not distinguish a local manual deny from a remote reported deny
 - hosts could store or display peer permissions without showing whether they were local policy, remote observation, or effective runtime gating
 
-Browser and mobile runtimes are also frequently torn down, so remote peer policy observations must survive restarts.
+Browser and mobile runtimes are also frequently torn down, so remote peer policy observations must live in runtime state rather than portable profile state.
 
 ## Decision
 
-The canonical peer permission model is split into two persisted layers:
+The canonical peer permission model is split into one durable profile layer and one runtime layer:
 
 - `manual_peer_policy_overrides`
   - local operator policy
@@ -33,9 +33,10 @@ The canonical peer permission model is split into two persisted layers:
   - per method (`ping`, `onboard`, `sign`, `ecdh`)
   - tri-state values: `unset | allow | deny`
 
-- `remote_peer_policy_observations`
+- remote peer policy observations
   - last peer-reported policy learned through `ping`
-  - persisted with revision and update timestamp
+  - owned by runtime state, not durable profile state
+  - may persist in runtime state snapshots, but are not part of profile/package/backup formats
 
 Effective policy is derived, not stored as operator input:
 
@@ -47,15 +48,16 @@ Effective policy is derived, not stored as operator input:
 - deny wins over allow
 
 Remote observations remain advisory until refreshed:
-- they are persisted across restarts
-- they continue to apply until replaced by a newer ping result
+- they continue to apply while present in runtime state
+- they may survive runtime restart only through runtime-state persistence, not through profile import/export or backup recovery
 - hosts should surface observation age, but the runtime does not auto-expire them to allow or deny
 
 The serialization and runtime-status boundary follows the same split:
 
 - `bfprofile` packages and encrypted profile backups persist:
   - `manual_peer_policy_overrides`
-  - `remote_peer_policy_observations`
+- runtime state persists:
+  - remote peer policy observations when the host/runtime chooses to persist runtime state
 - effective peer policy is runtime-derived only and is never serialized
 - peer permission is part of canonical runtime status
 - separate `Policies` control/status commands are removed

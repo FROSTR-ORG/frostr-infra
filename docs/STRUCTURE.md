@@ -1,35 +1,127 @@
 # Repository Structure
 
-- `compose.yml`: main Docker Compose stack.
-- `compose.test.yml`: relay + igloo-shell demo harness for manual pairing and live/E2E testing.
-- `compose.prod.yml`: production-style compose overrides (no source bind mounts).
-- `compose.override.yml`: generated local package mount overrides.
-- `./run.sh infra start`: uses only `compose.yml`.
-- `./run.sh infra dev`: uses `compose.yml` + `compose.override.yml`.
-- `build/`: local build artifacts (intentionally available for generated outputs).
-- `run.sh`: curated public command router for repo-local infra, demo, test, and browser tasks.
-- `repos/`: remaining upstream repos tracked as submodules (`bifrost-rs`, `igloo-shell`, `igloo-chrome`, `igloo-home`, `igloo-pwa`, `igloo-shared`, `igloo-ui`).
-- `services/`: infra-owned Dockerfiles and entrypoints per service container.
-- `scripts/`: private helper scripts used by `run.sh` and test harnesses.
-- `test/`: infra-owned cross-repo Playwright suites and harness code.
-- `data/`: persistent runtime state.
-- `logs/`: service log mounts.
-- Submodule operations in this repo are intentionally non-recursive.
+This document defines ownership boundaries for the `frostr-infra` workspace and its release documentation.
 
-## Ownership Boundaries
+## Workspace Shape
 
-- `repos/bifrost-rs`: signer core, routing, bridge runtimes, host layer, and protocol implementation.
-- `repos/igloo-shell`: CLI, relay, keygen, package tooling, and shell-owned runtime E2E.
-  Active script surface: `repos/igloo-shell/scripts/` and `repos/igloo-shell/dev/scripts/`.
-- `repos/igloo-chrome`: browser host/control plane over `bifrost-rs` plus provider/UI surfaces.
-- `repos/igloo-home`: desktop/browser-shell host surface for local multi-profile workflows.
-- `repos/igloo-pwa`: PWA host surface for browser-first onboarding, recovery, and rotation flows.
-- `repos/igloo-shared`: shared browser/runtime/package bridge layer used by the browser hosts.
-- `repos/igloo-ui`: shared presentational UI package consumed by browser-facing hosts.
-- `docs/`: cross-repo architecture, ADRs, and guidance docs that should not live inside one submodule.
+- `docs/`
+  - shared FROSTR system manual
+- `repos/`
+  - independent submodule projects
+- `test/`
+  - cross-repo browser and demo-harness verification
+- `services/`
+  - infra-owned container images and entrypoints
+- `scripts/`
+  - parent-repo helper scripts
+- `compose*.yml`
+  - infra and test stack definitions
+- `run.sh`
+  - curated top-level command router
 
-## Shared Runtime Model
+## Documentation Ownership
 
-- `bifrost-rs` is the source of truth for signer status, readiness, runtime events, and reset semantics.
-- `igloo-chrome`, `igloo-home`, and `igloo-pwa` host that runtime through their respective browser/desktop surfaces.
-- `test/` owns browser-level and cross-repo E2E harnesses, including live signer fixtures and the Docker demo harness.
+### Parent `docs/` owns shared-system truth
+
+The top-level docs are the canonical source for:
+- FROSTR architecture
+- cross-host interface contracts
+- peer protocol semantics
+- cryptographic model
+- profile, backup, onboarding, rotation, and wire formats
+- shared terminology and identity rules
+
+These docs describe FROSTR as a system, not any one implementation.
+
+### Repo-local docs own project-specific truth
+
+Each submodule should document only:
+- what that project owns
+- how to build and test it
+- project-specific contributor and release process
+- implementation details specific to that repo
+
+Repo-local docs should not redefine:
+- the FROSTR protocol
+- the shared cryptographic model
+- the shared glossary
+- the cross-host package model
+
+## Submodule Ownership
+
+### `repos/bifrost-rs`
+
+Owns:
+- cryptographic/session primitives
+- strict wire and package validation
+- signer state machine and readiness model
+- runtime router and bridge layers
+- reusable host/runtime glue
+- keyset, onboarding, recovery, and backup utilities
+
+This repo is the canonical implementation owner for the runtime and cryptographic stack, but not the canonical documentation owner for shared-system behavior.
+
+### `repos/igloo-shared`
+
+Owns:
+- shared browser/runtime adapter contracts
+- shared browser package/runtime helpers
+- browser-facing bridge consumption patterns
+
+### `repos/igloo-shell`
+
+Owns:
+- CLI/operator workflows
+- explicit operator rotation tooling
+- shell-local profile, vault, and runtime management
+- shell-owned smoke and node E2E harnesses
+
+`igloo-shell` is the strongest operator host and the primary enterprise/business surface.
+
+### `repos/igloo-home`
+
+Owns:
+- desktop/browser-shell host behavior
+- multi-profile desktop workflows
+- local profile-management UX
+
+### `repos/igloo-pwa`
+
+Owns:
+- browser-first onboarding, recovery, and profile-management UX
+- PWA host behavior
+
+### `repos/igloo-chrome`
+
+Owns:
+- extension host behavior
+- provider/runtime control plane
+- extension-specific settings and provider surfaces
+
+### `repos/igloo-ui`
+
+Owns:
+- shared presentational UI package consumed by browser-facing hosts
+
+## Testing Ownership
+
+### Parent repo
+
+The parent repo owns:
+- cross-repo browser E2E under `test/`
+- demo-harness orchestration
+- release-level matrix entrypoints
+
+### Submodules
+
+Submodules own:
+- local unit and integration tests
+- project-specific smoke and workflow checks
+- project-specific release/process evidence
+
+## Release Rule
+
+For a beta or production release:
+- read top-level `docs/` for the FROSTR system contract
+- read each submodule’s root docs for project-specific operation and maintenance
+- do not rely on one submodule’s docs to explain another submodule or the shared protocol

@@ -5,7 +5,7 @@ export const TEST_PEER_PUBLIC_KEY =
   '006008c941d6176a375c72cd08e16502a6a723b4b8b2909b8d7f63807a77c5b6';
 
 export const TEST_PROFILE = {
-  keysetName: 'Playwright Smoke',
+  groupName: 'Playwright Smoke',
   relays: ['ws://127.0.0.1:8194'],
   publicKey: TEST_PUBLIC_KEY,
   groupPublicKey: TEST_PUBLIC_KEY,

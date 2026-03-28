@@ -10,7 +10,7 @@ test.describe('igloo-pwa stored profiles', () => {
     const relay = await startLocalRelay();
     try {
       const generated = await createGeneratedBrowserArtifacts({
-        keysetName: 'PWA Inventory',
+        groupName: 'PWA Inventory',
         labelPrefix: 'Stored Browser Device',
         relays: [relay.url],
       });

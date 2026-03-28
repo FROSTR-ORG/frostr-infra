@@ -129,7 +129,7 @@ test.describe('demo harness onboarding @live', () => {
             return page;
           },
           {
-            keysetName: `Demo Harness ${demoHarness.recipient}`,
+            groupName: `Demo Harness ${demoHarness.recipient}`,
             onboardPackage: demoHarness.onboardPackage,
             onboardPassword: demoHarness.onboardPassword,
             publicKey: '',

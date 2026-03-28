@@ -2,7 +2,7 @@
 
 ## Summary
 
-This document defines the common vocabulary used across the top-level FROSTR specs.
+This document defines the common vocabulary used across the shared FROSTR specs.
 
 Use it to resolve terminology quickly before diving into the deeper architecture, protocol, profile, backup, onboarding, and rotation docs.
 
@@ -42,6 +42,8 @@ In practice, a device is represented durably by a profile and operationally by a
 
 The portable long-lived state that defines a device profile, as distinct from host-local state or live runtime state.
 
+It includes manual peer policy overrides, but not remote peer policy observations.
+
 ### effective peer policy
 
 The runtime-derived policy result after combining local manual overrides and remote observed peer policy.
@@ -70,7 +72,14 @@ It may change when membership or threshold changes, even if the group public key
 
 The structured group configuration data carried in profile and backup payloads.
 
-It includes the group public key, threshold, and member pubkeys and must be preserved losslessly.
+It includes `groupName`, the group public key, threshold, and member pubkeys and must be preserved losslessly.
+
+### group name / `group_name`
+
+The canonical human-readable name carried inside `group_package`.
+
+It helps operators recognize which shares, profiles, and backups belong to the same group.
+It is durable metadata, not cryptographic identity, and not the same thing as a mutable local device label.
 
 ### group public key / `group_pk`
 
@@ -84,6 +93,10 @@ The environment that stores profiles, starts runtimes, and exposes user/operator
 
 Examples include shell and browser hosts.
 
+### initiator
+
+The device that starts a protocol round and is responsible for peer selection, request dispatch, response matching, and terminal success or failure.
+
 ### keyset
 
 The threshold-signing unit consisting of one group public key, one threshold, and one member set.
@@ -93,6 +106,10 @@ The threshold-signing unit consisting of one group public key, one threshold, an
 Creating a brand-new keyset with a new group public key.
 
 This is not the same as rotation.
+
+### locked peer
+
+A selected peer whose valid response is required for the current round to succeed.
 
 ### member index
 
@@ -150,7 +167,11 @@ Relays transport and store events, but do not interpret FROSTR protocol content.
 
 ### remote peer policy observation
 
-A durable observation of a peer’s reported policy profile, stored as input to later runtime policy evaluation.
+A runtime-owned observation of a peer’s reported policy profile, stored only in live runtime state and discarded when runtime state is reset.
+
+### responder
+
+The peer device that receives a request, validates it, and either replies or rejects the round.
 
 ### rotation
 
@@ -158,13 +179,13 @@ Reissuing a fresh set of shares for the same underlying signing key and the same
 
 Rotation is not keyset replacement.
 
-### sign session
-
-The cryptographic signing context that binds the group, the payload being signed, the participants, and the round’s nonce material.
-
 ### runtime
 
 The live operational signer process/state built from a durable profile.
+
+### runtime readiness
+
+The runtime-owned view of whether the device is currently capable of participating in operations such as `sign` or `ecdh`.
 
 ### share
 
@@ -177,6 +198,10 @@ The device/member public identity used for peer routing, peer policy references,
 ### share secret
 
 The secret signing share held by one device profile.
+
+### sign session
+
+The cryptographic signing context that binds the group, the payload being signed, the participants, and the round’s nonce material.
 
 ### structured group data
 

@@ -2,367 +2,450 @@
 
 ## Summary
 
-This document is the interface map for FROSTR.
+This document is the contract map for the major interfaces in FROSTR.
 
-It focuses on the important boundaries between subsystems:
+For each boundary, it answers:
+- what the interface is for
+- who produces and consumes it
+- which identity or artifact crosses the boundary
+- which invariants must hold
+- which failures matter
+- where deeper details live
 
-- host and runtime
-- host and portable package artifacts
-- device and device peer protocol
-- device and relay wire transport
-- backup, recovery, onboarding, and rotation boundaries
+## Interface Matrix
 
-Use this document to answer:
-
-- what are the main interfaces in the system?
-- which identities and artifacts are used at each boundary?
-- which companion doc owns the deeper detail?
-
-Use these companion docs for the full behavior behind each interface:
-
-- [ARCHITECTURE.md](./ARCHITECTURE.md): overall system model
-- [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md): FROST-side cryptographic model for keysets, shares, nonces, signing, and ECDH
-- [PROFILE.md](./PROFILE.md): device profile and durable state
-- [BACKUP.md](./BACKUP.md): `bfprofile`, `bfshare`, and encrypted backups
-- [ONBOARD.md](./ONBOARD.md): onboarding and `bfonboard`
-- [ROTATION.md](./ROTATION.md): trusted share rotation
-- [PROTOCOL.md](./PROTOCOL.md): device-to-device protocol semantics
-- [WIRE.md](./WIRE.md): relay and wire-format details
-- [GLOSSARY.md](./GLOSSARY.md): canonical terminology
-
-## Interface Taxonomy
-
-FROSTR has five major interface classes.
-
-### 1. Identity Interfaces
-
-These define how the system names devices, members, and keysets.
-
-Important identities:
-
-- `profile_id`
-  - the host-facing durable profile identity
-- share public key
-  - the device/member identity used for peer routing and policy
-- `group_id`
-  - the concrete group configuration identity
-- group public key / `group_pk`
-  - the keyset identity
-
-These identities are related, but they are not interchangeable.
-
-### 2. Package Interfaces
-
-These are the portable artifacts that cross host or user boundaries.
-
-Important package interfaces:
-
-- `bfprofile`
-  - full portable device profile import/export
-- `bfshare`
-  - compact recovery credential and rotation input artifact
-- `bfonboard`
-  - onboarding and rotated-share adoption artifact
-
-### 3. Host and Runtime Interfaces
-
-These define how a host materializes, starts, stops, and observes a signer/runtime from durable profile data.
-
-Conceptually, this interface covers:
-
-- profile materialization
-- runtime bootstrap from durable state
-- runtime status and diagnostics
-- local relay and policy configuration
-
-### 4. Peer Protocol Interfaces
-
-These define how one share-holding device communicates with another device during runtime operations.
-
-Core peer operations:
-
-- `ping`
-- `onboard`
-- `sign`
-- `ecdh`
-
-These interfaces depend on underlying cryptographic structures such as shares, nonce pools, partial signatures, and threshold ECDH contributions.
-
-### 5. Relay and Persistence Interfaces
-
-These define how encrypted peer traffic and encrypted backups move through relays, and how durable profile state is reconstructed later.
-
-Important examples:
-
-- Nostr relay peer traffic
-- NIP-44 encrypted peer envelopes
-- encrypted profile backup events
-- recovery from `bfshare`
+| Interface | Producer | Consumer | Canonical Artifact / Identity | Primary Doc |
+|---|---|---|---|---|
+| `profile_id` | host profile layer | host profile layer | durable profile id | [PROFILE.md](./PROFILE.md) |
+| share public key | keyset / runtime | runtime / peer protocol | peer-routing identity | [PROTOCOL.md](./PROTOCOL.md) |
+| group public key / `group_pk` | keyset layer | hosts and runtime | keyset identity | [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md) |
+| `bfprofile` | host export path | host import path | full portable profile | [BACKUP.md](./BACKUP.md) |
+| `bfshare` | host export path | recovery and rotation input flow | compact recovery / rotation-input package | [BACKUP.md](./BACKUP.md) |
+| `bfonboard` | onboarding or rotation distribution path | onboarding or rotate-key adoption path | bootstrap / rotated-share adoption package | [ONBOARD.md](./ONBOARD.md) |
+| host ↔ runtime | host | signer/runtime | durable profile state plus runtime read models | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| device ↔ device | initiator device | responder devices | request/response operation rounds | [PROTOCOL.md](./PROTOCOL.md) |
+| device ↔ relay | device | relays and subscribing devices | Nostr event + encrypted content | [WIRE.md](./WIRE.md) |
+| profile backup | host backup path | recovery path | encrypted backup event | [BACKUP.md](./BACKUP.md) |
+| rotation | operator flow | new or existing device host | threshold `bfshare` input + `bfonboard` adoption | [ROTATION.md](./ROTATION.md) |
 
 ## Identity Interfaces
 
 ### `profile_id`
 
-`profile_id` is the durable host/profile identity for one local share-holding device profile.
+Purpose:
+- durable host-facing identity for one local share-holding profile
 
-It is used for:
+Producer:
+- host profile-materialization logic
 
-- host-side lookup
-- storage
-- selection
-- replacement during rotation
+Consumer:
+- host storage, lookup, replacement, and selection flows
 
-It is not used for:
+Canonical identity:
+- `profile_id = hex(sha256("frostr:profile-id:v1" || share_pubkey32))`
 
-- peer routing
-- relay recipient tags
+Invariants:
+- derived from the share public key, not chosen arbitrarily
+- stable for one share public key
+- changes when the device adopts a rotated share
+- never used as the peer-routing identity
+
+Failure conditions:
+- derived id does not match imported/exported durable profile material
+- host uses a short display id as canonical identity
+
+Primary doc:
+- [PROFILE.md](./PROFILE.md)
 
 ### Share Public Key
 
-The share public key is the peer/device identity inside the keyset.
+Purpose:
+- device/member identity inside the keyset
 
-It is used for:
+Producer:
+- keyset generation and rotation
 
-- device-to-device routing
+Consumer:
+- peer routing
 - relay recipient targeting
 - peer policy references
-- deriving `profile_id`
+- `profile_id` derivation
 
-This is the routing identity at the protocol and wire layers.
+Canonical identity:
+- lowercase x-only 32-byte hex at host/protocol boundaries
+
+Invariants:
+- this is the peer-routing identity
+- it is distinct from `profile_id`
+- it is distinct from the group public key
+
+Failure conditions:
+- host or protocol code confuses share public key with `profile_id`
+- routing uses the wrong peer identity
+
+Primary docs:
+- [PROTOCOL.md](./PROTOCOL.md)
+- [PROFILE.md](./PROFILE.md)
 
 ### `group_id`
 
-`group_id` identifies one concrete group configuration.
+Purpose:
+- identity of one concrete group configuration
 
-It changes when group membership or threshold configuration changes, even if the group public key remains the same.
+Producer:
+- keyset generation and rotation logic
 
-This is why rotation can preserve the group public key while still producing a new `group_id`.
+Consumer:
+- host/runtime bookkeeping that must distinguish concrete group configurations
+
+Invariants:
+- may change when threshold or membership changes
+- may change across rotation even if `group_pk` stays the same
+
+Primary docs:
+- [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md)
+- [ROTATION.md](./ROTATION.md)
 
 ### Group Public Key / `group_pk`
 
-The group public key is the keyset identity.
+Purpose:
+- keyset identity
 
-It is used for:
+Producer:
+- key generation or keyset reconstruction
 
-- identifying the threshold signing key
-- distinguishing rotation from keyset replacement
+Consumer:
+- hosts, runtime, and rotation logic
 
-Rules:
+Invariants:
+- identifies the threshold signing key
+- preserved by rotation
+- changed by keyset replacement
 
-- rotation preserves `group_pk`
-- keyset replacement changes `group_pk`
+Failure conditions:
+- flow labeled as rotation changes the group public key
+
+Primary docs:
+- [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md)
+- [ROTATION.md](./ROTATION.md)
 
 ## Package Interfaces
 
 ### `bfprofile`
 
-`bfprofile` is the full encrypted portable device-profile package.
+Purpose:
+- full portable device-profile export/import artifact
 
-It is the interface for:
+Producer:
+- host export path
 
-- full device export
-- full device import
-- carrying complete durable profile state between hosts
+Consumer:
+- host import path
 
-The canonical package payload includes:
-
+Canonical payload:
 - `profile_id`
-- top-level `keyset_name`
-- device state
+- device durable state
 - structured `group_package`
+  - includes `group_name`
 
-`bfprofile` is the full portable profile boundary, not a runtime snapshot.
+Invariants:
+- full portable durable profile state
+- not a runtime snapshot
+- must preserve `group_package` losslessly
+
+Failure conditions:
+- outer/inner profile ids do not match
+- imported payload does not match derived profile id from share secret
+- host reconstructs group members lossy
+
+Primary docs:
+- [BACKUP.md](./BACKUP.md)
+- [PROFILE.md](./PROFILE.md)
 
 ### `bfshare`
 
-`bfshare` is the compact encrypted recovery artifact.
+Purpose:
+- compact recovery artifact and threshold rotation input
 
-It is the interface for:
+Producer:
+- host export path
 
-- recovering a device from relays
-- supplying threshold old shares into trusted rotation
+Consumer:
+- recovery flow
+- operator rotation input flow
 
-It is not the adoption artifact for a rotated share.
+Canonical payload:
+- share secret
+- relay set
+
+Invariants:
+- compact credential only
+- not a full device profile
+- not the rotated-share adoption artifact
+
+Failure conditions:
+- used as onboarding/adoption material
+- relay set omitted or invalid
+
+Primary docs:
+- [BACKUP.md](./BACKUP.md)
+- [ROTATION.md](./ROTATION.md)
 
 ### `bfonboard`
 
-`bfonboard` is the compact onboarding/bootstrap artifact.
+Purpose:
+- bootstrap and rotated-share adoption artifact
 
-It is the interface for:
+Producer:
+- onboarding distribution flow
+- rotation distribution flow
 
-- onboarding a new device
-- adopting a rotated share on a new device
-- adopting a rotated share into an existing device through in-place rotation flows
+Consumer:
+- new-device onboarding
+- existing-device rotated-share adoption
 
-It is the only rotated-share adoption artifact in the current model.
+Canonical payload:
+- share secret
+- relay set
+- callback peer public key
 
-## Profile and Backup Interfaces
+Invariants:
+- bootstrap artifact only
+- not a full device profile
+- the only rotated-share adoption artifact in the current model
 
-The durable profile and backup boundaries use the same conceptual shape:
+Failure conditions:
+- treated as a durable final profile
+- missing callback peer identity
 
-- top-level `keyset_name`
+Primary docs:
+- [ONBOARD.md](./ONBOARD.md)
+- [ROTATION.md](./ROTATION.md)
+
+## Profile And Backup Interfaces
+
+### Durable Profile State
+
+Purpose:
+- stable long-lived state needed to reconstruct a device runtime
+
+Producer:
+- onboarding, import, recovery, and rotation-adoption flows
+
+Consumer:
+- host profile storage
+- runtime materialization
+
+Canonical fields:
+- `profile_id`
+- device label
+- share secret
+- relay list
+- manual peer policy overrides
 - structured `group_package`
-- device-local relay and policy inputs
+  - includes `group_name`
 
-This is an important contract:
+Invariants:
+- distinct from host-local state
+- distinct from runtime-only state
+- effective peer policy is not canonical durable state
+- `group_name` is durable group metadata carried with `group_package`
+- hosts may rename local device/profile labels, but they must not treat `group_name` as independently mutable issued-artifact state
 
-- `group_package` is structured group data
-- member pubkeys are full compressed secp256k1 pubkeys
-- hosts must preserve `group_package` losslessly
-- hosts must not reconstruct member pubkeys from x-only share public keys
+Primary doc:
+- [PROFILE.md](./PROFILE.md)
 
-The full payload details for these package interfaces live in [BACKUP.md](./BACKUP.md).
+### Encrypted Relay Backup
 
-## Host and Runtime Interfaces
+Purpose:
+- durable relay-published backup used with `bfshare` recovery
 
-Hosts and runtimes meet at the durable profile boundary.
+Producer:
+- host backup publication path
 
-Conceptually:
+Consumer:
+- host recovery path
 
-```text
-host
-  -> load durable profile
-  -> materialize runtime inputs
-  -> start runtime
-  -> observe status / diagnostics / policy state
-```
+Canonical artifact:
+- latest encrypted `kind: 10000` event by author pubkey derived from the share secret
 
-This interface is responsible for:
+Invariants:
+- excludes the share secret
+- includes structured `groupPackage`, including `groupName`
+- group data must remain lossless
 
-- turning durable profile state into runtime state
-- starting and stopping the live signer
-- surfacing runtime readiness and diagnostics
-- applying host-local relay and policy configuration
+Failure conditions:
+- backup published without enough durable profile information
+- host reconstructs group members from lossy fields
 
-This interface is host-specific in implementation, but it must preserve the same profile and identity semantics across hosts.
+Primary doc:
+- [BACKUP.md](./BACKUP.md)
 
-## Device and Device Interfaces
+## Host And Runtime Interface
 
-The peer protocol is the device-to-device runtime coordination boundary.
+Purpose:
+- control and read-model boundary between durable host-managed profile state and live signer/runtime state
 
-It uses:
+Producer:
+- host profile-management and operator-action layer
 
-- encrypted request/response messages
-- share public keys as recipient identities
-- one request id per operation round
+Consumer:
+- signer/runtime bootstrap and control layer
 
-Core peer operations:
+Canonical inputs:
+- durable profile state
+- runtime lifecycle commands:
+  - start
+  - stop
+  - reset/wipe
+- config and policy updates
+- operation requests:
+  - `ping`
+  - `onboard`
+  - `sign`
+  - `ecdh`
+- host-local context such as active profile selection and local bookkeeping
 
+Canonical outputs:
+- `status`
+- runtime readiness
+- `runtime_status`
+- runtime diagnostics
+- peer status
+- effective peer policy / peer permission state
+- operation completions and failures
+- incremental runtime events
+
+Invariants:
+- runtime is derived from durable profile state
+- nonce pools and pending operations are runtime-owned state
+- remote peer policy observations are runtime-owned state
+- effective peer policy is runtime-owned state
+- hosts are the source of truth for local profile storage and UX state
+- hosts must not invent their own readiness or round-state model
+- `runtime_status()` is the canonical aggregated read model
+
+Failure conditions:
+- host treats runtime snapshot as portable profile state
+- host infers readiness or pending-round truth from local heuristics instead of runtime output
+- host caches stale runtime truth and treats it as authoritative
+
+Out of scope:
+- package formats
+- peer wire protocol
+- cryptographic internals
+
+Primary docs:
+- [ARCHITECTURE.md](./ARCHITECTURE.md)
+- [PROFILE.md](./PROFILE.md)
+
+## Device And Device Interface
+
+Purpose:
+- live request/response coordination between share-holding devices
+
+Producer:
+- initiator device
+
+Consumer:
+- responder devices
+
+Canonical operations:
 - `ping`
-  - reachability and observed peer policy
 - `onboard`
-  - bootstrap handshake
 - `sign`
-  - threshold signing
 - `ecdh`
-  - threshold shared-secret derivation
 
-The peer protocol owns runtime coordination after a device already exists and can communicate over relays.
+Canonical identities:
+- recipient share public key
+- request id for round correlation
 
-The detailed semantics live in [PROTOCOL.md](./PROTOCOL.md).
+Invariants:
+- request/response model
+- initiator owns peer selection and response matching
+- responders validate routing, freshness, policy, readiness, and operation-specific semantics before replying
 
-## Device and Relay Wire Interfaces
+Failure conditions:
+- invalid recipient routing
+- replayed or stale request
+- policy deny
+- readiness or nonce-state failure
+- invalid locked-peer response
 
-The wire interface is the transport boundary between devices and relays.
+Primary doc:
+- [PROTOCOL.md](./PROTOCOL.md)
 
-It uses:
+## Relay And Wire Interface
 
-- Nostr events
-- NIP-44 encrypted `content`
-- exactly one recipient `p` tag
+Purpose:
+- transport encrypted peer traffic and encrypted backups over relays
 
-This interface is responsible for:
+Producer:
+- devices and hosts that publish relay events
 
-- encrypted transport
-- recipient routing
-- request/response correlation
-- freshness and replay boundaries
+Consumer:
+- relays and subscribing devices
 
-Relays are transport only. They do not interpret the protocol payload.
+Canonical artifact:
+- Nostr event carrying NIP-44 encrypted content
 
-The detailed wire rules live in [WIRE.md](./WIRE.md).
+Canonical routing rule:
+- exactly one lowercase `p` tag naming the recipient share public key for peer traffic
 
-## Onboarding Interfaces
+Invariants:
+- relays transport and store events but do not interpret protocol payloads
+- protocol payload is inside encrypted content
+- request correlation happens through the decrypted peer envelope
 
-Onboarding sits between package import and peer protocol bootstrap.
+Failure conditions:
+- zero or multiple `p` tags on peer traffic
+- decrypted content not parseable as a peer envelope
+- recipient tag does not target a local recipient
 
-The interface sequence is:
-
-```text
-bfonboard
-  -> recipient imports package
-  -> recipient contacts provisioning peer
-  -> onboard peer handshake
-  -> durable local profile is materialized
-```
-
-Important boundary rule:
-
-- `bfonboard` is a bootstrap artifact
-- successful onboarding produces the same class of durable profile later represented by `bfprofile`
-
-The conceptual onboarding model lives in [ONBOARD.md](./ONBOARD.md).
-
-## Backup and Recovery Interfaces
-
-Recovery is the interface between compact recovery credentials and durable profile reconstruction.
-
-The sequence is:
-
-```text
-bfshare
-  -> derive backup author identity
-  -> fetch encrypted profile backup
-  -> decrypt backup
-  -> reconstruct full device profile
-```
-
-Important boundary rule:
-
-- `bfshare` is a recovery credential
-- encrypted profile backup carries durable profile data without the share secret
-- recovery reconstructs a full local profile from those two inputs together
-
-The low-level recovery artifact model lives in [BACKUP.md](./BACKUP.md).
+Primary doc:
+- [WIRE.md](./WIRE.md)
 
 ## Rotation Interfaces
 
-Rotation spans two distinct interfaces.
-
 ### Operator Input Interface
 
-Trusted rotation begins from:
+Purpose:
+- collect existing threshold material needed to perform same-key rotation
 
-- a threshold set of existing `bfshare` packages
+Producer:
+- current devices exporting `bfshare`
 
-This is the operator-side reconstruction boundary.
+Consumer:
+- operator rotation workflow
 
-### Device Adoption Interface
+Canonical artifact:
+- threshold set of `bfshare` packages
 
-Rotated shares are adopted through:
+Invariants:
+- rotation begins from threshold recovery material
+- rotation preserves the same group public key
 
+Primary doc:
+- [ROTATION.md](./ROTATION.md)
+
+### Rotated-Share Adoption Interface
+
+Purpose:
+- deliver rotated share material to a target device
+
+Producer:
+- operator rotation workflow
+
+Consumer:
+- new device or existing device adopting the rotated share
+
+Canonical artifact:
 - `bfonboard`
 
-This is the device-side adoption boundary.
+Invariants:
+- both new-device and existing-device rotated adoption use `bfonboard`
+- successful adoption yields a new share public key and therefore a new `profile_id`
 
-Important rules:
-
-- `bfshare` is rotation input, not rotation adoption
-- `bfonboard` is rotation adoption
-- local in-place replacement and new-device bootstrap both use the same adoption artifact
-
-The full rotation model lives in [ROTATION.md](./ROTATION.md).
-
-## Interface Invariants
-
-These rules should hold across the system:
-
-- `profile_id` is the host-facing durable profile identity
-- share public key is the peer-routing identity
-- `group_id` identifies a concrete group configuration
-- group public key identifies the keyset
-- `bfprofile` is the full portable profile package
-- `bfshare` is recovery and rotation-input material
-- `bfonboard` is onboarding and rotated-share adoption material
-- structured `group_package` must be preserved losslessly across profile and backup boundaries
-- peer protocol semantics and relay wire format are separate interfaces
+Primary docs:
+- [ROTATION.md](./ROTATION.md)
+- [ONBOARD.md](./ONBOARD.md)
