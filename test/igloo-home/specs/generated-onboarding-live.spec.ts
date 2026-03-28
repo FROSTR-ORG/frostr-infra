@@ -18,6 +18,7 @@ test.describe('igloo-home generated onboarding', () => {
           share_package_json: string;
         }>;
       }>('create_generated_keyset', {
+        group_name: 'Generated Onboarding Group',
         threshold: 2,
         count: 3,
       });
