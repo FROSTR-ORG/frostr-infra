@@ -1,6 +1,6 @@
 # Documentation Index
 
-Top-level docs in this repository are the shared FROSTR system manual.
+Docs in this directory are the shared FROSTR system manual.
 
 They are the canonical source for:
 - shared architecture
@@ -16,11 +16,12 @@ Submodule docs should explain only the project they belong to. They should not r
 
 Recommended reading order for most engineers:
 
-1. [STRUCTURE.md](./STRUCTURE.md)
-2. [ARCHITECTURE.md](./ARCHITECTURE.md)
-3. [INTERFACES.md](./INTERFACES.md)
-4. [PROTOCOL.md](./PROTOCOL.md)
-5. [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md)
+1. [`../README.md`](../README.md)
+2. [`../CONTRIBUTING.md`](../CONTRIBUTING.md)
+3. [ARCHITECTURE.md](./ARCHITECTURE.md)
+4. [INTERFACES.md](./INTERFACES.md)
+5. [PROTOCOL.md](./PROTOCOL.md)
+6. [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md)
 
 Then read the artifact and flow specs you need:
 - [PROFILE.md](./PROFILE.md)
@@ -34,14 +35,18 @@ Then read the artifact and flow specs you need:
 
 ### System model
 
-- [STRUCTURE.md](./STRUCTURE.md)
-  - workspace and documentation ownership boundaries
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
   - system-level view of signer, host, relay, and artifact responsibilities
 - [INTERFACES.md](./INTERFACES.md)
   - contract map across identities, packages, host/runtime, peer protocol, and relay transport
 - [GLOSSARY.md](./GLOSSARY.md)
   - canonical shared terminology
+
+Workspace structure, contribution rules, and release coordination live at the
+repo root:
+- [`../README.md`](../README.md)
+- [`../CONTRIBUTING.md`](../CONTRIBUTING.md)
+- [`../RELEASE.md`](../RELEASE.md)
 
 ### Runtime and cryptographic behavior
 
@@ -88,7 +93,7 @@ Project-specific manuals live in the relevant repo, not in this shared doc set.
   - shared UI package
 
 Cross-repo demo-harness and browser E2E guidance lives in:
-- [test/DEMO_STRATEGY.md](../test/DEMO_STRATEGY.md)
+- [test/README.md](../test/README.md)
 
 ## Guidance For Future Work
 

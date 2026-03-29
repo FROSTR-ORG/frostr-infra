@@ -5,7 +5,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ONBOARD_MEMBERS="${IGLOO_SHELL_DEMO_INVITE_MEMBERS:-bob,carol}"
 TIMEOUT_SECS="${TIMEOUT_SECS:-60}"
-RELAY_PORT_FILE="${ROOT_DIR}/data/test-harness/demo-relay-port.txt"
+HOST_HARNESS_DIR="${FROSTR_TEST_HARNESS_DIR:-${ROOT_DIR}/.tmp/test-harness}"
+CONTAINER_HARNESS_DIR="${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}"
+RELAY_PORT_FILE="${HOST_HARNESS_DIR}/demo-relay-port.txt"
 DEFAULT_PORT="${DEMO_RELAY_PORT:-8194}"
 DEMO_HARNESS_SERVICES=(dev-relay igloo-demo)
 
@@ -119,6 +121,16 @@ trim() {
   printf '%s' "${value}"
 }
 
+package_file_for_member() {
+  local member="$1"
+  printf '%s/onboard-%s.txt' "${HOST_HARNESS_DIR}" "${member}"
+}
+
+password_file_for_member() {
+  local member="$1"
+  printf '%s/onboard-%s.password.txt' "${HOST_HARNESS_DIR}" "${member}"
+}
+
 print_onboard() {
   local relay_port="${1:-${DEMO_RELAY_PORT:-}}"
 
@@ -133,8 +145,8 @@ print_onboard() {
     local raw_member member package_file password_file
     for raw_member in "${members[@]}"; do
       member="$(trim "${raw_member}")"
-      package_file="${ROOT_DIR}/data/test-harness/onboard-${member}.txt"
-      password_file="${ROOT_DIR}/data/test-harness/onboard-${member}.password.txt"
+      package_file="$(package_file_for_member "${member}")"
+      password_file="$(password_file_for_member "${member}")"
       if [ ! -s "${package_file}" ] || [ ! -s "${password_file}" ]; then
         ready=0
         break
@@ -143,8 +155,8 @@ print_onboard() {
     if [ "${ready}" -eq 1 ]; then
       for raw_member in "${members[@]}"; do
         member="$(trim "${raw_member}")"
-        package_file="${ROOT_DIR}/data/test-harness/onboard-${member}.txt"
-        password_file="${ROOT_DIR}/data/test-harness/onboard-${member}.password.txt"
+        package_file="$(package_file_for_member "${member}")"
+        password_file="$(password_file_for_member "${member}")"
         if [[ -n "${relay_port}" ]]; then
           echo "Relay URL (${member}):"
           echo "ws://localhost:${relay_port}"
@@ -175,14 +187,18 @@ start_stack() {
   local resolved_port
   resolved_port="$(resolve_port "${requested_port}")"
   echo "==> Using demo relay port ${resolved_port}"
-  mkdir -p "${ROOT_DIR}/data/test-harness"
+  mkdir -p "${HOST_HARNESS_DIR}"
   printf '%s\n' "${resolved_port}" > "${RELAY_PORT_FILE}"
   build_binaries
 
   if [[ "${action}" == "foreground" ]]; then
+    FROSTR_TEST_HARNESS_DIR="${HOST_HARNESS_DIR}" \
+    FROSTR_TEST_HARNESS_CONTAINER_DIR="${CONTAINER_HARNESS_DIR}" \
     DEV_RELAY_PORT="${resolved_port}" DEV_RELAY_EXTERNAL_HOST=localhost \
       docker compose -f "${ROOT_DIR}/compose.test.yml" up --build --remove-orphans "${DEMO_HARNESS_SERVICES[@]}"
   else
+    FROSTR_TEST_HARNESS_DIR="${HOST_HARNESS_DIR}" \
+    FROSTR_TEST_HARNESS_CONTAINER_DIR="${CONTAINER_HARNESS_DIR}" \
     DEV_RELAY_PORT="${resolved_port}" DEV_RELAY_EXTERNAL_HOST=localhost \
       docker compose -f "${ROOT_DIR}/compose.test.yml" up -d --build --remove-orphans "${DEMO_HARNESS_SERVICES[@]}"
     print_onboard "${resolved_port}"
@@ -190,7 +206,9 @@ start_stack() {
 }
 
 logs() {
-  docker compose -f "${ROOT_DIR}/compose.test.yml" logs -f "${DEMO_HARNESS_SERVICES[@]}"
+  FROSTR_TEST_HARNESS_DIR="${HOST_HARNESS_DIR}" \
+  FROSTR_TEST_HARNESS_CONTAINER_DIR="${CONTAINER_HARNESS_DIR}" \
+    docker compose -f "${ROOT_DIR}/compose.test.yml" logs -f "${DEMO_HARNESS_SERVICES[@]}"
 }
 
 main() {

@@ -1,6 +1,0 @@
-services:
-  igloo-web:
-    environment:
-      NODE_ENV: production
-      IGLOO_WEB_MODE: prod
-    volumes: []

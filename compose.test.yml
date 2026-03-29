@@ -69,11 +69,11 @@ services:
       IGLOO_SHELL_DEMO_INVITE_MEMBERS: ${IGLOO_SHELL_DEMO_INVITE_MEMBERS:-bob,carol}
       IGLOO_SHELL_DEMO_THRESHOLD: ${IGLOO_SHELL_DEMO_THRESHOLD:-2}
       IGLOO_SHELL_DEMO_COUNT: ${IGLOO_SHELL_DEMO_COUNT:-3}
-      IGLOO_SHELL_DEMO_ARTIFACT_DIR: ${IGLOO_SHELL_DEMO_ARTIFACT_DIR:-/workspace/data/test-harness}
-      IGLOO_SHELL_DEMO_DIR: ${IGLOO_SHELL_DEMO_DIR:-/workspace/data/test-harness/demo-2of3}
-      IGLOO_SHELL_DEMO_CONTROL_SOCKET: ${IGLOO_SHELL_DEMO_CONTROL_SOCKET:-/workspace/data/test-harness/igloo-shell-${IGLOO_SHELL_DEMO_MEMBER:-alice}.sock}
+      IGLOO_SHELL_DEMO_ARTIFACT_DIR: ${IGLOO_SHELL_DEMO_ARTIFACT_DIR:-${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}}
+      IGLOO_SHELL_DEMO_DIR: ${IGLOO_SHELL_DEMO_DIR:-${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}/demo-2of3}
+      IGLOO_SHELL_DEMO_CONTROL_SOCKET: ${IGLOO_SHELL_DEMO_CONTROL_SOCKET:-${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}/igloo-shell-${IGLOO_SHELL_DEMO_MEMBER:-alice}.sock}
       IGLOO_SHELL_DEMO_CONTROL_TOKEN: ${IGLOO_SHELL_DEMO_CONTROL_TOKEN:-dev-harness-token}
-      IGLOO_SHELL_DEMO_CONTROL_TOKEN_FILE: ${IGLOO_SHELL_DEMO_CONTROL_TOKEN_FILE:-/workspace/data/test-harness/igloo-shell-${IGLOO_SHELL_DEMO_MEMBER:-alice}.token}
+      IGLOO_SHELL_DEMO_CONTROL_TOKEN_FILE: ${IGLOO_SHELL_DEMO_CONTROL_TOKEN_FILE:-${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}/igloo-shell-${IGLOO_SHELL_DEMO_MEMBER:-alice}.token}
       IGLOO_TRACE: ${IGLOO_TRACE:-}
       IGLOO_TRACE_LEVEL: ${IGLOO_TRACE_LEVEL:-}
       CARGO_TARGET_DIR: /cargo-target
@@ -81,7 +81,7 @@ services:
       - ./repos/igloo-shell:/workspace/repos/igloo-shell:rw
       - ./repos/bifrost-rs:/workspace/repos/bifrost-rs:rw
       - ./services:/workspace/services:ro
-      - ${IGLOO_SHELL_DEMO_HOST_ARTIFACT_DIR:-./data/test-harness}:${IGLOO_SHELL_DEMO_ARTIFACT_DIR:-/workspace/data/test-harness}:rw
+      - ${FROSTR_TEST_HARNESS_DIR:-./.tmp/test-harness}:${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}:rw
       - cargo-target:/cargo-target
       - cargo-registry:/usr/local/cargo/registry
       - cargo-git:/usr/local/cargo/git
@@ -90,7 +90,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "test -s ${IGLOO_SHELL_DEMO_ARTIFACT_DIR:-/workspace/data/test-harness}/onboard-bob.txt && test -s ${IGLOO_SHELL_DEMO_ARTIFACT_DIR:-/workspace/data/test-harness}/onboard-carol.txt && test -S ${IGLOO_SHELL_DEMO_CONTROL_SOCKET:-/workspace/data/test-harness/igloo-shell-${IGLOO_SHELL_DEMO_MEMBER:-alice}.sock}"
+          "test -s ${IGLOO_SHELL_DEMO_ARTIFACT_DIR:-${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}}/onboard-bob.txt && test -s ${IGLOO_SHELL_DEMO_ARTIFACT_DIR:-${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}}/onboard-carol.txt && test -S ${IGLOO_SHELL_DEMO_CONTROL_SOCKET:-${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}/igloo-shell-${IGLOO_SHELL_DEMO_MEMBER:-alice}.sock}"
         ]
 
 volumes:

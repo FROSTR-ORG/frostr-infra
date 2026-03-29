@@ -1,0 +1,51 @@
+name: workspace-guards
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/workspace-guards.yml"
+      - "README.md"
+      - "CONTRIBUTING.md"
+      - "RELEASE.md"
+      - "docs/**"
+      - "test/**"
+      - "run.sh"
+      - "scripts/**"
+      - ".gitmodules"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/workspace-guards.yml"
+      - "README.md"
+      - "CONTRIBUTING.md"
+      - "RELEASE.md"
+      - "docs/**"
+      - "test/**"
+      - "run.sh"
+      - "scripts/**"
+      - ".gitmodules"
+
+jobs:
+  guards:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: test/package-lock.json
+
+      - name: Install test dependencies
+        working-directory: test
+        run: npm install
+
+      - name: Run workspace guards
+        working-directory: test
+        run: npm run test:guards

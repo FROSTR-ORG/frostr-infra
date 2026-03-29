@@ -205,7 +205,7 @@ async function startDemoHarnessFixture(): Promise<DemoHarnessFixture> {
   const hostArtifactDir = await mkdtemp(path.join(os.tmpdir(), 'igloo-chrome-demo-'));
   const demoMember = process.env.IGLOO_SHELL_DEMO_MEMBER ?? 'alice';
   const inviteMembers = process.env.IGLOO_SHELL_DEMO_INVITE_MEMBERS ?? 'bob,carol';
-  const containerArtifactDir = `/workspace/test-harness/${projectName}`;
+  const containerArtifactDir = `/workspace/.tmp/test-harness/${projectName}`;
   const relayPortNumber = DEMO_RELAY_PORT;
   const relayHost = DEMO_RELAY_HOST;
   const relayPort = String(relayPortNumber);
@@ -215,11 +215,12 @@ async function startDemoHarnessFixture(): Promise<DemoHarnessFixture> {
     ...process.env,
     DEV_RELAY_PORT: relayPort,
     DEV_RELAY_EXTERNAL_HOST: relayHost,
+    FROSTR_TEST_HARNESS_DIR: hostArtifactDir,
+    FROSTR_TEST_HARNESS_CONTAINER_DIR: containerArtifactDir,
     IGLOO_TRACE: process.env.IGLOO_TRACE ?? '',
     IGLOO_TRACE_LEVEL: process.env.IGLOO_TRACE_LEVEL ?? '',
     IGLOO_SHELL_DEMO_MEMBER: demoMember,
     IGLOO_SHELL_DEMO_INVITE_MEMBERS: inviteMembers,
-    IGLOO_SHELL_DEMO_HOST_ARTIFACT_DIR: hostArtifactDir,
     IGLOO_SHELL_DEMO_ARTIFACT_DIR: containerArtifactDir,
     IGLOO_SHELL_DEMO_DIR: `${containerArtifactDir}/demo-2of3`,
     IGLOO_SHELL_DEMO_CONTROL_SOCKET: `${containerArtifactDir}/igloo-shell-${demoMember}.sock`,

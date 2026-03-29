@@ -1,67 +1,114 @@
 # frostr-infra
 
-Monorepo infrastructure scaffold for running Frostr services with Docker Compose.
-Each service is launched from an infra-owned container image with a dedicated
-`Dockerfile` and `entrypoint.sh` in `services/`.
+`frostr-infra` is the coordinating workspace for FROSTR.
 
-## Included submodule layout
+It owns the shared system docs, the root command surface, cross-repo demo and
+E2E harnesses, compose-based local environments, and the submodule pointers for
+the implementation repos under [`repos/`](./repos).
 
-- `repos/`: `bifrost-rs`, `igloo-shell`, `igloo-chrome`, `igloo-home`, `igloo-ui`, `igloo-web`
-- `services/`: container Dockerfiles and entrypoints for the compose services
-- `test/`: infra-owned cross-repo browser E2E suites for submodules that depend on shared runtime code
+## What Lives Here
 
-## Submodule Policy
+- `docs/`
+  - shared FROSTR architecture, interfaces, protocol, cryptography, and
+    artifact specs
+- `repos/`
+  - independent project repos such as `bifrost-rs`, `igloo-shell`,
+    `igloo-home`, `igloo-pwa`, `igloo-chrome`, `igloo-shared`, and `igloo-ui`
+- `test/`
+  - cross-repo browser, desktop, and demo-harness verification
+- `services/`
+  - infra-owned compose images and entrypoints
+- `compose*.yml`
+  - local infra and demo stack definitions
+- `run.sh`
+  - curated root command router
 
-- Use non-recursive submodule commands in this repo (`git submodule update --init`, `git submodule status`).
-- Avoid recursive submodule commands here (`--recursive`) due to known upstream nested-submodule metadata issues in `repos/igloo-web`.
+Use the root docs this way:
+- [`README.md`](./README.md)
+  - workspace entrypoint and daily command surface
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+  - workspace structure, ownership, and contribution rules
+- [`RELEASE.md`](./RELEASE.md)
+  - coordinated release process for submodules and the parent repo
+- [`docs/INDEX.md`](./docs/INDEX.md)
+  - shared FROSTR system manual
+- [`test/README.md`](./test/README.md)
+  - cross-repo demo and E2E harness guide
 
-## Quick start
+## Root Command Surface
+
+`./run.sh` is the supported root command interface. Root `scripts/` are private
+implementation detail.
+
+Common commands:
+
+```bash
+./run.sh repo init
+./run.sh repo check
+./run.sh repo reset
+./run.sh demo start
+./run.sh demo onboard
+./run.sh demo smoke
+./run.sh test smoke
+./run.sh test fast
+./run.sh test live
+./run.sh test release
+./run.sh browser igloo-chrome build
+```
+
+The root workspace manages the demo-harness services (`dev-relay`,
+`igloo-demo`), shared docs, cross-repo tests, and submodule coordination.
+Those parent-owned services do not correspond one-to-one with a repo under
+`repos/`; they are still owned and documented by this workspace.
+
+## Quick Start
 
 ```bash
 cp .env.example .env
 ./run.sh repo init
-./run.sh infra dev --bg
-./run.sh infra health
+./run.sh repo check
+./run.sh demo start
+./run.sh demo onboard
 ```
 
-Open services:
-- `igloo-web`: `http://localhost:5173`
-
-Set `VITE_IGLOO_SERVER_URL` if `igloo-web` should target a non-default backend.
-
-Bring up the manual pairing relay + igloo-shell harness:
+For the local demo harness:
 
 ```bash
 ./run.sh demo start
+./run.sh demo onboard
+./run.sh demo logs
+./run.sh demo stop
+./run.sh test release
 ```
 
-If port `8194` is already in use on your host, choose another relay port:
+If the relay port is occupied, choose another:
 
 ```bash
 ./run.sh demo start --port 8394
 ```
 
-Print the current onboarding packages:
+## Reading Paths
 
-```bash
-./run.sh demo onboard
-```
+For shared FROSTR system semantics:
+- start at [`docs/INDEX.md`](./docs/INDEX.md)
 
-## Common commands
+For repo-local work:
+- read the root docs inside the relevant project under [`repos/`](./repos)
 
-- `./run.sh infra dev --bg` - start stack with generated `compose.override.yml` mounts
-- `./run.sh infra start --bg` - start stack using only `compose.yml` (no override mounts)
-- `./run.sh infra start-prod --bg` - run production-style profile (`compose.prod.yml`)
-- `./run.sh infra stop` - stop all services
-- `./run.sh infra reset` - clear data and local dependency caches
-- `./run.sh infra check` - validate local setup
-- `npm --prefix test run test:e2e` - run infra-owned browser E2E suites
-- `./run.sh demo start` - start `dev-relay` + `igloo-demo` in the background and print onboarding artifacts
-- `./run.sh demo stop` - stop `dev-relay` + `igloo-demo`
-- `./run.sh demo logs` - follow relay and demo logs
-- `./run.sh demo onboard` - print the current `bfonboard...` packages and passwords from the harness
-- `./run.sh demo smoke` - verify a fresh local `igloo-shell` can onboard against `igloo-demo`
+For cross-repo validation and demos:
+- read [`test/README.md`](./test/README.md)
 
-`./run.sh demo start` prebuilds the required `bifrost-devtools` and `igloo-shell` binaries on the host and reuses them from the mounted workspace target directories inside the harness containers.
+For release work:
+- read [`RELEASE.md`](./RELEASE.md) first, then the affected submodule release
+  docs
 
-`./run.sh` is the supported root command interface. Root `scripts/` are private implementation detail.
+The default parent scratch location for live demo-harness artifacts is
+`./.tmp/test-harness/`. Override it with `FROSTR_TEST_HARNESS_DIR` when a custom
+path is required.
+
+## Submodule Policy
+
+- Use non-recursive submodule commands in this repo.
+- Avoid recursive submodule operations from the parent workspace.
+- Treat each repo under `repos/` as an independent project with its own root
+  manuals and release surface.

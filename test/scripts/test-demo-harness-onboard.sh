@@ -7,6 +7,7 @@ PROJECT_NAME="igloo-demo-smoke-$$"
 RELAY_PORT="${RELAY_PORT:-8394}"
 RECIPIENT="${RECIPIENT:-bob}"
 ARTIFACT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/igloo-demo-artifacts.XXXXXX")"
+CONTAINER_ARTIFACT_DIR="${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness/${PROJECT_NAME}}"
 XDG_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/igloo-demo-shell.XXXXXX")"
 IGLOO_SHELL_BIN="${ROOT_DIR}/repos/igloo-shell/target/debug/igloo-shell"
 PROFILE_ID=""
@@ -54,7 +55,9 @@ need_cmd cargo
 env \
   DEV_RELAY_PORT="${RELAY_PORT}" \
   DEV_RELAY_EXTERNAL_HOST="localhost" \
-  IGLOO_SHELL_DEMO_HOST_ARTIFACT_DIR="${ARTIFACT_DIR}" \
+  FROSTR_TEST_HARNESS_DIR="${ARTIFACT_DIR}" \
+  FROSTR_TEST_HARNESS_CONTAINER_DIR="${CONTAINER_ARTIFACT_DIR}" \
+  IGLOO_SHELL_DEMO_ARTIFACT_DIR="${CONTAINER_ARTIFACT_DIR}" \
   docker compose -p "${PROJECT_NAME}" -f "${ROOT_DIR}/compose.test.yml" up -d --build dev-relay igloo-demo >/dev/null
 
 PACKAGE_FILE="${ARTIFACT_DIR}/onboard-${RECIPIENT}.txt"

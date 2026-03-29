@@ -5,10 +5,8 @@ import { IGLOO_SHELL_DIR, REPO_ROOT_DIR } from './repo-paths';
 
 export const IGLOO_SHELL_TARGET_DIR = path.join(REPO_ROOT_DIR, 'build', 'igloo-shell-target');
 export const IGLOO_SHELL_BINARY_PATH = path.join(IGLOO_SHELL_TARGET_DIR, 'debug', 'igloo-shell');
-export const IGLOO_SHELL_TUI_BINARY_PATH = path.join(IGLOO_SHELL_TARGET_DIR, 'debug', 'igloo-shell-tui');
 
 let shellPrepared = false;
-let shellTuiPrepared = false;
 
 function buildBinary(args: string[]) {
   execFileSync('cargo', args, {
@@ -26,11 +24,4 @@ export function ensureIglooShellBinary() {
   buildBinary(['build', '--offline', '-p', 'igloo-shell-cli', '--bin', 'igloo-shell']);
   shellPrepared = true;
   return IGLOO_SHELL_BINARY_PATH;
-}
-
-export function ensureIglooShellTuiBinary() {
-  if (shellTuiPrepared) return IGLOO_SHELL_TUI_BINARY_PATH;
-  buildBinary(['build', '--offline', '-p', 'igloo-shell-tui', '--bin', 'igloo-shell-tui']);
-  shellTuiPrepared = true;
-  return IGLOO_SHELL_TUI_BINARY_PATH;
 }

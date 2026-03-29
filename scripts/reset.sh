@@ -4,13 +4,15 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FORCE=false
+TMP_ROOT="${ROOT_DIR}/.tmp"
+BUILD_ROOT="${ROOT_DIR}/build/igloo-shell-target"
 
 if [ "${1:-}" = "--force" ] || [ "${1:-}" = "-f" ]; then
   FORCE=true
 fi
 
 if [ "$FORCE" = false ]; then
-  echo "This will remove data in ./data and dependency caches in service submodules."
+  echo "This will remove root scratch data under ./.tmp and build scratch under ./build/igloo-shell-target."
   read -r -p "Continue? [y/N] " reply
   if [[ ! "$reply" =~ ^[Yy]$ ]]; then
     echo "Aborted."
@@ -18,18 +20,11 @@ if [ "$FORCE" = false ]; then
   fi
 fi
 
-echo "Stopping compose services..."
-docker compose -f "$ROOT_DIR/compose.yml" down || true
+echo "Stopping demo compose services..."
+docker compose -f "$ROOT_DIR/compose.test.yml" down || true
 
-echo "Resetting data directories..."
-rm -rf "$ROOT_DIR/data/igloo-web"/*
-
-echo "Removing app node_modules if present..."
-for svc in igloo-web; do
-  if [ -d "$ROOT_DIR/repos/$svc/node_modules" ]; then
-    rm -rf "$ROOT_DIR/repos/$svc/node_modules"
-    echo "  - removed repos/$svc/node_modules"
-  fi
-done
+echo "Resetting root scratch directories..."
+rm -rf "${TMP_ROOT:?}"/*
+rm -rf "${BUILD_ROOT}"
 
 echo "Reset complete."

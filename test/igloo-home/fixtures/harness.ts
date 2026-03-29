@@ -36,16 +36,17 @@ export async function ensureDemoHarness(): Promise<DemoHarness> {
   const hostArtifactDir = await mkdtemp(path.join(os.tmpdir(), 'igloo-home-demo-'));
   const demoMember = process.env.IGLOO_SHELL_DEMO_MEMBER ?? 'alice';
   const inviteMembers = process.env.IGLOO_SHELL_DEMO_INVITE_MEMBERS ?? 'bob,carol';
-  const containerArtifactDir = `/workspace/test-harness/${projectName}`;
+  const containerArtifactDir = `/workspace/.tmp/test-harness/${projectName}`;
   const composeEnv = {
     ...process.env,
     DEV_RELAY_PORT: String(relayPort),
     DEV_RELAY_EXTERNAL_HOST: '127.0.0.1',
+    FROSTR_TEST_HARNESS_DIR: hostArtifactDir,
+    FROSTR_TEST_HARNESS_CONTAINER_DIR: containerArtifactDir,
     IGLOO_TRACE: process.env.IGLOO_TRACE ?? '',
     IGLOO_TRACE_LEVEL: process.env.IGLOO_TRACE_LEVEL ?? '',
     IGLOO_SHELL_DEMO_MEMBER: demoMember,
     IGLOO_SHELL_DEMO_INVITE_MEMBERS: inviteMembers,
-    IGLOO_SHELL_DEMO_HOST_ARTIFACT_DIR: hostArtifactDir,
     IGLOO_SHELL_DEMO_ARTIFACT_DIR: containerArtifactDir,
     IGLOO_SHELL_DEMO_DIR: `${containerArtifactDir}/demo-2of3`,
     IGLOO_SHELL_DEMO_CONTROL_SOCKET: `${containerArtifactDir}/igloo-shell-${demoMember}.sock`,

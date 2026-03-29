@@ -1,14 +1,19 @@
-# Infra E2E Tests
+# Cross-Repo E2E and Demo Tests
 
-Infra-owned browser tests that span multiple repos.
+This directory owns the infra-level browser, desktop, and demo-harness tests
+that span multiple repos.
 
 Current suites:
-- `igloo-pwa`: browser-app Playwright coverage against `repos/igloo-pwa`
-- `igloo-chrome`: extension Playwright coverage against `repos/igloo-chrome`
-- `igloo-home`: desktop co-signer harness against `repos/igloo-home`
+- `igloo-pwa`
+  - browser-app Playwright coverage against `repos/igloo-pwa`
+- `igloo-chrome`
+  - extension Playwright coverage against `repos/igloo-chrome`
+- `igloo-home`
+  - desktop co-signer harness against `repos/igloo-home`
 
-These tests live here because they exercise runtime behavior sourced from other
-submodules, especially `repos/bifrost-rs`.
+These tests live here because they exercise runtime behavior sourced from
+multiple repos, especially `repos/bifrost-rs` and the host repos under
+`repos/`.
 
 ## Install
 
@@ -18,7 +23,9 @@ npm install
 npm run test:install-browsers
 ```
 
-## Run
+## Canonical Entry Points
+
+From `test/`:
 
 ```bash
 npm run test:e2e
@@ -33,24 +40,96 @@ npm run test:e2e:igloo-chrome:fast
 npm run test:e2e:igloo-chrome:live
 ```
 
-Canonical tiers:
-- `smoke`: Docker-backed demo harness smoke via `./scripts/test-demo-harness-onboard.sh`
-- `fast`: `igloo-pwa` plus non-live `igloo-chrome`
-- `live`: Chrome live relay/runtime/provider coverage
-- `demo`: Docker-backed Chrome onboarding/sign-through against `dev-relay` + `igloo-demo`
+From the repo root:
 
-The `igloo-chrome` suite uses Playwright global setup to prebuild the extension
-and shared `igloo-shell` binaries once per run. Live browser tests reuse a
-worker-scoped relay/runtime backend and a worker-scoped onboarding bootstrap by
-default; isolated startup is reserved for lifecycle specs that truly need it.
+```bash
+./run.sh test smoke
+./run.sh test fast
+./run.sh test live
+./run.sh test demo
+./run.sh test e2e
+./run.sh test release
+```
 
-Manual demo/testing flows are documented in
-[`../docs/E2E-DEMO-STRATEGY.md`](../docs/E2E-DEMO-STRATEGY.md). Local
-browser-facing demo relays should use `ws://localhost:<port>`.
+## Automated Tiers
+
+- `smoke`
+  - validates the Docker-backed demo harness and local host onboarding path
+  - command: `npm --prefix test run test:e2e:smoke`
+- `fast`
+  - non-live browser tests
+  - command: `npm --prefix test run test:e2e:fast`
+- `live`
+  - local relay plus live signer/runtime browser tests
+  - command: `npm --prefix test run test:e2e:live`
+- `demo`
+  - Docker-backed browser onboarding and sign-through flow against
+    `dev-relay` plus `igloo-demo`
+  - command: `npm --prefix test run test:e2e:demo`
+
+The canonical aggregate browser matrix is:
+
+```bash
+npm --prefix test run test:e2e
+./run.sh test e2e
+```
+
+That aggregate currently means `fast + live`. The `demo` tier stays separate so
+the focused Docker-backed onboarding path can be run independently.
+
+## Manual Demo Flows
+
+Browser-facing local demo flows should use `ws://localhost:<port>`.
+
+First-class entrypoints:
+
+```bash
+./run.sh demo start
+./run.sh demo onboard
+./run.sh demo logs
+./run.sh demo stop
+```
+
+`./run.sh demo start` is the normal local path. It:
+- builds the host demo binaries
+- starts `services/dev-relay` and `services/igloo-demo`
+- writes onboarding artifacts under `./.tmp/test-harness/`
+- prints the current `bfonboard` packages, passwords, and relay URL
+
+Direct `docker compose -f compose.test.yml ...` commands remain available for
+advanced/operator use when explicit project names, environment variables, or log
+control are needed.
+
+## Ownership
+
+- `test/` owns the automated browser matrix and shared Playwright fixtures
+- `services/dev-relay` and `services/igloo-demo` own the Docker-backed demo
+  environment
+- `test/scripts/test-demo-harness-onboard.sh` owns the automated `smoke` tier
+- `./run.sh demo ...` wraps the manual demo flow but does not replace direct
+  compose usage
+
+Root `scripts/` are private implementation detail. Public root workflows should
+use `./run.sh ...`.
 
 Submodule convenience scripts still proxy here:
 - `repos/igloo-pwa`: `npm run test:e2e`
 - `repos/igloo-chrome`: `npm run test:e2e`
 
-Legacy note:
-- `npm run test:e2e:igloo-web` is now a compatibility alias to `igloo-pwa` while the old repo is retired.
+## Chrome Live Fixture Policy
+
+Chrome `@live` tests use worker-scoped cached responder state by default.
+
+- worker-scoped stable fixtures reuse one relay, responder, and profile bundle
+- isolated fixtures are reserved for tests that deliberately tear down the
+  runtime, relay, or extension context in a destructive way
+- reset should prefer restoring cached shell state and restarting the relay and
+  daemon over re-running keygen/import/export for every spec
+
+## Troubleshooting
+
+- Prefer `localhost` over `127.0.0.1` for browser-facing local relay URLs.
+- If the manual demo stack is stale, use `./run.sh demo stop` or
+  `docker compose -f compose.test.yml down -v`.
+- If a port is occupied, `./run.sh demo start` may auto-pick a free port; check
+  `.tmp/test-harness/demo-relay-port.txt` and `./run.sh demo onboard`.

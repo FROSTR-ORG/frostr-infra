@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SERVICES=(igloo-web)
+DEMO_SERVICES=(dev-relay igloo-demo)
 
 die() {
   echo "error: $*" >&2
@@ -16,18 +16,8 @@ usage() {
 Usage:
   ./run.sh help
   ./run.sh repo init
-  ./run.sh infra start [--bg] [service...]
-  ./run.sh infra start-prod [--bg]
-  ./run.sh infra dev [--bg]
-  ./run.sh infra stop
-  ./run.sh infra restart
-  ./run.sh infra logs
-  ./run.sh infra build
-  ./run.sh infra build-prod
-  ./run.sh infra check
-  ./run.sh infra health
-  ./run.sh infra setup
-  ./run.sh infra reset
+  ./run.sh repo check
+  ./run.sh repo reset
   ./run.sh demo start [--port <port>]
   ./run.sh demo foreground [--port <port>]
   ./run.sh demo stop
@@ -39,6 +29,7 @@ Usage:
   ./run.sh test live
   ./run.sh test demo
   ./run.sh test e2e
+  ./run.sh test release
   ./run.sh compose start <service> [service...]
   ./run.sh compose stop <service> [service...]
   ./run.sh compose restart <service> [service...]
@@ -50,9 +41,10 @@ Notes:
   scripts/ is private implementation detail.
 
 Examples:
-  ./run.sh infra dev --bg
+  ./run.sh repo check
   ./run.sh demo start --port 8394
-  ./run.sh compose logs igloo-web
+  ./run.sh test release
+  ./run.sh compose logs dev-relay
   ./run.sh browser igloo-chrome build
 EOF
 }
@@ -61,24 +53,8 @@ usage_repo() {
   cat <<'EOF'
 Usage:
   ./run.sh repo init
-EOF
-}
-
-usage_infra() {
-  cat <<'EOF'
-Usage:
-  ./run.sh infra start [--bg] [service...]
-  ./run.sh infra start-prod [--bg]
-  ./run.sh infra dev [--bg]
-  ./run.sh infra stop
-  ./run.sh infra restart
-  ./run.sh infra logs
-  ./run.sh infra build
-  ./run.sh infra build-prod
-  ./run.sh infra check
-  ./run.sh infra health
-  ./run.sh infra setup
-  ./run.sh infra reset
+  ./run.sh repo check
+  ./run.sh repo reset
 EOF
 }
 
@@ -102,6 +78,7 @@ Usage:
   ./run.sh test live
   ./run.sh test demo
   ./run.sh test e2e
+  ./run.sh test release
 EOF
 }
 
@@ -112,6 +89,10 @@ Usage:
   ./run.sh compose stop <service> [service...]
   ./run.sh compose restart <service> [service...]
   ./run.sh compose logs <service> [service...]
+
+Supported demo services:
+  dev-relay
+  igloo-demo
 EOF
 }
 
@@ -122,117 +103,8 @@ Usage:
 EOF
 }
 
-ensure_override_file() {
-  if [[ ! -f "${ROOT_DIR}/compose.override.yml" ]]; then
-    "${ROOT_DIR}/scripts/setup-dev.sh"
-  fi
-}
-
-docker_compose_main() {
-  docker compose -f "${ROOT_DIR}/compose.yml" "$@"
-}
-
-docker_compose_prod() {
-  docker compose -f "${ROOT_DIR}/compose.yml" -f "${ROOT_DIR}/compose.prod.yml" "$@"
-}
-
-run_infra() {
-  local action="${1:-}"
-  shift || true
-
-  case "${action}" in
-    help|-h|--help|"")
-      [[ "$#" -eq 0 ]] || die "infra help does not accept extra arguments"
-      usage_infra
-      ;;
-    start)
-      local bg=false
-      if [[ "${1:-}" == "--bg" ]]; then
-        bg=true
-        shift
-      fi
-      local services=("${@:-}")
-      if [[ "${#services[@]}" -eq 0 ]]; then
-        services=("${SERVICES[@]}")
-      fi
-      if [[ "${bg}" == true ]]; then
-        docker_compose_main up -d "${services[@]}"
-      else
-        docker_compose_main up "${services[@]}"
-      fi
-      ;;
-    start-prod)
-      local bg=false
-      if [[ "${1:-}" == "--bg" ]]; then
-        bg=true
-        shift
-      fi
-      if [[ "$#" -ne 0 ]]; then
-        die "infra start-prod does not accept service names"
-      fi
-      if [[ "${bg}" == true ]]; then
-        docker_compose_prod up -d "${SERVICES[@]}"
-      else
-        docker_compose_prod up "${SERVICES[@]}"
-      fi
-      ;;
-    dev)
-      local bg=false
-      if [[ "${1:-}" == "--bg" ]]; then
-        bg=true
-        shift
-      fi
-      if [[ "$#" -ne 0 ]]; then
-        die "infra dev does not accept extra arguments"
-      fi
-      ensure_override_file
-      if [[ "${bg}" == true ]]; then
-        docker compose -f "${ROOT_DIR}/compose.yml" -f "${ROOT_DIR}/compose.override.yml" up -d "${SERVICES[@]}"
-      else
-        docker compose -f "${ROOT_DIR}/compose.yml" -f "${ROOT_DIR}/compose.override.yml" up "${SERVICES[@]}"
-      fi
-      ;;
-    stop)
-      [[ "$#" -eq 0 ]] || die "infra stop does not accept extra arguments"
-      docker_compose_main down
-      ;;
-    restart)
-      [[ "$#" -eq 0 ]] || die "infra restart does not accept extra arguments"
-      docker_compose_main down
-      docker_compose_main up "${SERVICES[@]}"
-      ;;
-    logs)
-      [[ "$#" -eq 0 ]] || die "infra logs does not accept extra arguments"
-      docker_compose_main logs -f
-      ;;
-    build)
-      [[ "$#" -eq 0 ]] || die "infra build does not accept extra arguments"
-      docker_compose_main build
-      ;;
-    build-prod)
-      [[ "$#" -eq 0 ]] || die "infra build-prod does not accept extra arguments"
-      docker_compose_prod build
-      ;;
-    check)
-      [[ "$#" -eq 0 ]] || die "infra check does not accept extra arguments"
-      "${ROOT_DIR}/scripts/check-setup.sh"
-      ;;
-    health)
-      [[ "$#" -eq 0 ]] || die "infra health does not accept extra arguments"
-      docker_compose_main ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
-      ;;
-    setup)
-      [[ "$#" -eq 0 ]] || die "infra setup does not accept extra arguments"
-      "${ROOT_DIR}/scripts/setup-dev.sh"
-      ;;
-    reset)
-      [[ "$#" -eq 0 ]] || die "infra reset does not accept extra arguments"
-      "${ROOT_DIR}/scripts/reset.sh" --force
-      ;;
-    *)
-      die "unknown infra command: ${action}"
-      ;;
-  esac
+docker_compose_demo() {
+  docker compose -f "${ROOT_DIR}/compose.test.yml" "$@"
 }
 
 run_demo() {
@@ -296,6 +168,7 @@ run_test() {
     live) npm --prefix "${ROOT_DIR}/test" run test:e2e:live ;;
     demo) npm --prefix "${ROOT_DIR}/test" run test:e2e:demo ;;
     e2e) npm --prefix "${ROOT_DIR}/test" run test:e2e ;;
+    release) "${ROOT_DIR}/scripts/release-matrix.sh" ;;
     *)
       die "unknown test command: ${action}"
       ;;
@@ -320,10 +193,10 @@ run_compose() {
   esac
 
   case "${action}" in
-    start) docker_compose_main up -d "$@" ;;
-    stop) docker_compose_main stop "$@" ;;
-    restart) docker_compose_main restart "$@" ;;
-    logs) docker_compose_main logs -f "$@" ;;
+    start) docker_compose_demo up -d "$@" ;;
+    stop) docker_compose_demo stop "$@" ;;
+    restart) docker_compose_demo restart "$@" ;;
+    logs) docker_compose_demo logs -f "$@" ;;
   esac
 }
 
@@ -357,6 +230,14 @@ run_repo() {
       )
       echo "Initialized top-level submodules (non-recursive by design)."
       ;;
+    check)
+      [[ "$#" -eq 0 ]] || die "repo check does not accept extra arguments"
+      "${ROOT_DIR}/scripts/check-setup.sh"
+      ;;
+    reset)
+      [[ "$#" -eq 0 ]] || die "repo reset does not accept extra arguments"
+      "${ROOT_DIR}/scripts/reset.sh" --force
+      ;;
     *)
       die "unknown repo command: ${action}"
       ;;
@@ -375,7 +256,7 @@ main() {
       run_repo "$@"
       ;;
     infra)
-      run_infra "$@"
+      die "infra namespace has been retired; use repo, demo, test, compose, or browser"
       ;;
     demo)
       run_demo "$@"

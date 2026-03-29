@@ -30,29 +30,32 @@ expect_fail_contains() {
 }
 
 HELP_OUTPUT="$("${RUN_SH}" help)"
-assert_contains "${HELP_OUTPUT}" "./run.sh infra dev --bg"
+assert_contains "${HELP_OUTPUT}" "./run.sh repo check"
 assert_contains "${HELP_OUTPUT}" "./run.sh demo start [--port <port>]"
+assert_contains "${HELP_OUTPUT}" "./run.sh test release"
 
-INFRA_HELP="$("${RUN_SH}" infra help)"
-assert_contains "${INFRA_HELP}" "./run.sh infra reset"
+REPO_HELP="$("${RUN_SH}" repo help)"
+assert_contains "${REPO_HELP}" "./run.sh repo reset"
 
 DEMO_HELP="$("${RUN_SH}" demo help)"
 assert_contains "${DEMO_HELP}" "./run.sh demo smoke [--port <port>]"
 
 TEST_HELP="$("${RUN_SH}" test help)"
 assert_contains "${TEST_HELP}" "./run.sh test e2e"
+assert_contains "${TEST_HELP}" "./run.sh test release"
 
 COMPOSE_HELP="$("${RUN_SH}" compose help)"
 assert_contains "${COMPOSE_HELP}" "./run.sh compose logs <service> [service...]"
+assert_contains "${COMPOSE_HELP}" "dev-relay"
 
 BROWSER_HELP="$("${RUN_SH}" browser help)"
 assert_contains "${BROWSER_HELP}" "./run.sh browser <igloo-pwa|igloo-chrome>"
 
 expect_fail_contains "unknown command namespace" "${RUN_SH}" nope
-expect_fail_contains "Run './run.sh help'" "${RUN_SH}" infra nope
+expect_fail_contains "infra namespace has been retired" "${RUN_SH}" infra nope
 expect_fail_contains "compose start requires at least one service" "${RUN_SH}" compose start
 expect_fail_contains "browser requires <app> and <action>" "${RUN_SH}" browser igloo-chrome
 
-"${RUN_SH}" infra check >/dev/null
+"${RUN_SH}" repo check >/dev/null
 
 echo "ok: run.sh command router smoke tests passed"
