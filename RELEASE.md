@@ -67,7 +67,7 @@ Canonical root entrypoint:
 
 That command is the supported parent release gate. It prebuilds shared
 artifacts, runs the core/runtime and shell checks, then runs the host E2E
-slices.
+slices. It also prints a compact phase timing summary at the end.
 
 Core runtime:
 

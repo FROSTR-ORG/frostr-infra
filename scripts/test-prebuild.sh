@@ -66,7 +66,9 @@ fi
 if [[ -n "${SELECTED[shared]:-}" ]]; then
   run_step "Build bifrost-devtools" cargo build --manifest-path "${ROOT_DIR}/repos/bifrost-rs/Cargo.toml" --offline --locked -p bifrost-devtools --bin bifrost-devtools
   run_step "Build igloo-shell CLI" env CARGO_TARGET_DIR="${ROOT_DIR}/build/igloo-shell-target" cargo build --manifest-path "${ROOT_DIR}/repos/igloo-shell/Cargo.toml" --offline -p igloo-shell-cli --bin igloo-shell
-  run_step "Sync bridge wasm assets" npm --prefix "${ROOT_DIR}/repos/igloo-chrome" run build:bridge-wasm
+  run_step "Build shared bridge wasm artifacts" npm --prefix "${ROOT_DIR}/repos/igloo-shared" run build:bridge-wasm
+  run_step "Sync bridge wasm into igloo-pwa" npm --prefix "${ROOT_DIR}/repos/igloo-pwa" run build:bridge-wasm
+  run_step "Sync bridge wasm into igloo-chrome" npm --prefix "${ROOT_DIR}/repos/igloo-chrome" run build:bridge-wasm
 fi
 
 if [[ -n "${SELECTED[ui]:-}" ]]; then

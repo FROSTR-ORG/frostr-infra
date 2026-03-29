@@ -89,6 +89,7 @@ Shared prep and root workflows:
   - runs the deterministic minimal test surface for the current branch
 - `./run.sh test release`
   - runs the full coordinated release matrix after shared prep
+  - prints a compact timing summary for the root phases
 
 If the root `./.tmp/` tree becomes stale or unwritable, repair it with
 `./run.sh repo reset` before rerunning prep or demo commands.

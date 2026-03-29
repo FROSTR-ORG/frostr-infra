@@ -125,7 +125,7 @@ For cross-repo test work:
 - `./run.sh test affected`
   - runs the deterministic minimal test surface for the current branch
 - `./run.sh test release`
-  - runs the full coordinated release matrix
+  - runs the full coordinated release matrix and prints a timing summary
 
 ## Submodule Policy
 

@@ -49,3 +49,6 @@ jobs:
       - name: Run workspace guards
         working-directory: test
         run: npm run test:guards
+
+      - name: Run dry affected check
+        run: FROSTR_AFFECTED_DRY_RUN=1 FROSTR_AFFECTED_FILES='' ./run.sh test affected

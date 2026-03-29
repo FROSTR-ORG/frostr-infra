@@ -135,6 +135,8 @@ pointer.
 - Use [`./run.sh`](./run.sh) for supported root workflows.
 - Prefer `./run.sh test prep`, `./run.sh test affected`, and
   `./run.sh test release` over ad hoc root test orchestration.
+- Treat the release-matrix timing summary as the first place to look when a
+  root test phase regresses.
 - Treat root `scripts/` as implementation detail unless you are maintaining the
   root orchestration itself.
 - Keep the workspace and submodules clean; do not leave generated artifacts in
