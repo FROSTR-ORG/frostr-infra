@@ -29,8 +29,8 @@ specific project repo.
   - infra-owned container images and entrypoints
 - `scripts/`
   - root helper scripts used by `run.sh` and release workflows
-- `compose*.yml`
-  - demo stack definitions
+- `compose.test.yml`
+  - demo stack definition
 - `run.sh`
   - curated top-level command router
 
@@ -133,12 +133,19 @@ pointer.
 ## Workflow Expectations
 
 - Use [`./run.sh`](./run.sh) for supported root workflows.
+- Prefer `./run.sh test prep`, `./run.sh test affected`, and
+  `./run.sh test release` over ad hoc root test orchestration.
 - Treat root `scripts/` as implementation detail unless you are maintaining the
   root orchestration itself.
 - Keep the workspace and submodules clean; do not leave generated artifacts in
   tracked locations.
 - Parent live scratch output belongs under `./.tmp/`, not tracked-looking paths
   such as `./data/`.
+- Shared test prep timing output belongs under `./.tmp/test-prebuild/`.
+- Use `FROSTR_TEST_PREBUILD_DIR` only when you intentionally need a custom
+  scratch location.
+- If the parent `./.tmp/` tree becomes stale or unwritable, repair it with
+  `./run.sh repo reset`.
 - When changing shared contracts, update the shared docs in [`docs/`](./docs)
   in the same pass.
 - When changing cross-repo demos or E2E behavior, update

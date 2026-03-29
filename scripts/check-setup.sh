@@ -32,6 +32,13 @@ fi
 print_check ".env file"
 if [ -f ".env" ]; then print_ok; else print_warn "missing (.env.example is available)"; fi
 
+print_check "workspace scratch root"
+if [ -e ".tmp" ] && [ ! -w ".tmp" ]; then
+  print_warn ".tmp exists but is not writable (run ./run.sh repo reset)"
+else
+  print_ok
+fi
+
 echo ""
 echo "Summary: $ERRORS error(s), $WARNINGS warning(s)"
 if [ "$ERRORS" -gt 0 ]; then

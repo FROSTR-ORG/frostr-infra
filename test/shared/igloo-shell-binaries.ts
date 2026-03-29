@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 
 import { IGLOO_SHELL_DIR, REPO_ROOT_DIR } from './repo-paths';
 
@@ -21,6 +22,10 @@ function buildBinary(args: string[]) {
 
 export function ensureIglooShellBinary() {
   if (shellPrepared) return IGLOO_SHELL_BINARY_PATH;
+  if (process.env.FROSTR_TEST_PREPARED === '1' && existsSync(IGLOO_SHELL_BINARY_PATH)) {
+    shellPrepared = true;
+    return IGLOO_SHELL_BINARY_PATH;
+  }
   buildBinary(['build', '--offline', '-p', 'igloo-shell-cli', '--bin', 'igloo-shell']);
   shellPrepared = true;
   return IGLOO_SHELL_BINARY_PATH;

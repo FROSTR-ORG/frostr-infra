@@ -3,9 +3,10 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${ROOT_DIR}/scripts/lib-scratch.sh"
 ONBOARD_MEMBERS="${IGLOO_SHELL_DEMO_INVITE_MEMBERS:-bob,carol}"
 TIMEOUT_SECS="${TIMEOUT_SECS:-60}"
-HOST_HARNESS_DIR="${FROSTR_TEST_HARNESS_DIR:-${ROOT_DIR}/.tmp/test-harness}"
+HOST_HARNESS_DIR="$(resolve_workspace_scratch_dir FROSTR_TEST_HARNESS_DIR test-harness)"
 CONTAINER_HARNESS_DIR="${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}"
 RELAY_PORT_FILE="${HOST_HARNESS_DIR}/demo-relay-port.txt"
 DEFAULT_PORT="${DEMO_RELAY_PORT:-8194}"

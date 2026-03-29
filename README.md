@@ -18,8 +18,8 @@ the implementation repos under [`repos/`](./repos).
   - cross-repo browser, desktop, and demo-harness verification
 - `services/`
   - infra-owned compose images and entrypoints
-- `compose*.yml`
-  - local infra and demo stack definitions
+- `compose.test.yml`
+  - local demo-harness stack definition
 - `run.sh`
   - curated root command router
 
@@ -52,6 +52,8 @@ Common commands:
 ./run.sh test smoke
 ./run.sh test fast
 ./run.sh test live
+./run.sh test prep
+./run.sh test affected
 ./run.sh test release
 ./run.sh browser igloo-chrome build
 ```
@@ -74,6 +76,7 @@ cp .env.example .env
 For the local demo harness:
 
 ```bash
+./run.sh test prep
 ./run.sh demo start
 ./run.sh demo onboard
 ./run.sh demo logs
@@ -105,6 +108,24 @@ For release work:
 The default parent scratch location for live demo-harness artifacts is
 `./.tmp/test-harness/`. Override it with `FROSTR_TEST_HARNESS_DIR` when a custom
 path is required.
+
+The shared prep and timing scratch path is `./.tmp/test-prebuild/`. Override it
+with `FROSTR_TEST_PREBUILD_DIR` only when you intentionally want a different
+scratch location.
+
+If `./.tmp/` becomes stale or unwritable, repair it with:
+
+```bash
+./run.sh repo reset
+```
+
+For cross-repo test work:
+- `./run.sh test prep`
+  - prebuilds shared binaries, browser artifacts, and demo images
+- `./run.sh test affected`
+  - runs the deterministic minimal test surface for the current branch
+- `./run.sh test release`
+  - runs the full coordinated release matrix
 
 ## Submodule Policy
 

@@ -61,6 +61,7 @@ Run the release matrix against the candidate state.
 Canonical root entrypoint:
 
 ```bash
+./run.sh test prep
 ./run.sh test release
 ```
 
@@ -109,6 +110,11 @@ Optional narrower root wrappers:
 If a release changes only a narrow surface, you may run a narrower matrix first,
 but the full matrix should be green before cutting the coordinated parent
 release.
+
+`./run.sh test prep` is optional but useful when you want the shared build and
+Docker work separated from the full release gate. It uses the parent `./.tmp/`
+scratch tree by default; repair that tree with `./run.sh repo reset` if it
+becomes stale.
 
 ## Cut Submodule Releases
 

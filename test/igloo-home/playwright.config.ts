@@ -4,6 +4,7 @@ import { TEST_ROOT_DIR } from '../shared/repo-paths';
 
 export default defineConfig({
   testDir: path.join(TEST_ROOT_DIR, 'igloo-home', 'specs'),
+  globalSetup: path.join(TEST_ROOT_DIR, 'igloo-home', 'global-setup.ts'),
   timeout: 120_000,
   fullyParallel: false,
   workers: 1,

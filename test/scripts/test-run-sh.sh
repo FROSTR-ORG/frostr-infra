@@ -32,6 +32,8 @@ expect_fail_contains() {
 HELP_OUTPUT="$("${RUN_SH}" help)"
 assert_contains "${HELP_OUTPUT}" "./run.sh repo check"
 assert_contains "${HELP_OUTPUT}" "./run.sh demo start [--port <port>]"
+assert_contains "${HELP_OUTPUT}" "./run.sh test prep"
+assert_contains "${HELP_OUTPUT}" "./run.sh test affected"
 assert_contains "${HELP_OUTPUT}" "./run.sh test release"
 
 REPO_HELP="$("${RUN_SH}" repo help)"
@@ -42,6 +44,8 @@ assert_contains "${DEMO_HELP}" "./run.sh demo smoke [--port <port>]"
 
 TEST_HELP="$("${RUN_SH}" test help)"
 assert_contains "${TEST_HELP}" "./run.sh test e2e"
+assert_contains "${TEST_HELP}" "./run.sh test prep"
+assert_contains "${TEST_HELP}" "./run.sh test affected"
 assert_contains "${TEST_HELP}" "./run.sh test release"
 
 COMPOSE_HELP="$("${RUN_SH}" compose help)"

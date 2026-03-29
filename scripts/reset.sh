@@ -24,7 +24,13 @@ echo "Stopping demo compose services..."
 docker compose -f "$ROOT_DIR/compose.test.yml" down || true
 
 echo "Resetting root scratch directories..."
-rm -rf "${TMP_ROOT:?}"/*
+if [[ -e "${TMP_ROOT}" && ! -w "${TMP_ROOT}" ]]; then
+  stale_root="${ROOT_DIR}/.tmp.stale.$(date +%s)"
+  echo "Workspace scratch root is not writable; moving it to ${stale_root}"
+  mv "${TMP_ROOT}" "${stale_root}"
+fi
+rm -rf "${TMP_ROOT}"
 rm -rf "${BUILD_ROOT}"
+mkdir -p "${TMP_ROOT}"
 
 echo "Reset complete."

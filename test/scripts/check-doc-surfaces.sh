@@ -18,6 +18,9 @@ fi
 if rg -n \
   -e 'igloo-web' \
   -e 'igloo-shell-tui' \
+  -e 'data/test-harness' \
+  -e '/tmp/frostr-test-prebuild-' \
+  -e 'setup-dev\.sh' \
   run.sh scripts .github test README.md CONTRIBUTING.md RELEASE.md docs \
   --glob '!test/scripts/check-doc-surfaces.sh'
 then

@@ -48,6 +48,8 @@ From the repo root:
 ./run.sh test live
 ./run.sh test demo
 ./run.sh test e2e
+./run.sh test prep
+./run.sh test affected
 ./run.sh test release
 ```
 
@@ -76,6 +78,20 @@ npm --prefix test run test:e2e
 
 That aggregate currently means `fast + live`. The `demo` tier stays separate so
 the focused Docker-backed onboarding path can be run independently.
+
+Shared prep and root workflows:
+- `./run.sh test prep`
+  - prebuilds shared Rust binaries, browser artifacts, and demo-harness images
+  - uses `./.tmp/test-prebuild/` by default
+  - `FROSTR_TEST_PREBUILD_DIR` is an explicit override for custom scratch
+    locations
+- `./run.sh test affected`
+  - runs the deterministic minimal test surface for the current branch
+- `./run.sh test release`
+  - runs the full coordinated release matrix after shared prep
+
+If the root `./.tmp/` tree becomes stale or unwritable, repair it with
+`./run.sh repo reset` before rerunning prep or demo commands.
 
 ## Manual Demo Flows
 

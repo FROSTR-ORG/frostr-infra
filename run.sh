@@ -29,6 +29,8 @@ Usage:
   ./run.sh test live
   ./run.sh test demo
   ./run.sh test e2e
+  ./run.sh test prep
+  ./run.sh test affected
   ./run.sh test release
   ./run.sh compose start <service> [service...]
   ./run.sh compose stop <service> [service...]
@@ -78,6 +80,8 @@ Usage:
   ./run.sh test live
   ./run.sh test demo
   ./run.sh test e2e
+  ./run.sh test prep
+  ./run.sh test affected
   ./run.sh test release
 EOF
 }
@@ -168,6 +172,8 @@ run_test() {
     live) npm --prefix "${ROOT_DIR}/test" run test:e2e:live ;;
     demo) npm --prefix "${ROOT_DIR}/test" run test:e2e:demo ;;
     e2e) npm --prefix "${ROOT_DIR}/test" run test:e2e ;;
+    prep) "${ROOT_DIR}/scripts/test-prebuild.sh" release ;;
+    affected) "${ROOT_DIR}/scripts/test-affected.sh" ;;
     release) "${ROOT_DIR}/scripts/release-matrix.sh" ;;
     *)
       die "unknown test command: ${action}"
