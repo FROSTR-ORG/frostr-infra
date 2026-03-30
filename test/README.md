@@ -107,15 +107,140 @@ First-class entrypoints:
 ./run.sh demo stop
 ```
 
-`./run.sh demo start` is the normal local path. It:
-- builds the host demo binaries
-- starts `services/dev-relay` and `services/igloo-demo`
-- writes onboarding artifacts under `./.tmp/test-harness/`
-- prints the current `bfonboard` packages, passwords, and relay URL
-
 Direct `docker compose -f compose.test.yml ...` commands remain available for
 advanced/operator use when explicit project names, environment variables, or log
 control are needed.
+
+### Demo Setup
+
+Start the shared demo stack from the workspace root:
+
+```bash
+./run.sh demo start
+```
+
+That command:
+
+- starts `services/dev-relay` plus `services/igloo-demo`
+- provisions the live demo signer inside `igloo-demo`
+- exports the current relay URL, onboarding packages, and passwords
+- writes the artifacts under `./.tmp/test-harness/`
+
+The important local files are:
+
+- `./.tmp/test-harness/demo-relay-port.txt`
+- `./.tmp/test-harness/onboard-bob.txt`
+- `./.tmp/test-harness/onboard-bob.password.txt`
+- `./.tmp/test-harness/onboard-carol.txt`
+- `./.tmp/test-harness/onboard-carol.password.txt`
+
+At any point you can reprint the current packages and relay URL with:
+
+```bash
+./run.sh demo onboard
+```
+
+By default the demo harness exports two remote shares, `bob` and `carol`. That
+means one demo run can onboard two separate host projects at the same time. If
+you want to demo a third host from a clean package, stop and restart the demo
+stack so the onboarding artifacts are regenerated.
+
+### Demo `igloo-pwa`
+
+Start the PWA host from the workspace root:
+
+```bash
+./run.sh browser igloo-pwa dev
+```
+
+Then in the browser:
+
+1. Open the printed local URL, normally `http://localhost:1430`.
+2. Click `Continue Onboarding`.
+3. Paste one of the exported packages, for example the contents of
+   `./.tmp/test-harness/onboard-bob.txt`.
+4. Paste the matching package password from
+   `./.tmp/test-harness/onboard-bob.password.txt`.
+5. Click `Connect`.
+6. On `Review Onboarded Profile`, choose a device label and local password.
+7. Click `Save Device`.
+
+The onboarded PWA profile will connect to the relay URL printed by
+`./run.sh demo start`, for example `ws://localhost:8194`, and can then interact
+with the live signer running inside `igloo-demo`.
+
+### Demo `igloo-shell`
+
+Use a different onboarding package than the one consumed by the PWA if you are
+showing multiple hosts in the same session.
+
+From `repos/igloo-shell`:
+
+```bash
+cargo run -p igloo-shell-cli -- \
+  onboard ../../.tmp/test-harness/onboard-carol.txt \
+  --label demo-carol-shell \
+  --onboard-secret "$(cat ../../.tmp/test-harness/onboard-carol.password.txt)" \
+  --vault-secret demo-passphrase \
+  --start
+```
+
+That command:
+
+- imports the `bfonboard` package
+- saves the local shell-managed profile
+- unlocks it with the supplied vault secret
+- starts the runtime and attaches to the daemon log
+
+Useful follow-up commands from `repos/igloo-shell`:
+
+```bash
+cargo run -p igloo-shell-cli -- profile list
+cargo run -p igloo-shell-cli -- daemon status --profile <profile-id>
+cargo run -p igloo-shell-cli -- runtime status --profile <profile-id>
+```
+
+The imported profile already carries the relay information for the live demo
+stack, so no extra relay setup is required when onboarding from the demo
+package.
+
+### Demo `igloo-home`
+
+Start the desktop host from `repos/igloo-home`:
+
+```bash
+npm run tauri dev
+```
+
+Then in the desktop app:
+
+1. Open `Onboard Device` from the landing page.
+2. Enter a local device label.
+3. Enter a vault passphrase for the desktop profile.
+4. Enter the onboarding package password from
+   `./.tmp/test-harness/onboard-bob.password.txt` or
+   `./.tmp/test-harness/onboard-carol.password.txt`.
+5. Paste the matching `bfonboard` package text from
+   `./.tmp/test-harness/onboard-bob.txt` or
+   `./.tmp/test-harness/onboard-carol.txt`.
+6. Click `Onboard Device`.
+
+The imported desktop profile will load with the relay settings supplied by the
+demo package and connect to the live signer on `dev-relay`.
+
+### Demo Cleanup
+
+When the session is done:
+
+```bash
+./run.sh demo stop
+```
+
+If you want to inspect the live demo services during the session:
+
+```bash
+./run.sh demo logs
+```
 
 ## Ownership
 
