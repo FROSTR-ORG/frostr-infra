@@ -21,8 +21,26 @@ export type IglooHomeHarness = {
   close: () => Promise<void>;
 };
 
-function nextPort() {
-  return 38000 + Math.floor(Math.random() * 1000);
+function nextPort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        server.close(() => reject(new Error('failed to allocate igloo-home test server port')));
+        return;
+      }
+      const { port } = address;
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(port);
+      });
+    });
+  });
 }
 
 async function waitForServer(port: number, timeoutMs: number) {
@@ -100,7 +118,7 @@ export async function launchIglooHome(): Promise<IglooHomeHarness> {
     buildIglooHome();
   }
   const appDataDir = await mkdtemp(path.join(os.tmpdir(), 'igloo-home-test-'));
-  const port = nextPort();
+  const port = await nextPort();
   const child = spawn(resolvedBinaryPath(), [], {
     cwd: IGLOO_HOME_DIR,
     stdio: 'inherit',

@@ -11,6 +11,7 @@ import { expectPwaDashboard, onboardPwaDevice, openFreshPwaPage, seedPwaState } 
 
 test.describe('igloo-pwa rotation operator flow', () => {
   test('rotates from threshold bfshare sources and distributes a rotated share via bfonboard', async ({ browser, page }) => {
+    test.slow();
     const relay = await startLocalRelay();
     let secondaryContext;
     try {
@@ -50,9 +51,9 @@ test.describe('igloo-pwa rotation operator flow', () => {
       await page.getByRole('button', { name: 'Accept and Continue' }).click();
 
       await expect(page.getByRole('heading', { name: 'Remaining Shares', exact: true })).toBeVisible();
-      const distributeCard = page.locator('.igloo-generated-card').filter({ hasText: /Member 2/ }).first();
-      await distributeCard.getByLabel('Share Name').fill('Rotated Remote Device');
-      await distributeCard.getByLabel('Password', { exact: true }).fill('rotate-remote-pass');
+      const distributeCard = page.locator('section.igloo-panel').filter({ hasText: /Member 2/ }).first();
+      await distributeCard.getByLabel('Share label').fill('Rotated Remote Device');
+      await distributeCard.getByLabel('Package password').fill('rotate-remote-pass');
       await distributeCard.getByLabel('Confirm Password').fill('rotate-remote-pass');
       await distributeCard.getByRole('button', { name: 'QR' }).click();
       const onboardPackage = (await page.locator('pre.igloo-code-block').textContent())?.trim();

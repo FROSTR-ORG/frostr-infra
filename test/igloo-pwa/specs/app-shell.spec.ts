@@ -22,9 +22,12 @@ test.describe('igloo-pwa ui-first shell', () => {
     await page.getByRole('button', { name: 'Accept and Continue' }).click();
     await expect(page.getByRole('heading', { name: 'Remaining Shares', exact: true })).toBeVisible();
 
-    const shareCard = page.locator('.igloo-generated-card').first();
-    await shareCard.getByLabel('Share Name').fill('Remote Tablet');
-    await shareCard.getByLabel('Password', { exact: true }).fill('remote-tablet-pass');
+    const shareCard = page
+      .locator('section.igloo-panel')
+      .filter({ has: page.getByLabel('Share label') })
+      .first();
+    await shareCard.getByLabel('Share label').fill('Remote Tablet');
+    await shareCard.getByLabel('Package password').fill('remote-tablet-pass');
     await shareCard.getByLabel('Confirm Password').fill('remote-tablet-pass');
     await shareCard.getByRole('button', { name: 'QR' }).click();
     await expect(page.getByText('Onboarding Package QR')).toBeVisible();

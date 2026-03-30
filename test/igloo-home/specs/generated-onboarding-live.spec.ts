@@ -54,15 +54,24 @@ test.describe('igloo-home generated onboarding', () => {
       });
       expect(onboardPackage.startsWith('bfonboard1')).toBe(true);
 
+      const connected = await app.request<{
+        preview: {
+          label: string;
+          share_public_key: string;
+        };
+      }>('connect_onboarding_package', {
+        onboarding_password: 'generated-package-password',
+        package: onboardPackage,
+      });
+      expect(connected.preview.label).toBeTruthy();
+
       const onboarded = await app.request<{
         status: string;
         profile?: { id: string };
-      }>('import_profile_from_onboarding', {
+      }>('finalize_connected_onboarding', {
         label: 'Generated Remote Device',
         relay_profile: null,
         vault_passphrase: 'playwright-password',
-        onboarding_password: 'generated-package-password',
-        package: onboardPackage,
       });
 
       expect(onboarded.status).toBe('profile_created');

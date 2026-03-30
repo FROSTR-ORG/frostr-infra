@@ -16,20 +16,27 @@ test.describe('igloo-home onboarding package', () => {
     const harness = await ensureDemoHarness();
     const app = await launchIglooHome();
     try {
+      const connected = await app.request<{
+        preview: {
+          label: string;
+          share_public_key: string;
+          group_public_key: string;
+        };
+      }>('connect_onboarding_package', {
+        onboarding_password: harness.onboardPassword,
+        package: harness.onboardPackage,
+      });
+      expect(connected.preview.label).toBeTruthy();
+
       const imported = await app.request<{
         status: string;
         profile?: { id: string };
         diagnostics?: unknown;
-      }>(
-        'import_profile_from_onboarding',
-        {
-          label: 'Bob Onboarding Import',
-          relay_profile: null,
-          vault_passphrase: 'playwright-password',
-          onboarding_password: harness.onboardPassword,
-          package: harness.onboardPackage,
-        },
-      );
+      }>('finalize_connected_onboarding', {
+        label: 'Bob Onboarding Import',
+        relay_profile: null,
+        vault_passphrase: 'playwright-password',
+      });
       expect(imported.status).toBe('profile_created');
 
       try {
