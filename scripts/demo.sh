@@ -18,6 +18,37 @@ usage: scripts/demo.sh <build-binaries|resolve-port|start|foreground|stop|logs|o
 EOF
 }
 
+run_compose_attached() {
+  local resolved_port="$1"
+  local compose_pid=""
+
+  forward_signal() {
+    local signal="$1"
+    if [[ -n "${compose_pid}" ]] && kill -0 "${compose_pid}" 2>/dev/null; then
+      kill "-${signal}" "${compose_pid}" 2>/dev/null || true
+    fi
+  }
+
+  FROSTR_TEST_HARNESS_DIR="${HOST_HARNESS_DIR}" \
+  FROSTR_TEST_HARNESS_CONTAINER_DIR="${CONTAINER_HARNESS_DIR}" \
+  DEV_RELAY_PORT="${resolved_port}" DEV_RELAY_EXTERNAL_HOST=localhost \
+    docker compose -f "${ROOT_DIR}/compose.test.yml" up --build --remove-orphans "${DEMO_HARNESS_SERVICES[@]}" &
+  compose_pid="$!"
+
+  trap 'forward_signal INT' INT
+  trap 'forward_signal TERM' TERM
+
+  print_onboard "${resolved_port}"
+
+  set +e
+  wait "${compose_pid}"
+  local status=$?
+  set -e
+
+  trap - INT TERM
+  return "${status}"
+}
+
 build_binaries() {
   local bifrost_dir="${ROOT_DIR}/repos/bifrost-rs"
   local igloo_shell_dir="${ROOT_DIR}/repos/igloo-shell"
@@ -193,10 +224,7 @@ start_stack() {
   build_binaries
 
   if [[ "${action}" == "foreground" ]]; then
-    FROSTR_TEST_HARNESS_DIR="${HOST_HARNESS_DIR}" \
-    FROSTR_TEST_HARNESS_CONTAINER_DIR="${CONTAINER_HARNESS_DIR}" \
-    DEV_RELAY_PORT="${resolved_port}" DEV_RELAY_EXTERNAL_HOST=localhost \
-      docker compose -f "${ROOT_DIR}/compose.test.yml" up --build --remove-orphans "${DEMO_HARNESS_SERVICES[@]}"
+    run_compose_attached "${resolved_port}"
   else
     FROSTR_TEST_HARNESS_DIR="${HOST_HARNESS_DIR}" \
     FROSTR_TEST_HARNESS_CONTAINER_DIR="${CONTAINER_HARNESS_DIR}" \
@@ -224,7 +252,11 @@ main() {
       resolve_port "${port}"
       ;;
     start)
-      start_stack start "${port}"
+      if [[ "${BG:-0}" == "1" ]]; then
+        start_stack start "${port}"
+      else
+        start_stack foreground "${port}"
+      fi
       ;;
     foreground)
       start_stack foreground "${port}"

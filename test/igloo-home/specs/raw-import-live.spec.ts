@@ -14,7 +14,7 @@ test.describe('igloo-home live raw import', () => {
         label: 'Bob Raw Import',
         relay_urls: [harness.relayUrl],
         relay_profile: null,
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
         group_package_json: harness.bobGroupJson,
         share_package_json: harness.bobShareJson,
       });
@@ -23,7 +23,7 @@ test.describe('igloo-home live raw import', () => {
 
       const snapshot = await app.request<{ active: boolean }>('start_profile_session', {
         profile_id: imported.profile!.id,
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
       });
       expect(snapshot.active).toBe(true);
 

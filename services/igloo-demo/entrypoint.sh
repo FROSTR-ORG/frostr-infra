@@ -24,7 +24,7 @@ IGLOO_SHELL_DEMO_CONTROL_SOCKET="${IGLOO_SHELL_DEMO_CONTROL_SOCKET:-${FROSTR_TES
 IGLOO_SHELL_DEMO_CONTROL_TOKEN_FILE="${IGLOO_SHELL_DEMO_CONTROL_TOKEN_FILE:-${FROSTR_TEST_HARNESS_CONTAINER_DIR}/igloo-shell-${IGLOO_SHELL_DEMO_MEMBER}.token}"
 IGLOO_SHELL_DEMO_ARTIFACT_DIR="${IGLOO_SHELL_DEMO_ARTIFACT_DIR:-${FROSTR_TEST_HARNESS_CONTAINER_DIR}}"
 IGLOO_SHELL_DEMO_PASSWORD_BYTES="${IGLOO_SHELL_DEMO_PASSWORD_BYTES:-16}"
-IGLOO_SHELL_DEMO_VAULT_PASSPHRASE="${IGLOO_SHELL_DEMO_VAULT_PASSPHRASE:-dev-harness-vault-pass}"
+IGLOO_SHELL_DEMO_PASSPHRASE="${IGLOO_SHELL_DEMO_PASSPHRASE:-dev-harness-passphrase}"
 IGLOO_SHELL_DEMO_XDG_ROOT="${IGLOO_SHELL_DEMO_XDG_ROOT:-${IGLOO_SHELL_DEMO_ARTIFACT_DIR}/igloo-shell-home}"
 IGLOO_SHELL_DEMO_STATE_LINK="${IGLOO_SHELL_DEMO_STATE_LINK:-/w}"
 IGLOO_SHELL_DEMO_TMPDIR="${IGLOO_SHELL_DEMO_TMPDIR:-${IGLOO_SHELL_DEMO_ARTIFACT_DIR}/tmp}"
@@ -32,7 +32,7 @@ IGLOO_SHELL_DEMO_TMPDIR="${IGLOO_SHELL_DEMO_TMPDIR:-${IGLOO_SHELL_DEMO_ARTIFACT_
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/data}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-${IGLOO_SHELL_DEMO_STATE_LINK}}"
-export IGLOO_SHELL_VAULT_PASSPHRASE="${IGLOO_SHELL_DEMO_VAULT_PASSPHRASE}"
+export IGLOO_SHELL_PROFILE_PASSPHRASE="${IGLOO_SHELL_DEMO_PASSPHRASE}"
 export TMPDIR="${TMPDIR:-${IGLOO_SHELL_DEMO_TMPDIR}}"
 
 declare -a ONBOARD_MEMBERS=()
@@ -224,6 +224,21 @@ json_number_field() {
   sed -n "s/^[[:space:]]*\"${key}\":[[:space:]]*\\([0-9][0-9]*\\).*/\\1/p" | head -n 1
 }
 
+imported_profile_id() {
+  awk '
+    /"import"[[:space:]]*:[[:space:]]*{/ { in_import=1 }
+    in_import && /"profile"[[:space:]]*:[[:space:]]*{/ { in_profile=1; next }
+    in_profile && /"id"[[:space:]]*:[[:space:]]*"/ {
+      line = $0
+      sub(/.*"id"[[:space:]]*:[[:space:]]*"/, "", line)
+      sub(/".*/, "", line)
+      print line
+      exit
+    }
+    in_profile && /^[[:space:]]*}/ { in_profile=0 }
+  '
+}
+
 configure_relay_profile() {
   "${IGLOO_SHELL_BIN}" relays set "${IGLOO_SHELL_DEMO_RELAY_PROFILE}" "${DEV_RELAY_INTERNAL_URL}" >/dev/null
   "${IGLOO_SHELL_BIN}" relays default "${IGLOO_SHELL_DEMO_RELAY_PROFILE}" >/dev/null
@@ -238,10 +253,10 @@ import_demo_profile() {
       --share "${IGLOO_SHELL_DEMO_DIR}/share-${IGLOO_SHELL_DEMO_MEMBER}.json" \
       --label "${IGLOO_SHELL_DEMO_MEMBER}" \
       --relay-profile "${IGLOO_SHELL_DEMO_RELAY_PROFILE}" \
-      --vault-secret "${IGLOO_SHELL_VAULT_PASSPHRASE}" \
+      --passphrase "${IGLOO_SHELL_PROFILE_PASSPHRASE}" \
       --json
   )"
-  DEMO_PROFILE_ID="$(printf '%s\n' "${import_json}" | json_string_field "id")"
+  DEMO_PROFILE_ID="$(printf '%s\n' "${import_json}" | imported_profile_id)"
   if [ -z "${DEMO_PROFILE_ID}" ]; then
     echo "failed to determine imported profile id"
     printf '%s\n' "${import_json}"

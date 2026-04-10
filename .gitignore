@@ -19,6 +19,7 @@ test/**/test-results/
 test/**/.last-run.json
 services/onboard-helper/target/
 CLAUDE.md
+.codex
 .DS_Store
 NOTES.md
 TODO.md

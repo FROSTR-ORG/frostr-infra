@@ -1,513 +1,66 @@
-import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import net from 'node:net';
-import { lstat, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 
-import {
-  chromium,
-  expect,
-  test as base,
-  type BrowserContext,
-  type Page,
-  type TestInfo,
-  type Worker
-} from '@playwright/test';
+import { expect, test as base } from '@playwright/test';
 import { getPublicKey } from 'nostr-tools';
 
-import { clearE2EEvents, getE2EEvents, logE2E, withLoggedStep } from '../../shared/observability';
-import { IGLOO_CHROME_DIR, IGLOO_CHROME_DIST_DIR, REPO_ROOT_DIR } from '../../shared/repo-paths';
-import { onboardLiveSignerProfile, type StoredProfile as OnboardedStoredProfile } from '../support/onboarding';
-import {
-  fetchExtensionStatusFromPage,
-  fetchRuntimeDiagnosticsFromPage,
-  fetchWorkerStorageSnapshot
-} from '../support/extension-status';
+import { clearE2EEvents, logE2E, withLoggedStep } from '../../shared/observability';
+import { IGLOO_CHROME_DIST_DIR } from '../../shared/repo-paths';
 import { TEST_PEER_PUBLIC_KEY, TEST_PROFILE, TEST_PUBLIC_KEY } from './constants';
 import {
-  startLiveSignerFixture,
-  type LiveSignerController,
-  type LiveSignerFixture
-} from './live-signer';
-import { startTestServer, type TestServer } from './server';
-
-type ExtensionFixtures = {
-  context: BrowserContext;
-  extensionId: string;
-  serviceWorker: Worker;
-  server: TestServer;
-  liveSigner: LiveSignerFixture;
-  stableLiveSigner: LiveSignerFixture;
-  demoHarness: DemoHarnessFixture;
-  openExtensionPage: (path: string) => Promise<Page>;
-  activateProfile: (profileId: string) => Promise<void>;
-  callOffscreenRpc: <T>(rpcType: string, payload?: Record<string, unknown>) => Promise<T>;
-  runRuntimeControl: (action: 'closeOffscreen' | 'reloadExtension') => Promise<void>;
-  reloadExtension: () => Promise<void>;
-  seedProfile: (
-    overrides?: Partial<typeof TEST_PROFILE> & {
-      id?: string;
-      sharePublicKey?: string;
-      publicKey?: string;
-      groupPublicKey?: string;
-      peerPubkey?: string;
-      runtimeSnapshotJson?: string;
-      onboardPackage?: string;
-      onboardPassword?: string;
-      storedBlobRecord?: {
-        id: string;
-        label: string;
-        blob: unknown;
-        createdAt: number;
-        updatedAt: number;
-      };
-      sessionKeyB64?: string;
-    }
-  ) => Promise<void>;
-  seedPermissionPolicies: (policies: SeedPermissionPolicy[]) => Promise<void>;
-  seedPeerPolicies: (policies: SeedPeerPolicy[]) => Promise<void>;
-  clearSessionUnlocks: () => Promise<void>;
-  clearExtensionStorage: () => Promise<void>;
-};
-
-type WorkerFixtures = {
-  liveSignerWorker: LiveSignerController;
-  onboardedLiveSignerProfile: OnboardedStoredProfile;
-};
-
-type SeedPermissionPolicy = {
-  host: string;
-  type: string;
-  allow: boolean;
-  createdAt?: number;
-  kind?: number;
-};
-
-type SeedPeerPolicy = {
-  pubkey: string;
-  send: boolean;
-  receive: boolean;
-};
-
-type DemoHarnessFixture = {
-  relayUrl: string;
-  recipient: string;
-  onboardPackage: string;
-  onboardPassword: string;
-  cleanup: () => Promise<void>;
-};
+  buildExtensionOnce,
+  attachPageDiagnostics,
+  disposeExtensionContext,
+  gotoExtensionPage,
+  isExpectedConsoleNoise,
+  launchExtensionContext,
+  waitForServiceWorker,
+} from './helpers/context';
+import { startDemoHarnessFixture } from './helpers/demo-harness';
+import { writeFailureBundle } from './helpers/failure-bundle';
+import { clearFixtureDiagnostics } from './helpers/fixture-state';
+import {
+  activateProfileViaExtension,
+  fetchRuntimeDiagnosticsViaExtension,
+  fetchRuntimeSnapshotViaExtension,
+  fetchRuntimeStatusViaExtension,
+  openPageForStorage,
+  reloadExtensionViaPage,
+  runRuntimeControlViaExtension,
+  sendRuntimePrepare,
+} from './helpers/transport';
+import {
+  clearExtensionStorageState,
+  clearSessionUnlocksInExtension,
+  seedPermissionPoliciesIntoExtension,
+  seedProfileIntoExtension,
+} from './helpers/storage';
+import { startLiveSignerFixture } from './live-signer';
+import { startTestServer } from './server';
+import type { DemoHarnessFixture, ExtensionFixtures, WorkerFixtures } from './types';
 
 const extensionPath = IGLOO_CHROME_DIST_DIR;
-const DEMO_SCRIPT = path.join(REPO_ROOT_DIR, 'scripts', 'demo.sh');
-const EXTENSION_MANIFEST_PATH = path.join(IGLOO_CHROME_DIST_DIR, 'manifest.json');
-const DEMO_RELAY_HOST = process.env.DEV_RELAY_EXTERNAL_HOST ?? 'localhost';
-const DEMO_RELAY_PORT = Number(
-  process.env.IGLOO_DEMO_RELAY_PORT ?? String(43000 + (process.pid % 1000))
-);
-let buildPrepared = false;
-let workerOnboardingFailureBundle: Record<string, unknown> | null = null;
-const extensionPageErrors = new Map<string, string[]>();
-
-function extensionLaunchArgs() {
-  const secureOrigins = [
-    `http://127.0.0.1:${DEMO_RELAY_PORT}`,
-    `http://localhost:${DEMO_RELAY_PORT}`
-  ];
-  return [
-    `--unsafely-treat-insecure-origin-as-secure=${secureOrigins.join(',')}`,
-    `--disable-extensions-except=${extensionPath}`,
-    `--load-extension=${extensionPath}`
-  ];
-}
-
-function recordPageDiagnostic(page: Page, message: string) {
-  const existing = extensionPageErrors.get(page.url()) ?? [];
-  existing.push(message);
-  if (existing.length > 25) {
-    existing.splice(0, existing.length - 25);
-  }
-  extensionPageErrors.set(page.url(), existing);
-}
-
-async function waitForHarnessArtifact(filePath: string, timeoutMs: number) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      const info = await stat(filePath);
-      if (info.size > 0) {
-        return await readFile(filePath, 'utf8');
-      }
-    } catch {
-      // Keep polling until timeout.
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  throw new Error(`Timed out waiting for harness artifact ${filePath}`);
-}
-
-async function waitForHarnessSocket(socketPath: string, timeoutMs: number) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      const info = await lstat(socketPath);
-      if (info.isSocket() || info.isSymbolicLink()) {
-        return;
-      }
-      return;
-    } catch {
-      // Keep polling until timeout.
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  throw new Error(`Timed out waiting for harness socket ${socketPath}`);
-}
-
-async function waitForRelayPort(host: string, port: number, timeoutMs: number) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const ready = await new Promise<boolean>((resolve) => {
-      const socket = net.createConnection({ host, port });
-      socket.once('connect', () => {
-        socket.destroy();
-        resolve(true);
-      });
-      socket.once('error', () => {
-        socket.destroy();
-        resolve(false);
-      });
-    });
-    if (ready) return;
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  throw new Error(`Timed out waiting for relay ${host}:${port}`);
-}
-
-function readHarnessLogs(projectName: string, env: NodeJS.ProcessEnv) {
-  try {
-    return execFileSync(
-      'docker',
-      ['compose', '-p', projectName, '-f', 'compose.test.yml', 'logs', '--tail=200', 'dev-relay', 'igloo-demo'],
-      {
-        cwd: REPO_ROOT_DIR,
-        encoding: 'utf8',
-        env
-      }
-    );
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error);
-  }
-}
-
-async function startDemoHarnessFixture(): Promise<DemoHarnessFixture> {
-  const projectName = `igloo-chrome-${process.pid}-${randomBytes(4).toString('hex')}`;
-  const hostArtifactDir = await mkdtemp(path.join(os.tmpdir(), 'igloo-chrome-demo-'));
-  const demoMember = process.env.IGLOO_SHELL_DEMO_MEMBER ?? 'alice';
-  const inviteMembers = process.env.IGLOO_SHELL_DEMO_INVITE_MEMBERS ?? 'bob,carol';
-  const containerArtifactDir = `/workspace/.tmp/test-harness/${projectName}`;
-  const relayPortNumber = DEMO_RELAY_PORT;
-  const relayHost = DEMO_RELAY_HOST;
-  const relayPort = String(relayPortNumber);
-  const relayUrl = `ws://${relayHost}:${relayPort}`;
-  const recipient = process.env.IGLOO_SHELL_DEMO_E2E_MEMBER ?? 'bob';
-  const composeEnv = {
-    ...process.env,
-    DEV_RELAY_PORT: relayPort,
-    DEV_RELAY_EXTERNAL_HOST: relayHost,
-    FROSTR_TEST_HARNESS_DIR: hostArtifactDir,
-    FROSTR_TEST_HARNESS_CONTAINER_DIR: containerArtifactDir,
-    IGLOO_TRACE: process.env.IGLOO_TRACE ?? '',
-    IGLOO_TRACE_LEVEL: process.env.IGLOO_TRACE_LEVEL ?? '',
-    IGLOO_SHELL_DEMO_MEMBER: demoMember,
-    IGLOO_SHELL_DEMO_INVITE_MEMBERS: inviteMembers,
-    IGLOO_SHELL_DEMO_ARTIFACT_DIR: containerArtifactDir,
-    IGLOO_SHELL_DEMO_DIR: `${containerArtifactDir}/demo-2of3`,
-    IGLOO_SHELL_DEMO_CONTROL_SOCKET: `${containerArtifactDir}/igloo-shell-${demoMember}.sock`,
-    IGLOO_SHELL_DEMO_CONTROL_TOKEN_FILE: `${containerArtifactDir}/igloo-shell-${demoMember}.token`
-  };
-  const packagePath = path.join(hostArtifactDir, `onboard-${recipient}.txt`);
-  const passwordPath = path.join(hostArtifactDir, `onboard-${recipient}.password.txt`);
-  const socketPath = path.join(hostArtifactDir, `igloo-shell-${demoMember}.sock`);
-
-  const cleanup = async () => {
-    await withLoggedStep('chrome.demo-harness', 'compose-down', { projectName }, async () => {
-      try {
-        execFileSync('docker', ['compose', '-p', projectName, '-f', 'compose.test.yml', 'down', '-v'], {
-          cwd: REPO_ROOT_DIR,
-          stdio: 'inherit',
-          env: composeEnv
-        });
-      } catch {
-        // Best-effort cleanup only.
-      }
-    });
-    await cleanupArtifactDir(hostArtifactDir);
-  };
-
-  await withLoggedStep('chrome.demo-harness', 'build-binaries', undefined, async () => {
-    execFileSync(DEMO_SCRIPT, ['build-binaries'], {
-      cwd: REPO_ROOT_DIR,
-      stdio: 'inherit'
-    });
-  });
-
-  await withLoggedStep('chrome.demo-harness', 'compose-up-relay', { relayUrl }, async () => {
-    execCompose(projectName, composeEnv, ['up', '-d', '--build', 'dev-relay']);
-  });
-
-  try {
-    await withLoggedStep(
-      'chrome.demo-harness',
-      'wait-relay-port',
-      { relayUrl },
-      async () => await waitForRelayPort(relayHost, relayPortNumber, 300_000)
-    );
-    await withLoggedStep('chrome.demo-harness', 'compose-up-demo', { recipient }, async () => {
-      execCompose(projectName, composeEnv, ['up', '-d', '--build', '--no-deps', 'igloo-demo']);
-    });
-    const [onboardPackage, onboardPassword] = await Promise.all([
-      withLoggedStep(
-        'chrome.demo-harness',
-        'wait-onboard-package',
-        { packagePath, recipient },
-        async () => await waitForHarnessArtifact(packagePath, 300_000)
-      ),
-      withLoggedStep(
-        'chrome.demo-harness',
-        'wait-onboard-password',
-        { passwordPath, recipient },
-        async () => await waitForHarnessArtifact(passwordPath, 300_000)
-      ),
-      withLoggedStep(
-        'chrome.demo-harness',
-        'wait-control-socket',
-        { socketPath },
-        async () => await waitForHarnessSocket(socketPath, 300_000)
-      )
-    ]);
-
-    logE2E('chrome.demo-harness', 'fixture-ready', {
-      recipient,
-      relayUrl,
-      onboardLength: onboardPackage.trim().length
-    });
-
-    return {
-      relayUrl,
-      recipient,
-      onboardPackage: onboardPackage.trim(),
-      onboardPassword: onboardPassword.trim(),
-      cleanup
-    };
-  } catch (error) {
-    try {
-      await cleanup();
-    } catch {
-      // Preserve the original startup error.
-    }
-    throw new Error(
-      `Failed to start demo harness: ${error instanceof Error ? error.message : String(error)}\n${readHarnessLogs(projectName, composeEnv)}`
-    );
-  }
-}
-
-function execCompose(projectName: string, env: NodeJS.ProcessEnv, args: string[]) {
-  execFileSync('docker', ['compose', '-p', projectName, '-f', 'compose.test.yml', ...args], {
-    cwd: REPO_ROOT_DIR,
-    stdio: 'inherit',
-    env
-  });
-}
-
-async function cleanupArtifactDir(dir: string) {
-  try {
-    await rm(dir, { recursive: true, force: true });
-    return;
-  } catch {
-    try {
-      execFileSync(
-        'docker',
-        [
-          'run',
-          '--rm',
-          '-v',
-          `${dir}:/target`,
-          'ubuntu:24.04',
-          'bash',
-          '-lc',
-          'chmod -R a+rwX /target || true; rm -rf /target/* /target/.[!.]* /target/..?* || true'
-        ],
-        {
-          cwd: REPO_ROOT_DIR,
-          stdio: 'ignore'
-        }
-      );
-    } catch {
-      // Best-effort only.
-    }
-    await rm(dir, { recursive: true, force: true }).catch(() => undefined);
-  }
-}
-
-function buildExtensionOnce() {
-  if (buildPrepared) return;
-  if (!existsSync(EXTENSION_MANIFEST_PATH)) {
-    throw new Error(
-      `Missing built extension at ${EXTENSION_MANIFEST_PATH}. Run the Playwright global setup or npm run build in repos/igloo-chrome first.`
-    );
-  }
-  logE2E('chrome.fixture', 'build-extension:ready', {
-    manifestPath: EXTENSION_MANIFEST_PATH
-  });
-  buildPrepared = true;
-}
-
-async function waitForServiceWorker(context: BrowserContext) {
-  const existing = context.serviceWorkers();
-  if (existing.length > 0) return existing[0];
-  return await context.waitForEvent('serviceworker');
-}
-
-async function gotoExtensionPage(
-  page: Page,
-  extensionId: string,
-  targetPath: string,
-  options?: { waitForAppReady?: boolean }
-) {
-  const url = `chrome-extension://${extensionId}/${targetPath}`;
-  await page.goto(url).catch(async (error) => {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!message.includes('interrupted by another navigation')) {
-      throw error;
-    }
-  });
-  await page.waitForURL(url);
-  await page.waitForLoadState('domcontentloaded');
-  if (options?.waitForAppReady && targetPath === 'options.html') {
-    await page
-      .waitForFunction(() => document.body.dataset.appHydrating === 'false', undefined, {
-        timeout: 3_000
-      })
-      .catch((error) => {
-        recordPageDiagnostic(
-          page,
-          `app-ready-timeout: ${error instanceof Error ? error.message : String(error)}`
-        );
-      });
-  }
-}
-
-async function openPageForStorage(context: BrowserContext, extensionId: string) {
-  const page = await context.newPage();
-  await gotoExtensionPage(page, extensionId, 'options.html', { waitForAppReady: false });
-  return page;
-}
-
-async function collectFailureBundle(context: BrowserContext, extensionId: string) {
-  const page = await openPageForStorage(context, extensionId).catch(() => null);
-  if (!page) {
-    return {
-      e2eEvents: getE2EEvents(),
-      extensionDiagnosticsError: 'failed to open extension storage page',
-      workerOnboardingFailureBundle
-    };
-  }
-
-  try {
-    const runtimeDiagnostics = await fetchRuntimeDiagnosticsFromPage(page).catch((error) => ({
-      error: error instanceof Error ? error.message : String(error)
-    }));
-    const status = await fetchExtensionStatusFromPage(page).catch((error) => ({
-      error: error instanceof Error ? error.message : String(error)
-    }));
-    const storageSnapshot = await fetchWorkerStorageSnapshot(page).catch((error) => ({
-      error: error instanceof Error ? error.message : String(error)
-    }));
-    return {
-      e2eEvents: getE2EEvents(),
-      runtimeDiagnostics,
-      status,
-      storageSnapshot,
-      pageDiagnostics: Object.fromEntries(extensionPageErrors),
-      workerOnboardingFailureBundle
-    };
-  } finally {
-    await page.close().catch(() => undefined);
-  }
-}
-
-async function writeFailureBundle(
-  testInfo: TestInfo,
-  context: BrowserContext,
-  extensionId: string
-) {
-  const filePath = testInfo.outputPath('observability-bundle.json');
-  const bundle = await collectFailureBundle(context, extensionId);
-  await writeFile(filePath, JSON.stringify(bundle, null, 2), 'utf8');
-  await testInfo.attach('observability-bundle', {
-    path: filePath,
-    contentType: 'application/json'
-  });
-}
-
-function isIgnorableContextCloseError(error: unknown) {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return (
-    error.message.includes('ENOENT: no such file or directory') &&
-    (error.message.includes('.playwright-artifacts-') ||
-      error.message.includes('recording') ||
-      error.message.includes('.zip'))
-  );
-}
-
-async function closeContextSafely(context: BrowserContext) {
-  try {
-    await context.close();
-  } catch (error) {
-    if (!isIgnorableContextCloseError(error)) {
-      throw error;
-    }
-    logE2E('chrome.fixture', 'close-context:ignoring-playwright-artifact-error', {
-      error_message: error.message
-    });
-  }
-}
 
 export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
   context: async ({}, use, testInfo) => {
     clearE2EEvents();
-    workerOnboardingFailureBundle = null;
-    extensionPageErrors.clear();
-    buildExtensionOnce();
-    const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'igloo-chrome-pw-'));
-    const context = await withLoggedStep(
+    clearFixtureDiagnostics();
+    const { context, userDataDir } = await withLoggedStep(
       'chrome.fixture',
       'launch-context',
-      { userDataDir },
-      async () =>
-        await chromium.launchPersistentContext(userDataDir, {
-          channel: 'chromium',
-          headless: true,
-          args: extensionLaunchArgs()
-        })
+      { userDataDirPrefix: path.join('/tmp', 'igloo-chrome-pw-') },
+      async () => await launchExtensionContext(extensionPath)
     );
 
     try {
       await use(context);
     } finally {
       const serviceWorkers = context.serviceWorkers();
-      const extensionId =
-        serviceWorkers.length > 0 ? new URL(serviceWorkers[0].url()).host : null;
+      const extensionId = serviceWorkers.length > 0 ? new URL(serviceWorkers[0].url()).host : null;
       if (testInfo.status !== testInfo.expectedStatus && extensionId) {
         await writeFailureBundle(testInfo, context, extensionId).catch(() => undefined);
       }
       logE2E('chrome.fixture', 'close-context:start');
-      await closeContextSafely(context);
-      await rm(userDataDir, { recursive: true, force: true });
+      await disposeExtensionContext(context, userDataDir);
       logE2E('chrome.fixture', 'close-context:ok');
     }
   },
@@ -516,12 +69,23 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
     const worker = await withLoggedStep('chrome.fixture', 'wait-service-worker', undefined, async () =>
       await waitForServiceWorker(context)
     );
+    worker.on('console', (message) => {
+      if (isExpectedConsoleNoise(message.type(), message.text())) {
+        return;
+      }
+      logE2E('chrome.worker', 'console', {
+        console_type: message.type(),
+        text: message.text(),
+      });
+    });
+    worker.on('close', () => {
+      logE2E('chrome.worker', 'close');
+    });
     await use(worker);
   },
 
   extensionId: async ({ serviceWorker }, use) => {
-    const extensionId = new URL(serviceWorker.url()).host;
-    await use(extensionId);
+    await use(new URL(serviceWorker.url()).host);
   },
 
   server: async ({}, use) => {
@@ -554,60 +118,42 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
   }, { scope: 'worker', timeout: 180_000 }],
 
   onboardedLiveSignerProfile: [async ({ liveSignerWorker }, use) => {
-    buildExtensionOnce();
+    buildExtensionOnce(extensionPath);
     const fixture = await withLoggedStep(
       'chrome.fixture',
       'prepare-onboarded-live-profile',
       undefined,
       async () => await liveSignerWorker.resetForTest()
     );
-    const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'igloo-chrome-pw-worker-onboard-'));
-    const context = await chromium.launchPersistentContext(userDataDir, {
-      channel: 'chromium',
-      headless: true,
-      args: extensionLaunchArgs()
+    const liveProfile = fixture.profile;
+    const shareSecret = liveProfile.profilePayload?.device.shareSecret ?? null;
+    const sharePublicKey =
+      typeof shareSecret === 'string' && shareSecret.length > 0
+        ? getPublicKey(Uint8Array.from(Buffer.from(shareSecret, 'hex'))).toLowerCase()
+        : undefined;
+    await use({
+      id: liveProfile.profilePayload?.profileId,
+      groupName: `${liveProfile.groupName} Seed`,
+      relays: liveProfile.relays,
+      publicKey: liveProfile.publicKey,
+      groupPublicKey: liveProfile.publicKey,
+      sharePublicKey,
+      peerPubkey: liveProfile.peerPubkey,
+      profilePayload:
+        liveProfile.profilePayload
+          ? {
+              ...liveProfile.profilePayload,
+              device: {
+                ...liveProfile.profilePayload.device,
+                name: `${liveProfile.groupName} Seed`,
+              },
+              groupPackage: {
+                ...liveProfile.profilePayload.groupPackage,
+                groupName: `${liveProfile.groupName} Seed`,
+              },
+            }
+          : undefined,
     });
-
-    try {
-      const serviceWorker = await waitForServiceWorker(context);
-      const extensionId = new URL(serviceWorker.url()).host;
-      let lastOnboardingPage: Page | null = null;
-      const profile = await onboardLiveSignerProfile(async (targetPath: string) => {
-        const page = await context.newPage();
-        lastOnboardingPage = page;
-        await gotoExtensionPage(page, extensionId, targetPath, {
-          waitForAppReady: targetPath === 'options.html'
-        });
-        return page;
-      }, fixture.profile, `${fixture.profile.groupName} Seed`).catch(async (error) => {
-        const status = lastOnboardingPage
-          ? await fetchExtensionStatusFromPage(lastOnboardingPage).catch((inner) => ({
-              error: inner instanceof Error ? inner.message : String(inner)
-            }))
-          : null;
-        const runtimeDiagnostics = lastOnboardingPage
-          ? await fetchRuntimeDiagnosticsFromPage(lastOnboardingPage).catch((inner) => ({
-              error: inner instanceof Error ? inner.message : String(inner)
-            }))
-          : null;
-        const storageSnapshot = lastOnboardingPage
-          ? await fetchWorkerStorageSnapshot(lastOnboardingPage).catch((inner) => ({
-              error: inner instanceof Error ? inner.message : String(inner)
-            }))
-          : null;
-        workerOnboardingFailureBundle = {
-          error: error instanceof Error ? error.message : String(error),
-          status,
-          runtimeDiagnostics,
-          storageSnapshot
-        };
-        throw error;
-      });
-      await use(profile);
-    } finally {
-      await context.close();
-      await rm(userDataDir, { recursive: true, force: true });
-    }
   }, { scope: 'worker', timeout: 180_000 }],
 
   stableLiveSigner: async ({ liveSignerWorker, onboardedLiveSignerProfile }, use) => {
@@ -636,7 +182,7 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
   },
 
   demoHarness: async ({}, use) => {
-    const fixture = await startDemoHarnessFixture();
+    const fixture: DemoHarnessFixture = await startDemoHarnessFixture();
     try {
       await use(fixture);
     } finally {
@@ -647,52 +193,44 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
   openExtensionPage: async ({ context, extensionId }, use) => {
     await use(async (targetPath: string) => {
       const page = await context.newPage();
-      page.on('pageerror', (error) => {
-        recordPageDiagnostic(page, `pageerror: ${error.message}`);
-      });
-      page.on('console', (message) => {
-        if (message.type() === 'error' || message.type() === 'warning') {
-          recordPageDiagnostic(page, `console.${message.type()}: ${message.text()}`);
-        }
-      });
+      attachPageDiagnostics(page);
       await gotoExtensionPage(page, extensionId, targetPath, {
-        waitForAppReady: targetPath === 'options.html'
+        waitForAppReady: targetPath === 'options.html',
       });
       return page;
     });
   },
 
-  callOffscreenRpc: async ({ context, extensionId }, use) => {
-    await use(async <T>(rpcType: string, payload?: Record<string, unknown>) => {
-      return await withLoggedStep(
-        'chrome.fixture',
-        'offscreen-rpc',
-        { rpcType },
-        async () => {
-          const page = await openPageForStorage(context, extensionId);
-          try {
-            const result = await page.evaluate(
-              async ({ nextRpcType, nextPayload }) => {
-                await chrome.runtime.sendMessage({ type: 'ext.getStatus' });
-                const response = await chrome.runtime.sendMessage({
-                  type: 'ext.offscreenRpc',
-                  rpcType: nextRpcType,
-                  payload: nextPayload
-                });
-                if (!response?.ok) {
-                  throw new Error(response?.error || 'Offscreen rpc failed');
-                }
-                return response.result;
-              },
-              { nextRpcType: rpcType, nextPayload: payload }
-            );
-            return result as T;
-          } finally {
-            await page.close();
-          }
-        }
-      );
-    });
+  fetchRuntimeSnapshot: async ({ context, extensionId }, use) => {
+    await use(async <T>() =>
+      await withLoggedStep('chrome.fixture', 'fetch-runtime-snapshot', undefined, async () =>
+        await fetchRuntimeSnapshotViaExtension<T>(context, extensionId)
+      )
+    );
+  },
+
+  fetchRuntimeStatus: async ({ context, extensionId }, use) => {
+    await use(async <T>() =>
+      await withLoggedStep('chrome.fixture', 'fetch-runtime-status', undefined, async () =>
+        await fetchRuntimeStatusViaExtension<T>(context, extensionId)
+      )
+    );
+  },
+
+  fetchRuntimeDiagnostics: async ({ context, extensionId }, use) => {
+    await use(async <T>() =>
+      await withLoggedStep('chrome.fixture', 'fetch-runtime-diagnostics', undefined, async () =>
+        await fetchRuntimeDiagnosticsViaExtension<T>(context, extensionId)
+      )
+    );
+  },
+
+  prepareRuntimeReadiness: async ({ context, extensionId }, use) => {
+    await use(async <T>(operation: 'sign' | 'ecdh') =>
+      await withLoggedStep('chrome.fixture', 'prepare-runtime-readiness', { operation }, async () =>
+        await sendRuntimePrepare<T>(context, extensionId, operation)
+      )
+    );
   },
 
   activateProfile: async ({ context, extensionId }, use) => {
@@ -700,45 +238,24 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
       await withLoggedStep('chrome.fixture', 'activate-profile', { profileId }, async () => {
         const page = await openPageForStorage(context, extensionId);
         try {
-          await page.evaluate(async (nextProfileId) => {
-            const response = (await chrome.runtime.sendMessage({
-              type: 'ext.activateProfile',
-              profileId: nextProfileId
-            })) as { ok?: boolean; error?: string } | undefined;
-            if (!response?.ok) {
-              throw new Error(response?.error || 'Profile activation failed');
-            }
-          }, profileId);
+          await activateProfileViaExtension(page, profileId);
         } finally {
-          await page.close();
+          await page.close().catch(() => undefined);
         }
       });
     });
   },
 
   runRuntimeControl: async ({ context, extensionId }, use) => {
-    await use(async (action: 'closeOffscreen' | 'reloadExtension') => {
-      await withLoggedStep(
-        'chrome.fixture',
-        'runtime-control',
-        { action },
-        async () => {
-          const page = await openPageForStorage(context, extensionId);
-          try {
-            await page.evaluate(async (nextAction) => {
-              const response = (await chrome.runtime.sendMessage({
-                type: 'ext.runtimeControl',
-                action: nextAction
-              })) as { ok?: boolean; error?: string } | undefined;
-              if (!response?.ok) {
-                throw new Error(response?.error || 'Runtime control failed');
-              }
-            }, action);
-          } finally {
-            await page.close();
-          }
+    await use(async (action: 'stopRuntime' | 'reloadExtension') => {
+      await withLoggedStep('chrome.fixture', 'runtime-control', { action }, async () => {
+        const page = await openPageForStorage(context, extensionId);
+        try {
+          await runRuntimeControlViaExtension(page, action);
+        } finally {
+          await page.close().catch(() => undefined);
         }
-      );
+      });
     });
   },
 
@@ -747,15 +264,7 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
       await withLoggedStep('chrome.fixture', 'reload-extension', undefined, async () => {
         const page = await openPageForStorage(context, extensionId);
         try {
-          await page.evaluate(async () => {
-            const response = (await chrome.runtime.sendMessage({
-              type: 'ext.runtimeControl',
-              action: 'reloadExtension'
-            })) as { ok?: boolean; error?: string } | undefined;
-            if (!response?.ok) {
-              throw new Error(response?.error || 'Extension reload failed');
-            }
-          });
+          await reloadExtensionViaPage(page);
         } finally {
           await page.close().catch(() => undefined);
         }
@@ -772,152 +281,10 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
         'seed-profile',
         {
           relays: overrides.relays ?? TEST_PROFILE.relays,
-          hasOnboardPackage: typeof overrides.onboardPackage === 'string'
+          hasOnboardPackage: typeof overrides.onboardPackage === 'string',
         },
         async () => {
-          const page = await openPageForStorage(context, extensionId);
-          const shareSecret = '22'.repeat(32);
-          const compressedSharePubkey = `02${getPublicKey(Uint8Array.from(Buffer.from(shareSecret, 'hex'))).toLowerCase()}`;
-          await page.evaluate(
-            async ({ profile, publicKey, groupPublicKey, peerPubkey, shareSecret, compressedSharePubkey }) => {
-              if (profile.storedBlobRecord && typeof profile.sessionKeyB64 === 'string') {
-                await chrome.storage.local.set({
-                  'igloo.ext.profiles': [profile.storedBlobRecord],
-                  'igloo.ext.activeProfileId': profile.storedBlobRecord.id
-                });
-                await chrome.storage.session.set({
-                  'igloo.ext.sessionUnlocks': {
-                    [profile.storedBlobRecord.id]: {
-                      keyB64: profile.sessionKeyB64,
-                      updatedAt: Date.now()
-                    }
-                  }
-                });
-                return;
-              }
-              const encoder = new TextEncoder();
-              const bytesToBase64 = (bytes: Uint8Array) => {
-                let binary = '';
-                for (const value of bytes) binary += String.fromCharCode(value);
-                return btoa(binary);
-              };
-              const profileId =
-                profile.id ??
-                (profile.sharePublicKey as string | undefined) ??
-                (groupPublicKey as string | undefined) ??
-                (publicKey as string | undefined) ??
-                '11'.repeat(32);
-              const label = (profile.groupName as string | undefined)?.trim() || 'Playwright Smoke';
-              const password = 'playwright-passphrase';
-              const salt = crypto.getRandomValues(new Uint8Array(16));
-              const iv = crypto.getRandomValues(new Uint8Array(12));
-              const baseKey = await crypto.subtle.importKey(
-                'raw',
-                encoder.encode(password),
-                'PBKDF2',
-                false,
-                ['deriveKey']
-              );
-              const aesKey = await crypto.subtle.deriveKey(
-                {
-                  name: 'PBKDF2',
-                  hash: 'SHA-256',
-                  salt,
-                  iterations: 200000
-                },
-                baseKey,
-                {
-                  name: 'AES-GCM',
-                  length: 256
-                },
-                true,
-                ['encrypt', 'decrypt']
-              );
-              const payload = {
-                version: 1,
-                profile: {
-                  profileId,
-                  version: 1,
-                  device: {
-                    name: label,
-                    shareSecret,
-                    manualPeerPolicyOverrides: [],
-                    relays: Array.isArray(profile.relays) ? profile.relays : []
-                  },
-                  groupPackage: {
-                    groupName: label,
-                    groupPk:
-                      (groupPublicKey as string | undefined) ??
-                      (publicKey as string | undefined) ??
-                      '33'.repeat(32),
-                    threshold: 2,
-                    members: [
-                      {
-                        idx: 1,
-                        pubkey: compressedSharePubkey
-                      }
-                    ]
-                  }
-                },
-                signerSettings: {
-                  sign_timeout_secs: 30,
-                  ping_timeout_secs: 15,
-                  request_ttl_secs: 300,
-                  state_save_interval_secs: 30,
-                  peer_selection_strategy: 'deterministic_sorted'
-                },
-                runtimeSnapshotJson:
-                  typeof profile.runtimeSnapshotJson === 'string' ? profile.runtimeSnapshotJson : undefined,
-                peerPubkey: peerPubkey ?? profile.peerPubkey ?? undefined
-              };
-              const ciphertext = await crypto.subtle.encrypt(
-                { name: 'AES-GCM', iv },
-                aesKey,
-                encoder.encode(JSON.stringify(payload))
-              );
-              const exportedKey = await crypto.subtle.exportKey('raw', aesKey);
-              await chrome.storage.local.set({
-                'igloo.ext.profiles': [
-                  {
-                    id: profileId,
-                    label,
-                    blob: {
-                      version: 1,
-                      kdf: {
-                        saltB64: bytesToBase64(salt),
-                        iterations: 200000,
-                        hash: 'SHA-256'
-                      },
-                      cipher: {
-                        ivB64: bytesToBase64(iv),
-                        ciphertextB64: bytesToBase64(new Uint8Array(ciphertext))
-                      }
-                    },
-                    createdAt: Date.now(),
-                    updatedAt: Date.now()
-                  }
-                ],
-                'igloo.ext.activeProfileId': profileId
-              });
-              await chrome.storage.session.set({
-                'igloo.ext.sessionUnlocks': {
-                  [profileId]: {
-                    keyB64: bytesToBase64(new Uint8Array(exportedKey)),
-                    updatedAt: Date.now()
-                  }
-                }
-              });
-            },
-            {
-              profile: { ...TEST_PROFILE, ...overrides },
-              publicKey: overrides.publicKey,
-              groupPublicKey: overrides.groupPublicKey,
-              peerPubkey: overrides.peerPubkey,
-              shareSecret,
-              compressedSharePubkey
-            }
-          );
-          await page.close();
+          await seedProfileIntoExtension(context, extensionId, overrides);
         }
       );
     });
@@ -925,55 +292,21 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
 
   seedPermissionPolicies: async ({ context, extensionId }, use) => {
     await use(async (policies) => {
-      const page = await openPageForStorage(context, extensionId);
-      await page.evaluate(async (entries) => {
-        await chrome.storage.local.set({
-          'igloo.ext.permissions': entries.map((entry) => ({
-            ...entry,
-            createdAt: entry.createdAt ?? Date.now()
-          }))
-        });
-      }, policies);
-      await page.close();
-    });
-  },
-
-  seedPeerPolicies: async ({ context, extensionId }, use) => {
-    await use(async (policies) => {
-      const page = await openPageForStorage(context, extensionId);
-      await page.evaluate(
-        async (entries) => {
-          localStorage.setItem('igloo.policies', JSON.stringify(entries));
-          await chrome.storage.local.set({
-            'igloo.ext.peerPolicies': entries
-          });
-        },
-        policies
-      );
-      await page.close();
+      await seedPermissionPoliciesIntoExtension(context, extensionId, policies);
     });
   },
 
   clearSessionUnlocks: async ({ context, extensionId }, use) => {
     await use(async () => {
-      const page = await openPageForStorage(context, extensionId);
-      await page.evaluate(async () => {
-        await chrome.storage.session.clear();
-      });
-      await page.close();
+      await clearSessionUnlocksInExtension(context, extensionId);
     });
   },
 
   clearExtensionStorage: async ({ context, extensionId }, use) => {
     await use(async () => {
-      const page = await openPageForStorage(context, extensionId);
-      await page.evaluate(async () => {
-        await chrome.storage.local.clear();
-        await chrome.storage.session.clear();
-      });
-      await page.close();
+      await clearExtensionStorageState(context, extensionId);
     });
-  }
+  },
 });
 
 export { expect, TEST_PEER_PUBLIC_KEY, TEST_PROFILE, TEST_PUBLIC_KEY };

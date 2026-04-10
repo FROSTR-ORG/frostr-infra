@@ -19,7 +19,7 @@ test.describe('provider bridge live signer @live', () => {
 
   test('runtime snapshot reports nonce pool state once peers are hydrated', async ({
     activateProfile,
-    callOffscreenRpc,
+    fetchRuntimeSnapshot,
     onboardedLiveSignerProfile,
     seedProfile,
     stableLiveSigner
@@ -29,7 +29,7 @@ test.describe('provider bridge live signer @live', () => {
 
     await expect
       .poll(async () => {
-        const snapshot = await callOffscreenRpc<RuntimeSnapshotResult>('runtime.snapshot');
+        const snapshot = await fetchRuntimeSnapshot<RuntimeSnapshotResult>();
         try {
           assertNoncePoolHydrated('provider-live runtime snapshot', snapshot, 2, 1);
           return true;
@@ -39,7 +39,7 @@ test.describe('provider bridge live signer @live', () => {
       })
       .toBe(true);
 
-    const snapshot = await callOffscreenRpc<RuntimeSnapshotResult>('runtime.snapshot');
+    const snapshot = await fetchRuntimeSnapshot<RuntimeSnapshotResult>();
     expect(['ready', 'degraded']).toContain(snapshot.runtime);
     expect(snapshot.snapshotError).toBeNull();
     expect(snapshot.snapshot?.state?.nonce_pool?.peers).toEqual(

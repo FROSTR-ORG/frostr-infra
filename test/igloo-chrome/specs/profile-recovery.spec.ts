@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { COMMAND_TYPE } from '../../../repos/igloo-chrome/src/extension/messages';
 
 import { createGeneratedBrowserArtifacts, publishBackupForProfile } from '../../shared/browser-artifacts';
 import { startLocalRelay } from '../../shared/local-relay';
@@ -22,9 +23,9 @@ test.describe('extension bfshare recovery', () => {
       const page = await openExtensionPage('options.html');
       await expect(page.getByRole('heading', { name: 'Recover bfshare' })).toBeVisible();
       await page.evaluate(
-        async ({ packageText, password }) => {
+        async ({ recoverType, packageText, password }) => {
           const response = (await chrome.runtime.sendMessage({
-            type: 'ext.recoverBfshare',
+            type: recoverType,
             packageText,
             password,
           })) as { ok?: boolean; error?: string } | undefined;
@@ -33,6 +34,7 @@ test.describe('extension bfshare recovery', () => {
           }
         },
         {
+          recoverType: COMMAND_TYPE.PROFILES_RECOVER,
           packageText: generated.shares[0].bfshare,
           password: 'playwright-passphrase',
         },

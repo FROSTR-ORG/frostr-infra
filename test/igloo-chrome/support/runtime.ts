@@ -47,6 +47,21 @@ export type RuntimeReadinessResult = {
 };
 
 const RECOVERED_PENDING_OPS_REASON = 'pending_operations_recovered';
+const INSUFFICIENT_SIGNING_PEERS_REASON = 'insufficient_signing_peers';
+const INSUFFICIENT_ECDH_PEERS_REASON = 'insufficient_ecdh_peers';
+
+function canProceedWhileDegraded(operation: 'sign' | 'ecdh', degradedReasons: string[]) {
+  if (degradedReasons.length === 0) {
+    return false;
+  }
+
+  const allowedReasons =
+    operation === 'sign'
+      ? new Set([RECOVERED_PENDING_OPS_REASON, INSUFFICIENT_ECDH_PEERS_REASON])
+      : new Set([RECOVERED_PENDING_OPS_REASON, INSUFFICIENT_SIGNING_PEERS_REASON]);
+
+  return degradedReasons.every((reason) => allowedReasons.has(reason));
+}
 
 export function assertNoncePoolHydrated(
   label: string,
@@ -92,10 +107,7 @@ export function assertRuntimeReadiness(
     throw new Error(`${label}: readiness payload is missing`);
   }
   const degradedReasons = readinessResult.readiness.degraded_reasons ?? [];
-  const canProceedWhileDegraded =
-    degradedReasons.length > 0 &&
-    degradedReasons.every((reason) => reason === RECOVERED_PENDING_OPS_REASON);
-  if (!readinessResult.readiness.restore_complete && !canProceedWhileDegraded) {
+  if (!readinessResult.readiness.restore_complete && !canProceedWhileDegraded(operation, degradedReasons)) {
     throw new Error(`${label}: runtime restore is not complete`);
   }
   const ready =

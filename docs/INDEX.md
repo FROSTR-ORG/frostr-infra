@@ -42,11 +42,12 @@ Then read the artifact and flow specs you need:
 - [GLOSSARY.md](./GLOSSARY.md)
   - canonical shared terminology
 
-Workspace structure, contribution rules, and release coordination live at the
-repo root:
+Workspace structure and contribution rules live at the repo root. Coordinated
+release guidance lives under `dev/`:
 - [`../README.md`](../README.md)
 - [`../CONTRIBUTING.md`](../CONTRIBUTING.md)
-- [`../RELEASE.md`](../RELEASE.md)
+- [`../dev/README.md`](../dev/README.md)
+- [`../dev/docs/RELEASE.md`](../dev/docs/RELEASE.md)
 
 ### Runtime and cryptographic behavior
 
@@ -70,7 +71,7 @@ repo root:
 
 ## Architecture Decisions
 
-- [design/adrs/INDEX.md](../design/adrs/INDEX.md)
+- [dev/adrs/INDEX.md](../dev/adrs/INDEX.md)
   - architecture decision records for the current hard-cut design
 
 ## Repo-Local Manuals
@@ -97,11 +98,11 @@ Cross-repo demo-harness and browser E2E guidance lives in:
 
 ## Guidance For Future Work
 
-- [design/policies/architecture-guidance.md](../design/policies/architecture-guidance.md)
-- [design/policies/host-transport-guidance.md](../design/policies/host-transport-guidance.md)
-- [design/policies/mobile-and-wasm-host-guidance.md](../design/policies/mobile-and-wasm-host-guidance.md)
-- [design/policies/profile-and-secret-material-guidance.md](../design/policies/profile-and-secret-material-guidance.md)
-- [design/policies/runtime-and-persistence-guidance.md](../design/policies/runtime-and-persistence-guidance.md)
-- [design/policies/observability-and-debugging-guidance.md](../design/policies/observability-and-debugging-guidance.md)
-- [design/policies/testing-guidance.md](../design/policies/testing-guidance.md)
-- [design/policies/documentation-guidance.md](../design/policies/documentation-guidance.md)
+- [dev/policies/architecture-guidance.md](../dev/policies/architecture-guidance.md)
+- [dev/policies/host-transport-guidance.md](../dev/policies/host-transport-guidance.md)
+- [dev/policies/mobile-and-wasm-host-guidance.md](../dev/policies/mobile-and-wasm-host-guidance.md)
+- [dev/policies/profile-and-secret-material-guidance.md](../dev/policies/profile-and-secret-material-guidance.md)
+- [dev/policies/runtime-and-persistence-guidance.md](../dev/policies/runtime-and-persistence-guidance.md)
+- [dev/policies/observability-and-debugging-guidance.md](../dev/policies/observability-and-debugging-guidance.md)
+- [dev/policies/testing-guidance.md](../dev/policies/testing-guidance.md)
+- [dev/policies/documentation-guidance.md](../dev/policies/documentation-guidance.md)

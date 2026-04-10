@@ -10,6 +10,7 @@ import {
   type RuntimeSnapshotResult
 } from '../support/runtime';
 import { onboardLiveSignerProfile } from '../support/onboarding';
+import { isExpectedConsoleNoise } from '../fixtures/helpers/context';
 
 const SIGN_EVENT_PAYLOAD = {
   kind: 1,
@@ -39,6 +40,9 @@ async function approvePromptOnce(prompt: import('@playwright/test').Page) {
 function attachPageConsoleLogging(page: Page, label: string) {
   page.on('console', (message) => {
     const text = message.text();
+    if (isExpectedConsoleNoise(message.type(), text)) {
+      return;
+    }
     try {
       const parsed = JSON.parse(text) as Record<string, unknown>;
       logE2E(`chrome.page.${label}`, 'console', {
@@ -102,10 +106,11 @@ test.describe('demo harness onboarding @live', () => {
 
   test('onboards from igloo-demo and signs through the live demo node', async ({
     activateProfile,
-    callOffscreenRpc,
     clearExtensionStorage,
     context,
     demoHarness,
+    fetchRuntimeDiagnostics,
+    fetchRuntimeSnapshot,
     openExtensionPage,
     server
   }) => {
@@ -141,27 +146,26 @@ test.describe('demo harness onboarding @live', () => {
 
     await withLoggedStep(
       'chrome.demo-harness.spec',
-      'ensure-offscreen-runtime',
+      'ensure-runtime-ready',
       undefined,
       async () => {
         await activateProfile(storedProfile.id!);
       }
     );
 
-    const offscreenSnapshot = await withLoggedStep(
+    const runtimeSnapshot = await withLoggedStep(
       'chrome.demo-harness.spec',
-      'read-offscreen-runtime-snapshot',
+      'read-runtime-snapshot',
       undefined,
-      async () =>
-        await callOffscreenRpc<RuntimeSnapshotResult>('runtime.snapshot')
+      async () => await fetchRuntimeSnapshot<RuntimeSnapshotResult>()
     );
 
     await withLoggedStep(
       'chrome.demo-harness.spec',
-      'assert-offscreen-nonce-hydration',
+      'assert-runtime-nonce-hydration',
       undefined,
       async () => {
-        assertNoncePoolHydrated('offscreen restored snapshot', offscreenSnapshot, 2, 1);
+        assertNoncePoolHydrated('restored runtime snapshot', runtimeSnapshot, 2, 1);
       }
     );
 
@@ -180,11 +184,11 @@ test.describe('demo harness onboarding @live', () => {
     const result = await requestProviderSign(context, providerPage);
 
     if (!result.ok) {
-      const diagnostics = await callOffscreenRpc<{
+      const diagnostics = await fetchRuntimeDiagnostics<{
         runtime: 'cold' | 'restoring' | 'ready' | 'degraded';
         diagnostics: RuntimeDiagnosticEvent[];
         dropped: number;
-      }>('runtime.diagnostics');
+      }>();
       throw new Error(
         `demo harness signEvent failed: ${result.message}\n${JSON.stringify(diagnostics.diagnostics.slice(-12), null, 2)}`
       );

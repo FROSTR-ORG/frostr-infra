@@ -60,7 +60,6 @@ test.describe('extension dashboard smoke', () => {
 
   test('signer tab surfaces live nonce pool diagnostics @live', async ({
     activateProfile,
-    callOffscreenRpc,
     openExtensionPage,
     onboardedLiveSignerProfile,
     seedProfile,
@@ -110,7 +109,7 @@ test.describe('extension dashboard smoke', () => {
     await page.close();
   });
 
-  test('settings page wipes stored state and resets the profile', async ({
+  test('settings page exposes the unified actions and no wipe/reset control', async ({
     openExtensionPage,
     seedPermissionPolicies,
     seedProfile,
@@ -132,9 +131,12 @@ test.describe('extension dashboard smoke', () => {
     await expect(page.getByText('Start the signer to inspect and edit live peer policy state.')).toBeVisible();
 
     await page.getByRole('tab', { name: /Settings/i }).first().click();
-    await page.getByRole('button', { name: 'Wipe All Data' }).click();
-    await expect(page.getByRole('heading', { name: 'Onboard Device' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'copy profile' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'copy share' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'rotate share' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'logout' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /wipe all data/i })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /reset/i })).toHaveCount(0);
 
     await page.close();
   });
@@ -148,12 +150,16 @@ test.describe('extension dashboard smoke', () => {
     await clearSessionUnlocks();
 
     const page = await openExtensionPage('options.html');
+    const storedProfilesCard = page
+      .getByRole('heading', { name: 'Stored Profiles' })
+      .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')
+      .first();
 
-    await expect(page.getByText('Stored Profiles', { exact: true })).toBeVisible();
-    await expect(page.getByText('Playwright Smoke')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Unlock' })).toBeVisible();
+    await expect(storedProfilesCard).toBeVisible();
+    await expect(storedProfilesCard.getByRole('button', { name: /Playwright Smoke/ })).toBeVisible();
+    await expect(storedProfilesCard.getByRole('button', { name: 'Load Profile' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Unlock' }).click();
+    await storedProfilesCard.getByRole('button', { name: 'Load Profile' }).click();
     await expect(page.getByText('Unlock Stored Profile')).toBeVisible();
     await page.getByPlaceholder('Enter profile password').fill('wrongpass');
     await page.getByRole('button', { name: 'Unlock Profile' }).click();
@@ -173,14 +179,18 @@ test.describe('extension dashboard smoke', () => {
     await seedProfile({ publicKey: TEST_PUBLIC_KEY });
 
     const page = await openExtensionPage('options.html');
+    const storedProfilesCard = page
+      .getByRole('heading', { name: 'Stored Profiles' })
+      .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')
+      .first();
 
     await expect(page.getByRole('tab', { name: /Settings/i }).first()).toBeVisible();
     await page.getByRole('tab', { name: /Settings/i }).first().click();
-    await page.getByRole('button', { name: 'Log Out' }).click();
+    await page.getByRole('button', { name: 'logout' }).click();
 
-    await expect(page.getByText('Stored Profiles', { exact: true })).toBeVisible();
-    await expect(page.getByText('Playwright Smoke')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Unlock' })).toBeVisible();
+    await expect(storedProfilesCard).toBeVisible();
+    await expect(storedProfilesCard.getByRole('button', { name: /Playwright Smoke/ })).toBeVisible();
+    await expect(storedProfilesCard.getByRole('button', { name: 'Load Profile' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Onboard Device' })).toBeVisible();
 
     await page.close();

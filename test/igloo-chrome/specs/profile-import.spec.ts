@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { COMMAND_TYPE } from '../../../repos/igloo-chrome/src/extension/messages';
 
 import { createGeneratedBrowserArtifacts } from '../../shared/browser-artifacts';
 import { startLocalRelay } from '../../shared/local-relay';
@@ -21,9 +22,9 @@ test.describe('extension bfprofile import', () => {
       const page = await openExtensionPage('options.html');
       await expect(page.getByRole('heading', { name: 'Load bfprofile' })).toBeVisible();
       await page.evaluate(
-        async ({ packageText, password }) => {
+        async ({ importType, packageText, password }) => {
           const response = (await chrome.runtime.sendMessage({
-            type: 'ext.importBfprofile',
+            type: importType,
             packageText,
             password,
           })) as { ok?: boolean; error?: string } | undefined;
@@ -32,6 +33,7 @@ test.describe('extension bfprofile import', () => {
           }
         },
         {
+          importType: COMMAND_TYPE.PROFILES_IMPORT,
           packageText: generated.shares[0].bfprofile,
           password: 'playwright-passphrase',
         },

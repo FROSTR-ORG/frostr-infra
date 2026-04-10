@@ -4,9 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
-npm --prefix repos/igloo-shared run build:bridge-wasm >/dev/null
-npm --prefix repos/igloo-chrome run build:bridge-wasm >/dev/null
-npm --prefix repos/igloo-pwa run build:bridge-wasm >/dev/null
+npm --prefix repos/igloo-shared run build:browser-wasm >/dev/null
+npm --prefix repos/igloo-chrome run build:browser-wasm >/dev/null
+npm --prefix repos/igloo-pwa run build:browser-wasm >/dev/null
 
 if ! git diff --quiet -- \
   repos/igloo-shared/public/wasm \

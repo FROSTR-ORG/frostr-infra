@@ -20,9 +20,26 @@ function buildBinary(args: string[]) {
   });
 }
 
+function supportsCurrentImportContract(binaryPath: string) {
+  try {
+    const help = execFileSync(binaryPath, ['import', '--help'], {
+      cwd: IGLOO_SHELL_DIR,
+      env: process.env,
+      encoding: 'utf8'
+    });
+    return help.includes('--passphrase');
+  } catch {
+    return false;
+  }
+}
+
 export function ensureIglooShellBinary() {
   if (shellPrepared) return IGLOO_SHELL_BINARY_PATH;
-  if (process.env.FROSTR_TEST_PREPARED === '1' && existsSync(IGLOO_SHELL_BINARY_PATH)) {
+  if (
+    process.env.FROSTR_TEST_PREPARED === '1' &&
+    existsSync(IGLOO_SHELL_BINARY_PATH) &&
+    supportsCurrentImportContract(IGLOO_SHELL_BINARY_PATH)
+  ) {
     shellPrepared = true;
     return IGLOO_SHELL_BINARY_PATH;
   }

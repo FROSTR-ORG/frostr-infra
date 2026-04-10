@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { COMMAND_TYPE } from '../../../repos/igloo-chrome/src/extension/messages';
 
 import {
   createGeneratedBrowserArtifacts,
@@ -6,7 +7,10 @@ import {
   createRotatedBrowserArtifacts,
 } from '../../shared/browser-artifacts';
 import { startLocalRelay } from '../../shared/local-relay';
-import { startBrowserRuntimeSession, type BrowserRuntimeSession } from '../../../repos/igloo-shared/src/pwa-runtime-host';
+import {
+  startBrowserRuntimeSession,
+  type BrowserRuntimeSession,
+} from '../../../repos/igloo-pwa/src/lib/page-runtime-host';
 import { test } from '../fixtures/extension';
 
 function shortId(value: string) {
@@ -53,9 +57,9 @@ test.describe('extension rotate key', () => {
       const page = await openExtensionPage('options.html');
       await expect(page.getByRole('heading', { name: 'Load bfprofile' })).toBeVisible();
       await page.evaluate(
-        async ({ packageText, password }) => {
+        async ({ importType, packageText, password }) => {
           const response = (await chrome.runtime.sendMessage({
-            type: 'ext.importBfprofile',
+            type: importType,
             packageText,
             password,
           })) as { ok?: boolean; error?: string } | undefined;
@@ -64,6 +68,7 @@ test.describe('extension rotate key', () => {
           }
         },
         {
+          importType: COMMAND_TYPE.PROFILES_IMPORT,
           packageText: current.shares[0].bfprofile,
           password: 'playwright-passphrase',
         },
@@ -71,19 +76,31 @@ test.describe('extension rotate key', () => {
       await expect(page.getByRole('tab', { name: /Settings/i }).first()).toBeVisible();
 
       await page.getByRole('tab', { name: /Settings operator controls/i }).click();
-      await expect(page.getByRole('heading', { name: 'Rotate Key' })).toBeVisible();
-      await page.getByPlaceholder('bfonboard1...').fill(rotationPackage);
-      await page.getByLabel('Package Password').fill('rotate-package-pass');
-      await page.getByRole('button', { name: 'Connect Rotation Package' }).click();
+      const rotateCard = page
+        .getByRole('heading', { name: 'rotate share' })
+        .locator('xpath=ancestor::section[contains(@class, "rounded-lg")]')
+        .first();
+      await expect(rotateCard).toBeVisible();
+      await rotateCard.getByPlaceholder('bfonboard1...').fill(rotationPackage);
+      await rotateCard.getByLabel('Package Password').fill('rotate-package-pass');
+      await rotateCard.getByRole('button', { name: 'rotate share' }).click();
       await expect(page.getByText('New Profile Id')).toBeVisible();
       await expect(page.getByText(rotated.shares[0].profileId)).toBeVisible();
-      await page.getByRole('button', { name: 'Replace Active Device' }).click();
-      await expect(page.getByRole('button', { name: 'Replace Active Device' })).toHaveCount(0);
+      await rotateCard.getByRole('button', { name: 'rotate share' }).click();
+      await expect(rotateCard.getByRole('button', { name: 'rotate share' })).toHaveCount(0);
       await expect(page.getByText(`${shortId(rotated.shares[0].profileId)})`)).toBeVisible();
-      await page.getByRole('button', { name: 'Log Out' }).click();
-      await expect(page.getByText('Stored Profiles', { exact: true })).toBeVisible();
-      await expect(page.getByText(shortId(rotated.shares[0].profileId))).toBeVisible();
-      await expect(page.getByText(shortId(current.shares[0].profileId))).toHaveCount(0);
+      await page.getByRole('button', { name: 'logout' }).click();
+      const storedProfilesCard = page
+        .getByRole('heading', { name: 'Stored Profiles' })
+        .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')
+        .first();
+      await expect(storedProfilesCard).toBeVisible();
+      await expect(
+        storedProfilesCard.getByRole('button', { name: new RegExp(shortId(rotated.shares[0].profileId)) }),
+      ).toBeVisible();
+      await expect(
+        storedProfilesCard.getByRole('button', { name: new RegExp(shortId(current.shares[0].profileId)) }),
+      ).toHaveCount(0);
       await page.close();
     } finally {
       inviterSession?.stop();

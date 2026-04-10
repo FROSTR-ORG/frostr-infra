@@ -35,7 +35,7 @@ fi
 
 for path in "${changed_files[@]}"; do
   case "${path}" in
-    README.md|CONTRIBUTING.md|RELEASE.md|CHANGELOG.md|run.sh|compose.test.yml|scripts/*|test/*|docs/*|services/*|.github/*)
+    README.md|CONTRIBUTING.md|CHANGELOG.md|run.sh|compose.test.yml|scripts/*|test/*|docs/*|dev/*|services/*|.github/*)
       run_guards=1
       ;;
     repos/bifrost-rs/*)
@@ -134,8 +134,12 @@ fi
 
 if [[ "${run_home}" -eq 1 ]]; then
   if [[ "${DRY_RUN}" == "1" ]]; then
+    print_command "npm --prefix ${ROOT_DIR}/repos/igloo-home test"
+    print_command "npm --prefix ${ROOT_DIR}/repos/igloo-home run test:visual"
     print_command "FROSTR_TEST_PREPARED=1 IGLOO_HOME_TEST_SKIP_BUILD=1 IGLOO_HOME_TEST_BINARY=${HOME_BINARY} npm --prefix ${ROOT_DIR}/test run test:e2e:igloo-home"
   else
+    npm --prefix "${ROOT_DIR}/repos/igloo-home" test
+    npm --prefix "${ROOT_DIR}/repos/igloo-home" run test:visual
     env \
       FROSTR_TEST_PREPARED=1 \
       IGLOO_HOME_TEST_SKIP_BUILD=1 \

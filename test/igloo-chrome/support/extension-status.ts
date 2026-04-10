@@ -1,12 +1,20 @@
 import type { Page } from '@playwright/test';
+import {
+  COMMAND_TYPE,
+  type DiagnosticsGetMessage,
+  type ExtensionCommand,
+  type ExtensionCommandResult,
+  type ExtensionMessageResponse,
+  type StateGetMessage,
+} from '../../../repos/igloo-chrome/src/extension/messages';
 
 const DEFAULT_EXTENSION_MESSAGE_TIMEOUT_MS = 1_500;
 
-async function sendExtensionMessage<T>(
+export async function sendExtensionMessageFromPage<T extends ExtensionCommand['type']>(
   page: Page,
-  payload: Record<string, unknown>,
+  payload: Extract<ExtensionCommand, { type: T }>,
   timeoutMs = DEFAULT_EXTENSION_MESSAGE_TIMEOUT_MS
-): Promise<T> {
+): Promise<ExtensionCommandResult<T>> {
   return await page.evaluate(
     async ({ messagePayload, messageTimeoutMs }) => {
       const response = (await Promise.race([
@@ -14,9 +22,9 @@ async function sendExtensionMessage<T>(
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error(`extension message timed out: ${String(messagePayload.type)}`)), messageTimeoutMs)
         )
-      ])) as { ok?: boolean; result?: unknown; error?: string } | undefined;
+      ])) as ExtensionMessageResponse<unknown> | undefined;
 
-      if (!response?.ok || response.result === undefined) {
+      if (!response?.ok) {
         throw new Error(response?.error || 'Extension message failed');
       }
 
@@ -26,25 +34,35 @@ async function sendExtensionMessage<T>(
       messagePayload: payload,
       messageTimeoutMs: timeoutMs
     }
-  ) as Promise<T>;
-}
-
-export async function fetchExtensionStatusFromPage<T>(page: Page): Promise<T> {
-  return await sendExtensionMessage<T>(page, {
-    type: 'ext.getStatus'
-  });
+  ) as Promise<ExtensionCommandResult<T>>;
 }
 
 export async function fetchExtensionAppStateFromPage<T>(page: Page): Promise<T> {
-  return await sendExtensionMessage<T>(page, {
-    type: 'ext.getAppState'
-  });
+  const payload: StateGetMessage = {
+    type: COMMAND_TYPE.STATE_GET
+  };
+  return await sendExtensionMessageFromPage(page, payload) as T;
 }
 
 export async function fetchRuntimeDiagnosticsFromPage<T>(page: Page): Promise<T> {
-  return await sendExtensionMessage<T>(page, {
-    type: 'ext.getRuntimeDiagnostics'
-  });
+  const payload: DiagnosticsGetMessage = {
+    type: COMMAND_TYPE.DIAGNOSTICS_GET
+  };
+  return await sendExtensionMessageFromPage(page, payload) as T;
+}
+
+export async function fetchRuntimeSnapshotFromPage<T>(page: Page): Promise<T> {
+  const payload: DiagnosticsGetMessage = {
+    type: COMMAND_TYPE.DIAGNOSTICS_GET
+  };
+  return await sendExtensionMessageFromPage(page, payload) as T;
+}
+
+export async function fetchRuntimeStatusFromPage<T>(page: Page): Promise<T> {
+  const payload: DiagnosticsGetMessage = {
+    type: COMMAND_TYPE.DIAGNOSTICS_GET
+  };
+  return await sendExtensionMessageFromPage(page, payload) as T;
 }
 
 export async function fetchWorkerStorageSnapshot(page: Page) {

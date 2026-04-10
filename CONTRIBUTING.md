@@ -9,6 +9,8 @@ harnesses, or cross-repo verification.
 
 The parent repo owns:
 - shared system docs under [`docs/`](./docs)
+- workspace-level release docs, ADRs, and engineering guidance under
+  [`dev/`](./dev)
 - cross-repo browser and demo-harness tests under [`test/`](./test)
 - demo compose definitions, demo services, and root orchestration under
   [`compose.test.yml`](./compose.test.yml) and [`run.sh`](./run.sh)
@@ -21,6 +23,8 @@ specific project repo.
 
 - `docs/`
   - canonical shared-system manual for FROSTR
+- `dev/`
+  - workspace release docs, ADRs, policies, and planning artifacts
 - `repos/`
   - independent project repos
 - `test/`
@@ -36,13 +40,32 @@ specific project repo.
 
 ## Documentation Ownership
 
-### Root docs
+### Workspace docs
 
-Root docs in this repo should explain:
+Workspace docs in this repo should explain:
 - how the workspace is organized
 - how contributors should work across repos
 - how to run root-level commands and validation
 - how coordinated releases are prepared and cut
+
+Workspace-level engineering docs under [`dev/`](./dev) should capture:
+- coordinated release instructions
+- architecture decision records
+- contributor-facing policies and guidance
+
+### Canonical docs map
+
+Use these surfaces as the source of truth:
+- [`README.md`](./README.md)
+  - supported top-level workspace commands and day-to-day entrypoints
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+  - ownership, contribution rules, and validation expectations
+- [`docs/`](./docs)
+  - shared FROSTR system spec
+- [`dev/`](./dev)
+  - workspace engineering process, ADRs, and historical records
+- [`test/README.md`](./test/README.md)
+  - cross-repo demo harness and E2E guidance
 
 ### Shared system docs
 
@@ -159,8 +182,8 @@ Choose the smallest validation that proves the change:
 - root doc changes: link/reference sweep and manual doc review
 - test harness changes: relevant `./run.sh test ...` or `npm --prefix test run ...`
 - demo stack changes: `./run.sh demo ...` and the affected smoke flow
-- release workflow changes: follow [`RELEASE.md`](./RELEASE.md) and the affected
-  repo-local release docs
+- release workflow changes: follow [`dev/docs/RELEASE.md`](./dev/docs/RELEASE.md)
+  and the affected repo-local release docs
 
 For coordinated checkpoints, validate both the changed submodule(s) and the
 parent workspace before updating submodule pointers.

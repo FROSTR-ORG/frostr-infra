@@ -45,6 +45,7 @@ Notes:
 Examples:
   ./run.sh repo check
   ./run.sh demo start --port 8394
+  BG=1 ./run.sh demo start
   ./run.sh test release
   ./run.sh compose logs dev-relay
   ./run.sh browser igloo-chrome build
@@ -69,6 +70,10 @@ Usage:
   ./run.sh demo logs
   ./run.sh demo onboard
   ./run.sh demo smoke [--port <port>]
+
+Notes:
+  ./run.sh demo start stays attached to the terminal by default.
+  Use BG=1 ./run.sh demo start to launch the demo stack in the background.
 EOF
 }
 

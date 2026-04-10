@@ -1,10 +1,6 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from '@playwright/test';
 
-import {
-  assertRuntimeReadiness,
-  type RuntimeDiagnosticEvent,
-  type RuntimeReadinessResult
-} from './runtime';
+import type { RuntimeDiagnosticEvent } from './runtime';
 
 export const SIGN_EVENT_PAYLOAD = {
   kind: 1,
@@ -12,22 +8,6 @@ export const SIGN_EVENT_PAYLOAD = {
   tags: [],
   content: 'playwright live signEvent'
 };
-
-export async function prepareSignReady(
-  callOffscreenRpc: <T>(rpcType: string, payload?: Record<string, unknown>) => Promise<T>,
-  label: string
-) {
-  const readiness = await callOffscreenRpc<RuntimeReadinessResult>('runtime.prepare_sign');
-  assertRuntimeReadiness(label, readiness, 'sign');
-}
-
-export async function prepareEcdhReady(
-  callOffscreenRpc: <T>(rpcType: string, payload?: Record<string, unknown>) => Promise<T>,
-  label: string
-) {
-  const readiness = await callOffscreenRpc<RuntimeReadinessResult>('runtime.prepare_ecdh');
-  assertRuntimeReadiness(label, readiness, 'ecdh');
-}
 
 export async function approvePromptOnce(prompt: Page) {
   await prompt.waitForLoadState('domcontentloaded');
@@ -37,6 +17,29 @@ export async function approvePromptOnce(prompt: Page) {
     .catch(() => {
       // The background closes the prompt as part of successful approval.
     });
+}
+
+export async function runProviderActionWithApproval<T>(
+  context: BrowserContext,
+  serverOrigin: string,
+  promptText: string,
+  action: (page: Page) => Promise<T>
+) {
+  const page = await context.newPage();
+  try {
+    await page.goto(`${serverOrigin}/provider`);
+    const promptPromise = context.waitForEvent(
+      'page',
+      (candidate) => candidate.url().includes('/prompt.html')
+    );
+    const resultPromise = action(page);
+    const prompt = await promptPromise;
+    await expect(prompt.getByText(promptText)).toBeVisible();
+    await approvePromptOnce(prompt);
+    return await resultPromise;
+  } finally {
+    await page.close();
+  }
 }
 
 export function buildSignFailureMessage(

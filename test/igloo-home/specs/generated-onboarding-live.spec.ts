@@ -33,7 +33,7 @@ test.describe('igloo-home generated onboarding', () => {
         label: 'Generated Local Device',
         relay_urls: [harness.relayUrl],
         relay_profile: null,
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
         group_package_json: generated.group_package_json,
         share_package_json: localShare.share_package_json,
       });
@@ -42,7 +42,7 @@ test.describe('igloo-home generated onboarding', () => {
 
       const snapshot = await app.request<{ active: boolean }>('start_profile_session', {
         profile_id: imported.profile!.id,
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
       });
       expect(snapshot.active).toBe(true);
 
@@ -71,7 +71,7 @@ test.describe('igloo-home generated onboarding', () => {
       }>('finalize_connected_onboarding', {
         label: 'Generated Remote Device',
         relay_profile: null,
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
       });
 
       expect(onboarded.status).toBe('profile_created');

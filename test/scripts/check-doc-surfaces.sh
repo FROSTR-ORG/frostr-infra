@@ -8,7 +8,11 @@ if rg -n \
   -e 'docs/STRUCTURE\.md' \
   -e 'test/DEMO_STRATEGY\.md' \
   -e 'E2E-DEMO-STRATEGY' \
-  README.md CONTRIBUTING.md RELEASE.md docs test \
+  -e '\(\./RELEASE\.md\)' \
+  -e '\(\.\./RELEASE\.md\)' \
+  -e 'design/adrs/' \
+  -e 'design/policies/' \
+  README.md CONTRIBUTING.md docs dev test \
   --glob '!test/scripts/check-doc-surfaces.sh'
 then
   echo "retired parent doc paths are still referenced" >&2
@@ -21,7 +25,7 @@ if rg -n \
   -e 'data/test-harness' \
   -e '/tmp/frostr-test-prebuild-' \
   -e 'setup-dev\.sh' \
-  run.sh scripts .github test README.md CONTRIBUTING.md RELEASE.md docs \
+  run.sh scripts .github test README.md CONTRIBUTING.md docs dev \
   --glob '!test/scripts/check-doc-surfaces.sh'
 then
   echo "retired parent surfaces are still referenced" >&2

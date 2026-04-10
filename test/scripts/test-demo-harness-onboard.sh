@@ -18,7 +18,7 @@ cleanup() {
       XDG_CONFIG_HOME="${XDG_ROOT}/config" \
       XDG_DATA_HOME="${XDG_ROOT}/data" \
       XDG_STATE_HOME="${XDG_ROOT}/state" \
-      IGLOO_SHELL_VAULT_PASSPHRASE="demo-harness-smoke-pass" \
+      IGLOO_SHELL_PROFILE_PASSPHRASE="demo-harness-smoke-pass" \
       "${IGLOO_SHELL_BIN}" daemon stop --profile "${PROFILE_ID}" >/dev/null 2>&1 || true
   fi
   env DEV_RELAY_PORT="${RELAY_PORT}" docker compose -p "${PROJECT_NAME}" -f "${ROOT_DIR}/compose.test.yml" down -v >/dev/null 2>&1 || true
@@ -62,31 +62,38 @@ env \
 
 PACKAGE_FILE="${ARTIFACT_DIR}/onboard-${RECIPIENT}.txt"
 PASSWORD_FILE="${ARTIFACT_DIR}/onboard-${RECIPIENT}.password.txt"
-VAULT_SECRET_FILE="${XDG_ROOT}/vault-secret.txt"
+PASSPHRASE_FILE="${XDG_ROOT}/passphrase.txt"
 wait_for_file "${PACKAGE_FILE}"
 wait_for_file "${PASSWORD_FILE}"
 
 mkdir -p "${XDG_ROOT}/config" "${XDG_ROOT}/data" "${XDG_ROOT}/state"
-printf '%s\n' "demo-harness-smoke-pass" >"${VAULT_SECRET_FILE}"
+printf '%s\n' "demo-harness-smoke-pass" >"${PASSPHRASE_FILE}"
 export XDG_CONFIG_HOME="${XDG_ROOT}/config"
 export XDG_DATA_HOME="${XDG_ROOT}/data"
 export XDG_STATE_HOME="${XDG_ROOT}/state"
-export IGLOO_SHELL_VAULT_PASSPHRASE="demo-harness-smoke-pass"
+export IGLOO_SHELL_PROFILE_PASSPHRASE="demo-harness-smoke-pass"
 
 ONBOARD_JSON="$(
   "${IGLOO_SHELL_BIN}" onboard "${PACKAGE_FILE}" \
     --onboard-secret-file "${PASSWORD_FILE}" \
-    --vault-secret-file "${VAULT_SECRET_FILE}" \
+    --passphrase-file "${PASSPHRASE_FILE}" \
     --json \
     --label "${RECIPIENT}-smoke"
 )"
-PROFILE_ID="$(printf '%s\n' "${ONBOARD_JSON}" | sed -n 's/^[[:space:]]*"id":[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
-if [[ -z "${PROFILE_ID}" ]]; then
-  PROFILE_ID="$(printf '%s\n' "${ONBOARD_JSON}" | sed -n 's/^[[:space:]]*"profile_id":[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
-fi
-if [[ -z "${PROFILE_ID}" ]]; then
-  PROFILE_ID="$(printf '%s\n' "${ONBOARD_JSON}" | sed -n 's/^[[:space:]]*"load":[[:space:]]*"igloo-shell profile load \([^"]*\)".*/\1/p' | head -n 1)"
-fi
+PROFILE_ID="$(
+  printf '%s\n' "${ONBOARD_JSON}" | awk '
+    /"import"[[:space:]]*:[[:space:]]*{/ { in_import=1 }
+    in_import && /"profile"[[:space:]]*:[[:space:]]*{/ { in_profile=1; next }
+    in_profile && /"id"[[:space:]]*:[[:space:]]*"/ {
+      line = $0
+      sub(/.*"id"[[:space:]]*:[[:space:]]*"/, "", line)
+      sub(/".*/, "", line)
+      print line
+      exit
+    }
+    in_profile && /^[[:space:]]*}/ { in_profile=0 }
+  '
+)"
 if [[ -z "${PROFILE_ID}" ]]; then
   echo "failed to parse onboarded profile id" >&2
   printf '%s\n' "${ONBOARD_JSON}" >&2

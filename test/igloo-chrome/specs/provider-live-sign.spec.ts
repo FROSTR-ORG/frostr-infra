@@ -2,11 +2,11 @@ import { test, expect } from '../fixtures/extension';
 import { verifyEvent } from 'nostr-tools/pure';
 import type { RuntimeDiagnosticEvent, RuntimeSnapshotResult } from '../support/runtime';
 import {
-  approvePromptOnce,
   buildSignFailureMessage,
-  prepareSignReady,
-  SIGN_EVENT_PAYLOAD
+  runProviderActionWithApproval,
+  SIGN_EVENT_PAYLOAD,
 } from '../support/provider-live';
+import { prepareLiveProfileForSigning, seedAndActivateLiveProfile } from '../support/live-runtime';
 
 test.describe('provider bridge live signer sign flow @live', () => {
   test.setTimeout(180_000);
@@ -15,71 +15,62 @@ test.describe('provider bridge live signer sign flow @live', () => {
     context,
     server,
     onboardedLiveSignerProfile,
-    seedProfile,
-    stableLiveSigner
+    seedProfile
   }) => {
     await seedProfile(onboardedLiveSignerProfile);
 
-    const page = await context.newPage();
-    await page.goto(`${server.origin}/provider`);
-
-    const promptPromise = context.waitForEvent(
-      'page',
-      (candidate) => candidate.url().includes('/prompt.html')
-    );
-    const resultPromise = page.evaluate(() => window.nostr!.getPublicKey());
-
-    const prompt = await promptPromise;
-    await expect(prompt.getByText('wants to read your public key')).toBeVisible();
-    await approvePromptOnce(prompt);
-
-    await expect(resultPromise).resolves.toBe(stableLiveSigner.profile.publicKey);
-    await page.close();
+    await expect(
+      runProviderActionWithApproval(
+        context,
+        server.origin,
+        'wants to read your public key',
+        async (page) => await page.evaluate(() => window.nostr!.getPublicKey())
+      )
+    ).resolves.toBe(onboardedLiveSignerProfile.publicKey);
   });
 
   test('signEvent succeeds against a live responder after bootstrap hydration', async ({
     activateProfile,
-    callOffscreenRpc,
+    fetchRuntimeDiagnostics,
+    fetchRuntimeSnapshot,
     context,
     server,
     onboardedLiveSignerProfile,
-    seedProfile,
-    stableLiveSigner
+    seedProfile
   }) => {
-    await seedProfile(onboardedLiveSignerProfile);
-    await activateProfile(onboardedLiveSignerProfile.id!);
-    await prepareSignReady(callOffscreenRpc, 'provider-live pre-sign readiness');
+    await prepareLiveProfileForSigning({
+      seedProfile,
+      activateProfile,
+      fetchRuntimeSnapshot,
+      profile: onboardedLiveSignerProfile,
+      label: 'provider-live pre-sign readiness',
+      expectedPeers: 2,
+      minSignReadyPeers: 1,
+    });
 
-    const page = await context.newPage();
-    await page.goto(`${server.origin}/provider`);
-
-    const promptPromise = context.waitForEvent(
-      'page',
-      (candidate) => candidate.url().includes('/prompt.html')
+    const result = await runProviderActionWithApproval(
+      context,
+      server.origin,
+      'wants to sign a Nostr event',
+      async (page) =>
+        await page.evaluate(async (event) => {
+          try {
+            return { ok: true, event: await window.nostr!.signEvent(event), message: null };
+          } catch (error) {
+            return {
+              ok: false,
+              event: null,
+              message: error instanceof Error ? error.message : String(error)
+            };
+          }
+        }, SIGN_EVENT_PAYLOAD)
     );
-    const resultPromise = page.evaluate(async (event) => {
-      try {
-        return { ok: true, event: await window.nostr!.signEvent(event), message: null };
-      } catch (error) {
-        return {
-          ok: false,
-          event: null,
-          message: error instanceof Error ? error.message : String(error)
-        };
-      }
-    }, SIGN_EVENT_PAYLOAD);
-
-    const prompt = await promptPromise;
-    await expect(prompt.getByText('wants to sign a Nostr event')).toBeVisible();
-    await approvePromptOnce(prompt);
-
-    const result = await resultPromise;
     if (!result.ok) {
-      const diagnostics = await callOffscreenRpc<{
+      const diagnostics = await fetchRuntimeDiagnostics<{
         runtime: 'cold' | 'restoring' | 'ready' | 'degraded';
         diagnostics: RuntimeDiagnosticEvent[];
         dropped: number;
-      }>('runtime.diagnostics');
+      }>();
       throw new Error(buildSignFailureMessage(result.message, diagnostics.diagnostics));
     }
 
@@ -87,56 +78,52 @@ test.describe('provider bridge live signer sign flow @live', () => {
       kind: SIGN_EVENT_PAYLOAD.kind,
       content: SIGN_EVENT_PAYLOAD.content,
       created_at: SIGN_EVENT_PAYLOAD.created_at,
-      pubkey: stableLiveSigner.profile.publicKey
+      pubkey: onboardedLiveSignerProfile.publicKey
     });
     expect(result.event?.tags).toEqual(SIGN_EVENT_PAYLOAD.tags);
     expect(typeof result.event?.id).toBe('string');
     expect(typeof result.event?.sig).toBe('string');
     expect(verifyEvent(result.event!)).toBe(true);
-    await page.close();
   });
 
   test('signEvent fails cleanly when the live responder disappears mid-session', async ({
     activateProfile,
-    callOffscreenRpc,
     context,
+    fetchRuntimeSnapshot,
     server,
     stableLiveSigner,
     onboardedLiveSignerProfile,
     seedProfile
   }) => {
-    await seedProfile(onboardedLiveSignerProfile);
-    await activateProfile(onboardedLiveSignerProfile.id!);
-    await callOffscreenRpc<RuntimeSnapshotResult>('runtime.snapshot');
+    await seedAndActivateLiveProfile({
+      seedProfile,
+      activateProfile,
+      profile: onboardedLiveSignerProfile,
+    });
+    await fetchRuntimeSnapshot<RuntimeSnapshotResult>();
     await stableLiveSigner.stopResponder();
 
-    const page = await context.newPage();
-    await page.goto(`${server.origin}/provider`);
-
-    const promptPromise = context.waitForEvent(
-      'page',
-      (candidate) => candidate.url().includes('/prompt.html')
-    );
-    const resultPromise = page.evaluate(async (event) => {
-      try {
-        await window.nostr!.signEvent(event);
-        return { ok: true, message: null };
-      } catch (error) {
-        return {
-          ok: false,
-          message: error instanceof Error ? error.message : String(error)
-        };
-      }
-    }, SIGN_EVENT_PAYLOAD);
-
-    const prompt = await promptPromise;
-    await expect(prompt.getByText('wants to sign a Nostr event')).toBeVisible();
-    await approvePromptOnce(prompt);
-
-    await expect(resultPromise).resolves.toMatchObject({
+    await expect(
+      runProviderActionWithApproval(
+        context,
+        server.origin,
+        'wants to sign a Nostr event',
+        async (page) =>
+          await page.evaluate(async (event) => {
+            try {
+              await window.nostr!.signEvent(event);
+              return { ok: true, message: null };
+            } catch (error) {
+              return {
+                ok: false,
+                message: error instanceof Error ? error.message : String(error)
+              };
+            }
+          }, SIGN_EVENT_PAYLOAD)
+      )
+    ).resolves.toMatchObject({
       ok: false,
       message: expect.any(String)
     });
-    await page.close();
   });
 });

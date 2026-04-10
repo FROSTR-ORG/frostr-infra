@@ -65,7 +65,7 @@ test.describe('igloo-pwa ui-first shell', () => {
                 source: 'bfprofile',
                 relay_profile: 'browser',
                 group_ref: 'group-ref',
-                share_ref: 'share-ref',
+                encrypted_profile_ref: 'encrypted-profile-ref',
                 state_path: '/tmp/igloo-pwa/profile-1',
                 created_at: 1700000000000,
                 stored_password: 'pw',
@@ -137,7 +137,7 @@ test.describe('igloo-pwa ui-first shell', () => {
     await expect(toggle).not.toBeChecked();
   });
 
-  test('returns to landing only after resetting the browser workspace', async ({ page }) => {
+  test('settings expose the unified actions and logout returns to landing while preserving saved profiles', async ({ page }) => {
     await page.addInitScript(([storageKey]) => {
       if (!window.localStorage.getItem(storageKey)) {
         window.localStorage.setItem(
@@ -156,7 +156,7 @@ test.describe('igloo-pwa ui-first shell', () => {
                 source: 'bfprofile',
                 relay_profile: 'wss://relay.primal.net',
                 group_ref: 'group-ref',
-                share_ref: 'share-ref',
+                encrypted_profile_ref: 'encrypted-profile-ref',
                 state_path: '/tmp/igloo-pwa/profile-1',
                 created_at: 1700000000000,
                 stored_password: 'pw',
@@ -221,7 +221,18 @@ test.describe('igloo-pwa ui-first shell', () => {
     await expect(page.getByText('Choose one path to initialize this browser workspace.')).toHaveCount(0);
 
     await page.getByRole('tab', { name: /Settings\s+operator controls/i }).click();
-    await page.getByRole('button', { name: 'Reset browser workspace' }).click();
+    await expect(page.getByRole('button', { name: 'copy profile' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'copy share' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'rotate share' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'logout' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /reset browser workspace/i })).toHaveCount(0);
+    await page.getByRole('button', { name: 'logout' }).click();
     await expect(page.getByText('Choose one path to initialize this browser workspace.')).toBeVisible();
+    const storedProfilesCard = page
+      .getByRole('heading', { name: 'Stored Profiles' })
+      .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')
+      .first();
+    await expect(storedProfilesCard.getByRole('button', { name: 'Primary Browser Device' })).toBeVisible();
+    await expect(storedProfilesCard.getByRole('button', { name: 'Load Profile' })).toBeVisible();
   });
 });

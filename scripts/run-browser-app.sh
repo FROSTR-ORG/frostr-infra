@@ -58,21 +58,21 @@ needs_bridge_rebuild() {
   return 1
 }
 
-status "Preparing browser bridge artifacts for $APP_NAME"
+status "Preparing browser wasm artifacts for $APP_NAME"
 if needs_bridge_rebuild; then
-  warn "Detected newer bifrost-rs or missing artifacts; rebuilding bridge wasm in igloo-shared"
+  warn "Detected newer bifrost-rs or missing artifacts; rebuilding browser wasm in igloo-shared"
   (
     cd "$SHARED_DIR"
-    npm run build:bridge-wasm
+    npm run build:browser-wasm
   )
 else
-  success "Shared bridge wasm artifacts are up to date"
+  success "Shared browser wasm artifacts are up to date"
 fi
 
-status "Syncing bridge wasm into $APP_NAME"
+status "Syncing browser wasm into $APP_NAME"
 (
   cd "$APP_DIR"
-  npm run build:bridge-wasm
+  npm run build:browser-wasm
 )
 
 status "Running npm script '$APP_ACTION' for $APP_NAME"

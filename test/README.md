@@ -126,6 +126,10 @@ That command:
 - exports the current relay URL, onboarding packages, and passwords
 - writes the artifacts under `./.tmp/test-harness/`
 
+By default it stays attached to the terminal so you can watch compose output
+and stop the stack with `Ctrl-C`. Use `BG=1 ./run.sh demo start` to launch the
+same stack in the background.
+
 The important local files are:
 
 - `./.tmp/test-harness/demo-relay-port.txt`
@@ -162,8 +166,11 @@ Then in the browser:
 4. Paste the matching package password from
    `./.tmp/test-harness/onboard-bob.password.txt`.
 5. Click `Connect`.
-6. On `Review Onboarded Profile`, choose a device label and local password.
-7. Click `Save Device`.
+6. On `Review Onboarded Profile`, confirm the imported group and relay preview.
+7. Enter `Device Profile Name`, `Device Password`, and `Confirm Password`.
+8. Leave `Relays` pointed at the demo relay unless you are intentionally
+   overriding the package defaults.
+9. Click `Save Device`.
 
 The onboarded PWA profile will connect to the relay URL printed by
 `./run.sh demo start`, for example `ws://localhost:8194`, and can then interact
@@ -181,7 +188,7 @@ cargo run -p igloo-shell-cli -- \
   onboard ../../.tmp/test-harness/onboard-carol.txt \
   --label demo-carol-shell \
   --onboard-secret "$(cat ../../.tmp/test-harness/onboard-carol.password.txt)" \
-  --vault-secret demo-passphrase \
+  --passphrase demo-passphrase \
   --start
 ```
 
@@ -189,7 +196,7 @@ That command:
 
 - imports the `bfonboard` package
 - saves the local shell-managed profile
-- unlocks it with the supplied vault secret
+- unlocks it with the supplied passphrase
 - starts the runtime and attaches to the daemon log
 
 Useful follow-up commands from `repos/igloo-shell`:
@@ -214,19 +221,21 @@ npm run tauri dev
 
 Then in the desktop app:
 
-1. Open `Onboard Device` from the landing page.
-2. Enter a local device label.
-3. Enter a vault passphrase for the desktop profile.
-4. Enter the onboarding package password from
+1. Click `Continue Onboarding` from the landing page.
+2. Enter the onboarding package password from
    `./.tmp/test-harness/onboard-bob.password.txt` or
    `./.tmp/test-harness/onboard-carol.password.txt`.
-5. Paste the matching `bfonboard` package text from
+3. Paste the matching `bfonboard` package text from
    `./.tmp/test-harness/onboard-bob.txt` or
    `./.tmp/test-harness/onboard-carol.txt`.
-6. Click `Onboard Device`.
+4. Click `Connect`.
+5. On `Review Onboarded Profile`, confirm the resolved group and relay preview.
+6. Enter a local device label.
+7. Enter a passphrase for the desktop profile.
+8. Click `Save Device`.
 
 The imported desktop profile will load with the relay settings supplied by the
-demo package and connect to the live signer on `dev-relay`.
+demo package, connect to `dev-relay`, and land on the shared dashboard shell.
 
 ### Demo Cleanup
 

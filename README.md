@@ -11,6 +11,8 @@ the implementation repos under [`repos/`](./repos).
 - `docs/`
   - shared FROSTR architecture, interfaces, protocol, cryptography, and
     artifact specs
+- `dev/`
+  - workspace-level release docs, ADRs, policies, and engineering notes
 - `repos/`
   - independent project repos such as `bifrost-rs`, `igloo-shell`,
     `igloo-home`, `igloo-pwa`, `igloo-chrome`, `igloo-shared`, and `igloo-ui`
@@ -23,12 +25,14 @@ the implementation repos under [`repos/`](./repos).
 - `run.sh`
   - curated root command router
 
-Use the root docs this way:
+Use the workspace docs this way:
 - [`README.md`](./README.md)
   - workspace entrypoint and daily command surface
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md)
   - workspace structure, ownership, and contribution rules
-- [`RELEASE.md`](./RELEASE.md)
+- [`dev/README.md`](./dev/README.md)
+  - map of workspace engineering docs and historical records under `dev/`
+- [`dev/docs/RELEASE.md`](./dev/docs/RELEASE.md)
   - coordinated release process for submodules and the parent repo
 - [`docs/INDEX.md`](./docs/INDEX.md)
   - shared FROSTR system manual
@@ -58,6 +62,10 @@ Common commands:
 ./run.sh browser igloo-chrome build
 ```
 
+`./run.sh demo start` stays attached to the terminal by default. Use
+`BG=1 ./run.sh demo start` if you want the demo stack to keep running in the
+background.
+
 The root workspace manages the demo-harness services (`dev-relay`,
 `igloo-demo`), shared docs, cross-repo tests, and submodule coordination.
 Those parent-owned services do not correspond one-to-one with a repo under
@@ -84,7 +92,9 @@ For the local demo harness:
 ./run.sh test release
 ```
 
-If the relay port is occupied, choose another:
+If the default relay port is occupied, the demo harness auto-picks the next
+free port and records it in `./.tmp/test-harness/demo-relay-port.txt`. You can
+still choose a specific port yourself:
 
 ```bash
 ./run.sh demo start --port 8394
@@ -102,8 +112,8 @@ For cross-repo validation and demos:
 - read [`test/README.md`](./test/README.md)
 
 For release work:
-- read [`RELEASE.md`](./RELEASE.md) first, then the affected submodule release
-  docs
+- read [`dev/docs/RELEASE.md`](./dev/docs/RELEASE.md) first, then the affected
+  submodule release docs
 
 The default parent scratch location for live demo-harness artifacts is
 `./.tmp/test-harness/`. Override it with `FROSTR_TEST_HARNESS_DIR` when a custom

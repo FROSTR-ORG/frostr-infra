@@ -59,8 +59,13 @@ export async function onboardPwaDevice(
 
 export async function loadStoredPwaProfile(page: Page, label: string) {
   await page.goto('/');
-  await expect(page.getByText('Stored Profiles')).toBeVisible();
-  await page.locator('.igloo-flow-card').filter({ hasText: label }).getByRole('button', { name: 'Load Profile' }).click();
+  const storedProfilesCard = page
+    .getByRole('heading', { name: 'Stored Profiles' })
+    .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')
+    .first();
+  await expect(storedProfilesCard).toBeVisible();
+  await storedProfilesCard.locator('button[aria-pressed]').filter({ hasText: label }).click();
+  await storedProfilesCard.getByRole('button', { name: /Load Profile|Open Dashboard/ }).first().click();
 }
 
 export async function expectPwaDashboard(page: Page, profileLabel?: string) {

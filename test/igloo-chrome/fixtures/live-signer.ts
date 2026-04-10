@@ -24,6 +24,40 @@ type LiveSignerProfile = {
   relays: string[];
   publicKey: string;
   peerPubkey: string;
+  profilePayload?: {
+    profileId: string;
+    version: number;
+    device: {
+      name: string;
+      shareSecret: string;
+      manualPeerPolicyOverrides: Array<{
+        pubkey: string;
+        policy: {
+          request: {
+            echo: 'unset' | 'allow' | 'deny';
+            ping: 'unset' | 'allow' | 'deny';
+            onboard: 'unset' | 'allow' | 'deny';
+            sign: 'unset' | 'allow' | 'deny';
+            ecdh: 'unset' | 'allow' | 'deny';
+          };
+          respond: {
+            echo: 'unset' | 'allow' | 'deny';
+            ping: 'unset' | 'allow' | 'deny';
+            onboard: 'unset' | 'allow' | 'deny';
+            sign: 'unset' | 'allow' | 'deny';
+            ecdh: 'unset' | 'allow' | 'deny';
+          };
+        };
+      }>;
+      relays: string[];
+    };
+    groupPackage: {
+      groupName: string;
+      groupPk: string;
+      threshold: number;
+      members: Array<{ idx: number; pubkey: string }>;
+    };
+  };
 };
 
 type ManagedResponderSetup = {
@@ -56,6 +90,19 @@ export type LiveSignerController = {
 };
 
 const BIFROST_EVENT_KIND = 20_000;
+const LIVE_SIGNER_VERBOSE = process.env.IGLOO_E2E_VERBOSE === '1';
+
+async function withFixtureStep<T>(
+  step: string,
+  data: Record<string, unknown> | undefined,
+  run: () => Promise<T> | T,
+  options?: { verboseOnly?: boolean }
+) {
+  if (options?.verboseOnly && !LIVE_SIGNER_VERBOSE) {
+    return await run();
+  }
+  return await withLoggedStep('chrome.live-signer', step, data, async () => await run());
+}
 
 function hexToBytes(value: string): Uint8Array {
   const clean = value.toLowerCase();
@@ -89,9 +136,9 @@ function cloneLiveSignerProfile(profile: LiveSignerProfile): LiveSignerProfile {
 }
 
 async function ensureIglooShellBinary() {
-  await withLoggedStep('chrome.live-signer', 'build-igloo-shell-binary', undefined, async () => {
+  await withFixtureStep('build-igloo-shell-binary', undefined, async () => {
     ensureSharedIglooShellBinary();
-  });
+  }, { verboseOnly: true });
   return ensureSharedIglooShellBinary();
 }
 
@@ -103,7 +150,7 @@ function managedShellEnv(root: string): NodeJS.ProcessEnv {
     XDG_CONFIG_HOME: path.join(xdgRoot, 'config'),
     XDG_DATA_HOME: path.join(xdgRoot, 'data'),
     XDG_STATE_HOME: path.join(xdgRoot, 'state'),
-    IGLOO_SHELL_VAULT_PASSPHRASE: 'playwright-live-passphrase'
+    IGLOO_SHELL_PROFILE_PASSPHRASE: 'playwright-live-passphrase'
   };
 }
 
@@ -120,25 +167,15 @@ function awaitlessEnsureIglooShellBinary() {
   return ensureSharedIglooShellBinary();
 }
 
-function findStringField(value: unknown, field: string): string | null {
-  if (!value || typeof value !== 'object') return null;
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      const found = findStringField(entry, field);
-      if (found) return found;
-    }
-    return null;
-  }
-
-  const record = value as Record<string, unknown>;
-  if (typeof record[field] === 'string') {
-    return record[field] as string;
-  }
-  for (const entry of Object.values(record)) {
-    const found = findStringField(entry, field);
-    if (found) return found;
-  }
-  return null;
+function extractImportedProfileId(value: unknown): string | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const importResult = (value as Record<string, unknown>).import;
+  if (!importResult || typeof importResult !== 'object' || Array.isArray(importResult)) return null;
+  const profile = (importResult as Record<string, unknown>).profile;
+  if (!profile || typeof profile !== 'object' || Array.isArray(profile)) return null;
+  return typeof (profile as Record<string, unknown>).id === 'string'
+    ? ((profile as Record<string, unknown>).id as string)
+    : null;
 }
 
 async function waitForRelayPort(host: string, port: number, timeoutMs: number) {
@@ -191,12 +228,14 @@ class ManagedRelayProcess {
     );
 
     child.stdout?.on('data', (chunk: Buffer) => {
+      if (!LIVE_SIGNER_VERBOSE) return;
       logE2E('chrome.live-signer', 'relay-stdout', {
         port: this.port,
         message: chunk.toString('utf8').trim(),
       });
     });
     child.stderr?.on('data', (chunk: Buffer) => {
+      if (!LIVE_SIGNER_VERBOSE) return;
       logE2E('chrome.live-signer', 'relay-stderr', {
         port: this.port,
         message: chunk.toString('utf8').trim(),
@@ -241,7 +280,7 @@ async function generateDemoResponderConfig(
 ): Promise<ManagedResponderSetup> {
   const demoDir = path.join(root, 'demo-2of3');
   const devtoolsBinary = ensureBifrostDevtoolsBinary();
-  await withLoggedStep('chrome.live-signer', 'generate-demo-material', { demoDir, relayUrl }, async () => {
+  await withFixtureStep('generate-demo-material', { demoDir, relayUrl }, async () => {
     execFileSync(
       devtoolsBinary,
       [
@@ -261,19 +300,18 @@ async function generateDemoResponderConfig(
         env: process.env
       }
     );
-  });
+  }, { verboseOnly: true });
 
   const shellEnv = managedShellEnv(root);
-  await withLoggedStep('chrome.live-signer', 'relays-set', { relayUrl }, async () => {
+  await withFixtureStep('relays-set', { relayUrl }, async () => {
     execFileSync(await ensureIglooShellBinary(), ['relays', 'set', 'local', relayUrl], {
       cwd: IGLOO_SHELL_DIR,
       encoding: 'utf8',
       env: shellEnv
     });
-  });
+  }, { verboseOnly: true });
 
-  const importJson = await withLoggedStep(
-    'chrome.live-signer',
+  const importJson = await withFixtureStep(
     'profile-import',
     { demoDir },
     async () =>
@@ -286,18 +324,19 @@ async function generateDemoResponderConfig(
           path.join(demoDir, 'share-alice.json'),
           '--label',
           'alice-live',
-          '--vault-secret',
+          '--passphrase',
           'playwright-live-passphrase',
           '--relay-profile',
           'local',
           '--json'
         ],
         shellEnv
-      )
+      ),
+    { verboseOnly: true }
   );
-  const profileId = findStringField(importJson, 'id');
+  const profileId = extractImportedProfileId(importJson);
   if (!profileId) {
-    throw new Error('profile import did not return an id');
+    throw new Error('profile import did not return import.profile.id');
   }
 
   return {
@@ -313,13 +352,13 @@ async function buildLiveProfile(
   shellEnv: NodeJS.ProcessEnv,
   demoDir: string
 ): Promise<LiveSignerProfile> {
-  return await withLoggedStep(
-    'chrome.live-signer',
+  return await withFixtureStep(
     'build-live-profile',
     { relayUrl },
     async () => {
       const group = await readJson<{
         group_pk: string;
+        threshold: number;
         members: Array<{ idx: number; pubkey: string }>;
       }>(path.join(demoDir, 'group.json'));
       const share = await readJson<{ idx: number; seckey: string }>(
@@ -332,8 +371,7 @@ async function buildLiveProfile(
       }
       const onboardingPassword = 'playwright-password';
       const onboardingPath = path.join(demoDir, 'share-bob.bfonboard');
-      await withLoggedStep(
-        'chrome.live-signer',
+      await withFixtureStep(
         'profile-export-bfonboard',
         { profileId, relayUrl },
         async () => {
@@ -348,8 +386,8 @@ async function buildLiveProfile(
               onboardingPath,
               '--recipient-share',
               path.join(demoDir, 'share-bob.json'),
-              '--vault-passphrase-env',
-              'IGLOO_SHELL_VAULT_PASSPHRASE',
+              '--passphrase-env',
+              'IGLOO_SHELL_PROFILE_PASSPHRASE',
               '--package-password-env',
               'LIVE_ONBOARD_PASSWORD'
             ],
@@ -362,7 +400,8 @@ async function buildLiveProfile(
               }
             }
           );
-        }
+        },
+        { verboseOnly: true }
       );
       const onboardingPackage = (await readFile(onboardingPath, 'utf8')).trim();
 
@@ -372,9 +411,29 @@ async function buildLiveProfile(
         onboardPassword: onboardingPassword,
         relays: [relayUrl],
         publicKey: group.group_pk.toLowerCase(),
-        peerPubkey: peerMember.pubkey.toLowerCase().slice(2)
+        peerPubkey: peerMember.pubkey.toLowerCase().slice(2),
+        profilePayload: {
+          profileId,
+          version: 1,
+          device: {
+            name: 'Playwright Live',
+            shareSecret: share.seckey.toLowerCase(),
+            manualPeerPolicyOverrides: [],
+            relays: [relayUrl],
+          },
+          groupPackage: {
+            groupName: 'Playwright Live',
+            groupPk: group.group_pk.toLowerCase(),
+            threshold: group.threshold,
+            members: group.members.map((member) => ({
+              idx: member.idx,
+              pubkey: member.pubkey.toLowerCase(),
+            })),
+          },
+        }
       };
-    }
+    },
+    { verboseOnly: true }
   );
 }
 
@@ -417,11 +476,13 @@ async function requestOnboardNonceCount(relayUrl: string, demoDir: string): Prom
   } as Filter;
 
   try {
-    logE2E('chrome.live-signer', 'manual-onboard:start', {
-      relayUrl,
-      requestId,
-      shareIdx: share.idx
-    });
+    if (LIVE_SIGNER_VERBOSE) {
+      logE2E('chrome.live-signer', 'manual-onboard:start', {
+        relayUrl,
+        requestId,
+        shareIdx: share.idx
+      });
+    }
     return await new Promise<number>((resolve, reject) => {
       let settled = false;
       const timeout = setTimeout(() => {
@@ -460,11 +521,6 @@ async function requestOnboardNonceCount(relayUrl: string, demoDir: string): Prom
               : [];
             finish(() => {
               subscription.close('resolved');
-              logE2E('chrome.live-signer', 'manual-onboard:response', {
-                relayUrl,
-                requestId,
-                nonceCount: nonces.length
-              });
               resolve(nonces.length);
             });
           } catch {
@@ -482,12 +538,6 @@ async function requestOnboardNonceCount(relayUrl: string, demoDir: string): Prom
 
       const results = pool.publish([relayUrl], event);
       Promise.allSettled(results).then((entries) => {
-        logE2E('chrome.live-signer', 'manual-onboard:publish', {
-          relayUrl,
-          requestId,
-          relaysOk: entries.filter((entry) => entry.status === 'fulfilled').length,
-          relaysTotal: entries.length
-        });
         const hasSuccess = entries.some((entry) => entry.status === 'fulfilled');
         if (!hasSuccess) {
           finish(() => {
@@ -533,18 +583,22 @@ class SharedLiveSignerController implements LiveSignerController {
   }
 
   async currentForTest(): Promise<LiveSignerFixture> {
-    await withLoggedStep('chrome.live-signer', 'prepare-current-fixture', { relayUrl: this.relay.url() }, async () => {
+    await withFixtureStep('prepare-current-fixture', { relayUrl: this.relay.url() }, async () => {
       await this.ensureRelay();
-      await this.ensureResponder();
-      if (!this.currentProfile && this.baseProfile) {
-        this.currentProfile = cloneLiveSignerProfile(this.baseProfile);
+      if (!this.baseProfile) {
+        throw new Error('live signer base profile is not configured');
       }
-    });
+      await this.stopResponderProcess();
+      await this.restoreResponderSnapshot();
+      await this.ensureResponder();
+      this.currentProfile = cloneLiveSignerProfile(this.baseProfile);
+      await this.primeOnboardNoncePool();
+    }, { verboseOnly: true });
     return this.buildFixture();
   }
 
   async resetForTest(): Promise<LiveSignerFixture> {
-    await withLoggedStep('chrome.live-signer', 'reset-fixture', { relayUrl: this.relay.url() }, async () => {
+    await withFixtureStep('reset-fixture', { relayUrl: this.relay.url() }, async () => {
       await this.relay.stop();
       await this.ensureRelay();
       await this.stopResponderProcess();
@@ -555,7 +609,8 @@ class SharedLiveSignerController implements LiveSignerController {
         throw new Error('live signer base profile is not configured');
       }
       this.currentProfile = cloneLiveSignerProfile(this.baseProfile);
-    });
+      await this.primeOnboardNoncePool();
+    }, { verboseOnly: true });
 
     return this.buildFixture();
   }
@@ -604,8 +659,7 @@ class SharedLiveSignerController implements LiveSignerController {
     if (!this.shellEnv || !this.responderProfileId) {
       throw new Error('live signer responder profile is not configured');
     }
-    const result = await withLoggedStep(
-      'chrome.live-signer',
+    const result = await withFixtureStep(
       'profile-publish-backup',
       { profileId: this.responderProfileId, relayUrl: this.relay.url() },
       async () =>
@@ -614,11 +668,12 @@ class SharedLiveSignerController implements LiveSignerController {
             'profile',
             'backup',
             this.responderProfileId,
-            '--vault-passphrase-env',
-            'IGLOO_SHELL_VAULT_PASSPHRASE'
+            '--passphrase-env',
+            'IGLOO_SHELL_PROFILE_PASSPHRASE'
           ],
           this.shellEnv!,
         ),
+      { verboseOnly: true }
     );
 
     return {
@@ -654,9 +709,9 @@ class SharedLiveSignerController implements LiveSignerController {
 
   private async ensureRelay(): Promise<void> {
     if (this.relay.isRunning()) return;
-    await withLoggedStep('chrome.live-signer', 'start-relay', { port: this.port }, async () => {
+    await withFixtureStep('start-relay', { port: this.port }, async () => {
       await this.relay.start();
-    });
+    }, { verboseOnly: true });
   }
 
   private async ensureResponder(): Promise<void> {
@@ -669,8 +724,7 @@ class SharedLiveSignerController implements LiveSignerController {
 
     try {
       await this.stopResponderProcess({ preserveRestartFlag: true });
-      await withLoggedStep(
-        'chrome.live-signer',
+      await withFixtureStep(
         'daemon-start',
         { profileId: this.responderProfileId },
         async () => {
@@ -683,7 +737,8 @@ class SharedLiveSignerController implements LiveSignerController {
               env: this.shellEnv!
             }
           );
-        }
+        },
+        { verboseOnly: true }
       );
       this.needsResponderRestart = false;
     } catch (error) {
@@ -730,14 +785,14 @@ class SharedLiveSignerController implements LiveSignerController {
   private async captureResponderSnapshot(): Promise<void> {
     const tempRoot = await this.tempRootPromise;
     const stateRoot = path.join(tempRoot, 'xdg');
-    await withLoggedStep(
-      'chrome.live-signer',
+    await withFixtureStep(
       'snapshot-shell-state',
       { snapshotRoot: this.snapshotRoot },
       async () => {
         await rm(this.snapshotRoot, { recursive: true, force: true });
         await cp(stateRoot, this.snapshotRoot, { recursive: true });
-      }
+      },
+      { verboseOnly: true }
     );
   }
 
@@ -747,19 +802,28 @@ class SharedLiveSignerController implements LiveSignerController {
     }
     const tempRoot = await this.tempRootPromise;
     const stateRoot = path.join(tempRoot, 'xdg');
-    await withLoggedStep(
-      'chrome.live-signer',
+    await withFixtureStep(
       'restore-shell-state',
       { snapshotRoot: this.snapshotRoot },
       async () => {
         await rm(stateRoot, { recursive: true, force: true });
         await cp(this.snapshotRoot, stateRoot, { recursive: true });
-      }
+      },
+      { verboseOnly: true }
     );
     this.needsResponderRestart = true;
+  }
+
+  private async primeOnboardNoncePool(): Promise<number> {
+    return await requestOnboardNonceCount(this.relay.url(), this.demoDir);
   }
 }
 
 export async function startLiveSignerFixture(): Promise<LiveSignerController> {
   return await SharedLiveSignerController.create();
 }
+
+export const __testing = {
+  SharedLiveSignerController,
+  requestOnboardNonceCount,
+};

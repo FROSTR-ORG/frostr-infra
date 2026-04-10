@@ -1,8 +1,10 @@
 import { getPublicKey } from 'nostr-tools';
 
 import { loadBridgeWasmModule } from './bridge-wasm';
+import { loadProfileWasmModule } from './profile-wasm';
 import {
   setInjectedWasmBridgeModuleForTests,
+  setInjectedWasmProfileModuleForTests,
 } from '../../repos/igloo-shared/src/bridge-wasm-runtime';
 import {
   createEncryptedProfileBackup,
@@ -49,7 +51,7 @@ export type PwaStoredProfileSeed = {
   source: 'generated' | 'bfprofile' | 'bfshare' | 'bfonboard';
   relay_profile: string;
   group_ref: string;
-  share_ref: string;
+  encrypted_profile_ref: string;
   state_path: string;
   created_at: number;
   stored_password: string;
@@ -88,10 +90,14 @@ function publicKeyFromSecret(secretHex: string) {
 
 async function ensureInjectedWasmModule() {
   if (wasmInjected) return await loadBridgeWasmModule();
-  const module = await loadBridgeWasmModule();
-  setInjectedWasmBridgeModuleForTests(module as never);
+  const [bridgeModule, profileModule] = await Promise.all([
+    loadBridgeWasmModule(),
+    loadProfileWasmModule(),
+  ]);
+  setInjectedWasmBridgeModuleForTests(bridgeModule as never);
+  setInjectedWasmProfileModuleForTests(profileModule as never);
   wasmInjected = true;
-  return module;
+  return bridgeModule;
 }
 
 function buildMembers(members: Array<{ idx: number; pubkey: string }>): BrowserGroupPackageMember[] {
@@ -376,7 +382,7 @@ export function createPwaStoredProfileSeed(input: {
     source: input.source ?? 'generated',
     relay_profile: input.artifact.profilePayload.device.relays[0] ?? 'local',
     group_ref: `browser-profile:${input.artifact.profileId}:group`,
-    share_ref: `browser-profile:${input.artifact.profileId}:share`,
+    encrypted_profile_ref: `browser-profile:${input.artifact.profileId}:encrypted-profile`,
     state_path: `/tmp/igloo-pwa/${input.artifact.profileId}`,
     created_at: createdAt,
     stored_password: password,

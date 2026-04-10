@@ -35,14 +35,14 @@ test.describe('igloo-home onboarding package', () => {
       }>('finalize_connected_onboarding', {
         label: 'Bob Onboarding Import',
         relay_profile: null,
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
       });
       expect(imported.status).toBe('profile_created');
 
       try {
         const snapshot = await app.request<{ active: boolean }>('start_profile_session', {
           profile_id: imported.profile!.id,
-          vault_passphrase: 'playwright-password',
+          passphrase: 'playwright-password',
         });
         expect(snapshot.active).toBe(true);
 

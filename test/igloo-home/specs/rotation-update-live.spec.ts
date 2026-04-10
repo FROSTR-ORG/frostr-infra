@@ -34,7 +34,7 @@ test.describe('igloo-home rotation update', () => {
         label: 'Rotation Target Device',
         relay_urls: [harness.relayUrl],
         relay_profile: null,
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
         group_package_json: generated.group_package_json,
         share_package_json: sourceA.share_package_json,
       });
@@ -48,7 +48,7 @@ test.describe('igloo-home rotation update', () => {
         label: 'Rotation Source B',
         relay_urls: [harness.relayUrl],
         relay_profile: null,
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
         group_package_json: generated.group_package_json,
         share_package_json: sourceB.share_package_json,
       });
@@ -57,24 +57,24 @@ test.describe('igloo-home rotation update', () => {
 
       await app.request('publish_profile_backup', {
         profile_id: importedA.profile!.id,
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
       });
       await app.request('publish_profile_backup', {
         profile_id: importedB.profile!.id,
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
       });
 
       const exportedA = await app.request<{ package: string }>('export_profile_package', {
         profile_id: importedA.profile!.id,
         format: 'bfshare',
         package_password: 'rotation-source-a',
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
       });
       const exportedB = await app.request<{ package: string }>('export_profile_package', {
         profile_id: importedB.profile!.id,
         format: 'bfshare',
         package_password: 'rotation-source-b',
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
       });
 
       const rotated = await app.request<{
@@ -105,7 +105,7 @@ test.describe('igloo-home rotation update', () => {
         label: 'Rotated Inviter Device',
         relay_urls: [harness.relayUrl],
         relay_profile: null,
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
         group_package_json: rotated.group_package_json,
         share_package_json: rotated.shares[1].share_package_json,
       });
@@ -114,7 +114,7 @@ test.describe('igloo-home rotation update', () => {
 
       const started = await app.request<{ active: boolean }>('start_profile_session', {
         profile_id: rotatedInviter.profile!.id,
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
       });
       expect(started.active).toBe(true);
 
@@ -131,7 +131,7 @@ test.describe('igloo-home rotation update', () => {
         profile?: { id: string; label?: string };
       }>('apply_rotation_update', {
         target_profile_id: importedA.profile!.id,
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
         onboarding_password: 'rotation-update-password',
         onboarding_package: rotatePackage,
       });
@@ -154,7 +154,7 @@ test.describe('igloo-home rotation update', () => {
       await app.request('stop_signer');
       const restarted = await app.request<{ active: boolean }>('start_profile_session', {
         profile_id: updated.profile!.id,
-        vault_passphrase: 'playwright-password',
+        passphrase: 'playwright-password',
       });
       expect(restarted.active).toBe(true);
     } finally {

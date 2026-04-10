@@ -75,7 +75,7 @@ test.describe('observability artifacts @live', () => {
       const bundle = JSON.parse(bundleRaw) as Record<string, unknown>;
       expect(bundle).toHaveProperty('e2eEvents');
       expect(bundle).toHaveProperty('runtimeDiagnostics');
-      expect(bundle).toHaveProperty('status');
+      expect(bundle).toHaveProperty('state');
     } finally {
       await rm(outputDir, { recursive: true, force: true });
     }

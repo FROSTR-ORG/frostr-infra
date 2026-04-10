@@ -125,6 +125,7 @@ export async function launchIglooHome(): Promise<IglooHomeHarness> {
     env: {
       ...process.env,
       IGLOO_HOME_TEST_MODE: '1',
+      IGLOO_HOME_TEST_SHOW_WINDOW: '0',
       IGLOO_HOME_TEST_PORT: String(port),
       IGLOO_HOME_TEST_APP_DATA_DIR: appDataDir,
     },
