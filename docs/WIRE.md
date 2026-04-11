@@ -112,6 +112,28 @@ The semantic meaning of those operations lives in [PROTOCOL.md](./PROTOCOL.md).
 
 This document defines their wire-level role as payload variants inside the encrypted envelope.
 
+## Ping Payload
+
+`PingRequest` and `PingResponse` use the same payload shape.
+
+Current hard-cut version:
+- `version = 2`
+
+Fields:
+- `advertised_nonces`
+  - public nonces the receiver should store as incoming nonce inventory from the sender
+  - may be empty when the receiver has already reported sufficient inventory
+- `held_peer_nonce_codes`
+  - nonce codes from the receiver that the sender currently still holds as incoming inventory
+  - used as the sender's acknowledgement/inventory observation surface
+- `policy_profile`
+  - optional scoped policy observation for the receiving peer
+
+Wire rules:
+- implementations must reject ping payloads whose `version` is not `2`
+- `advertised_nonces` and `held_peer_nonce_codes` are each bounded by the max nonce package size
+- receivers must tolerate duplicate advertised public nonces as idempotent inventory refresh, not additive new inventory
+
 ## Validation Boundaries
 
 Wire validation happens in layers.

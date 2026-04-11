@@ -14,7 +14,7 @@
     "test:e2e:live": "npm run test:e2e:igloo-pwa:live && npm run test:e2e:igloo-chrome:live",
     "test:e2e:demo": "npm run test:e2e:igloo-chrome:demo",
     "test:e2e:igloo-chrome": "playwright test -c ./igloo-chrome/playwright.config.ts",
-    "test:e2e:igloo-chrome:demo": "playwright test -c ./igloo-chrome/playwright.config.ts igloo-chrome/specs/demo-harness.spec.ts",
+    "test:e2e:igloo-chrome:demo": "IGLOO_DEMO_LIVE_REPRO=1 playwright test -c ./igloo-chrome/playwright.config.ts igloo-chrome/specs/demo-harness.spec.ts igloo-chrome/specs/chrome-home-demo-harness.spec.ts",
     "test:e2e:igloo-chrome:fast": "playwright test -c ./igloo-chrome/playwright.config.ts --grep-invert @live",
     "test:e2e:igloo-chrome:live": "playwright test -c ./igloo-chrome/playwright.config.ts --grep @live",
     "test:typecheck": "tsc --noEmit",

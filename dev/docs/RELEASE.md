@@ -107,6 +107,11 @@ Optional narrower root wrappers:
 ./run.sh test e2e
 ```
 
+The required GitHub Actions release-facing demo gate is
+`release-validation`, which runs `./run.sh test demo` on pull requests and
+`main` pushes. Keep that workflow green in addition to the local/root release
+matrix.
+
 If a release changes only a narrow surface, you may run a narrower matrix first,
 but the full matrix should be green before cutting the coordinated parent
 release.

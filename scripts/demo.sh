@@ -64,6 +64,7 @@ build_binaries() {
   fi
 
   echo "==> Building demo harness binaries on host"
+  "${ROOT_DIR}/scripts/prepare-browser-wasm.sh" sync all
   (
     cd "${bifrost_dir}"
     cargo build --locked -p bifrost-devtools --bin bifrost-devtools

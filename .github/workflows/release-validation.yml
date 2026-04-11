@@ -1,0 +1,93 @@
+name: release-validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/release-validation.yml"
+      - ".gitmodules"
+      - "compose.test.yml"
+      - "run.sh"
+      - "scripts/**"
+      - "services/**"
+      - "test/**"
+      - "repos/*"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/release-validation.yml"
+      - ".gitmodules"
+      - "compose.test.yml"
+      - "run.sh"
+      - "scripts/**"
+      - "services/**"
+      - "test/**"
+      - "repos/*"
+
+jobs:
+  demo-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CI: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            test/package-lock.json
+            repos/igloo-ui/package-lock.json
+            repos/igloo-shared/package-lock.json
+            repos/igloo-pwa/package-lock.json
+            repos/igloo-chrome/package-lock.json
+            repos/igloo-home/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            curl \
+            file \
+            libayatana-appindicator3-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            patchelf \
+            wget \
+            xvfb
+
+      - name: Install wasm-pack
+        run: cargo install --locked wasm-pack
+
+      - name: Install workspace npm dependencies
+        run: |
+          npm ci --prefix repos/igloo-ui
+          npm ci --prefix repos/igloo-shared
+          npm ci --prefix repos/igloo-pwa
+          npm ci --prefix repos/igloo-chrome
+          npm ci --prefix repos/igloo-home
+          npm ci --prefix test
+
+      - name: Install Playwright browsers
+        run: npm --prefix test run test:install-browsers
+
+      - name: Run required demo validation
+        run: xvfb-run -a ./run.sh test demo

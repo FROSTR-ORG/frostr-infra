@@ -68,6 +68,7 @@ From the repo root:
   - Docker-backed browser onboarding and sign-through flow against
     `dev-relay` plus `igloo-demo`
   - command: `npm --prefix test run test:e2e:demo`
+  - required in the `release-validation` GitHub Actions workflow
 
 The canonical aggregate browser matrix is:
 
@@ -78,6 +79,8 @@ npm --prefix test run test:e2e
 
 That aggregate currently means `fast + live`. The `demo` tier stays separate so
 the focused Docker-backed onboarding path can be run independently.
+The release-facing CI gate runs that `demo` tier explicitly through
+`./run.sh test demo`.
 
 Shared prep and root workflows:
 - `./run.sh test prep`
@@ -121,6 +124,7 @@ Start the shared demo stack from the workspace root:
 
 That command:
 
+- refreshes the shared browser-WASM artifacts from the current `bifrost-rs` source and syncs them into browser hosts
 - starts `services/dev-relay` plus `services/igloo-demo`
 - provisions the live demo signer inside `igloo-demo`
 - exports the current relay URL, onboarding packages, and passwords
@@ -156,6 +160,8 @@ Start the PWA host from the workspace root:
 ```bash
 ./run.sh browser igloo-pwa dev
 ```
+
+That command also refreshes and syncs browser-WASM artifacts before starting the host.
 
 Then in the browser:
 

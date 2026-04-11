@@ -17,6 +17,13 @@ type GroupPackage = {
   members: Array<{ idx: number; pubkey: string }>;
 };
 
+export type DemoInvitee = {
+  member: string;
+  pubkeyXOnly: string;
+  onboardPackage: string;
+  onboardPassword: string;
+};
+
 export type DemoHarness = {
   relayUrl: string;
   bobGroupJson: string;
@@ -25,6 +32,7 @@ export type DemoHarness = {
   bobPubkeyXOnly: string;
   onboardPackage: string;
   onboardPassword: string;
+  invitees: Record<string, DemoInvitee>;
   aliceSocketPath: string;
   aliceToken: string;
   cleanup: () => Promise<void>;
@@ -36,6 +44,10 @@ export async function ensureDemoHarness(): Promise<DemoHarness> {
   const hostArtifactDir = await mkdtemp(path.join(os.tmpdir(), 'igloo-home-demo-'));
   const demoMember = process.env.IGLOO_SHELL_DEMO_MEMBER ?? 'alice';
   const inviteMembers = process.env.IGLOO_SHELL_DEMO_INVITE_MEMBERS ?? 'bob,carol';
+  const inviteeMembers = inviteMembers
+    .split(',')
+    .map(value => value.trim())
+    .filter(Boolean);
   const containerArtifactDir = `/workspace/.tmp/test-harness/${projectName}`;
   const composeEnv = {
     ...process.env,
@@ -77,35 +89,53 @@ export async function ensureDemoHarness(): Promise<DemoHarness> {
     const bobConfigPath = path.join(hostArtifactDir, 'demo-2of3', 'igloo-shell-bob.json');
     const groupPath = path.join(hostArtifactDir, 'demo-2of3', 'group.json');
     const bobSharePath = path.join(hostArtifactDir, 'demo-2of3', 'share-bob.json');
-    const onboardPath = path.join(hostArtifactDir, 'onboard-bob.txt');
-    const onboardPasswordPath = path.join(hostArtifactDir, 'onboard-bob.password.txt');
     const aliceSocketPath = path.join(hostArtifactDir, `igloo-shell-${demoMember}.sock`);
     const aliceTokenPath = path.join(hostArtifactDir, `igloo-shell-${demoMember}.token`);
+    const onboardingArtifacts = inviteeMembers.flatMap(member => [
+      path.join(hostArtifactDir, `onboard-${member}.txt`),
+      path.join(hostArtifactDir, `onboard-${member}.password.txt`),
+    ]);
 
     await waitForHarnessArtifacts([
       bobConfigPath,
       groupPath,
       bobSharePath,
-      onboardPath,
-      onboardPasswordPath,
       aliceTokenPath,
+      ...onboardingArtifacts,
     ]);
 
-    const [bobConfigRaw, groupRaw, bobShareJson, onboardPackage, onboardPassword, aliceToken] =
+    const [bobConfigRaw, groupRaw, bobShareJson, aliceToken, ...inviteeArtifacts] =
       await Promise.all([
         readFile(bobConfigPath, 'utf8'),
         readFile(groupPath, 'utf8'),
         readFile(bobSharePath, 'utf8'),
-        readFile(onboardPath, 'utf8'),
-        readFile(onboardPasswordPath, 'utf8'),
         readFile(aliceTokenPath, 'utf8'),
+        ...inviteeMembers.flatMap(member => [
+          readFile(path.join(hostArtifactDir, `onboard-${member}.txt`), 'utf8'),
+          readFile(path.join(hostArtifactDir, `onboard-${member}.password.txt`), 'utf8'),
+        ]),
       ]);
 
     const bobConfig = JSON.parse(bobConfigRaw) as BobConfig;
     const group = JSON.parse(groupRaw) as GroupPackage;
-    const bobMember = group.members.find(member => member.idx === 2);
-    if (!bobMember) {
-      throw new Error('demo group is missing Bob member');
+    const invitees = inviteeMembers.reduce<Record<string, DemoInvitee>>((acc, member, index) => {
+      const groupMember = group.members.find(candidate => candidate.idx === inviteeMemberIdx(member));
+      const onboardPackage = inviteeArtifacts[index * 2]?.trim() ?? '';
+      const onboardPassword = inviteeArtifacts[index * 2 + 1]?.trim() ?? '';
+      if (!groupMember) {
+        throw new Error(`demo group is missing ${member} member`);
+      }
+      acc[member] = {
+        member,
+        pubkeyXOnly: groupMember.pubkey.toLowerCase().slice(2),
+        onboardPackage,
+        onboardPassword,
+      };
+      return acc;
+    }, {});
+    const bobInvitee = invitees.bob;
+    if (!bobInvitee) {
+      throw new Error('demo harness invitees are missing Bob onboarding artifacts');
     }
 
     const token = aliceToken.trim();
@@ -116,9 +146,10 @@ export async function ensureDemoHarness(): Promise<DemoHarness> {
       bobGroupJson: groupRaw,
       bobShareJson,
       bobPeerPubkeys: bobConfig.peers.map(peer => peer.pubkey),
-      bobPubkeyXOnly: bobMember.pubkey.toLowerCase().slice(2),
-      onboardPackage: onboardPackage.trim(),
-      onboardPassword: onboardPassword.trim(),
+      bobPubkeyXOnly: bobInvitee.pubkeyXOnly,
+      onboardPackage: bobInvitee.onboardPackage,
+      onboardPassword: bobInvitee.onboardPassword,
+      invitees,
       aliceSocketPath,
       aliceToken: token,
       cleanup,
@@ -132,6 +163,17 @@ export async function ensureDemoHarness(): Promise<DemoHarness> {
     await cleanup();
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`${message}\n\n${diagnostics}`);
+  }
+}
+
+function inviteeMemberIdx(member: string) {
+  switch (member) {
+    case 'bob':
+      return 2;
+    case 'carol':
+      return 3;
+    default:
+      throw new Error(`unsupported demo invitee '${member}'`);
   }
 }
 

@@ -56,6 +56,7 @@ Common commands:
 ./run.sh test smoke
 ./run.sh test fast
 ./run.sh test live
+./run.sh test demo
 ./run.sh test prep
 ./run.sh test affected
 ./run.sh test release
@@ -132,10 +133,15 @@ If `./.tmp/` becomes stale or unwritable, repair it with:
 For cross-repo test work:
 - `./run.sh test prep`
   - prebuilds shared binaries, browser artifacts, and demo images
+- `./run.sh test demo`
+  - runs the required Docker-backed Chrome/Home demo validation lane
 - `./run.sh test affected`
   - runs the deterministic minimal test surface for the current branch
 - `./run.sh test release`
   - runs the full coordinated release matrix and prints a timing summary
+
+GitHub Actions also runs the required `release-validation` workflow on pull
+requests and `main` pushes for the release-facing demo lane.
 
 ## Submodule Policy
 

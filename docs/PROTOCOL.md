@@ -209,6 +209,7 @@ The cryptographic meaning of nonce material lives in [CRYPTOGRAPHY.md](./CRYPTOG
 Purpose:
 - confirm peer reachability
 - refresh remote observed policy/profile information
+- reconcile per-peer nonce inventory for signing readiness
 
 Preconditions:
 - initiator knows the target peer share public key
@@ -216,6 +217,8 @@ Preconditions:
 
 Initiator behavior:
 - sends a ping request to one peer
+- includes the nonce codes currently held from that peer
+- includes any public nonces the peer has not yet reported holding
 - treats the round as successful only if a valid ping response is received
 
 Responder validation:
@@ -226,7 +229,17 @@ Responder validation:
 Response expectations:
 - peer identity matches the addressed peer
 - response is correlated to the request id
+- response includes the responder's current held nonce-code inventory for the requester
+- response may include a public-nonce advertisement batch for the requester to store
 - response may include peer-status or policy-observation data
+
+Nonce-sync rules:
+- ping is the authoritative nonce inventory reconciliation round
+- a device must not infer peer receipt from its own local outgoing nonce pool
+- the sender treats the peer's reported held-code inventory as the delivery signal
+- when the peer-reported held inventory is below the local nonce minimum threshold, the sender refills its local outgoing pool and advertises only the codes the peer has not reported holding
+- duplicate advertisement of the same unspent public nonce is valid and must be treated as idempotent by the receiver
+- once a peer reports inventory at or above the local nonce minimum threshold, ping should omit nonce advertisement until the observed inventory drops again
 
 Success criteria:
 - initiator receives and validates the response from the targeted peer

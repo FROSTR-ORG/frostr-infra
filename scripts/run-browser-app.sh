@@ -33,47 +33,9 @@ case "$APP_NAME" in
 esac
 
 APP_DIR="$ROOT_DIR/repos/$APP_NAME"
-SHARED_DIR="$ROOT_DIR/repos/igloo-shared"
-WASM_DIR="$SHARED_DIR/public/wasm"
-WASM_STAMP="$WASM_DIR/bifrost_bridge_wasm_bg.wasm"
-BIFROST_DIR="$ROOT_DIR/repos/bifrost-rs"
-
-needs_bridge_rebuild() {
-  if [[ ! -f "$WASM_STAMP" ]]; then
-    return 0
-  fi
-
-  if find \
-    "$BIFROST_DIR/crates/bifrost-bridge-wasm" \
-    "$BIFROST_DIR/crates/frostr-utils" \
-    "$BIFROST_DIR/Cargo.lock" \
-    "$SHARED_DIR/scripts/build-bridge-wasm.sh" \
-    -type f \
-    -newer "$WASM_STAMP" \
-    -print \
-    -quit 2>/dev/null | grep -q .; then
-    return 0
-  fi
-
-  return 1
-}
-
 status "Preparing browser wasm artifacts for $APP_NAME"
-if needs_bridge_rebuild; then
-  warn "Detected newer bifrost-rs or missing artifacts; rebuilding browser wasm in igloo-shared"
-  (
-    cd "$SHARED_DIR"
-    npm run build:browser-wasm
-  )
-else
-  success "Shared browser wasm artifacts are up to date"
-fi
-
-status "Syncing browser wasm into $APP_NAME"
-(
-  cd "$APP_DIR"
-  npm run build:browser-wasm
-)
+"$ROOT_DIR/scripts/prepare-browser-wasm.sh" sync "$APP_NAME"
+success "Browser wasm artifacts are ready for $APP_NAME"
 
 status "Running npm script '$APP_ACTION' for $APP_NAME"
 (

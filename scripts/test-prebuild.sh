@@ -41,7 +41,12 @@ select_target() {
       select_target home
       select_target demo
       ;;
-    pwa|chrome|home)
+    pwa|chrome)
+      SELECTED["ui"]=1
+      SELECTED["browser-wasm"]=1
+      SELECTED["${target}"]=1
+      ;;
+    home)
       SELECTED["ui"]=1
       SELECTED["${target}"]=1
       ;;
@@ -66,9 +71,10 @@ fi
 if [[ -n "${SELECTED[shared]:-}" ]]; then
   run_step "Build bifrost-devtools" cargo build --manifest-path "${ROOT_DIR}/repos/bifrost-rs/Cargo.toml" --offline --locked -p bifrost-devtools --bin bifrost-devtools
   run_step "Build igloo-shell CLI" env CARGO_TARGET_DIR="${ROOT_DIR}/build/igloo-shell-target" cargo build --manifest-path "${ROOT_DIR}/repos/igloo-shell/Cargo.toml" --offline -p igloo-shell-cli --bin igloo-shell
-  run_step "Build shared browser wasm artifacts" npm --prefix "${ROOT_DIR}/repos/igloo-shared" run build:browser-wasm
-  run_step "Sync browser wasm into igloo-pwa" npm --prefix "${ROOT_DIR}/repos/igloo-pwa" run build:browser-wasm
-  run_step "Sync browser wasm into igloo-chrome" npm --prefix "${ROOT_DIR}/repos/igloo-chrome" run build:browser-wasm
+fi
+
+if [[ -n "${SELECTED[browser-wasm]:-}" || -n "${SELECTED[shared]:-}" ]]; then
+  run_step "Prepare browser wasm artifacts" "${ROOT_DIR}/scripts/prepare-browser-wasm.sh" sync all
 fi
 
 if [[ -n "${SELECTED[ui]:-}" ]]; then
