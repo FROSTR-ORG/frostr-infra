@@ -285,12 +285,14 @@ export async function startDemoHarnessFixture(): Promise<DemoHarnessFixture> {
     await cleanupArtifactDir(hostArtifactDir);
   };
 
-  await withLoggedStep('chrome.demo-harness', 'build-binaries', undefined, async () => {
-    execFileSync(DEMO_SCRIPT, ['build-binaries'], {
-      cwd: REPO_ROOT_DIR,
-      stdio: 'inherit',
+  if (process.env.FROSTR_DEMO_BINARIES_PREPARED !== '1') {
+    await withLoggedStep('chrome.demo-harness', 'build-binaries', undefined, async () => {
+      execFileSync(DEMO_SCRIPT, ['build-binaries'], {
+        cwd: REPO_ROOT_DIR,
+        stdio: 'inherit',
+      });
     });
-  });
+  }
 
   await withLoggedStep('chrome.demo-harness', 'compose-up-relay', { relayUrl }, async () => {
     await composeUpRelayWithRetry(projectName, composeEnv, relayUrl);

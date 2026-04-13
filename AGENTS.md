@@ -14,23 +14,23 @@ Use root docs for workspace behavior, then read the owning submodule’s docs fo
 
 ## Build, Test, and Development Commands
 
-Use `./run.sh` as the public root interface. Root `scripts/` are implementation detail.
+Use `make` as the public root interface. Root `scripts/` are implementation detail.
 
-- `./run.sh repo init`: sync and initialize top-level submodules
-- `./run.sh repo check`: verify workspace prerequisites
-- `./run.sh demo start` / `./run.sh demo onboard`: start the demo stack and print onboarding artifacts
-- `./run.sh test prep`: prebuild shared Rust binaries, browser artifacts, and demo images
-- `./run.sh test affected`: run the minimal branch-dependent validation surface
-- `./run.sh test release`: run the full coordinated release matrix
+- `make repo-init`: sync and initialize top-level submodules
+- `make repo-check`: verify workspace prerequisites
+- `make demo-start` / `make demo-onboard`: start the demo stack and print onboarding artifacts
+- `make test-prep`: prebuild shared Rust binaries, browser artifacts, and demo images
+- `make test-affected`: run the minimal branch-dependent validation surface
+- `make test-release`: run the full coordinated release matrix
 - `npm --prefix test run test:guards`: run doc, command-surface, and harness guard checks
 
 ## Coding Style & Naming Conventions
 
-Keep changes scoped to the owning layer: shared semantics in `docs/`, workspace process in `dev/`, cross-repo harness logic in `test/`, and product code in the correct submodule. Prefer Markdown with short sections and concrete commands. For shell scripts, follow existing Bash style (`set -euo pipefail`, lowercase helper names). Do not add ad hoc root entrypoints when `./run.sh` should own the workflow.
+Keep changes scoped to the owning layer: shared semantics in `docs/`, workspace process in `dev/`, cross-repo harness logic in `test/`, and product code in the correct submodule. Prefer Markdown with short sections and concrete commands. For shell scripts, follow existing Bash style (`set -euo pipefail`, lowercase helper names). Do not add ad hoc root entrypoints when `Makefile` should own the workflow.
 
 ## Testing Guidelines
 
-Cross-repo browser tests use Playwright from `test/`. Name specs `*.spec.ts`; keep helper code under `test/.../fixtures` or `test/shared`. Run the smallest proof first, then escalate to `./run.sh test affected` or `./run.sh test release`. When docs change, run `npm --prefix test run test:guards`.
+Cross-repo browser tests use Playwright from `test/`. Name specs `*.spec.ts`; keep helper code under `test/.../fixtures` or `test/shared`. Run the smallest proof first, then escalate to `make test-affected` or `make test-release`. When docs change, run `npm --prefix test run test:guards`.
 
 ## Commit & Pull Request Guidelines
 
@@ -38,4 +38,4 @@ Recent history uses short imperative subjects, for example `Reorganize workspace
 
 ## Workspace Rules
 
-Use non-recursive submodule commands. Keep generated output under `./.tmp/`, not tracked-looking paths like `data/`. If the workspace scratch tree becomes stale, repair it with `./run.sh repo reset`.
+Use non-recursive submodule commands. Keep generated output under `./.tmp/`, not tracked-looking paths like `data/`. If the workspace scratch tree becomes stale, repair it with `make repo-reset`.

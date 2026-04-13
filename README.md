@@ -22,8 +22,8 @@ the implementation repos under [`repos/`](./repos).
   - infra-owned compose images and entrypoints
 - `compose.test.yml`
   - local demo-harness stack definition
-- `run.sh`
-  - curated root command router
+- `Makefile`
+  - curated root command surface
 
 Use the workspace docs this way:
 - [`README.md`](./README.md)
@@ -41,31 +41,34 @@ Use the workspace docs this way:
 
 ## Root Command Surface
 
-`./run.sh` is the supported root command interface. Root `scripts/` are private
+`make` is the supported root command interface. Root `scripts/` are private
 implementation detail.
 
 Common commands:
 
 ```bash
-./run.sh repo init
-./run.sh repo check
-./run.sh repo reset
-./run.sh demo start
-./run.sh demo onboard
-./run.sh demo smoke
-./run.sh test smoke
-./run.sh test fast
-./run.sh test live
-./run.sh test demo
-./run.sh test prep
-./run.sh test affected
-./run.sh test release
-./run.sh browser igloo-chrome build
+make repo-init
+make repo-check
+make repo-reset
+make demo-start
+make demo-foreground
+make demo-onboard
+make demo-smoke
+make test-smoke
+make test-fast
+make test-live
+make test-demo
+make test-prep
+make test-affected
+make test-release
+make igloo-chrome-build
+make igloo-pwa-dev
+make igloo-home-tauri-dev
 ```
 
-`./run.sh demo start` stays attached to the terminal by default. Use
-`BG=1 ./run.sh demo start` if you want the demo stack to keep running in the
-background.
+`make demo-start` launches the demo stack in the background by default. Use
+`make demo-foreground` if you want to stay attached to compose output in the
+current terminal.
 
 The root workspace manages the demo-harness services (`dev-relay`,
 `igloo-demo`), shared docs, cross-repo tests, and submodule coordination.
@@ -76,21 +79,21 @@ Those parent-owned services do not correspond one-to-one with a repo under
 
 ```bash
 cp .env.example .env
-./run.sh repo init
-./run.sh repo check
-./run.sh demo start
-./run.sh demo onboard
+make repo-init
+make repo-check
+make demo-start
+make demo-onboard
 ```
 
 For the local demo harness:
 
 ```bash
-./run.sh test prep
-./run.sh demo start
-./run.sh demo onboard
-./run.sh demo logs
-./run.sh demo stop
-./run.sh test release
+make test-prep
+make demo-start
+make demo-onboard
+make demo-logs
+make demo-stop
+make test-release
 ```
 
 If the default relay port is occupied, the demo harness auto-picks the next
@@ -98,7 +101,7 @@ free port and records it in `./.tmp/test-harness/demo-relay-port.txt`. You can
 still choose a specific port yourself:
 
 ```bash
-./run.sh demo start --port 8394
+make demo-start PORT=8394
 ```
 
 ## Reading Paths
@@ -127,17 +130,17 @@ scratch location.
 If `./.tmp/` becomes stale or unwritable, repair it with:
 
 ```bash
-./run.sh repo reset
+make repo-reset
 ```
 
 For cross-repo test work:
-- `./run.sh test prep`
+- `make test-prep`
   - prebuilds shared binaries, browser artifacts, and demo images
-- `./run.sh test demo`
+- `make test-demo`
   - runs the required Docker-backed Chrome/Home demo validation lane
-- `./run.sh test affected`
+- `make test-affected`
   - runs the deterministic minimal test surface for the current branch
-- `./run.sh test release`
+- `make test-release`
   - runs the full coordinated release matrix and prints a timing summary
 
 GitHub Actions also runs the required `release-validation` workflow on pull

@@ -34,7 +34,7 @@ if [ -f ".env" ]; then print_ok; else print_warn "missing (.env.example is avail
 
 print_check "workspace scratch root"
 if [ -e ".tmp" ] && [ ! -w ".tmp" ]; then
-  print_warn ".tmp exists but is not writable (run ./run.sh repo reset)"
+  print_warn ".tmp exists but is not writable (run make repo-reset)"
 else
   print_ok
 fi

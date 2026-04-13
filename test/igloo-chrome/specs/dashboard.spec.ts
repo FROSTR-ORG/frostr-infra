@@ -1,5 +1,7 @@
 import { test, expect, TEST_PEER_PUBLIC_KEY, TEST_PUBLIC_KEY } from '../fixtures/extension';
 
+import { loadSelectedChromeStoredProfile, unlockChromeStoredProfile } from '../support/ui';
+
 const formatPeerPubkey = (value: string) => `${value.slice(0, 14)}...${value.slice(-8)}`;
 
 test.describe('extension dashboard smoke', () => {
@@ -159,14 +161,11 @@ test.describe('extension dashboard smoke', () => {
     await expect(storedProfilesCard.getByRole('button', { name: /Playwright Smoke/ })).toBeVisible();
     await expect(storedProfilesCard.getByRole('button', { name: 'Load Profile' })).toBeVisible();
 
-    await storedProfilesCard.getByRole('button', { name: 'Load Profile' }).click();
-    await expect(page.getByText('Unlock Stored Profile')).toBeVisible();
-    await page.getByPlaceholder('Enter profile password').fill('wrongpass');
-    await page.getByRole('button', { name: 'Unlock Profile' }).click();
+    await loadSelectedChromeStoredProfile(page);
+    await unlockChromeStoredProfile(page, 'wrongpass');
     await expect(page.getByText('Invalid profile password.')).toBeVisible();
 
-    await page.getByPlaceholder('Enter profile password').fill('playwright-passphrase');
-    await page.getByRole('button', { name: 'Unlock Profile' }).click();
+    await unlockChromeStoredProfile(page, 'playwright-passphrase');
     await expect(page.getByRole('tab', { name: /Signer/i }).first()).toBeVisible();
 
     await page.close();

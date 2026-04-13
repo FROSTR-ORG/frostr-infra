@@ -12,6 +12,11 @@ import {
   type BrowserRuntimeSession,
 } from '../../../repos/igloo-pwa/src/lib/page-runtime-host';
 import { test } from '../fixtures/extension';
+import {
+  confirmChromeRotationPackage,
+  connectChromeRotationPackage,
+  getChromeRotationConfirmButton,
+} from '../support/ui';
 
 function shortId(value: string) {
   return value.slice(0, 8);
@@ -76,18 +81,14 @@ test.describe('extension rotate key', () => {
       await expect(page.getByRole('tab', { name: /Settings/i }).first()).toBeVisible();
 
       await page.getByRole('tab', { name: /Settings operator controls/i }).click();
-      const rotateCard = page
-        .getByRole('heading', { name: 'rotate share' })
-        .locator('xpath=ancestor::section[contains(@class, "rounded-lg")]')
-        .first();
-      await expect(rotateCard).toBeVisible();
-      await rotateCard.getByPlaceholder('bfonboard1...').fill(rotationPackage);
-      await rotateCard.getByLabel('Package Password').fill('rotate-package-pass');
-      await rotateCard.getByRole('button', { name: 'rotate share' }).click();
+      const rotateCard = await connectChromeRotationPackage(page, {
+        packageText: rotationPackage,
+        packagePassword: 'rotate-package-pass',
+      });
       await expect(page.getByText('New Profile Id')).toBeVisible();
       await expect(page.getByText(rotated.shares[0].profileId)).toBeVisible();
-      await rotateCard.getByRole('button', { name: 'rotate share' }).click();
-      await expect(rotateCard.getByRole('button', { name: 'rotate share' })).toHaveCount(0);
+      await confirmChromeRotationPackage(page);
+      await expect(getChromeRotationConfirmButton(page)).toHaveCount(0);
       await expect(page.getByText(`${shortId(rotated.shares[0].profileId)})`)).toBeVisible();
       await page.getByRole('button', { name: 'logout' }).click();
       const storedProfilesCard = page

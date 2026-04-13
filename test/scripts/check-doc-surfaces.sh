@@ -25,7 +25,7 @@ if rg -n \
   -e 'data/test-harness' \
   -e '/tmp/frostr-test-prebuild-' \
   -e 'setup-dev\.sh' \
-  run.sh scripts .github test README.md CONTRIBUTING.md docs dev \
+  Makefile scripts .github test README.md CONTRIBUTING.md docs dev \
   --glob '!test/scripts/check-doc-surfaces.sh'
 then
   echo "retired parent surfaces are still referenced" >&2

@@ -35,7 +35,7 @@ resolve_workspace_scratch_dir() {
   fi
   if [[ ! -w "${tmp_root}" ]]; then
     echo "error: workspace scratch root '${tmp_root}' is not writable" >&2
-    echo "Run './run.sh repo reset' or remove the stale ignored scratch directory." >&2
+    echo "Run 'make repo-reset' or remove the stale ignored scratch directory." >&2
     exit 1
   fi
 

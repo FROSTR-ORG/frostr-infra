@@ -5,8 +5,8 @@ on:
     paths:
       - ".github/workflows/release-validation.yml"
       - ".gitmodules"
+      - "Makefile"
       - "compose.test.yml"
-      - "run.sh"
       - "scripts/**"
       - "services/**"
       - "test/**"
@@ -17,8 +17,8 @@ on:
     paths:
       - ".github/workflows/release-validation.yml"
       - ".gitmodules"
+      - "Makefile"
       - "compose.test.yml"
-      - "run.sh"
       - "scripts/**"
       - "services/**"
       - "test/**"
@@ -90,4 +90,4 @@ jobs:
         run: npm --prefix test run test:install-browsers
 
       - name: Run required demo validation
-        run: xvfb-run -a ./run.sh test demo
+        run: xvfb-run -a make test-demo

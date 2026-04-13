@@ -35,7 +35,7 @@ fi
 
 for path in "${changed_files[@]}"; do
   case "${path}" in
-    README.md|CONTRIBUTING.md|CHANGELOG.md|run.sh|compose.test.yml|scripts/*|test/*|docs/*|dev/*|services/*|.github/*)
+    README.md|CONTRIBUTING.md|CHANGELOG.md|Makefile|compose.test.yml|scripts/*|test/*|docs/*|dev/*|services/*|.github/*)
       run_guards=1
       ;;
     repos/bifrost-rs/*)

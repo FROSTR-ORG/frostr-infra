@@ -50,29 +50,12 @@ run_compose_attached() {
 }
 
 build_binaries() {
-  local bifrost_dir="${ROOT_DIR}/repos/bifrost-rs"
-  local igloo_shell_dir="${ROOT_DIR}/repos/igloo-shell"
-
-  if [ ! -f "${bifrost_dir}/Cargo.toml" ]; then
-    echo "bifrost-rs source is not available at ${bifrost_dir} (missing Cargo.toml)" >&2
-    exit 1
-  fi
-
-  if [ ! -f "${igloo_shell_dir}/Cargo.toml" ]; then
-    echo "igloo-shell source is not available at ${igloo_shell_dir} (missing Cargo.toml)" >&2
-    exit 1
+  if [[ "${FROSTR_DEMO_BINARIES_PREPARED:-0}" == "1" ]]; then
+    return 0
   fi
 
   echo "==> Building demo harness binaries on host"
-  "${ROOT_DIR}/scripts/prepare-browser-wasm.sh" sync all
-  (
-    cd "${bifrost_dir}"
-    cargo build --locked -p bifrost-devtools --bin bifrost-devtools
-  )
-  (
-    cd "${igloo_shell_dir}"
-    cargo build --locked -p igloo-shell-cli --bin igloo-shell
-  )
+  "${ROOT_DIR}/scripts/test-prebuild.sh" ensure shared browser-wasm demo-binaries
 }
 
 port_in_use() {

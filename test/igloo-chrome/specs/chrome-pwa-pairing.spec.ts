@@ -12,6 +12,7 @@ import { startLocalRelay } from '../../shared/local-relay';
 import { IGLOO_PWA_DIR } from '../../shared/repo-paths';
 import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../../igloo-pwa/support/state';
 import { expectPwaDashboard, seedPwaState } from '../../igloo-pwa/support/ui';
+import { loadSelectedChromeStoredProfile, selectChromeStoredProfile } from '../support/ui';
 
 type StaticServer = {
   origin: string;
@@ -124,13 +125,8 @@ async function loadStoredPwaProfileAtOrigin(
   label: string,
 ) {
   await page.goto(origin);
-  const storedProfilesCard = page
-    .getByRole('heading', { name: 'Stored Profiles' })
-    .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')
-    .first();
-  await expect(storedProfilesCard).toBeVisible();
-  await storedProfilesCard.locator('button[aria-pressed]').filter({ hasText: label }).click();
-  await storedProfilesCard.getByRole('button', { name: /Load Profile|Open Dashboard/ }).first().click();
+  await selectChromeStoredProfile(page, label);
+  await loadSelectedChromeStoredProfile(page);
 }
 
 test.describe('chrome <-> pwa browser pairing', () => {

@@ -9,6 +9,7 @@ import { gotoExtensionPage, waitForServiceWorker } from '../fixtures/helpers/con
 import { fetchExtensionAppStateFromPage, fetchRuntimeDiagnosticsFromPage } from './extension-status';
 import { waitForLiveSignReady } from './live-runtime';
 import { approvePromptOnce, runProviderActionWithApproval } from './provider-live';
+import { loadSelectedChromeStoredProfile, unlockChromeStoredProfile } from './ui';
 
 export { approvePromptOnce } from './provider-live';
 
@@ -202,10 +203,8 @@ export async function unlockStoredProfileInContext(
   try {
     await gotoExtensionPage(page, extensionId, 'options.html');
     await pwExpect(page.getByText('Stored Profiles', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Unlock' }).click();
-    await pwExpect(page.getByText('Unlock Stored Profile')).toBeVisible();
-    await page.getByPlaceholder('Enter profile password').fill(password);
-    await page.getByRole('button', { name: 'Unlock Profile' }).click();
+    await loadSelectedChromeStoredProfile(page);
+    await unlockChromeStoredProfile(page, password);
     await pwExpect(page.getByRole('tab', { name: /Signer/i }).first()).toBeVisible();
   } finally {
     await page.close();

@@ -9,6 +9,8 @@ import {
 import { startLocalRelay } from '../../shared/local-relay';
 import { buildPwaPersistedState } from '../support/state';
 import {
+  connectPwaRotationPackage,
+  confirmPwaRotationPackage,
   expectPwaDashboard,
   importPwaProfile,
   loadStoredPwaProfile,
@@ -59,13 +61,12 @@ test.describe('igloo-pwa rotate key', () => {
       await importPwaProfile(page, current.shares[0].bfprofile, 'playwright-passphrase');
       await expectPwaDashboard(page, 'Rotation Device 1');
 
-      await page.getByRole('tab', { name: /Settings\s+operator controls/i }).click();
-      await page.getByRole('button', { name: 'Rotate Key' }).click();
-      await page.getByPlaceholder('Paste bfonboard1...').fill(rotationPackage);
-      await page.getByLabel('Package Password').fill('rotate-package-pass');
-      await page.getByRole('button', { name: 'Connect Rotation Package' }).click();
+      await connectPwaRotationPackage(page, {
+        packageText: rotationPackage,
+        packagePassword: 'rotate-package-pass',
+      });
       await expect(page.getByText('Replacement Preview')).toBeVisible({ timeout: 20_000 });
-      await page.getByRole('button', { name: 'Replace Active Device' }).click();
+      await confirmPwaRotationPackage(page);
       await expectPwaDashboard(page, 'Rotation Device 1');
       await expect(page.getByText(shortId(rotated.shares[0].profileId))).toBeVisible();
       await expect(page.getByText(shortId(current.shares[0].profileId))).toHaveCount(0);

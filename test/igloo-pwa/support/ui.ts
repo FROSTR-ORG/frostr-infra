@@ -1,4 +1,5 @@
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { CRITICAL_E2E_TEST_IDS } from '../../../repos/igloo-ui/src/lib/e2e-test-ids';
 
 import { PWA_STORAGE_KEY } from './state';
 
@@ -14,6 +15,31 @@ export async function seedPwaState(page: Page, state: unknown) {
 export async function openPwaLoadProfile(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Load Profile' }).first().click();
+}
+
+export async function getPwaStoredProfilesCard(page: Page) {
+  const storedProfilesCard = page
+    .getByRole('heading', { name: 'Stored Profiles' })
+    .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')
+    .first();
+  await expect(storedProfilesCard).toBeVisible();
+  return storedProfilesCard;
+}
+
+export async function selectPwaStoredProfile(page: Page, label: string) {
+  const storedProfilesCard = await getPwaStoredProfilesCard(page);
+  const selector = storedProfilesCard.locator('button[aria-pressed]').filter({ hasText: label }).first();
+  await selector.click();
+  return selector.locator(`xpath=ancestor::*[@data-testid="${CRITICAL_E2E_TEST_IDS.storedProfileEntry}"][1]`);
+}
+
+export async function loadSelectedPwaStoredProfile(page: Page) {
+  const storedProfilesCard = await getPwaStoredProfilesCard(page);
+  const selectedEntry = storedProfilesCard
+    .locator('button[aria-pressed="true"]')
+    .first()
+    .locator(`xpath=ancestor::*[@data-testid="${CRITICAL_E2E_TEST_IDS.storedProfileEntry}"][1]`);
+  await selectedEntry.getByTestId(CRITICAL_E2E_TEST_IDS.storedProfileLoad).click();
 }
 
 export async function importPwaProfile(page: Page, profileText: string, password: string) {
@@ -46,7 +72,8 @@ export async function onboardPwaDevice(
   },
 ) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Continue Onboarding' }).click();
+  await expect(page.getByRole('heading', { name: 'Welcome to Igloo' })).toBeVisible();
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.landingContinueOnboarding).click();
   await page.getByPlaceholder('Paste bfonboard1...').fill(input.onboardPackage);
   await page.getByLabel('Decryption Password').fill(input.packagePassword);
   await page.getByRole('button', { name: 'Connect' }).click();
@@ -59,13 +86,27 @@ export async function onboardPwaDevice(
 
 export async function loadStoredPwaProfile(page: Page, label: string) {
   await page.goto('/');
-  const storedProfilesCard = page
-    .getByRole('heading', { name: 'Stored Profiles' })
-    .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')
-    .first();
-  await expect(storedProfilesCard).toBeVisible();
-  await storedProfilesCard.locator('button[aria-pressed]').filter({ hasText: label }).click();
-  await storedProfilesCard.getByRole('button', { name: /Load Profile|Open Dashboard/ }).first().click();
+  await selectPwaStoredProfile(page, label);
+  await loadSelectedPwaStoredProfile(page);
+}
+
+export async function openPwaRotateShare(page: Page) {
+  await page.getByRole('tab', { name: /Settings\s+operator controls/i }).click();
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.maintenanceRotateShare).click();
+}
+
+export async function connectPwaRotationPackage(
+  page: Page,
+  input: { packageText: string; packagePassword: string },
+) {
+  await openPwaRotateShare(page);
+  await page.getByPlaceholder('Paste bfonboard1...').fill(input.packageText);
+  await page.getByLabel('Package Password').fill(input.packagePassword);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.rotationConnectSubmit).click();
+}
+
+export async function confirmPwaRotationPackage(page: Page) {
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.rotationConfirmSubmit).click();
 }
 
 export async function expectPwaDashboard(page: Page, profileLabel?: string) {

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-RUN_SH="${ROOT_DIR}/run.sh"
+MAKEFILE="${ROOT_DIR}/Makefile"
 TRACE_DIR="$(mktemp -d)"
 TRACE_BIN_DIR="${TRACE_DIR}/bin"
 TRACE_FILE="${TRACE_DIR}/command-trace.log"
@@ -78,56 +78,38 @@ printf "ss|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
 exit 0'
 
 run_with_trace() {
-  TRACE_FILE="${TRACE_FILE}" PATH="${TRACE_BIN_DIR}:${PATH}" "$@" >/dev/null
+  TRACE_FILE="${TRACE_FILE}" PATH="${TRACE_BIN_DIR}:${PATH}" make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" "$@" >/dev/null
 }
 
-HELP_OUTPUT="$("${RUN_SH}" help)"
-assert_contains "${HELP_OUTPUT}" "./run.sh repo check"
-assert_contains "${HELP_OUTPUT}" "./run.sh demo start [--port <port>]"
-assert_contains "${HELP_OUTPUT}" "BG=1 ./run.sh demo start"
-assert_contains "${HELP_OUTPUT}" "./run.sh test prep"
-assert_contains "${HELP_OUTPUT}" "./run.sh test affected"
-assert_contains "${HELP_OUTPUT}" "./run.sh test release"
+HELP_OUTPUT="$(make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" help)"
+assert_contains "${HELP_OUTPUT}" "make repo-check"
+assert_contains "${HELP_OUTPUT}" "make demo-start [PORT=<port>]"
+assert_contains "${HELP_OUTPUT}" "make demo-foreground [PORT=<port>]"
+assert_contains "${HELP_OUTPUT}" "make test-prep"
+assert_contains "${HELP_OUTPUT}" "make test-affected"
+assert_contains "${HELP_OUTPUT}" "make test-release"
+assert_contains "${HELP_OUTPUT}" "make compose-logs SERVICES=\"<service> [service...]\""
+assert_contains "${HELP_OUTPUT}" "make igloo-chrome-build"
+assert_contains "${HELP_OUTPUT}" "make igloo-pwa-dev"
+assert_contains "${HELP_OUTPUT}" "make igloo-home-tauri-dev"
 
-REPO_HELP="$("${RUN_SH}" repo help)"
-assert_contains "${REPO_HELP}" "./run.sh repo reset"
-
-DEMO_HELP="$("${RUN_SH}" demo help)"
-assert_contains "${DEMO_HELP}" "./run.sh demo smoke [--port <port>]"
-assert_contains "${DEMO_HELP}" "BG=1 ./run.sh demo start"
-
-TEST_HELP="$("${RUN_SH}" test help)"
-assert_contains "${TEST_HELP}" "./run.sh test e2e"
-assert_contains "${TEST_HELP}" "./run.sh test prep"
-assert_contains "${TEST_HELP}" "./run.sh test affected"
-assert_contains "${TEST_HELP}" "./run.sh test release"
-
-COMPOSE_HELP="$("${RUN_SH}" compose help)"
-assert_contains "${COMPOSE_HELP}" "./run.sh compose logs <service> [service...]"
-assert_contains "${COMPOSE_HELP}" "dev-relay"
-
-BROWSER_HELP="$("${RUN_SH}" browser help)"
-assert_contains "${BROWSER_HELP}" "./run.sh browser <igloo-pwa|igloo-chrome>"
-
-expect_fail_contains "unknown command namespace" "${RUN_SH}" nope
-expect_fail_contains "infra namespace has been retired" "${RUN_SH}" infra nope
-expect_fail_contains "compose start requires at least one service" "${RUN_SH}" compose start
-expect_fail_contains "browser requires <app> and <action>" "${RUN_SH}" browser igloo-chrome
+expect_fail_contains "compose-start requires SERVICES" make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" compose-start
+expect_fail_contains "compose-logs requires SERVICES" make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" compose-logs
 
 reset_trace
-run_with_trace "${RUN_SH}" browser igloo-chrome build
-assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-shared run build:browser-wasm"
-assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-chrome run build:browser-wasm"
-assert_trace_contains "npm|cwd=${ROOT_DIR}/repos/igloo-chrome|args=run build"
+run_with_trace igloo-chrome-build
+assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-chrome run build"
 
 reset_trace
-run_with_trace "${RUN_SH}" browser igloo-pwa build
-assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-shared run build:browser-wasm"
-assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-pwa run build:browser-wasm"
-assert_trace_contains "npm|cwd=${ROOT_DIR}/repos/igloo-pwa|args=run build"
+run_with_trace igloo-pwa-build
+assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-pwa run build"
 
 reset_trace
-run_with_trace "${RUN_SH}" test prep
+run_with_trace igloo-home-test-unit
+assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-home run test:unit"
+
+reset_trace
+run_with_trace test-prep
 assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-shared run build:browser-wasm"
 assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-pwa run build:browser-wasm"
 assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-chrome run build:browser-wasm"
@@ -146,12 +128,14 @@ carol-password
 EOF
 
 reset_trace
-run_with_trace env BG=1 FROSTR_TEST_HARNESS_DIR="${TRACE_HARNESS_DIR}" "${RUN_SH}" demo start --port 8394
+TRACE_FILE="${TRACE_FILE}" PATH="${TRACE_BIN_DIR}:${PATH}" FROSTR_TEST_HARNESS_DIR="${TRACE_HARNESS_DIR}" make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" demo-start PORT=8394 >/dev/null
 assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-shared run build:browser-wasm"
 assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-pwa run build:browser-wasm"
 assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-chrome run build:browser-wasm"
+assert_trace_contains "cargo|cwd=${ROOT_DIR}/repos/bifrost-rs|args=build --offline --locked -p bifrost-devtools --bin bifrost-devtools"
+assert_trace_contains "cargo|cwd=${ROOT_DIR}/repos/igloo-shell|args=build --offline --locked -p igloo-shell-cli --bin igloo-shell"
 assert_trace_contains "docker|cwd=${ROOT_DIR}|args=compose -f ${ROOT_DIR}/compose.test.yml up -d --build --remove-orphans dev-relay igloo-demo"
 
-"${RUN_SH}" repo check >/dev/null
+make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" repo-check >/dev/null
 
-echo "ok: run.sh command router smoke tests passed"
+echo "ok: make command surface smoke tests passed"

@@ -43,14 +43,14 @@ npm run test:e2e:igloo-chrome:live
 From the repo root:
 
 ```bash
-./run.sh test smoke
-./run.sh test fast
-./run.sh test live
-./run.sh test demo
-./run.sh test e2e
-./run.sh test prep
-./run.sh test affected
-./run.sh test release
+make test-smoke
+make test-fast
+make test-live
+make test-demo
+make test-e2e
+make test-prep
+make test-affected
+make test-release
 ```
 
 ## Automated Tiers
@@ -74,28 +74,28 @@ The canonical aggregate browser matrix is:
 
 ```bash
 npm --prefix test run test:e2e
-./run.sh test e2e
+make test-e2e
 ```
 
 That aggregate currently means `fast + live`. The `demo` tier stays separate so
 the focused Docker-backed onboarding path can be run independently.
 The release-facing CI gate runs that `demo` tier explicitly through
-`./run.sh test demo`.
+`make test-demo`.
 
 Shared prep and root workflows:
-- `./run.sh test prep`
+- `make test-prep`
   - prebuilds shared Rust binaries, browser artifacts, and demo-harness images
   - uses `./.tmp/test-prebuild/` by default
   - `FROSTR_TEST_PREBUILD_DIR` is an explicit override for custom scratch
     locations
-- `./run.sh test affected`
+- `make test-affected`
   - runs the deterministic minimal test surface for the current branch
-- `./run.sh test release`
+- `make test-release`
   - runs the full coordinated release matrix after shared prep
   - prints a compact timing summary for the root phases
 
 If the root `./.tmp/` tree becomes stale or unwritable, repair it with
-`./run.sh repo reset` before rerunning prep or demo commands.
+`make repo-reset` before rerunning prep or demo commands.
 
 ## Manual Demo Flows
 
@@ -104,10 +104,10 @@ Browser-facing local demo flows should use `ws://localhost:<port>`.
 First-class entrypoints:
 
 ```bash
-./run.sh demo start
-./run.sh demo onboard
-./run.sh demo logs
-./run.sh demo stop
+make demo-start
+make demo-onboard
+make demo-logs
+make demo-stop
 ```
 
 Direct `docker compose -f compose.test.yml ...` commands remain available for
@@ -119,7 +119,7 @@ control are needed.
 Start the shared demo stack from the workspace root:
 
 ```bash
-./run.sh demo start
+make demo-start
 ```
 
 That command:
@@ -130,9 +130,9 @@ That command:
 - exports the current relay URL, onboarding packages, and passwords
 - writes the artifacts under `./.tmp/test-harness/`
 
-By default it stays attached to the terminal so you can watch compose output
-and stop the stack with `Ctrl-C`. Use `BG=1 ./run.sh demo start` to launch the
-same stack in the background.
+`make demo-start` launches the stack in the background. Use
+`make demo-foreground` to stay attached to compose output in the current
+terminal and stop the stack with `Ctrl-C`.
 
 The important local files are:
 
@@ -145,7 +145,7 @@ The important local files are:
 At any point you can reprint the current packages and relay URL with:
 
 ```bash
-./run.sh demo onboard
+make demo-onboard
 ```
 
 By default the demo harness exports two remote shares, `bob` and `carol`. That
@@ -158,7 +158,7 @@ stack so the onboarding artifacts are regenerated.
 Start the PWA host from the workspace root:
 
 ```bash
-./run.sh browser igloo-pwa dev
+make igloo-pwa-dev
 ```
 
 That command also refreshes and syncs browser-WASM artifacts before starting the host.
@@ -179,7 +179,7 @@ Then in the browser:
 9. Click `Save Device`.
 
 The onboarded PWA profile will connect to the relay URL printed by
-`./run.sh demo start`, for example `ws://localhost:8194`, and can then interact
+`make demo-start`, for example `ws://localhost:8194`, and can then interact
 with the live signer running inside `igloo-demo`.
 
 ### Demo `igloo-shell`
@@ -219,10 +219,10 @@ package.
 
 ### Demo `igloo-home`
 
-Start the desktop host from `repos/igloo-home`:
+Start the desktop host from the workspace root:
 
 ```bash
-npm run tauri dev
+make igloo-home-tauri-dev
 ```
 
 Then in the desktop app:
@@ -248,13 +248,13 @@ demo package, connect to `dev-relay`, and land on the shared dashboard shell.
 When the session is done:
 
 ```bash
-./run.sh demo stop
+make demo-stop
 ```
 
 If you want to inspect the live demo services during the session:
 
 ```bash
-./run.sh demo logs
+make demo-logs
 ```
 
 ## Ownership
@@ -263,11 +263,11 @@ If you want to inspect the live demo services during the session:
 - `services/dev-relay` and `services/igloo-demo` own the Docker-backed demo
   environment
 - `test/scripts/test-demo-harness-onboard.sh` owns the automated `smoke` tier
-- `./run.sh demo ...` wraps the manual demo flow but does not replace direct
+- `make demo-...` wraps the manual demo flow but does not replace direct
   compose usage
 
 Root `scripts/` are private implementation detail. Public root workflows should
-use `./run.sh ...`.
+use `make ...`.
 
 Submodule convenience scripts still proxy here:
 - `repos/igloo-pwa`: `npm run test:e2e`
@@ -286,7 +286,7 @@ Chrome `@live` tests use worker-scoped cached responder state by default.
 ## Troubleshooting
 
 - Prefer `localhost` over `127.0.0.1` for browser-facing local relay URLs.
-- If the manual demo stack is stale, use `./run.sh demo stop` or
+- If the manual demo stack is stale, use `make demo-stop` or
   `docker compose -f compose.test.yml down -v`.
-- If a port is occupied, `./run.sh demo start` may auto-pick a free port; check
-  `.tmp/test-harness/demo-relay-port.txt` and `./run.sh demo onboard`.
+- If a port is occupied, `make demo-start` may auto-pick a free port; check
+  `.tmp/test-harness/demo-relay-port.txt` and `make demo-onboard`.

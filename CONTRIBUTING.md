@@ -13,7 +13,7 @@ The parent repo owns:
   [`dev/`](./dev)
 - cross-repo browser and demo-harness tests under [`test/`](./test)
 - demo compose definitions, demo services, and root orchestration under
-  [`compose.test.yml`](./compose.test.yml) and [`run.sh`](./run.sh)
+  [`compose.test.yml`](./compose.test.yml) and [`Makefile`](./Makefile)
 - submodule pointers and coordinated release checkpoints
 
 The parent repo does not own implementation details that belong inside a
@@ -32,11 +32,11 @@ specific project repo.
 - `services/`
   - infra-owned container images and entrypoints
 - `scripts/`
-  - root helper scripts used by `run.sh` and release workflows
+  - root helper scripts used by `Makefile` and release workflows
 - `compose.test.yml`
   - demo stack definition
-- `run.sh`
-  - curated top-level command router
+- `Makefile`
+  - curated top-level command surface
 
 ## Documentation Ownership
 
@@ -155,9 +155,9 @@ pointer.
 
 ## Workflow Expectations
 
-- Use [`./run.sh`](./run.sh) for supported root workflows.
-- Prefer `./run.sh test prep`, `./run.sh test affected`, and
-  `./run.sh test release` over ad hoc root test orchestration.
+- Use [`Makefile`](./Makefile) for supported root workflows.
+- Prefer `make test-prep`, `make test-affected`, and `make test-release` over
+  ad hoc root test orchestration.
 - Treat the release-matrix timing summary as the first place to look when a
   root test phase regresses.
 - Treat root `scripts/` as implementation detail unless you are maintaining the
@@ -170,7 +170,7 @@ pointer.
 - Use `FROSTR_TEST_PREBUILD_DIR` only when you intentionally need a custom
   scratch location.
 - If the parent `./.tmp/` tree becomes stale or unwritable, repair it with
-  `./run.sh repo reset`.
+  `make repo-reset`.
 - When changing shared contracts, update the shared docs in [`docs/`](./docs)
   in the same pass.
 - When changing cross-repo demos or E2E behavior, update
@@ -180,8 +180,8 @@ pointer.
 
 Choose the smallest validation that proves the change:
 - root doc changes: link/reference sweep and manual doc review
-- test harness changes: relevant `./run.sh test ...` or `npm --prefix test run ...`
-- demo stack changes: `./run.sh demo ...` and the affected smoke flow
+- test harness changes: relevant `make test-...` or `npm --prefix test run ...`
+- demo stack changes: `make demo-...` and the affected smoke flow
 - release workflow changes: follow [`dev/docs/RELEASE.md`](./dev/docs/RELEASE.md)
   and the affected repo-local release docs
 
