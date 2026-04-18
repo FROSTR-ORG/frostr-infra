@@ -92,6 +92,8 @@ Project-specific manuals live in the relevant repo, not in this shared doc set.
   - shared browser/runtime adapter layer
 - `repos/igloo-ui/README.md`, `TESTING.md`, `CONTRIBUTING.md`
   - shared UI package
+- `repos/igloo-paper/README.md`, `INSTRUCTIONS.md`
+  - static Paper design-system export and design-sync verification runbook
 
 Cross-repo demo-harness and browser E2E guidance lives in:
 - [test/README.md](../test/README.md)

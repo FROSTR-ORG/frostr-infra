@@ -26,7 +26,7 @@ specific project repo.
 - `dev/`
   - workspace release docs, ADRs, policies, and planning artifacts
 - `repos/`
-  - independent project repos
+  - independent project and reference repos
 - `test/`
   - cross-repo browser, desktop, and demo-harness verification
 - `services/`
@@ -133,6 +133,16 @@ Owns the extension host, provider surface, and extension-specific control plane.
 
 Owns the shared presentational UI package.
 
+### `repos/igloo-paper`
+
+Owns the static Paper design-system export used as reference material:
+- generated design-system docs, tokens, screenshots, and screen references
+- Paper export metadata and artboard mapping
+- design-sync verification scripts
+
+It does not own runtime behavior, package code, application builds, or shared
+TypeScript/Rust contracts.
+
 ## How to Decide Where a Change Belongs
 
 Put the change in the parent repo when it affects:
@@ -148,6 +158,7 @@ Put the change in a submodule when it affects:
 - repo-local docs
 - repo-local tests
 - crate/package/app implementation details
+- static Paper design reference exports owned by `repos/igloo-paper`
 
 If a change touches both, update the owning submodule first and then update the
 parent repo to reflect the new shared behavior, release state, or submodule
@@ -173,6 +184,9 @@ pointer.
   `make repo-reset`.
 - When changing shared contracts, update the shared docs in [`docs/`](./docs)
   in the same pass.
+- Keep `igloo-paper` reference-only. Do not introduce imports, package
+  dependencies, build steps, or runtime assumptions from `igloo-paper` into
+  `igloo-ui`, `igloo-shared`, or host apps.
 - When changing cross-repo demos or E2E behavior, update
   [`test/README.md`](./test/README.md) in the same pass.
 

@@ -26,3 +26,7 @@
 	path = repos/igloo-shared
 	url = git@github.com:FROSTR-ORG/igloo-shared.git
 	branch = master
+[submodule "repos/igloo-paper"]
+	path = repos/igloo-paper
+	url = git@github.com:FROSTR-ORG/igloo-paper.git
+	branch = master

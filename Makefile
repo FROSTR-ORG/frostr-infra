@@ -4,6 +4,7 @@ SHELL := /usr/bin/env bash
 ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 TEST_DIR := $(ROOT_DIR)/test
 IGLOO_UI_DIR := $(ROOT_DIR)/repos/igloo-ui
+IGLOO_PAPER_DIR := $(ROOT_DIR)/repos/igloo-paper
 IGLOO_PWA_DIR := $(ROOT_DIR)/repos/igloo-pwa
 IGLOO_CHROME_DIR := $(ROOT_DIR)/repos/igloo-chrome
 IGLOO_HOME_DIR := $(ROOT_DIR)/repos/igloo-home
@@ -16,6 +17,7 @@ PORT ?= 8194
 	compose-start compose-stop compose-restart compose-logs \
 	test-smoke test-fast test-live test-demo test-e2e test-prep test-affected test-release \
 	browser-wasm-sync browser-wasm-check \
+	igloo-paper-verify \
 	igloo-chrome-dev igloo-chrome-build igloo-chrome-test-unit igloo-chrome-test-e2e \
 	igloo-pwa-dev igloo-pwa-build igloo-pwa-test-unit igloo-pwa-test-e2e \
 	igloo-home-dev igloo-home-tauri-dev igloo-home-build igloo-home-typecheck igloo-home-test-unit \
@@ -47,6 +49,7 @@ help:
 		'  make test-release' \
 		'  make browser-wasm-sync' \
 		'  make browser-wasm-check' \
+		'  make igloo-paper-verify [STRICT=1]' \
 		'  make igloo-chrome-dev' \
 		'  make igloo-chrome-build' \
 		'  make igloo-chrome-test-unit' \
@@ -69,7 +72,8 @@ help:
 		'  Makefile is the only supported root command interface.' \
 		'  scripts/ remains private implementation detail.' \
 		'  demo-start launches the demo stack in the background.' \
-		'  demo-foreground stays attached to the terminal.'
+		'  demo-foreground stays attached to the terminal.' \
+		'  igloo-paper-verify requires Paper desktop and Paper MCP.'
 
 repo-init:
 	@cd "$(ROOT_DIR)" && git submodule sync && git submodule update --init
@@ -144,6 +148,17 @@ browser-wasm-sync:
 
 browser-wasm-check:
 	@"$(ROOT_DIR)/scripts/prepare-browser-wasm.sh" check all
+
+igloo-paper-verify:
+	@if [[ ! -f "$(IGLOO_PAPER_DIR)/scripts/verify.py" ]]; then \
+		echo 'error: igloo-paper submodule is not initialized. Run make repo-init.' >&2; \
+		exit 1; \
+	fi
+	@if [[ "$(STRICT)" == "1" ]]; then \
+		python3 "$(IGLOO_PAPER_DIR)/scripts/verify.py" --strict-drift; \
+	else \
+		python3 "$(IGLOO_PAPER_DIR)/scripts/verify.py"; \
+	fi
 
 igloo-chrome-dev:
 	@npm --prefix "$(IGLOO_CHROME_DIR)" run dev

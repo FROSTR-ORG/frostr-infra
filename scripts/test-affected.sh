@@ -11,14 +11,22 @@ cd "${ROOT_DIR}"
 
 changed_files=()
 if [[ -n "${FROSTR_AFFECTED_FILES+x}" ]]; then
-  mapfile -t changed_files < <(printf '%s' "${FROSTR_AFFECTED_FILES}" | sed '/^$/d')
+  while IFS= read -r path; do
+    if [[ -n "${path}" ]]; then
+      changed_files+=("${path}")
+    fi
+  done < <(printf '%s\n' "${FROSTR_AFFECTED_FILES}")
 else
   merge_base="$(git merge-base "${BASE_REF}" HEAD 2>/dev/null || true)"
   if [[ -z "${merge_base}" ]]; then
     echo "error: unable to resolve affected base '${BASE_REF}'" >&2
     exit 1
   fi
-  mapfile -t changed_files < <(git diff --name-only "${merge_base}"...HEAD)
+  while IFS= read -r path; do
+    if [[ -n "${path}" ]]; then
+      changed_files+=("${path}")
+    fi
+  done < <(git diff --name-only "${merge_base}"...HEAD)
 fi
 
 run_guards=0
@@ -33,36 +41,41 @@ if [[ "${#changed_files[@]}" -eq 0 ]]; then
   run_guards=1
 fi
 
-for path in "${changed_files[@]}"; do
-  case "${path}" in
-    README.md|CONTRIBUTING.md|CHANGELOG.md|Makefile|compose.test.yml|scripts/*|test/*|docs/*|dev/*|services/*|.github/*)
-      run_guards=1
-      ;;
-    repos/bifrost-rs/*)
-      run_bifrost=1
-      ;;
-    repos/igloo-shell/*)
-      run_shell=1
-      ;;
-    repos/igloo-shared/*)
-      run_shared=1
-      ;;
-    repos/igloo-home/*)
-      run_home=1
-      ;;
-    repos/igloo-pwa/*)
-      run_pwa=1
-      ;;
-    repos/igloo-chrome/*)
-      run_chrome=1
-      ;;
-    repos/igloo-ui/*)
-      run_home=1
-      run_pwa=1
-      run_chrome=1
-      ;;
-  esac
-done
+if [[ "${#changed_files[@]}" -gt 0 ]]; then
+  for path in "${changed_files[@]}"; do
+    case "${path}" in
+      README.md|CONTRIBUTING.md|CHANGELOG.md|Makefile|compose.test.yml|scripts/*|test/*|docs/*|dev/*|services/*|.github/*)
+        run_guards=1
+        ;;
+      repos/bifrost-rs/*)
+        run_bifrost=1
+        ;;
+      repos/igloo-shell/*)
+        run_shell=1
+        ;;
+      repos/igloo-shared/*)
+        run_shared=1
+        ;;
+      repos/igloo-paper|repos/igloo-paper/*)
+        run_guards=1
+        ;;
+      repos/igloo-home/*)
+        run_home=1
+        ;;
+      repos/igloo-pwa/*)
+        run_pwa=1
+        ;;
+      repos/igloo-chrome/*)
+        run_chrome=1
+        ;;
+      repos/igloo-ui/*)
+        run_home=1
+        run_pwa=1
+        run_chrome=1
+        ;;
+    esac
+  done
+fi
 
 prebuild_targets=()
 if [[ "${run_pwa}" -eq 1 ]]; then
@@ -76,13 +89,27 @@ if [[ "${run_home}" -eq 1 ]]; then
 fi
 
 deduped_targets=()
-declare -A seen_targets=()
-for target in "${prebuild_targets[@]}"; do
-  if [[ -z "${seen_targets[${target}]:-}" ]]; then
-    seen_targets["${target}"]=1
-    deduped_targets+=("${target}")
+target_seen() {
+  local candidate="$1"
+  local existing
+  if [[ "${#deduped_targets[@]}" -eq 0 ]]; then
+    return 1
   fi
-done
+  for existing in "${deduped_targets[@]}"; do
+    if [[ "${existing}" == "${candidate}" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+if [[ "${#prebuild_targets[@]}" -gt 0 ]]; then
+  for target in "${prebuild_targets[@]}"; do
+    if ! target_seen "${target}"; then
+      deduped_targets+=("${target}")
+    fi
+  done
+fi
 
 print_command() {
   printf 'command: %s\n' "$1"

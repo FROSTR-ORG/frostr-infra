@@ -4,7 +4,7 @@
 
 It owns the shared system docs, the root command surface, cross-repo demo and
 E2E harnesses, compose-based local environments, and the submodule pointers for
-the implementation repos under [`repos/`](./repos).
+the implementation and reference repos under [`repos/`](./repos).
 
 ## What Lives Here
 
@@ -16,6 +16,8 @@ the implementation repos under [`repos/`](./repos).
 - `repos/`
   - independent project repos such as `bifrost-rs`, `igloo-shell`,
     `igloo-home`, `igloo-pwa`, `igloo-chrome`, `igloo-shared`, and `igloo-ui`
+  - reference-only repos such as `igloo-paper`, the static Paper design-system
+    export used as design source material
 - `test/`
   - cross-repo browser, desktop, and demo-harness verification
 - `services/`
@@ -61,6 +63,7 @@ make test-demo
 make test-prep
 make test-affected
 make test-release
+make igloo-paper-verify
 make igloo-chrome-build
 make igloo-pwa-dev
 make igloo-home-tauri-dev
@@ -74,6 +77,10 @@ The root workspace manages the demo-harness services (`dev-relay`,
 `igloo-demo`), shared docs, cross-repo tests, and submodule coordination.
 Those parent-owned services do not correspond one-to-one with a repo under
 `repos/`; they are still owned and documented by this workspace.
+
+`make igloo-paper-verify` runs the `repos/igloo-paper` export verifier for
+design-sync work. It requires Paper desktop and Paper MCP, and is not part of
+the default runtime, demo, or release validation lanes.
 
 ## Quick Start
 
@@ -111,6 +118,10 @@ For shared FROSTR system semantics:
 
 For repo-local work:
 - read the root docs inside the relevant project under [`repos/`](./repos)
+
+For design-system reference material:
+- read [`repos/igloo-paper/README.md`](./repos/igloo-paper/README.md) and
+  [`repos/igloo-paper/INSTRUCTIONS.md`](./repos/igloo-paper/INSTRUCTIONS.md)
 
 For cross-repo validation and demos:
 - read [`test/README.md`](./test/README.md)
@@ -152,3 +163,5 @@ requests and `main` pushes for the release-facing demo lane.
 - Avoid recursive submodule operations from the parent workspace.
 - Treat each repo under `repos/` as an independent project with its own root
   manuals and release surface.
+- Treat `repos/igloo-paper` as reference-only design material. Do not import it
+  into runtime code, product packages, or app builds.

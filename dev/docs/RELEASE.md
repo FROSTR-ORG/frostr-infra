@@ -27,6 +27,9 @@ For each release cycle:
 - decide which repos need a version bump
 - update the repo-local changelog and release notes surface for each changed
   repo
+- treat `repos/igloo-paper` as a design-reference pointer checkpoint only; do
+  not require a version bump, product release tag, package publish, or runtime
+  validation solely because its pointer changed
 
 Current repos with dedicated release docs:
 - [`repos/bifrost-rs/RELEASE.md`](../../repos/bifrost-rs/RELEASE.md)
@@ -34,6 +37,10 @@ Current repos with dedicated release docs:
 
 For the remaining repos, use their root `README.md`, `TESTING.md`, and
 `CONTRIBUTING.md` plus the validation matrix below.
+
+For `repos/igloo-paper`, use its `README.md` and `INSTRUCTIONS.md`. Run
+`make igloo-paper-verify` only when intentionally validating a design export and
+Paper desktop plus Paper MCP are available.
 
 ## Prepare the Changed Submodules
 
@@ -53,6 +60,10 @@ Typical release-facing repos and checks:
   - run its root testing/manual flows
 - `repos/igloo-home`, `repos/igloo-pwa`, `repos/igloo-shared`, `repos/igloo-ui`
   - run the checks documented in their root docs
+- `repos/igloo-paper`
+  - no version bump or product release tag is required
+  - run `make igloo-paper-verify` only for intentional design-sync validation
+  - do not add its generated reference export to runtime or package builds
 
 ## Workspace Validation Matrix
 
@@ -112,6 +123,10 @@ The required GitHub Actions release-facing demo gate is
 `main` pushes. Keep that workflow green in addition to the local/root release
 matrix.
 
+`repos/igloo-paper` pointer-only updates are not part of the release-facing demo
+gate. They should be reviewed as design-reference checkpoints unless paired
+with implementation changes in product/runtime repos.
+
 If a release changes only a narrow surface, you may run a narrower matrix first,
 but the full matrix should be green before cutting the coordinated parent
 release.
@@ -128,6 +143,11 @@ For each changed repo:
 - create the release commit
 - create the annotated tag
 - push the branch and tag
+
+For `repos/igloo-paper`, this release step means ensuring the design-reference
+commit already exists remotely before updating the parent pointer. Do not cut a
+version tag for `igloo-paper` unless a separate design-release process explicitly
+requires it.
 
 After the pushes succeed, update the parent repo to the new submodule pointers.
 

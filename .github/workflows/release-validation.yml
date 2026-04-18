@@ -10,7 +10,13 @@ on:
       - "scripts/**"
       - "services/**"
       - "test/**"
-      - "repos/*"
+      - "repos/bifrost-rs"
+      - "repos/igloo-chrome"
+      - "repos/igloo-home"
+      - "repos/igloo-pwa"
+      - "repos/igloo-shared"
+      - "repos/igloo-shell"
+      - "repos/igloo-ui"
   push:
     branches:
       - main
@@ -22,7 +28,13 @@ on:
       - "scripts/**"
       - "services/**"
       - "test/**"
-      - "repos/*"
+      - "repos/bifrost-rs"
+      - "repos/igloo-chrome"
+      - "repos/igloo-home"
+      - "repos/igloo-pwa"
+      - "repos/igloo-shared"
+      - "repos/igloo-shell"
+      - "repos/igloo-ui"
 
 jobs:
   demo-validation:
