@@ -44,7 +44,7 @@ fi
 if [[ "${#changed_files[@]}" -gt 0 ]]; then
   for path in "${changed_files[@]}"; do
     case "${path}" in
-      README.md|CONTRIBUTING.md|CHANGELOG.md|Makefile|compose.test.yml|scripts/*|test/*|docs/*|dev/*|services/*|.github/*)
+      .gitmodules|README.md|CONTRIBUTING.md|CHANGELOG.md|Makefile|compose.test.yml|scripts/*|test/*|docs/*|dev/*|services/*|.github/*)
         run_guards=1
         ;;
       repos/bifrost-rs/*)

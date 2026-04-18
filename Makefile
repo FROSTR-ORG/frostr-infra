@@ -73,7 +73,7 @@ help:
 		'  scripts/ remains private implementation detail.' \
 		'  demo-start launches the demo stack in the background.' \
 		'  demo-foreground stays attached to the terminal.' \
-		'  igloo-paper-verify requires Paper desktop and Paper MCP.'
+		'  igloo-paper-verify is manual; excluded from default test/CI lanes (requires Paper desktop and Paper MCP).'
 
 repo-init:
 	@cd "$(ROOT_DIR)" && git submodule sync && git submodule update --init
@@ -155,9 +155,9 @@ igloo-paper-verify:
 		exit 1; \
 	fi
 	@if [[ "$(STRICT)" == "1" ]]; then \
-		python3 "$(IGLOO_PAPER_DIR)/scripts/verify.py" --strict-drift; \
+		cd "$(IGLOO_PAPER_DIR)" && python3 scripts/verify.py --strict-drift; \
 	else \
-		python3 "$(IGLOO_PAPER_DIR)/scripts/verify.py"; \
+		cd "$(IGLOO_PAPER_DIR)" && python3 scripts/verify.py; \
 	fi
 
 igloo-chrome-dev:

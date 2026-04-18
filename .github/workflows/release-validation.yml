@@ -87,7 +87,7 @@ jobs:
             xvfb
 
       - name: Install wasm-pack
-        run: cargo install --locked wasm-pack
+        run: cargo install --locked --version 0.14.0 wasm-pack
 
       - name: Install workspace npm dependencies
         run: |

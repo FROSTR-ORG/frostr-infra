@@ -42,6 +42,11 @@ assert_contains "${DEV_DOCS_ONLY}" "command: npm --prefix test run test:guards"
 assert_not_contains "${DEV_DOCS_ONLY}" "prep_targets:"
 assert_not_contains "${DEV_DOCS_ONLY}" "test:e2e:igloo-pwa"
 
+GITMODULES_ONLY="$(run_dry $'.gitmodules')"
+assert_contains "${GITMODULES_ONLY}" "command: npm --prefix test run test:guards"
+assert_not_contains "${GITMODULES_ONLY}" "prep_targets:"
+assert_not_contains "${GITMODULES_ONLY}" "test:e2e:igloo-pwa"
+
 BIFROST_ONLY="$(run_dry $'repos/bifrost-rs/Cargo.toml')"
 assert_contains "${BIFROST_ONLY}" "cargo test --manifest-path ${ROOT_DIR}/repos/bifrost-rs/Cargo.toml --workspace --offline"
 assert_not_contains "${BIFROST_ONLY}" "prep_targets:"

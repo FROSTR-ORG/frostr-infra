@@ -9,6 +9,7 @@ TRACE_BIN_DIR="${TRACE_DIR}/bin"
 TRACE_FILE="${TRACE_DIR}/command-trace.log"
 TRACE_HARNESS_DIR="${TRACE_DIR}/harness"
 TRACE_PREBUILD_DIR="${TRACE_DIR}/prebuild"
+TRACE_IGLOO_PAPER_DIR="${TRACE_DIR}/igloo-paper"
 
 cleanup() {
   rm -rf "${TRACE_DIR}"
@@ -16,7 +17,12 @@ cleanup() {
 
 trap cleanup EXIT
 
-mkdir -p "${TRACE_BIN_DIR}" "${TRACE_HARNESS_DIR}" "${TRACE_PREBUILD_DIR}"
+mkdir -p \
+  "${TRACE_BIN_DIR}" \
+  "${TRACE_HARNESS_DIR}" \
+  "${TRACE_PREBUILD_DIR}" \
+  "${TRACE_IGLOO_PAPER_DIR}/scripts"
+: >"${TRACE_IGLOO_PAPER_DIR}/scripts/verify.py"
 
 assert_contains() {
   local haystack="$1"
@@ -124,12 +130,12 @@ run_with_trace igloo-home-test-unit
 assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-home run test:unit"
 
 reset_trace
-run_with_trace igloo-paper-verify
-assert_trace_contains "python3|cwd=${ROOT_DIR}|args=${ROOT_DIR}/repos/igloo-paper/scripts/verify.py"
+run_with_trace IGLOO_PAPER_DIR="${TRACE_IGLOO_PAPER_DIR}" igloo-paper-verify
+assert_trace_contains "python3|cwd=${TRACE_IGLOO_PAPER_DIR}|args=scripts/verify.py"
 
 reset_trace
-run_with_trace igloo-paper-verify STRICT=1
-assert_trace_contains "python3|cwd=${ROOT_DIR}|args=${ROOT_DIR}/repos/igloo-paper/scripts/verify.py --strict-drift"
+run_with_trace IGLOO_PAPER_DIR="${TRACE_IGLOO_PAPER_DIR}" igloo-paper-verify STRICT=1
+assert_trace_contains "python3|cwd=${TRACE_IGLOO_PAPER_DIR}|args=scripts/verify.py --strict-drift"
 
 reset_trace
 run_with_fresh_prebuild_trace test-prep

@@ -14,7 +14,7 @@ on:
       - ".gitmodules"
   push:
     branches:
-      - main
+      - master
     paths:
       - ".github/workflows/workspace-guards.yml"
       - "README.md"
@@ -59,7 +59,7 @@ jobs:
             ripgrep
 
       - name: Install wasm-pack
-        run: cargo install --locked wasm-pack
+        run: cargo install --locked --version 0.14.0 wasm-pack
 
       - name: Install test dependencies
         working-directory: test
