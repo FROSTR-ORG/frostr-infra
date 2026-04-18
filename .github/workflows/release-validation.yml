@@ -98,6 +98,12 @@ jobs:
           npm ci --prefix repos/igloo-home
           npm ci --prefix test
 
+      - name: Fetch Rust dependencies for offline builds
+        run: |
+          cargo fetch --manifest-path repos/bifrost-rs/Cargo.toml --locked --target wasm32-unknown-unknown
+          cargo fetch --manifest-path repos/igloo-shell/Cargo.toml --locked
+          cargo fetch --manifest-path repos/igloo-home/src-tauri/Cargo.toml --locked
+
       - name: Install Playwright browsers
         run: npm --prefix test run test:install-browsers
 
