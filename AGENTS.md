@@ -8,7 +8,7 @@
 - `dev/`: release docs, ADRs, policies, reports, and historical workspace notes
 - `test/`: cross-repo Playwright, desktop, and demo-harness verification
 - `services/`: infra-owned compose services such as `dev-relay` and `igloo-demo`
-- `repos/`: git submodules for implementation repos; treat each as an independent project
+- `repos/`: git submodules for implementation and reference repos; treat each as an independent project
 
 Use root docs for workspace behavior, then read the owning submodule’s docs for repo-local implementation details.
 
@@ -26,7 +26,7 @@ Use `make` as the public root interface. Root `scripts/` are implementation deta
 
 ## Coding Style & Naming Conventions
 
-Keep changes scoped to the owning layer: shared semantics in `docs/`, workspace process in `dev/`, cross-repo harness logic in `test/`, and product code in the correct submodule. Prefer Markdown with short sections and concrete commands. For shell scripts, follow existing Bash style (`set -euo pipefail`, lowercase helper names). Do not add ad hoc root entrypoints when `Makefile` should own the workflow.
+Keep changes scoped to the owning layer: shared semantics in `docs/`, workspace process in `dev/`, cross-repo harness logic in `test/`, product code in the correct implementation submodule, and Paper design references in `repos/igloo-paper`. Prefer Markdown with short sections and concrete commands. For shell scripts, follow existing Bash style (`set -euo pipefail`, lowercase helper names). Do not add ad hoc root entrypoints when `Makefile` should own the workflow. Do not import `igloo-paper` into runtime code, package code, or app builds.
 
 ## Testing Guidelines
 

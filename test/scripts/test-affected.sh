@@ -42,10 +42,23 @@ assert_contains "${DEV_DOCS_ONLY}" "command: npm --prefix test run test:guards"
 assert_not_contains "${DEV_DOCS_ONLY}" "prep_targets:"
 assert_not_contains "${DEV_DOCS_ONLY}" "test:e2e:igloo-pwa"
 
+GITMODULES_ONLY="$(run_dry $'.gitmodules')"
+assert_contains "${GITMODULES_ONLY}" "command: npm --prefix test run test:guards"
+assert_not_contains "${GITMODULES_ONLY}" "prep_targets:"
+assert_not_contains "${GITMODULES_ONLY}" "test:e2e:igloo-pwa"
+
 BIFROST_ONLY="$(run_dry $'repos/bifrost-rs/Cargo.toml')"
 assert_contains "${BIFROST_ONLY}" "cargo test --manifest-path ${ROOT_DIR}/repos/bifrost-rs/Cargo.toml --workspace --offline"
 assert_not_contains "${BIFROST_ONLY}" "prep_targets:"
 assert_not_contains "${BIFROST_ONLY}" "test:e2e:igloo-home"
+
+PAPER_ONLY="$(run_dry $'repos/igloo-paper')"
+assert_contains "${PAPER_ONLY}" "command: npm --prefix test run test:guards"
+assert_not_contains "${PAPER_ONLY}" "prep_targets:"
+assert_not_contains "${PAPER_ONLY}" "test:e2e:igloo-home"
+assert_not_contains "${PAPER_ONLY}" "test:e2e:igloo-pwa"
+assert_not_contains "${PAPER_ONLY}" "test:e2e:igloo-chrome"
+assert_not_contains "${PAPER_ONLY}" "igloo-paper-verify"
 
 UI_ONLY="$(run_dry $'repos/igloo-ui/src/index.ts')"
 assert_contains "${UI_ONLY}" "prep_targets: pwa chrome demo home"

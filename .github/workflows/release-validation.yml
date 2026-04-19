@@ -10,7 +10,13 @@ on:
       - "scripts/**"
       - "services/**"
       - "test/**"
-      - "repos/*"
+      - "repos/bifrost-rs"
+      - "repos/igloo-chrome"
+      - "repos/igloo-home"
+      - "repos/igloo-pwa"
+      - "repos/igloo-shared"
+      - "repos/igloo-shell"
+      - "repos/igloo-ui"
   push:
     branches:
       - main
@@ -22,7 +28,13 @@ on:
       - "scripts/**"
       - "services/**"
       - "test/**"
-      - "repos/*"
+      - "repos/bifrost-rs"
+      - "repos/igloo-chrome"
+      - "repos/igloo-home"
+      - "repos/igloo-pwa"
+      - "repos/igloo-shared"
+      - "repos/igloo-shell"
+      - "repos/igloo-ui"
 
 jobs:
   demo-validation:
@@ -75,7 +87,7 @@ jobs:
             xvfb
 
       - name: Install wasm-pack
-        run: cargo install --locked wasm-pack
+        run: cargo install --locked --version 0.14.0 wasm-pack
 
       - name: Install workspace npm dependencies
         run: |
@@ -85,6 +97,12 @@ jobs:
           npm ci --prefix repos/igloo-chrome
           npm ci --prefix repos/igloo-home
           npm ci --prefix test
+
+      - name: Fetch Rust dependencies for offline builds
+        run: |
+          cargo fetch --manifest-path repos/bifrost-rs/Cargo.toml --locked --target wasm32-unknown-unknown
+          cargo fetch --manifest-path repos/igloo-shell/Cargo.toml --locked
+          cargo fetch --manifest-path repos/igloo-home/src-tauri/Cargo.toml --locked
 
       - name: Install Playwright browsers
         run: npm --prefix test run test:install-browsers
