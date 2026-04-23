@@ -73,7 +73,7 @@ jobs:
 
       - name: Install test dependencies
         working-directory: test
-        run: npm install
+        run: npm ci
 
       - name: Run workspace guards
         working-directory: test
