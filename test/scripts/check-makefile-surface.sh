@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+#
+# Smoke-tests the Makefile command surface: asserts that `make help` lists the
+# expected targets, that invariant targets fail cleanly when required variables
+# are missing, and that common targets dispatch to the expected underlying
+# tools (npm / cargo / docker / python3). Runs with stub binaries on PATH so
+# no real builds or container starts execute.
+#
+# Originally named test-run-sh.sh when the parent repo shipped a run.sh
+# command surface; renamed to reflect the current Makefile-only surface.
 
 set -euo pipefail
 
