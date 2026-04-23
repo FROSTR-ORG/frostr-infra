@@ -39,6 +39,10 @@ run_compose_attached() {
   trap 'forward_signal INT' INT
   trap 'forward_signal TERM' TERM
 
+  # Persist the port file only after compose has started producing output
+  # successfully. print_onboard blocks waiting for the containers to write
+  # their onboarding artifacts, so by the time it returns compose is up.
+  printf '%s\n' "${resolved_port}" > "${RELAY_PORT_FILE}"
   print_onboard "${resolved_port}"
 
   set +e
@@ -201,23 +205,42 @@ start_stack() {
   local requested_port="${2:-$DEFAULT_PORT}"
 
   stop_projects "${requested_port}"
-  local resolved_port
-  resolved_port="$(resolve_port "${requested_port}")"
-  echo "==> Using demo relay port ${resolved_port}"
+  echo "==> Using demo relay port ${requested_port}"
   mkdir -p "${HOST_HARNESS_DIR}"
-  printf '%s\n' "${resolved_port}" > "${RELAY_PORT_FILE}"
   build_binaries
 
+  # Let docker compose fail loud on port conflict rather than probing here
+  # (which had a TOCTOU race where the probe saw the port free, then another
+  # process grabbed it before compose bound). If the port is truly in use,
+  # docker exits with a clear error and the operator can retry with
+  # PORT=<alternative>.
+
   if [[ "${action}" == "foreground" ]]; then
-    run_compose_attached "${resolved_port}"
-  else
-    FROSTR_TEST_HARNESS_DIR="${HOST_HARNESS_DIR}" \
-    FROSTR_TEST_HARNESS_CONTAINER_DIR="${CONTAINER_HARNESS_DIR}" \
-    DEV_RELAY_PORT="${resolved_port}" DEV_RELAY_EXTERNAL_HOST=localhost \
-    HOST_UID="$(id -u)" HOST_GID="$(id -g)" \
-      docker compose -f "${ROOT_DIR}/compose.test.yml" up -d --build --remove-orphans "${DEMO_HARNESS_SERVICES[@]}"
-    print_onboard "${resolved_port}"
+    # run_compose_attached writes the port file itself after compose is up
+    # but before print_onboard blocks, so a failed attached start never
+    # leaves a stale RELAY_PORT_FILE.
+    if ! run_compose_attached "${requested_port}"; then
+      echo "compose failed (port ${requested_port} may be in use); retry with PORT=<alternative>" >&2
+      return 1
+    fi
+    return 0
   fi
+
+  if ! FROSTR_TEST_HARNESS_DIR="${HOST_HARNESS_DIR}" \
+    FROSTR_TEST_HARNESS_CONTAINER_DIR="${CONTAINER_HARNESS_DIR}" \
+    DEV_RELAY_PORT="${requested_port}" DEV_RELAY_EXTERNAL_HOST=localhost \
+    HOST_UID="$(id -u)" HOST_GID="$(id -g)" \
+      docker compose -f "${ROOT_DIR}/compose.test.yml" up -d --build --remove-orphans \
+        "${DEMO_HARNESS_SERVICES[@]}"
+  then
+    echo "compose failed (port ${requested_port} may be in use); retry with PORT=<alternative>" >&2
+    return 1
+  fi
+
+  # Persist the port file only after compose up -d succeeded; a failed
+  # start should not leave a stale port hint for subsequent demo-onboard.
+  printf '%s\n' "${requested_port}" > "${RELAY_PORT_FILE}"
+  print_onboard "${requested_port}"
 }
 
 logs() {
