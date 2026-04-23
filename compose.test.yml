@@ -25,6 +25,7 @@ services:
       dockerfile: services/dev-relay/dockerfile
     image: bifrost-infra-dev-relay:dev
     hostname: dev-relay
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     working_dir: /workspace
     environment:
       DEV_RELAY_PORT: ${DEV_RELAY_PORT:-8194}
@@ -35,8 +36,8 @@ services:
     ports:
       - "${DEV_RELAY_PORT:-8194}:${DEV_RELAY_PORT:-8194}"
     volumes:
-      - ./repos/igloo-shell:/workspace/repos/igloo-shell:rw
-      - ./repos/bifrost-rs:/workspace/repos/bifrost-rs:rw
+      - ./repos/igloo-shell:/workspace/repos/igloo-shell:ro
+      - ./repos/bifrost-rs:/workspace/repos/bifrost-rs:ro
       - cargo-target:/cargo-target
       - cargo-registry:/usr/local/cargo/registry
       - cargo-git:/usr/local/cargo/git
@@ -55,6 +56,7 @@ services:
       dockerfile: services/igloo-demo/dockerfile
     image: bifrost-infra-igloo-demo:dev
     hostname: igloo-demo
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     working_dir: /workspace
     depends_on:
       dev-relay:
@@ -78,8 +80,8 @@ services:
       IGLOO_TRACE_LEVEL: ${IGLOO_TRACE_LEVEL:-}
       CARGO_TARGET_DIR: /cargo-target
     volumes:
-      - ./repos/igloo-shell:/workspace/repos/igloo-shell:rw
-      - ./repos/bifrost-rs:/workspace/repos/bifrost-rs:rw
+      - ./repos/igloo-shell:/workspace/repos/igloo-shell:ro
+      - ./repos/bifrost-rs:/workspace/repos/bifrost-rs:ro
       - ./services:/workspace/services:ro
       - ${FROSTR_TEST_HARNESS_DIR:-./.tmp/test-harness}:${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}:rw
       - cargo-target:/cargo-target

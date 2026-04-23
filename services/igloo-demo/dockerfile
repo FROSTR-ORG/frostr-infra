@@ -1,11 +1,16 @@
 FROM ubuntu:24.04
 
 RUN apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends bash ca-certificates libssl3 \
-  && rm -rf /var/lib/apt/lists/*
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+       bash ca-certificates libssl3 jq \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd --system --gid 1500 igloo \
+  && useradd --system --uid 1500 --gid 1500 --no-create-home --shell /usr/sbin/nologin igloo
 
 WORKDIR /workspace
 COPY services/igloo-demo/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+USER igloo:igloo
 
 ENTRYPOINT ["/entrypoint.sh"]
