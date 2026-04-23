@@ -32,6 +32,7 @@ run_compose_attached() {
   FROSTR_TEST_HARNESS_DIR="${HOST_HARNESS_DIR}" \
   FROSTR_TEST_HARNESS_CONTAINER_DIR="${CONTAINER_HARNESS_DIR}" \
   DEV_RELAY_PORT="${resolved_port}" DEV_RELAY_EXTERNAL_HOST=localhost \
+  HOST_UID="$(id -u)" HOST_GID="$(id -g)" \
     docker compose -f "${ROOT_DIR}/compose.test.yml" up --build --remove-orphans "${DEMO_HARNESS_SERVICES[@]}" &
   compose_pid="$!"
 
@@ -213,6 +214,7 @@ start_stack() {
     FROSTR_TEST_HARNESS_DIR="${HOST_HARNESS_DIR}" \
     FROSTR_TEST_HARNESS_CONTAINER_DIR="${CONTAINER_HARNESS_DIR}" \
     DEV_RELAY_PORT="${resolved_port}" DEV_RELAY_EXTERNAL_HOST=localhost \
+    HOST_UID="$(id -u)" HOST_GID="$(id -g)" \
       docker compose -f "${ROOT_DIR}/compose.test.yml" up -d --build --remove-orphans "${DEMO_HARNESS_SERVICES[@]}"
     print_onboard "${resolved_port}"
   fi
