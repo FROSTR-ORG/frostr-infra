@@ -36,6 +36,13 @@ on:
       - "repos/igloo-shell"
       - "repos/igloo-ui"
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   demo-validation:
     runs-on: ubuntu-latest
@@ -44,12 +51,12 @@ jobs:
       CI: "1"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
         with:
           submodules: true
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: "22"
           cache: npm
@@ -61,13 +68,16 @@ jobs:
             repos/igloo-chrome/package-lock.json
             repos/igloo-home/package-lock.json
 
+      # dtolnay/rust-toolchain has no semver tag for `stable`; pin to the
+      # current HEAD of the `stable` branch. Refresh periodically (dependabot
+      # or manual bump) to pick up new toolchain releases.
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable @ 2026-03-27
         with:
           targets: wasm32-unknown-unknown
 
       - name: Cache Rust build artifacts
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2 (v2.9.1)
 
       - name: Install Linux system dependencies
         run: |
