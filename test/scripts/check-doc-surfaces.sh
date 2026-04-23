@@ -26,14 +26,44 @@ fi
 
 if rg -n \
   -e 'igloo-web' \
+  -e 'igloo-server' \
+  -e 'igloo-cli' \
   -e 'igloo-shell-tui' \
+  -e 'IGLOO_SERVER_' \
+  -e 'IGLOO_WEB_' \
+  -e 'IGLOO_CLI_' \
+  -e 'VITE_IGLOO_SERVER_URL' \
   -e 'data/test-harness' \
   -e '/tmp/frostr-test-prebuild-' \
   -e 'setup-dev\.sh' \
-  Makefile scripts .github test README.md CONTRIBUTING.md docs dev \
-  --glob '!test/scripts/check-doc-surfaces.sh'
+  .env.example Makefile scripts .github test README.md CONTRIBUTING.md docs dev \
+  --glob '!test/scripts/check-doc-surfaces.sh' \
+  --glob '!dev/done/**' \
+  --glob '!dev/reports/**' \
+  --glob '!dev/audit/**' \
+  --glob '!dev/plans/**'
 then
   echo "retired parent surfaces are still referenced" >&2
+  exit 1
+fi
+
+# Reject any tracked path under data/. The data/ directory was retired;
+# scratch artifacts belong under .tmp/ per the workspace scratch-discipline
+# policy. Untracked data/ directories on disk are fine — this only guards
+# the index.
+tracked_data_paths="$(git ls-files data/ 2>/dev/null || true)"
+if [ -n "${tracked_data_paths}" ]; then
+  echo "tracked data/ paths are not permitted (see CONTRIBUTING.md scratch policy):" >&2
+  echo "${tracked_data_paths}" >&2
+  exit 1
+fi
+
+# Reject any re-introduction of data/* carve-outs in .gitignore. If a
+# data/ ignore rule shows up again, the data/ tree is about to be
+# tracked via .gitkeep-style fossils.
+if rg -n '^!?data/' .gitignore
+then
+  echo ".gitignore must not re-introduce data/ carve-outs" >&2
   exit 1
 fi
 
