@@ -36,6 +36,9 @@ on:
       - "repos/igloo-shell"
       - "repos/igloo-ui"
 
+permissions:
+  contents: read
+
 jobs:
   demo-validation:
     runs-on: ubuntu-latest

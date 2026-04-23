@@ -26,6 +26,9 @@ on:
       - "scripts/**"
       - ".gitmodules"
 
+permissions:
+  contents: read
+
 jobs:
   guards:
     runs-on: ubuntu-latest
