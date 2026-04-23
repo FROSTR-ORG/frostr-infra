@@ -6,8 +6,8 @@
 # tools (npm / cargo / docker / python3). Runs with stub binaries on PATH so
 # no real builds or container starts execute.
 #
-# Originally named test-run-sh.sh when the parent repo shipped a run.sh
-# command surface; renamed to reflect the current Makefile-only surface.
+# Previously named after the old run.sh root command surface; renamed to
+# reflect the current Makefile-only surface.
 
 set -euo pipefail
 
@@ -97,6 +97,25 @@ write_stub "ss" '#!/usr/bin/env bash
 printf "ss|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
 exit 0'
 
+# Stubs for every tool check-setup.sh treats as a hard requirement. This
+# keeps the repo-check smoke test below exercising the command surface
+# (make dispatches to scripts/check-setup.sh) without forcing the host to
+# have every tool installed. The real presence checks run on CI where the
+# workflow installs each tool explicitly.
+write_stub "wasm-pack" '#!/usr/bin/env bash
+printf "wasm-pack|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
+exit 0'
+
+write_stub "jq" '#!/usr/bin/env bash
+# Fall through to real jq if installed; otherwise fake success.
+if [[ -x /usr/bin/jq ]]; then exec /usr/bin/jq "$@"; fi
+printf "jq|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
+exit 0'
+
+write_stub "xvfb-run" '#!/usr/bin/env bash
+printf "xvfb-run|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
+exit 0'
+
 run_with_trace() {
   TRACE_FILE="${TRACE_FILE}" PATH="${TRACE_BIN_DIR}:${PATH}" make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" "$@" >/dev/null
 }
@@ -178,6 +197,6 @@ assert_trace_contains "cargo|cwd=${ROOT_DIR}/repos/bifrost-rs|args=build --offli
 assert_trace_contains "cargo|cwd=${ROOT_DIR}/repos/igloo-shell|args=build --offline --locked -p igloo-shell-cli --bin igloo-shell"
 assert_trace_contains "docker|cwd=${ROOT_DIR}|args=compose -f ${ROOT_DIR}/compose.test.yml up -d --build --remove-orphans dev-relay igloo-demo"
 
-make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" repo-check >/dev/null
+PATH="${TRACE_BIN_DIR}:${PATH}" make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" repo-check >/dev/null
 
 echo "ok: make command surface smoke tests passed"
