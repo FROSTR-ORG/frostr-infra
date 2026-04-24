@@ -17,6 +17,7 @@ type TestResponse<T = unknown> = {
 export type IglooHomeHarness = {
   appDataDir: string;
   port: number;
+  token: string;
   request: <T = unknown>(command: string, input?: unknown) => Promise<T>;
   close: () => Promise<void>;
 };
@@ -43,11 +44,11 @@ function nextPort(): Promise<number> {
   });
 }
 
-async function waitForServer(port: number, timeoutMs: number) {
+async function waitForServer(port: number, token: string, timeoutMs: number) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      await requestServer(port, 'health');
+      await requestServer(port, token, 'health');
       return;
     } catch {
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -56,7 +57,7 @@ async function waitForServer(port: number, timeoutMs: number) {
   throw new Error(`timed out waiting for igloo-home test server on ${port}`);
 }
 
-function requestServer<T>(port: number, command: string, input?: unknown): Promise<T> {
+function requestServer<T>(port: number, token: string, command: string, input?: unknown): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const client = net.createConnection({ host: '127.0.0.1', port });
     const chunks: Buffer[] = [];
@@ -75,6 +76,8 @@ function requestServer<T>(port: number, command: string, input?: unknown): Promi
       }
     });
     client.on('connect', () => {
+      // PR21 handshake: first line is the bootstrap token, then the request.
+      client.write(`${JSON.stringify({ token })}\n`);
       client.end(
         `${JSON.stringify({
           request_id: randomBytes(8).toString('hex'),
@@ -91,10 +94,23 @@ function buildIglooHome() {
     cwd: IGLOO_HOME_DIR,
     stdio: 'inherit',
   });
-  execFileSync('cargo', ['build', '--manifest-path', 'src-tauri/Cargo.toml'], {
-    cwd: IGLOO_HOME_DIR,
-    stdio: 'inherit',
-  });
+  // PR21 gates the test-mode TCP dispatcher behind the `test-server` Cargo
+  // feature. A default `cargo build` no longer compiles it, so the harness
+  // must opt in explicitly.
+  execFileSync(
+    'cargo',
+    [
+      'build',
+      '--manifest-path',
+      'src-tauri/Cargo.toml',
+      '--features',
+      'test-server',
+    ],
+    {
+      cwd: IGLOO_HOME_DIR,
+      stdio: 'inherit',
+    },
+  );
 }
 
 function binaryPath() {
@@ -119,6 +135,10 @@ export async function launchIglooHome(): Promise<IglooHomeHarness> {
   }
   const appDataDir = await mkdtemp(path.join(os.tmpdir(), 'igloo-home-test-'));
   const port = await nextPort();
+  // PR21 requires IGLOO_HOME_TEST_TOKEN (64 hex chars) to start the loopback
+  // test server, and every client connection must present it as the first
+  // line before the request payload.
+  const token = randomBytes(32).toString('hex');
   const child = spawn(resolvedBinaryPath(), [], {
     cwd: IGLOO_HOME_DIR,
     stdio: 'inherit',
@@ -127,12 +147,13 @@ export async function launchIglooHome(): Promise<IglooHomeHarness> {
       IGLOO_HOME_TEST_MODE: '1',
       IGLOO_HOME_TEST_SHOW_WINDOW: '0',
       IGLOO_HOME_TEST_PORT: String(port),
+      IGLOO_HOME_TEST_TOKEN: token,
       IGLOO_HOME_TEST_APP_DATA_DIR: appDataDir,
     },
   });
 
   try {
-    await waitForServer(port, 30_000);
+    await waitForServer(port, token, 30_000);
   } catch (error) {
     child.kill('SIGTERM');
     await rm(appDataDir, { recursive: true, force: true });
@@ -142,7 +163,8 @@ export async function launchIglooHome(): Promise<IglooHomeHarness> {
   return {
     appDataDir,
     port,
-    request: <T>(command: string, input?: unknown) => requestServer<T>(port, command, input),
+    token,
+    request: <T>(command: string, input?: unknown) => requestServer<T>(port, token, command, input),
     close: async () => {
       if (!child.killed) {
         child.kill('SIGTERM');

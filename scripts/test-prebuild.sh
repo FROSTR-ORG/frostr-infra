@@ -345,7 +345,10 @@ fi
 
 if [[ -n "${SELECTED[home]:-}" ]]; then
   run_step "Build igloo-home web assets" npm --prefix "${ROOT_DIR}/repos/igloo-home" run build:app
-  run_step "Build igloo-home desktop binary" cargo build --manifest-path "${ROOT_DIR}/repos/igloo-home/src-tauri/Cargo.toml" --offline
+  # PR21 gates the loopback test-mode TCP server behind the `test-server`
+  # Cargo feature; the parent-repo Playwright harness relies on that server,
+  # so the prebuild must enable the feature when producing the cached binary.
+  run_step "Build igloo-home desktop binary" cargo build --manifest-path "${ROOT_DIR}/repos/igloo-home/src-tauri/Cargo.toml" --offline --features test-server
 fi
 
 if [[ -n "${SELECTED[demo-binaries]:-}" ]]; then
