@@ -2,6 +2,12 @@
 .env.local
 compose.override.yml
 .tmp*/
+# Belt-and-braces: live demo-harness scratch should land in .tmp/test-harness/
+# per CLAUDE.md, but `data/` has shown up historically when an env override
+# (FROSTR_TEST_HARNESS_DIR=data/test-harness) or a stale script writes here.
+# These files include daemon tokens and onboarding passwords — never commit.
+# Root cause TODO: trace why data/ is still being written and redirect to .tmp/.
+data/
 node_modules/
 **/node_modules/
 logs/*
