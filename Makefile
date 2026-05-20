@@ -17,7 +17,7 @@ PORT ?= 8194
 	compose-start compose-stop compose-restart compose-logs \
 	test-smoke test-fast test-live test-demo test-e2e test-prep test-affected test-release \
 	browser-wasm-sync browser-wasm-check \
-	igloo-paper-verify \
+	igloo-paper-sync igloo-paper-verify igloo-ui-paper-token-sync igloo-ui-paper-token-check \
 	igloo-chrome-dev igloo-chrome-build igloo-chrome-test-unit igloo-chrome-test-e2e \
 	igloo-pwa-dev igloo-pwa-build igloo-pwa-test-unit igloo-pwa-test-e2e \
 	igloo-home-dev igloo-home-tauri-dev igloo-home-build igloo-home-typecheck igloo-home-test-unit \
@@ -49,7 +49,10 @@ help:
 		'  make test-release' \
 		'  make browser-wasm-sync' \
 		'  make browser-wasm-check' \
+		'  make igloo-paper-sync [STRICT=1]' \
 		'  make igloo-paper-verify [STRICT=1]' \
+		'  make igloo-ui-paper-token-sync' \
+		'  make igloo-ui-paper-token-check' \
 		'  make igloo-chrome-dev' \
 		'  make igloo-chrome-build' \
 		'  make igloo-chrome-test-unit' \
@@ -73,7 +76,8 @@ help:
 		'  scripts/ remains private implementation detail.' \
 		'  demo-start launches the demo stack in the background.' \
 		'  demo-foreground stays attached to the terminal.' \
-		'  igloo-paper-verify is manual; excluded from default test/CI lanes (requires Paper desktop and Paper MCP).'
+		'  igloo-paper-sync and igloo-paper-verify are manual; excluded from default test/CI lanes (require Paper desktop and Paper MCP).' \
+		'  igloo-ui-paper-token-sync is a parent-owned handoff; igloo-ui does not depend on Paper tooling.'
 
 repo-init:
 	@cd "$(ROOT_DIR)" && git submodule sync && git submodule update --init
@@ -149,16 +153,34 @@ browser-wasm-sync:
 browser-wasm-check:
 	@"$(ROOT_DIR)/scripts/prepare-browser-wasm.sh" check all
 
+igloo-paper-sync:
+	@if [[ ! -f "$(IGLOO_PAPER_DIR)/scripts/export_from_paper.py" ]]; then \
+		echo 'error: igloo-paper submodule is not initialized. Run make repo-init.' >&2; \
+		exit 1; \
+	fi
+	@cd "$(IGLOO_PAPER_DIR)" && PYTHONDONTWRITEBYTECODE=1 python3 scripts/export_from_paper.py
+	@if [[ "$(STRICT)" == "0" ]]; then \
+		cd "$(IGLOO_PAPER_DIR)" && PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify.py; \
+	else \
+		cd "$(IGLOO_PAPER_DIR)" && PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify.py --strict-drift; \
+	fi
+
 igloo-paper-verify:
 	@if [[ ! -f "$(IGLOO_PAPER_DIR)/scripts/verify.py" ]]; then \
 		echo 'error: igloo-paper submodule is not initialized. Run make repo-init.' >&2; \
 		exit 1; \
 	fi
 	@if [[ "$(STRICT)" == "1" ]]; then \
-		cd "$(IGLOO_PAPER_DIR)" && python3 scripts/verify.py --strict-drift; \
+		cd "$(IGLOO_PAPER_DIR)" && PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify.py --strict-drift; \
 	else \
-		cd "$(IGLOO_PAPER_DIR)" && python3 scripts/verify.py; \
+		cd "$(IGLOO_PAPER_DIR)" && PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify.py; \
 	fi
+
+igloo-ui-paper-token-sync:
+	@cd "$(ROOT_DIR)" && node scripts/sync-igloo-paper-tokens-to-ui.mjs sync
+
+igloo-ui-paper-token-check:
+	@cd "$(ROOT_DIR)" && node scripts/sync-igloo-paper-tokens-to-ui.mjs check
 
 igloo-chrome-dev:
 	@npm --prefix "$(IGLOO_CHROME_DIR)" run dev

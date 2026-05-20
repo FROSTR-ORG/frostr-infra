@@ -38,9 +38,11 @@ Current repos with dedicated release docs:
 For the remaining repos, use their root `README.md`, `TESTING.md`, and
 `CONTRIBUTING.md` plus the validation matrix below.
 
-For `repos/igloo-paper`, use its `README.md` and `INSTRUCTIONS.md`. Run
-`make igloo-paper-verify` only when intentionally validating a design export and
-Paper desktop plus Paper MCP are available.
+For `repos/igloo-paper`, use its `README.md` and `AGENTS.md`. Run
+`make igloo-paper-sync` when intentionally refreshing the design export, or
+`make igloo-paper-verify` when validating an existing export. Both require Paper
+desktop plus Paper MCP. Use [`DESIGN.md`](./DESIGN.md) for the parent-owned
+handoff boundary between design reference material and implementation repos.
 
 ## Prepare the Changed Submodules
 
@@ -62,7 +64,8 @@ Typical release-facing repos and checks:
   - run the checks documented in their root docs
 - `repos/igloo-paper`
   - no version bump or product release tag is required
-  - run `make igloo-paper-verify` only for intentional design-sync validation
+  - run `make igloo-paper-sync` or `make igloo-paper-verify` only for intentional design-sync validation
+  - run `make igloo-ui-paper-token-check` when the handoff token files are part of the change
   - do not add its generated reference export to runtime or package builds
 
 ## Workspace Validation Matrix

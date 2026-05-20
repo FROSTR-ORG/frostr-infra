@@ -16,8 +16,8 @@ the implementation and reference repos under [`repos/`](./repos).
 - `repos/`
   - independent project repos such as `bifrost-rs`, `igloo-shell`,
     `igloo-home`, `igloo-pwa`, `igloo-chrome`, `igloo-shared`, and `igloo-ui`
-  - reference-only repos such as `igloo-paper`, the static Paper design-system
-    export used as design source material
+  - reference-only repos such as `igloo-paper`, the static Paper design
+    contract export used as design source material
 - `test/`
   - cross-repo browser, desktop, and demo-harness verification
 - `services/`
@@ -36,6 +36,8 @@ Use the workspace docs this way:
   - map of workspace engineering docs and historical records under `dev/`
 - [`dev/docs/RELEASE.md`](./dev/docs/RELEASE.md)
   - coordinated release process for submodules and the parent repo
+- [`dev/docs/DESIGN.md`](./dev/docs/DESIGN.md)
+  - parent-owned design handoff between `igloo-paper` and implementation repos
 - [`docs/INDEX.md`](./docs/INDEX.md)
   - shared FROSTR system manual
 - [`test/README.md`](./test/README.md)
@@ -63,7 +65,10 @@ make test-demo
 make test-prep
 make test-affected
 make test-release
+make igloo-paper-sync
 make igloo-paper-verify
+make igloo-ui-paper-token-sync
+make igloo-ui-paper-token-check
 make igloo-chrome-build
 make igloo-pwa-dev
 make igloo-home-tauri-dev
@@ -78,9 +83,15 @@ The root workspace manages the demo-harness services (`dev-relay`,
 Those parent-owned services do not correspond one-to-one with a repo under
 `repos/`; they are still owned and documented by this workspace.
 
-`make igloo-paper-verify` runs the `repos/igloo-paper` export verifier for
-design-sync work. It requires Paper desktop and Paper MCP, and is not part of
-the default runtime, demo, or release validation lanes.
+`make igloo-paper-sync` exports the live Paper canvas and then verifies the
+checked-in design contract. `make igloo-paper-verify` runs only the verifier.
+Both commands require Paper desktop and Paper MCP, and are not part of the
+default runtime, demo, or release validation lanes.
+
+`make igloo-ui-paper-token-sync` copies the approved design-token handoff into
+`igloo-ui` as package-local generated files. `make igloo-ui-paper-token-check`
+verifies those files are current. This bridge is parent-owned; `igloo-ui` does
+not import or run Paper tooling.
 
 ## Quick Start
 
@@ -119,9 +130,11 @@ For shared FROSTR system semantics:
 For repo-local work:
 - read the root docs inside the relevant project under [`repos/`](./repos)
 
-For design-system reference material:
+For design-contract reference material:
 - read [`repos/igloo-paper/README.md`](./repos/igloo-paper/README.md) and
-  [`repos/igloo-paper/INSTRUCTIONS.md`](./repos/igloo-paper/INSTRUCTIONS.md)
+  [`repos/igloo-paper/AGENTS.md`](./repos/igloo-paper/AGENTS.md)
+- read [`dev/docs/DESIGN.md`](./dev/docs/DESIGN.md) for the parent-owned
+  handoff boundary between design reference material and implementation repos
 
 For cross-repo validation and demos:
 - read [`test/README.md`](./test/README.md)

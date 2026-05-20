@@ -135,8 +135,8 @@ Owns the shared presentational UI package.
 
 ### `repos/igloo-paper`
 
-Owns the static Paper design-system export used as reference material:
-- generated design-system docs, tokens, screenshots, and screen references
+Owns the static Paper design contract export used as reference material:
+- generated design docs, tokens, screenshots, and screen references
 - Paper export metadata and artboard mapping
 - design-sync verification scripts
 

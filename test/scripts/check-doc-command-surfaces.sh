@@ -59,7 +59,10 @@ root_commands=(
   "make igloo-chrome-build"
   "make igloo-pwa-dev"
   "make igloo-home-tauri-dev"
+  "make igloo-paper-sync"
   "make igloo-paper-verify"
+  "make igloo-ui-paper-token-sync"
+  "make igloo-ui-paper-token-check"
 )
 
 for command in "${root_commands[@]}"; do
@@ -80,7 +83,10 @@ for command in \
   "make test-prep" \
   "make test-affected" \
   "make test-release" \
+  "make igloo-paper-sync" \
   "make igloo-paper-verify" \
+  "make igloo-ui-paper-token-sync" \
+  "make igloo-ui-paper-token-check" \
   "make igloo-chrome-build"; do
   assert_file_contains "${README_FILE}" "${command}"
 done

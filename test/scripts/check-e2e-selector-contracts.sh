@@ -9,7 +9,10 @@ ALLOWED_HELPERS=(
   "test/igloo-pwa/support/ui.ts"
 )
 
-mapfile -t imported_contract_files < <(rg -l "e2e-test-ids" test/igloo-chrome test/igloo-pwa || true)
+imported_contract_files=()
+while IFS= read -r file; do
+  imported_contract_files+=("${file}")
+done < <(rg -l "e2e-test-ids" test/igloo-chrome test/igloo-pwa || true)
 for file in "${imported_contract_files[@]}"; do
   allowed=0
   for helper in "${ALLOWED_HELPERS[@]}"; do

@@ -105,7 +105,11 @@ resolve_port() {
 
 stop_projects() {
   local port_filter="${1:-}"
-  mapfile -t projects < <(
+  local -a projects=()
+  local project
+  while IFS= read -r project; do
+    projects+=("${project}")
+  done < <(
     docker ps \
       --filter "label=com.docker.compose.project.working_dir=${ROOT_DIR}" \
       --filter "label=com.docker.compose.project.config_files=${ROOT_DIR}/compose.test.yml" \

@@ -11,7 +11,7 @@ STAMP_DIR="${PREBUILD_DIR}/stamps"
 mkdir -p "${PREBUILD_DIR}" "${STAMP_DIR}"
 printf 'step\telapsed_seconds\n' >"${TIMINGS_FILE}"
 
-declare -A SELECTED=()
+SELECTED=()
 
 record_timing() {
   local step="$1"
@@ -31,6 +31,28 @@ run_step() {
   record_timing "${step}" "${started_at}"
 }
 
+selected_add() {
+  local target="$1"
+  local selected
+  for selected in "${SELECTED[@]+"${SELECTED[@]}"}"; do
+    if [[ "${selected}" == "${target}" ]]; then
+      return
+    fi
+  done
+  SELECTED+=("${target}")
+}
+
+selected_has() {
+  local target="$1"
+  local selected
+  for selected in "${SELECTED[@]+"${SELECTED[@]}"}"; do
+    if [[ "${selected}" == "${target}" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 select_target() {
   local target="$1"
   case "${target}" in
@@ -42,23 +64,23 @@ select_target() {
       select_target demo
       ;;
     browser-wasm)
-      SELECTED["browser-wasm"]=1
+      selected_add "browser-wasm"
       ;;
     pwa|chrome)
-      SELECTED["ui"]=1
-      SELECTED["browser-wasm"]=1
-      SELECTED["${target}"]=1
+      selected_add "ui"
+      selected_add "browser-wasm"
+      selected_add "${target}"
       ;;
     home)
-      SELECTED["ui"]=1
-      SELECTED["${target}"]=1
+      selected_add "ui"
+      selected_add "${target}"
       ;;
     demo)
-      SELECTED["demo"]=1
-      SELECTED["demo-binaries"]=1
+      selected_add "demo"
+      selected_add "demo-binaries"
       ;;
     shared|ui|demo-binaries)
-      SELECTED["${target}"]=1
+      selected_add "${target}"
       ;;
     *)
       echo "error: unknown prebuild target '${target}'" >&2
@@ -68,7 +90,10 @@ select_target() {
 }
 
 selected_targets() {
-  printf '%s\n' "${!SELECTED[@]}" | sort
+  if [[ ${#SELECTED[@]} -eq 0 ]]; then
+    return
+  fi
+  printf '%s\n' "${SELECTED[@]}" | sort
 }
 
 selected_key() {
@@ -113,12 +138,12 @@ append_image_state() {
 }
 
 collect_input_paths() {
-  local -n entries_ref="$1"
+  local -a entries_ref=()
 
   entries_ref+=("${ROOT_DIR}/scripts/test-prebuild.sh")
   entries_ref+=("${ROOT_DIR}/scripts/prepare-browser-wasm.sh")
 
-  if [[ -n "${SELECTED[shared]:-}" || -n "${SELECTED[browser-wasm]:-}" ]]; then
+  if selected_has shared || selected_has browser-wasm; then
     entries_ref+=(
       "${ROOT_DIR}/repos/bifrost-rs/Cargo.toml"
       "${ROOT_DIR}/repos/bifrost-rs/Cargo.lock"
@@ -135,7 +160,7 @@ collect_input_paths() {
     )
   fi
 
-  if [[ -n "${SELECTED[ui]:-}" ]]; then
+  if selected_has ui; then
     entries_ref+=(
       "${ROOT_DIR}/repos/igloo-ui/package.json"
       "${ROOT_DIR}/repos/igloo-ui/package-lock.json"
@@ -146,7 +171,7 @@ collect_input_paths() {
     )
   fi
 
-  if [[ -n "${SELECTED[pwa]:-}" ]]; then
+  if selected_has pwa; then
     entries_ref+=(
       "${ROOT_DIR}/repos/igloo-pwa/package.json"
       "${ROOT_DIR}/repos/igloo-pwa/package-lock.json"
@@ -158,7 +183,7 @@ collect_input_paths() {
     )
   fi
 
-  if [[ -n "${SELECTED[chrome]:-}" ]]; then
+  if selected_has chrome; then
     entries_ref+=(
       "${ROOT_DIR}/repos/igloo-chrome/package.json"
       "${ROOT_DIR}/repos/igloo-chrome/package-lock.json"
@@ -170,7 +195,7 @@ collect_input_paths() {
     )
   fi
 
-  if [[ -n "${SELECTED[home]:-}" ]]; then
+  if selected_has home; then
     entries_ref+=(
       "${ROOT_DIR}/repos/igloo-home/package.json"
       "${ROOT_DIR}/repos/igloo-home/package-lock.json"
@@ -186,7 +211,7 @@ collect_input_paths() {
     )
   fi
 
-  if [[ -n "${SELECTED[demo-binaries]:-}" ]]; then
+  if selected_has demo-binaries; then
     entries_ref+=(
       "${ROOT_DIR}/scripts/demo.sh"
       "${ROOT_DIR}/repos/bifrost-rs/Cargo.toml"
@@ -197,65 +222,65 @@ collect_input_paths() {
     )
   fi
 
-  if [[ -n "${SELECTED[demo]:-}" ]]; then
+  if selected_has demo; then
     entries_ref+=(
       "${ROOT_DIR}/compose.test.yml"
       "${ROOT_DIR}/services/dev-relay"
       "${ROOT_DIR}/services/igloo-demo"
     )
   fi
+
+  printf '%s\n' "${entries_ref[@]}"
 }
 
 render_input_fingerprint() {
-  local -a inputs=()
-  collect_input_paths inputs
-
   {
-    for path in "${inputs[@]}"; do
+    local path
+    while IFS= read -r path; do
       if [[ -d "${path}" ]]; then
         append_dir_state "${path}"
       else
         append_file_state "${path}"
       fi
-    done
+    done < <(collect_input_paths)
   } | sha256sum | awk '{print $1}'
 }
 
 render_output_state() {
-  if [[ -n "${SELECTED[shared]:-}" ]]; then
+  if selected_has shared; then
     append_file_state "${ROOT_DIR}/repos/bifrost-rs/target/debug/bifrost-devtools"
     append_file_state "${ROOT_DIR}/build/igloo-shell-target/debug/igloo-shell"
   fi
 
-  if [[ -n "${SELECTED[browser-wasm]:-}" || -n "${SELECTED[shared]:-}" ]]; then
+  if selected_has browser-wasm || selected_has shared; then
     append_dir_state "${ROOT_DIR}/repos/igloo-shared/public/wasm"
     append_dir_state "${ROOT_DIR}/repos/igloo-pwa/public/wasm"
     append_dir_state "${ROOT_DIR}/repos/igloo-chrome/public/wasm"
   fi
 
-  if [[ -n "${SELECTED[ui]:-}" ]]; then
+  if selected_has ui; then
     append_dir_state "${ROOT_DIR}/repos/igloo-ui/dist"
   fi
 
-  if [[ -n "${SELECTED[pwa]:-}" ]]; then
+  if selected_has pwa; then
     append_dir_state "${ROOT_DIR}/repos/igloo-pwa/dist"
   fi
 
-  if [[ -n "${SELECTED[chrome]:-}" ]]; then
+  if selected_has chrome; then
     append_dir_state "${ROOT_DIR}/repos/igloo-chrome/dist"
   fi
 
-  if [[ -n "${SELECTED[home]:-}" ]]; then
+  if selected_has home; then
     append_dir_state "${ROOT_DIR}/repos/igloo-home/dist"
     append_file_state "${ROOT_DIR}/repos/igloo-home/src-tauri/target/debug/igloo-home"
   fi
 
-  if [[ -n "${SELECTED[demo-binaries]:-}" ]]; then
+  if selected_has demo-binaries; then
     append_file_state "${ROOT_DIR}/repos/bifrost-rs/target/debug/bifrost-devtools"
     append_file_state "${ROOT_DIR}/repos/igloo-shell/target/debug/igloo-shell"
   fi
 
-  if [[ -n "${SELECTED[demo]:-}" ]]; then
+  if selected_has demo; then
     append_image_state "bifrost-infra-dev-relay:dev"
     append_image_state "bifrost-infra-igloo-demo:dev"
   fi
@@ -322,38 +347,38 @@ if [[ "${MODE}" == "ensure" ]]; then
   MODE="sync"
 fi
 
-if [[ -n "${SELECTED[shared]:-}" ]]; then
+if selected_has shared; then
   run_step "Build bifrost-devtools" cargo build --manifest-path "${ROOT_DIR}/repos/bifrost-rs/Cargo.toml" --offline --locked -p bifrost-devtools --bin bifrost-devtools
   run_step "Build igloo-shell CLI" env CARGO_TARGET_DIR="${ROOT_DIR}/build/igloo-shell-target" cargo build --manifest-path "${ROOT_DIR}/repos/igloo-shell/Cargo.toml" --offline -p igloo-shell-cli --bin igloo-shell
 fi
 
-if [[ -n "${SELECTED[browser-wasm]:-}" || -n "${SELECTED[shared]:-}" ]]; then
+if selected_has browser-wasm || selected_has shared; then
   run_step "Prepare browser wasm artifacts" "${ROOT_DIR}/scripts/prepare-browser-wasm.sh" sync all
 fi
 
-if [[ -n "${SELECTED[ui]:-}" ]]; then
+if selected_has ui; then
   run_step "Build igloo-ui shared assets" npm --prefix "${ROOT_DIR}/repos/igloo-ui" run build
 fi
 
-if [[ -n "${SELECTED[pwa]:-}" ]]; then
+if selected_has pwa; then
   run_step "Build igloo-pwa app assets" npm --prefix "${ROOT_DIR}/repos/igloo-pwa" run build:app
 fi
 
-if [[ -n "${SELECTED[chrome]:-}" ]]; then
+if selected_has chrome; then
   run_step "Build igloo-chrome extension" npm --prefix "${ROOT_DIR}/repos/igloo-chrome" run build:app
 fi
 
-if [[ -n "${SELECTED[home]:-}" ]]; then
+if selected_has home; then
   run_step "Build igloo-home web assets" npm --prefix "${ROOT_DIR}/repos/igloo-home" run build:app
   run_step "Build igloo-home desktop binary" cargo build --manifest-path "${ROOT_DIR}/repos/igloo-home/src-tauri/Cargo.toml" --offline
 fi
 
-if [[ -n "${SELECTED[demo-binaries]:-}" ]]; then
-  run_step "Build demo-harness binaries" bash -lc "cd '${ROOT_DIR}/repos/bifrost-rs' && cargo build --offline --locked -p bifrost-devtools --bin bifrost-devtools"
-  run_step "Build demo-harness shell" bash -lc "cd '${ROOT_DIR}/repos/igloo-shell' && cargo build --offline --locked -p igloo-shell-cli --bin igloo-shell"
+if selected_has demo-binaries; then
+  run_step "Build demo-harness binaries" bash -c "cd '${ROOT_DIR}/repos/bifrost-rs' && cargo build --offline --locked -p bifrost-devtools --bin bifrost-devtools"
+  run_step "Build demo-harness shell" bash -c "cd '${ROOT_DIR}/repos/igloo-shell' && cargo build --offline --locked -p igloo-shell-cli --bin igloo-shell"
 fi
 
-if [[ -n "${SELECTED[demo]:-}" ]]; then
+if selected_has demo; then
   run_step "Build demo-harness images" docker compose -f "${ROOT_DIR}/compose.test.yml" build dev-relay igloo-demo
 fi
 

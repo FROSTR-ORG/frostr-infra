@@ -23,6 +23,8 @@ mkdir -p \
   "${TRACE_PREBUILD_DIR}" \
   "${TRACE_IGLOO_PAPER_DIR}/scripts"
 : >"${TRACE_IGLOO_PAPER_DIR}/scripts/verify.py"
+: >"${TRACE_IGLOO_PAPER_DIR}/scripts/export_from_paper.py"
+mkdir -p "${TRACE_DIR}/repos/igloo-paper/design/tokens" "${TRACE_DIR}/repos/igloo-ui/src/tokens"
 
 assert_contains() {
   local haystack="$1"
@@ -81,7 +83,11 @@ printf "docker|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
 exit 0'
 
 write_stub "python3" '#!/usr/bin/env bash
-printf "python3|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
+printf "python3|cwd=%s|py_dont=%s|args=%s\n" "$PWD" "${PYTHONDONTWRITEBYTECODE:-}" "$*" >>"${TRACE_FILE}"
+exit 0'
+
+write_stub "node" '#!/usr/bin/env bash
+printf "node|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
 exit 0'
 
 write_stub "ss" '#!/usr/bin/env bash
@@ -108,7 +114,10 @@ assert_contains "${HELP_OUTPUT}" "make demo-foreground [PORT=<port>]"
 assert_contains "${HELP_OUTPUT}" "make test-prep"
 assert_contains "${HELP_OUTPUT}" "make test-affected"
 assert_contains "${HELP_OUTPUT}" "make test-release"
+assert_contains "${HELP_OUTPUT}" "make igloo-paper-sync [STRICT=1]"
 assert_contains "${HELP_OUTPUT}" "make igloo-paper-verify [STRICT=1]"
+assert_contains "${HELP_OUTPUT}" "make igloo-ui-paper-token-sync"
+assert_contains "${HELP_OUTPUT}" "make igloo-ui-paper-token-check"
 assert_contains "${HELP_OUTPUT}" "make compose-logs SERVICES=\"<service> [service...]\""
 assert_contains "${HELP_OUTPUT}" "make igloo-chrome-build"
 assert_contains "${HELP_OUTPUT}" "make igloo-pwa-dev"
@@ -131,11 +140,29 @@ assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo
 
 reset_trace
 run_with_trace IGLOO_PAPER_DIR="${TRACE_IGLOO_PAPER_DIR}" igloo-paper-verify
-assert_trace_contains "python3|cwd=${TRACE_IGLOO_PAPER_DIR}|args=scripts/verify.py"
+assert_trace_contains "python3|cwd=${TRACE_IGLOO_PAPER_DIR}|py_dont=1|args=scripts/verify.py"
 
 reset_trace
 run_with_trace IGLOO_PAPER_DIR="${TRACE_IGLOO_PAPER_DIR}" igloo-paper-verify STRICT=1
-assert_trace_contains "python3|cwd=${TRACE_IGLOO_PAPER_DIR}|args=scripts/verify.py --strict-drift"
+assert_trace_contains "python3|cwd=${TRACE_IGLOO_PAPER_DIR}|py_dont=1|args=scripts/verify.py --strict-drift"
+
+reset_trace
+run_with_trace IGLOO_PAPER_DIR="${TRACE_IGLOO_PAPER_DIR}" igloo-paper-sync
+assert_trace_contains "python3|cwd=${TRACE_IGLOO_PAPER_DIR}|py_dont=1|args=scripts/export_from_paper.py"
+assert_trace_contains "python3|cwd=${TRACE_IGLOO_PAPER_DIR}|py_dont=1|args=scripts/verify.py --strict-drift"
+
+reset_trace
+run_with_trace IGLOO_PAPER_DIR="${TRACE_IGLOO_PAPER_DIR}" igloo-paper-sync STRICT=0
+assert_trace_contains "python3|cwd=${TRACE_IGLOO_PAPER_DIR}|py_dont=1|args=scripts/export_from_paper.py"
+assert_trace_contains "python3|cwd=${TRACE_IGLOO_PAPER_DIR}|py_dont=1|args=scripts/verify.py"
+
+reset_trace
+run_with_trace ROOT_DIR="${TRACE_DIR}" igloo-ui-paper-token-sync
+assert_trace_contains "node|cwd=${TRACE_DIR}|args=scripts/sync-igloo-paper-tokens-to-ui.mjs sync"
+
+reset_trace
+run_with_trace ROOT_DIR="${TRACE_DIR}" igloo-ui-paper-token-check
+assert_trace_contains "node|cwd=${TRACE_DIR}|args=scripts/sync-igloo-paper-tokens-to-ui.mjs check"
 
 reset_trace
 run_with_fresh_prebuild_trace test-prep

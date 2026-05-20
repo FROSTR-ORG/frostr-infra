@@ -11,8 +11,9 @@ under [`../docs/`](../docs) or the cross-repo test manual under
 
 - [`docs/`](./docs)
   - canonical workspace process docs
-  - currently includes the coordinated parent release manual in
-    [`docs/RELEASE.md`](./docs/RELEASE.md)
+  - currently includes the parent design handoff manual in
+    [`docs/DESIGN.md`](./docs/DESIGN.md) and the coordinated parent release
+    manual in [`docs/RELEASE.md`](./docs/RELEASE.md)
 - [`adrs/`](./adrs)
   - architecture decision records
   - use [`adrs/INDEX.md`](./adrs/INDEX.md) as the entrypoint
@@ -43,6 +44,9 @@ Use the workspace docs this way:
   - shared FROSTR architecture, protocol, artifact, and wire specs
 - [`docs/RELEASE.md`](./docs/RELEASE.md)
   - coordinated parent release process
+- [`docs/DESIGN.md`](./docs/DESIGN.md)
+  - design handoff rules between reference design exports and implementation
+    packages
 - [`../test/README.md`](../test/README.md)
   - cross-repo demo harness and E2E guidance
 
