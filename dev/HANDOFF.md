@@ -51,7 +51,7 @@ XChaCha20Poly1305 envelope v2; explicit `Argon2Params` with `#[non_exhaustive]`;
 domain-separated length-prefixed AAD; raw 16-byte salt; v1 readers removed.
 Bumps `ENCRYPTED_PROFILE_VERSION` 1→2 and `BF_PACKAGE_VERSION` 1→2.
 
-### Bucket C — host-local secret hygiene (PRs 8–12 + 12b) — 🟡 PR12 in flight
+### Bucket C — host-local secret hygiene (PRs 8–12 + 12b) — ✅ Complete
 
 | PR | Submodule | Status |
 |---|---|---|
@@ -60,27 +60,14 @@ Bumps `ENCRYPTED_PROFILE_VERSION` 1→2 and `BF_PACKAGE_VERSION` 1→2.
 | PR10 — daemon auth + stdin passphrase | `bifrost-rs` | ✅ merged (`0f96098`) |
 | PR11 — `UnlockSession` + rotation intent journal | `bifrost-rs` | ✅ merged (`55e75c4`) |
 | PR12b — bifrost-profile env-fallback removal | `bifrost-rs` | ✅ merged (`1414d6b`) |
-| PR12 — consumer migration | `igloo-shell` | 🟡 branch `remediation/pr12-igloo-shell-bucket-c-migration`, tests running |
+| PR12 — consumer migration | `igloo-shell` | ✅ verified; `security-hardening` tip at `cb29a14` |
 
-#### PR12 resume point
-
-- Branch tip: `cb29a14` (igloo-shell)
-- Latest activity: `cargo test --workspace --offline` running ~19 min,
-  background process PID `3805137`, output file
-  `/tmp/claude-1000/-home-cscott-Repos-frostr-frostr-infra/3450a3fa-b367-40be-8582-5213dd141677/tasks/bb4xcpl4n.output`
-- Agent reported: workspace compiles clean; targeted greps for the five
-  env-var patterns return empty; all 28 unit / 57 integration tests passed
-  individually with bumped budgets. Full-workspace run was finalising at
-  handoff time and **may have completed by the time this is read** —
-  check the output file first.
-- Next steps if tests are green:
-  1. `cd /home/cscott/Repos/frostr/frostr-infra/repos/igloo-shell && git checkout master && git merge --ff-only remediation/pr12-igloo-shell-bucket-c-migration`
-  2. `git branch -d remediation/pr12-igloo-shell-bucket-c-migration`
-  3. Update parent-repo submodule pointers (see "End-of-R1 coordination").
-- If tests fail: the agent flagged that the Argon2id double-KDF cost
-  (parent + spawned daemon) sometimes pushes daemon-ready waits over the
-  original budget. First-line debug is bumping the `wait_for_runtime` and
-  `run_for_a_bit_with_env` timeouts in `crates/igloo-shell-cli/tests/support/mod.rs`.
+PR12 verification (full workspace, 2026-05-20):
+- 57 tests across 5 binaries — **all green, 0 failures**.
+- Slowest binary: `managed_integration` — 24 tests in 1381s (~23 min).
+  See the slow-test investigation note below; it's not a correctness
+  issue but should be fixed before R2 if test-cycle pain becomes a
+  blocker.
 
 ### Bucket D — browser-host secret hygiene (PRs 13–17) — ✅ Complete
 
@@ -180,11 +167,14 @@ Every repo now has two branches: `master` (pristine, equal to
 holding all remediation track + pre-remediation onboarding-status work).
 Active branch in each repo is `security-hardening`.
 
+All branches **pushed to `origin/security-hardening`** on GitHub
+(`FROSTR-ORG/*`) as of 2026-05-20.
+
 | Repo | `security-hardening` HEAD | `master` (== origin/master) | Notes |
 |---|---|---|---|
-| `frostr-infra` (parent) | `e70ece4` | `4c43ef3` | 26 commits on `security-hardening`; submodule pointers reference the security-hardening tips of each submodule |
+| `frostr-infra` (parent) | `f8b503d` | `4c43ef3` | 28 commits on `security-hardening`; `f8b503d` bumps submodule pointers; `61454e5` adds audit/plans/handoff and gitignores `data/` |
 | `repos/bifrost-rs` | `1414d6b` | `4a9d4f8` | 43 commits; Buckets A, B, C (through PR11 + PR12b) |
-| `repos/igloo-shell` | `cb29a14` | `24248c0` | 4 commits; PR12 (Bucket C consumer migration) awaiting test result then merge → branch tip stays |
+| `repos/igloo-shell` | `cb29a14` | `24248c0` | 4 commits; PR12 (Bucket C consumer migration) ✅ verified — all 57 tests pass |
 | `repos/igloo-shared` | `9b2d602` | `7f9c8ab` | 12 commits; Bucket D complete |
 | `repos/igloo-pwa` | `a1b0f95` | `e12f2e5` | 12 commits; Buckets D + E (PR19) complete |
 | `repos/igloo-home` | `102c377` | `eed7b7a` | 21 commits; Bucket E PR18/22/23 complete; PR24 deferred |
@@ -194,8 +184,7 @@ Active branch in each repo is `security-hardening`.
 
 Note: igloo-shell's `security-hardening` is the renamed
 `remediation/pr12-igloo-shell-bucket-c-migration` branch — same commits,
-new name. Once PR12's test run completes and merges, the next R1 PRs
-(PR20, PR24) will land on top of `cb29a14`.
+new name. Next R1 PRs (PR20, PR24) land on top of `cb29a14`.
 
 ## R2 / R3 dispatch entry points
 
@@ -235,11 +224,30 @@ of `dev/plans/remediation-2026-04-22/README.md`.
   (daemon tokens, onboarding passwords, sockets) to `data/test-harness/`
   in the workspace root, even though `CLAUDE.md` and PR26 mandate
   `.tmp/test-harness/`. Worked around 2026-05-20 by adding `data/` to the
-  parent `.gitignore`. Root cause not yet identified — candidates:
-  shell-level `FROSTR_TEST_HARNESS_DIR` export, a stale script in
-  `repos/igloo-shell/scripts/`, or a docker-compose mount path. Trace
-  next session via `rg 'data/test-harness' --no-ignore` or by checking
-  `scripts/lib-scratch.sh::resolve_workspace_scratch_dir`.
+  parent `.gitignore` (committed in `61454e5`). Root cause not yet
+  identified — candidates: shell-level `FROSTR_TEST_HARNESS_DIR` export,
+  a stale script in `repos/igloo-shell/scripts/`, or a docker-compose
+  mount path. Trace next session via `rg 'data/test-harness' --no-ignore`
+  or by checking `scripts/lib-scratch.sh::resolve_workspace_scratch_dir`.
+- **`igloo-shell` integration tests are very slow** (`managed_integration`
+  binary: 24 tests in 1381s ≈ 57 s/test). Cause: every test exercises the
+  real CLI, which uses production Argon2id parameters (`m=256 MiB, t=4`).
+  Each test pays the KDF cost twice (parent encrypt + daemon child
+  decrypt), and cargo test runs tests in parallel by default — N parallel
+  threads × 256 MiB Argon2 thrashes RAM and inflates per-test latency.
+  Tests are green, just slow. Mitigations to evaluate before R2:
+  1. Add a test-only `Argon2Params::minimum_secure()` path. Cleanest
+     shape is a `cfg(debug_assertions)`-gated env var (e.g.
+     `IGLOO_SHELL_TEST_FAST_KDF=1`) that the CLI honors; alpha tolerance
+     for this kind of debug knob is high but it must NOT be honored in
+     release builds.
+  2. `cargo test -- --test-threads=2` reduces RAM contention; cheaper but
+     leaves per-test wall time unchanged.
+  3. `cargo test --release` — slower compile, much faster Argon2.
+  Decision deferred; ran out of session time investigating. Background
+  evidence: a single `--test-threads=1 --exact <name>` invocation
+  *should* tell us whether the issue is per-test cost or parallelism
+  contention; the run got interrupted before producing a number.
 
 ## Where to read next
 
@@ -251,18 +259,44 @@ of `dev/plans/remediation-2026-04-22/README.md`.
 - `dev/plans/remediation-2026-04-22/bucket-c-secret-hygiene.md` — the
   in-flight bucket's plan.
 
-## Resume prompt
+## Setup on the new machine
 
-To pick this up on a new machine:
+The branches are already on GitHub. To pick up where this left off:
+
+```bash
+# Clone the parent and check out the integration branch.
+git clone --recurse-submodules git@github.com:FROSTR-ORG/frostr-infra.git
+cd frostr-infra
+git checkout security-hardening
+
+# Point every submodule at its security-hardening branch (the parent's
+# pointer is fine, but you want a real branch checked out, not a
+# detached HEAD, for the next round of PR work).
+git submodule foreach --recursive \
+  'git fetch origin && git checkout security-hardening || true'
+```
+
+Verify state:
+```bash
+# Each row should show branch=security-hardening and HEAD matching the
+# table above.
+for path in . repos/bifrost-rs repos/igloo-shell repos/igloo-shared \
+            repos/igloo-pwa repos/igloo-home repos/igloo-chrome repos/igloo-ui; do
+  (cd "$path" && printf "%-20s %-22s %s\n" \
+    "$(basename "$(pwd)")" "$(git branch --show-current)" \
+    "$(git rev-parse --short HEAD)")
+done
+```
+
+## Resume prompt
 
 > Continuing the FROSTR remediation track from `dev/HANDOFF.md`. All
 > repos including the parent have `security-hardening` as the active
-> integration branch (`master` everywhere is pristine at `origin/master`).
-> R1 Bucket C is the live bucket; PR12 (igloo-shell consumer migration)
-> was awaiting full-workspace test results when the session paused. Check
-> the branch state in `repos/igloo-shell` and the test output at the path
-> captured in HANDOFF.md, then merge into `security-hardening` if green
-> (fast-forward), fix if not. After Bucket C closes, finish R1 by
-> tackling PR20 (WASM integrity) and PR24 (Tauri passphrase migration),
-> then bump parent-repo submodule pointers as the coordinated R1 commit
-> on the parent's `security-hardening` branch.
+> integration branch on origin (`master` everywhere is pristine at
+> `origin/master`). R1 Buckets A, B, C, D, E (PR18/19/21/22/23), and F
+> are all complete and verified. **Next:** PR20 (WASM SHA-384 integrity,
+> multi-repo bifrost-rs + igloo-shared) and PR24 (Tauri Passphrase
+> newtype migration, igloo-home, depends on Bucket C PR9 which has
+> shipped). After both land and the slow-test investigation closes (see
+> "Live caveats"), bump parent-repo submodule pointers as the
+> coordinated R1 release commit and tag.
