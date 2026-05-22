@@ -1,5 +1,6 @@
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { CRITICAL_E2E_TEST_IDS } from '../../../repos/igloo-ui/src/lib/e2e-test-ids';
+import { DEFAULT_BROWSER_PASSWORD } from '../../shared/browser-artifacts';
 
 import { PWA_STORAGE_KEY } from './state';
 
@@ -86,8 +87,11 @@ export async function onboardPwaDevice(
 
 export async function loadStoredPwaProfile(page: Page, label: string) {
   await page.goto('/');
-  await selectPwaStoredProfile(page, label);
-  await loadSelectedPwaStoredProfile(page);
+  const profileRow = page.locator('.igloo-welcome-profile-row').filter({ hasText: label }).first();
+  await expect(profileRow).toBeVisible();
+  await profileRow.getByRole('button', { name: 'Unlock' }).click();
+  await page.getByLabel('Profile Password').fill(DEFAULT_BROWSER_PASSWORD);
+  await page.getByRole('button', { name: 'Unlock' }).click();
 }
 
 export async function openPwaRotateShare(page: Page) {

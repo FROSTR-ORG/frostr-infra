@@ -6,10 +6,8 @@ test.describe('igloo-pwa ui-first shell', () => {
   test('creates a generated profile, distributes a share, and lands on the dashboard', async ({ page }) => {
     await page.goto('/');
 
-    await expect(
-      page.getByText('Choose one path to initialize this browser workspace.'),
-    ).toBeVisible();
-    await page.getByRole('button', { name: 'Start' }).first().click();
+    await expect(page.getByText('Split your Nostr key. Sign from anywhere.')).toBeVisible();
+    await page.getByRole('button', { name: 'New Keyset' }).click();
     await page.getByLabel('Group Name').fill('Playwright Treasury');
     await page.getByRole('button', { name: 'Generate Keyset' }).click();
     await expect(page.getByText('Select the Device Share')).toBeVisible();
@@ -227,12 +225,9 @@ test.describe('igloo-pwa ui-first shell', () => {
     await expect(page.getByRole('button', { name: 'logout' })).toBeVisible();
     await expect(page.getByRole('button', { name: /reset browser workspace/i })).toHaveCount(0);
     await page.getByRole('button', { name: 'logout' }).click();
-    await expect(page.getByText('Choose one path to initialize this browser workspace.')).toBeVisible();
-    const storedProfilesCard = page
-      .getByRole('heading', { name: 'Stored Profiles' })
-      .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')
-      .first();
-    await expect(storedProfilesCard.getByRole('button', { name: 'Primary Browser Device' })).toBeVisible();
-    await expect(storedProfilesCard.getByRole('button', { name: 'Load Profile' })).toBeVisible();
+    await expect(page.getByText('Welcome back.')).toBeVisible();
+    const profileRow = page.locator('.igloo-welcome-profile-row').filter({ hasText: 'Primary Browser Device' }).first();
+    await expect(profileRow).toBeVisible();
+    await expect(profileRow.getByRole('button', { name: 'Unlock' })).toBeVisible();
   });
 });
