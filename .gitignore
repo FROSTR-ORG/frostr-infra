@@ -20,6 +20,7 @@ test/**/.last-run.json
 services/onboard-helper/target/
 CLAUDE.md
 .codex
+.superpowers/
 .DS_Store
 NOTES.md
 TODO.md
