@@ -157,5 +157,27 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
 
     await page.setViewportSize({ width: 1440, height: 1861 });
     await captureIn(page, CREATE_CAPTURE_DIR, '02-create-profile.png');
+
+    await page.getByLabel('Device Password').fill('paper-browser-pass');
+    await page.getByLabel('Confirm Password').fill('paper-browser-pass');
+    await page.getByRole('button', { name: 'Continue to Review' }).click();
+    await expect(page.getByRole('heading', { name: 'Review Device Profile', level: 2 })).toBeVisible();
+    await captureIn(page, CREATE_CAPTURE_DIR, '03-create-confirm.png');
+
+    await page.getByRole('button', { name: 'Accept and Continue' }).click();
+    await expect(page.getByText('Distribute Shares')).toBeVisible();
+    await expect(page.getByText('Remaining Shares')).toBeVisible();
+    await captureIn(page, CREATE_CAPTURE_DIR, '04-distribute-shares.png');
+
+    const distributionCards = page.locator('section.igloo-create-distribution-card');
+    const cardCount = await distributionCards.count();
+    for (let index = 0; index < cardCount; index += 1) {
+      const card = distributionCards.nth(index);
+      await card.getByLabel('Package password').fill('remote-device-pass');
+      await card.getByLabel('Confirm Password').fill('remote-device-pass');
+      await card.getByRole('button', { name: 'Create package' }).click();
+    }
+    await expect(page.getByText('Distribution Completion')).toBeVisible();
+    await captureIn(page, CREATE_CAPTURE_DIR, '05-distribution-completion.png');
   });
 });

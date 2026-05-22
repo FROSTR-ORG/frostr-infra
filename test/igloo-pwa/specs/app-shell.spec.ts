@@ -17,23 +17,33 @@ test.describe('igloo-pwa ui-first shell', () => {
     await page.getByLabel('Device Password').fill('playwright-browser-pass');
     await page.getByLabel('Confirm Password').fill('playwright-browser-pass');
     await page.getByRole('button', { name: 'Continue to Review' }).click();
-    await expect(page.getByText('Preview and Confirm')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Review Device Profile', level: 2 })).toBeVisible();
     await page.getByRole('button', { name: 'Accept and Continue' }).click();
-    await expect(page.getByRole('heading', { name: 'Remaining Shares', exact: true })).toBeVisible();
+    await expect(page.getByText('Remaining Shares')).toBeVisible();
 
     const shareCard = page
-      .locator('section.igloo-panel')
+      .locator('section.igloo-create-distribution-card')
       .filter({ has: page.getByLabel('Share label') })
       .first();
     await shareCard.getByLabel('Share label').fill('Remote Tablet');
     await shareCard.getByLabel('Package password').fill('remote-tablet-pass');
     await shareCard.getByLabel('Confirm Password').fill('remote-tablet-pass');
-    await shareCard.getByRole('button', { name: 'QR' }).click();
+    await shareCard.getByRole('button', { name: 'Create package' }).click();
+    await shareCard.getByRole('button', { name: 'QR code' }).click();
     await expect(page.getByText('Onboarding Package QR')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByText('Onboarding Package QR')).not.toBeVisible();
 
-    await page.getByRole('button', { name: 'Finish' }).click();
+    const remainingCard = page
+      .locator('section.igloo-create-distribution-card')
+      .filter({ has: page.getByRole('button', { name: 'Create package' }) })
+      .first();
+    await remainingCard.getByLabel('Package password').fill('remote-tablet-pass');
+    await remainingCard.getByLabel('Confirm Password').fill('remote-tablet-pass');
+    await remainingCard.getByRole('button', { name: 'Create package' }).click();
+
+    await expect(page.getByText('Distribution Completion')).toBeVisible();
+    await page.getByRole('button', { name: 'Finish Distribution' }).click();
     await expect(page.getByText('Device Dashboard')).toBeVisible();
     await expect(page.getByRole('tab', { name: /Signer\s+runtime console/i })).toBeVisible();
     await expect(page.getByRole('tab', { name: /Permissions\s+peer policies/i })).toBeVisible();

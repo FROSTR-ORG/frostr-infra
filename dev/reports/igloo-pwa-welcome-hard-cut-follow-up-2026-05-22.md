@@ -49,18 +49,24 @@ Generated captures:
 
 ## Create Flow Follow-Up Slice
 
-The first `create-generate` and `create-profile` slices are now included in the visual harness. They cover the default create-keyset entry screen reached from Welcome and the subsequent Paper-style local profile setup screen.
+The `create-generate`, `create-profile`, review, distribution, and distribution-completion slices are now included in the visual harness. They cover the default create-keyset entry screen reached from Welcome through remote bfonboard handoff completion.
 
 Generated capture:
 
 - `.tmp/igloo-pwa-create/01-create-keyset.png`
 - `.tmp/igloo-pwa-create/02-create-profile.png`
+- `.tmp/igloo-pwa-create/03-create-confirm.png`
+- `.tmp/igloo-pwa-create/04-distribute-shares.png`
+- `.tmp/igloo-pwa-create/05-distribution-completion.png`
 
 Implementation notes:
 
 - `StepProgress` now renders Paper-style complete, active, and pending states while preserving the existing `steps` plus `active` API.
 - `igloo-ui` exports `CreateFlowProfileSetup` for the local share chooser, profile name, password/confirm password, relays, and continue action.
 - `igloo-pwa` now routes `create-profile` through the shared Paper-style setup surface.
+- `CreateFlowReviewPanel` now renders a Paper-style device review summary and `igloo-pwa` uses the public task shell for `create-confirm`.
+- `CreateFlowDistributionSection` now renders Paper-style package creation, ready, local-share, and completion states.
+- Distribution supports a `prepare` action so a bfonboard package can be created without forcing clipboard, QR, or download side effects.
 - The PWA unit harness now restores a browser-like `window.localStorage` before each test, which unblocks the unit app shell suite under the current Vitest environment.
 - `FROSTR_TEST_PREPARED=1` rotation E2E runs now fail fast with a clear missing prepared binary error instead of attempting an offline Cargo dependency resolution path.
 
@@ -70,6 +76,8 @@ Remaining deltas:
 - The private-key field is presentational in this slice; the current runtime still generates the keyset from the existing `groupName`, `threshold`, and `count` contract.
 - The create-profile spacing and typography are browser-aligned, but should receive one direct Paper overlay pass before calling it pixel-close.
 - The relays block remains a functional textarea with a Paper-style status header; the exact Paper interaction model may need adjustment when relay editing becomes first-class.
+- The review slice uses the Paper review-summary pattern, not a dedicated exported Paper screen.
+- The distribution step records package creation as completion until real remote echo telemetry is available in the browser flow.
 
 ## Verification
 
@@ -95,7 +103,11 @@ This root typecheck is blocked by existing `igloo-chrome` path/type errors outsi
 Additional known non-pass:
 
 ```sh
+make test-prep
+npm --prefix test run test:guards
 FROSTR_TEST_PREPARED=1 npm --prefix test exec -- playwright test -c test/igloo-pwa/playwright.config.ts test/igloo-pwa/specs/rotation-create.spec.ts
 ```
 
-The rotation-create Playwright spec is still blocked until a prepared `bifrost-devtools` binary exists under the expected browser-artifacts path. With `FROSTR_TEST_PREPARED=1`, the spec now reports that missing binary directly and instructs the operator to run `make test-prep`.
+`make test-prep` is blocked by offline Cargo resolution for `frost-secp256k1-tr-unofficial` while building `bifrost-devtools`. The rotation-create Playwright spec is still blocked until a prepared `bifrost-devtools` binary exists under the expected browser-artifacts path. With `FROSTR_TEST_PREPARED=1`, the spec reports that missing binary directly.
+
+`npm --prefix test run test:guards` passes markdown, legacy-surface, doc-surface, command-surface, and command-selector checks, then stops at `check-browser-wasm-artifacts.sh` because local `wasm-pack` is not installed.
