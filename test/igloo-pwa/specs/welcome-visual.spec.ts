@@ -176,6 +176,7 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
       await card.getByLabel('Package password').fill('remote-device-pass');
       await card.getByLabel('Confirm Password').fill('remote-device-pass');
       await card.getByRole('button', { name: 'Create package' }).click();
+      await card.getByRole('button', { name: 'Mark distributed' }).click();
     }
     await expect(page.getByText('Distribution Completion')).toBeVisible();
     await captureIn(page, CREATE_CAPTURE_DIR, '05-distribution-completion.png');

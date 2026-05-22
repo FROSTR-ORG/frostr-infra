@@ -33,6 +33,7 @@ test.describe('igloo-pwa ui-first shell', () => {
     await expect(page.getByText('Onboarding Package QR')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByText('Onboarding Package QR')).not.toBeVisible();
+    await shareCard.getByRole('button', { name: 'Mark distributed' }).click();
 
     const remainingCard = page
       .locator('section.igloo-create-distribution-card')
@@ -41,6 +42,7 @@ test.describe('igloo-pwa ui-first shell', () => {
     await remainingCard.getByLabel('Package password').fill('remote-tablet-pass');
     await remainingCard.getByLabel('Confirm Password').fill('remote-tablet-pass');
     await remainingCard.getByRole('button', { name: 'Create package' }).click();
+    await remainingCard.getByRole('button', { name: 'Mark distributed' }).click();
 
     await expect(page.getByText('Distribution Completion')).toBeVisible();
     await page.getByRole('button', { name: 'Finish Distribution' }).click();

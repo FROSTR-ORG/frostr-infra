@@ -8,6 +8,8 @@ export function buildPwaPersistedState(input?: {
   activeView?: string;
   activeDashboardTab?: 'signer' | 'permissions' | 'settings';
   runtimeSnapshot?: unknown;
+  pendingOnboardConnection?: unknown;
+  drafts?: Record<string, unknown>;
 }) {
   const profiles = input?.profiles ?? [];
   return {
@@ -20,7 +22,7 @@ export function buildPwaPersistedState(input?: {
     generatedKeyset: null,
     selectedGeneratedShareIdx: null,
     pendingLoadConfirmation: null,
-    pendingOnboardConnection: null,
+    pendingOnboardConnection: input?.pendingOnboardConnection ?? null,
     pendingRotationConnection: null,
     distributionSession: null,
     runtimeSnapshot: input?.runtimeSnapshot ?? null,
@@ -68,6 +70,7 @@ export function buildPwaPersistedState(input?: {
         packageText: '',
         password: '',
       },
+      ...input?.drafts,
     },
   };
 }
