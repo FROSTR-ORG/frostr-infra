@@ -102,6 +102,61 @@ selected_key() {
   printf '%s\n' "${key:-release}"
 }
 
+browser_wasm_scope() {
+  if selected_has pwa && ! selected_has chrome && ! selected_has shared; then
+    printf '%s\n' "pwa"
+    return
+  fi
+  if selected_has chrome && ! selected_has pwa && ! selected_has shared; then
+    printf '%s\n' "chrome"
+    return
+  fi
+  printf '%s\n' "all"
+}
+
+require_submodule_path() {
+  local target="$1"
+  local submodule="$2"
+  local sentinel="$3"
+  if [[ -e "${ROOT_DIR}/${sentinel}" ]]; then
+    return
+  fi
+  echo "error: prebuild target '${target}' requires initialized submodule ${submodule} (missing ${sentinel})." >&2
+  echo "hint: git submodule update --init ${submodule}" >&2
+  return 1
+}
+
+check_required_submodules() {
+  if [[ "${FROSTR_TEST_PREBUILD_SKIP_SUBMODULE_CHECK:-0}" == "1" ]]; then
+    return
+  fi
+
+  local missing=0
+  if selected_has shared || selected_has browser-wasm || selected_has demo-binaries; then
+    require_submodule_path "browser-wasm" "repos/bifrost-rs" "repos/bifrost-rs/Cargo.toml" || missing=1
+    require_submodule_path "browser-wasm" "repos/igloo-shared" "repos/igloo-shared/package.json" || missing=1
+  fi
+  if selected_has shared || selected_has demo-binaries; then
+    require_submodule_path "shared" "repos/igloo-shell" "repos/igloo-shell/Cargo.toml" || missing=1
+  fi
+  if selected_has ui; then
+    require_submodule_path "ui" "repos/igloo-ui" "repos/igloo-ui/package.json" || missing=1
+  fi
+  if selected_has pwa; then
+    require_submodule_path "pwa" "repos/igloo-pwa" "repos/igloo-pwa/package.json" || missing=1
+  fi
+  if selected_has chrome; then
+    require_submodule_path "chrome" "repos/igloo-chrome" "repos/igloo-chrome/package.json" || missing=1
+  fi
+  if selected_has home; then
+    require_submodule_path "home" "repos/igloo-home" "repos/igloo-home/package.json" || missing=1
+    require_submodule_path "home" "repos/igloo-home" "repos/igloo-home/src-tauri/Cargo.toml" || missing=1
+  fi
+  if [[ "${missing}" -eq 1 ]]; then
+    exit 1
+  fi
+}
+
 append_file_state() {
   local path="$1"
   local rel="${path#${ROOT_DIR}/}"
@@ -150,13 +205,18 @@ collect_input_paths() {
       "${ROOT_DIR}/repos/bifrost-rs/crates/bifrost-bridge-wasm"
       "${ROOT_DIR}/repos/bifrost-rs/crates/bifrost-devtools"
       "${ROOT_DIR}/repos/bifrost-rs/crates/bifrost-profile-wasm"
-      "${ROOT_DIR}/repos/igloo-shell/Cargo.toml"
-      "${ROOT_DIR}/repos/igloo-shell/Cargo.lock"
-      "${ROOT_DIR}/repos/igloo-shell/crates/igloo-shell-cli"
       "${ROOT_DIR}/repos/igloo-shared/package.json"
       "${ROOT_DIR}/repos/igloo-shared/package-lock.json"
       "${ROOT_DIR}/repos/igloo-shared/scripts/build-bridge-wasm.sh"
       "${ROOT_DIR}/repos/igloo-shared/src/wasm"
+    )
+  fi
+
+  if selected_has shared; then
+    entries_ref+=(
+      "${ROOT_DIR}/repos/igloo-shell/Cargo.toml"
+      "${ROOT_DIR}/repos/igloo-shell/Cargo.lock"
+      "${ROOT_DIR}/repos/igloo-shell/crates/igloo-shell-cli"
     )
   fi
 
@@ -254,8 +314,12 @@ render_output_state() {
 
   if selected_has browser-wasm || selected_has shared; then
     append_dir_state "${ROOT_DIR}/repos/igloo-shared/public/wasm"
-    append_dir_state "${ROOT_DIR}/repos/igloo-pwa/public/wasm"
-    append_dir_state "${ROOT_DIR}/repos/igloo-chrome/public/wasm"
+    if selected_has pwa || selected_has shared || { ! selected_has pwa && ! selected_has chrome; }; then
+      append_dir_state "${ROOT_DIR}/repos/igloo-pwa/public/wasm"
+    fi
+    if selected_has chrome || selected_has shared || { ! selected_has pwa && ! selected_has chrome; }; then
+      append_dir_state "${ROOT_DIR}/repos/igloo-chrome/public/wasm"
+    fi
   fi
 
   if selected_has ui; then
@@ -335,6 +399,8 @@ else
   done
 fi
 
+check_required_submodules
+
 if [[ "${MODE}" == "check" ]]; then
   check_stamp
   exit 0
@@ -353,7 +419,7 @@ if selected_has shared; then
 fi
 
 if selected_has browser-wasm || selected_has shared; then
-  run_step "Prepare browser wasm artifacts" "${ROOT_DIR}/scripts/prepare-browser-wasm.sh" sync all
+  run_step "Prepare browser wasm artifacts" "${ROOT_DIR}/scripts/prepare-browser-wasm.sh" sync "$(browser_wasm_scope)"
 fi
 
 if selected_has ui; then

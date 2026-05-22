@@ -33,6 +33,7 @@ run_guards=0
 run_bifrost=0
 run_shell=0
 run_shared=0
+run_ui=0
 run_home=0
 run_pwa=0
 run_chrome=0
@@ -69,9 +70,8 @@ if [[ "${#changed_files[@]}" -gt 0 ]]; then
         run_chrome=1
         ;;
       repos/igloo-ui/*)
-        run_home=1
+        run_ui=1
         run_pwa=1
-        run_chrome=1
         ;;
     esac
   done
@@ -156,6 +156,16 @@ if [[ "${run_shared}" -eq 1 ]]; then
     print_command "npm --prefix ${ROOT_DIR}/repos/igloo-shared run test:typecheck"
   else
     npm --prefix "${ROOT_DIR}/repos/igloo-shared" run test:typecheck
+  fi
+fi
+
+if [[ "${run_ui}" -eq 1 ]]; then
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    print_command "npm --prefix ${ROOT_DIR}/repos/igloo-ui test"
+    print_command "npm --prefix ${ROOT_DIR}/repos/igloo-ui run build"
+  else
+    npm --prefix "${ROOT_DIR}/repos/igloo-ui" test
+    npm --prefix "${ROOT_DIR}/repos/igloo-ui" run build
   fi
 fi
 

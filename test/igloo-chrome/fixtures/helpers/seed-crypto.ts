@@ -5,11 +5,13 @@ import type { LocalEncryptedProfileBlob, LocalProfileBlobPayload, LocalProfileBl
 const PASSWORD = 'playwright-passphrase';
 const PBKDF2_ITERATIONS = 200_000;
 
+type NodeCryptoKey = Awaited<ReturnType<typeof webcrypto.subtle.deriveKey>>;
+
 function bytesToBase64(bytes: Uint8Array) {
   return Buffer.from(bytes).toString('base64');
 }
 
-async function deriveAesKey(password: string, salt: Uint8Array) {
+async function deriveAesKey(password: string, salt: Uint8Array): Promise<NodeCryptoKey> {
   const baseKey = await webcrypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(password),
@@ -34,7 +36,7 @@ async function deriveAesKey(password: string, salt: Uint8Array) {
   );
 }
 
-async function exportSessionKey(key: CryptoKey) {
+async function exportSessionKey(key: NodeCryptoKey) {
   return bytesToBase64(new Uint8Array(await webcrypto.subtle.exportKey('raw', key)));
 }
 

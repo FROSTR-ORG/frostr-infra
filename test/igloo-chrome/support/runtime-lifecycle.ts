@@ -23,6 +23,7 @@ export type ExtensionStatusSnapshot = {
   runtimeDetails: {
     status: unknown;
     summary: {
+      status?: unknown;
       metadata?: {
         group_public_key?: string | null;
       } | null;

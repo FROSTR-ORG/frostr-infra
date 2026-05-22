@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "./global.d.ts",
+    "./shared/**/*.ts",
+    "./igloo-pwa/**/*.ts"
+  ],
+  "exclude": [
+    "./igloo-pwa/specs/pwa-home-pairing.spec.ts"
+  ]
+}

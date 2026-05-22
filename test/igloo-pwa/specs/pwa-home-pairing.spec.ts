@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { createGeneratedBrowserArtifacts, createPwaStoredProfileSeed } from '../../shared/browser-artifacts';
 import { startLocalRelay } from '../../shared/local-relay';
+import { runTestPrebuild } from '../../shared/test-prebuild';
 import { launchIglooHome } from '../../igloo-home/fixtures/app';
 import { buildPwaPersistedState } from '../support/state';
 import { expectPwaDashboard, loadStoredPwaProfile, seedPwaState } from '../support/ui';
@@ -72,11 +73,12 @@ async function readPwaRuntimeState(page: import('@playwright/test').Page) {
   });
 }
 
-test.describe('pwa <-> home pairing', () => {
+test.describe('pwa <-> home pairing @cross-client', () => {
   test.setTimeout(120_000);
 
   test('hydrates nonce pools between a pwa device and an igloo-home device over a local relay', async ({ page }) => {
     test.skip(!process.env.DISPLAY && !process.env.WAYLAND_DISPLAY, 'desktop display is required');
+    runTestPrebuild(['home']);
 
     const relay = await startLocalRelay();
     const home = await launchIglooHome();

@@ -54,6 +54,8 @@ type LiveOnboardingProfile = {
 export type StoredProfile = {
   id?: string;
   groupName?: string;
+  onboardPackage?: string;
+  onboardPassword?: string;
   relays: string[];
   publicKey?: string;
   groupPublicKey?: string;
@@ -170,7 +172,7 @@ async function captureOnboardingDiagnostics(page: Page) {
         diagnostics.appState = result;
       })
       .catch(() => {}),
-    withTimeout(fetchWorkerStorageSnapshot(page), 1_000, { error: 'timeout' })
+    withTimeout<unknown>(fetchWorkerStorageSnapshot(page), 1_000, { error: 'timeout' })
       .then((result) => {
         diagnostics.storageSnapshot = result;
       })

@@ -10,6 +10,10 @@ import {
 
 const DEFAULT_EXTENSION_MESSAGE_TIMEOUT_MS = 1_500;
 
+function extensionMessageError(response: ExtensionMessageResponse<unknown> | undefined) {
+  return response && response.ok === false ? response.error : 'Extension message failed';
+}
+
 export async function sendExtensionMessageFromPage<T extends ExtensionCommand['type']>(
   page: Page,
   payload: Extract<ExtensionCommand, { type: T }>,
@@ -25,7 +29,7 @@ export async function sendExtensionMessageFromPage<T extends ExtensionCommand['t
       ])) as ExtensionMessageResponse<unknown> | undefined;
 
       if (!response?.ok) {
-        throw new Error(response?.error || 'Extension message failed');
+        throw new Error(extensionMessageError(response));
       }
 
       return response.result;

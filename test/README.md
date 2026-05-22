@@ -35,9 +35,16 @@ npm run test:e2e:live
 npm run test:e2e:demo
 npm run test:e2e:igloo-home
 npm run test:e2e:igloo-pwa
+npm run test:e2e:igloo-pwa:cross
 npm run test:e2e:igloo-chrome
 npm run test:e2e:igloo-chrome:fast
 npm run test:e2e:igloo-chrome:live
+npm run test:guards:pwa
+npm run test:guards:chrome
+npm run test:guards:home
+npm run test:typecheck:pwa
+npm run test:typecheck:chrome
+npm run test:typecheck:home
 ```
 
 From the repo root:
@@ -81,6 +88,49 @@ That aggregate currently means `fast + live`. The `demo` tier stays separate so
 the focused Docker-backed onboarding path can be run independently.
 The release-facing CI gate runs that `demo` tier explicitly through
 `make test-demo`.
+
+## Local Client Validation
+
+Use client-scoped commands for routine local work. These commands avoid
+initializing unrelated client submodules.
+
+PWA-only validation:
+
+```bash
+npm --prefix test run test:guards:pwa
+npm --prefix test run test:typecheck:pwa
+npm --prefix test run test:e2e:igloo-pwa
+```
+
+This path requires `repos/bifrost-rs`, `repos/igloo-shared`, `repos/igloo-ui`,
+and `repos/igloo-pwa`. It does not require `repos/igloo-chrome`,
+`repos/igloo-home`, or `repos/igloo-shell`.
+
+Chrome-only and Home-only validation:
+
+```bash
+npm --prefix test run test:guards:chrome
+npm --prefix test run test:typecheck:chrome
+npm --prefix test run test:e2e:igloo-chrome
+
+npm --prefix test run test:guards:home
+npm --prefix test run test:typecheck:home
+npm --prefix test run test:e2e:igloo-home
+```
+
+Cross-client validation is explicit:
+
+```bash
+npm --prefix test run test:e2e:igloo-pwa:cross
+```
+
+Full workspace validation still uses:
+
+```bash
+npm --prefix test run test:guards
+npm --prefix test run test:typecheck
+make test-release
+```
 
 Shared prep and root workflows:
 - `make test-prep`

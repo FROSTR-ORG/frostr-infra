@@ -20,7 +20,7 @@ export type DemoHarnessFixture = {
   cleanup: () => Promise<void>;
 };
 
-export type SeedProfileOverrides = Partial<typeof TEST_PROFILE> & OnboardedStoredProfile;
+export type SeedProfileOverrides = Partial<typeof TEST_PROFILE> & Partial<OnboardedStoredProfile>;
 
 export type ExtensionFixtures = {
   context: BrowserContext;
