@@ -7,7 +7,8 @@ import type { PwaStoredProfileSeed } from '../../shared/browser-artifacts';
 import { REPO_ROOT_DIR } from '../../shared/repo-paths';
 import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
 
-const CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'igloo-pwa-welcome');
+const WELCOME_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'igloo-pwa-welcome');
+const CREATE_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'igloo-pwa-create');
 const PAPER_PASSWORD = 'paper-pass';
 
 function fixedHex(index: number, prefix: string) {
@@ -75,8 +76,12 @@ async function setPwaState(page: Page, profiles: PwaStoredProfileSeed[]) {
 }
 
 async function capture(page: Page, fileName: string) {
-  await mkdir(CAPTURE_DIR, { recursive: true });
-  await page.screenshot({ path: path.join(CAPTURE_DIR, fileName), fullPage: true });
+  await captureIn(page, WELCOME_CAPTURE_DIR, fileName);
+}
+
+async function captureIn(page: Page, directory: string, fileName: string) {
+  await mkdir(directory, { recursive: true });
+  await page.screenshot({ path: path.join(directory, fileName), fullPage: true });
 }
 
 test.describe('igloo-pwa Paper Welcome visual harness', () => {
@@ -133,5 +138,16 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
     await page.locator('form').getByRole('button', { name: 'Unlock' }).click();
     await expect(page.getByText('Incorrect password. Please try again.')).toBeVisible();
     await capture(page, '06-unlock-modal-error.png');
+  });
+
+  test('captures the Create Keyset entry screen', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1080 });
+    await setPwaState(page, []);
+    await page.getByRole('button', { name: 'New Keyset' }).click();
+
+    await expect(page.getByText('Back to Welcome')).toBeVisible();
+    await expect(page.getByText('Create New Keyset')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Create Keyset' })).toBeVisible();
+    await captureIn(page, CREATE_CAPTURE_DIR, '01-create-keyset.png');
   });
 });

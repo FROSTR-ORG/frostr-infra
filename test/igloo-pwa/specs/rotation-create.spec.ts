@@ -30,8 +30,8 @@ test.describe('igloo-pwa rotation operator flow', () => {
 
       await seedPwaState(page, buildPwaPersistedState({ profiles: [sourceSeed] }));
       await page.goto('/');
-      await page.getByRole('button', { name: 'Start' }).click();
-      await page.getByRole('button', { name: 'Rotate Existing Keyset' }).click();
+      await page.getByRole('button', { name: 'New Keyset' }).click();
+      await page.getByRole('button', { name: 'Rotate Existing' }).click();
       await page.getByLabel('Group Name').fill('Rotated Treasury');
       await page.getByLabel('Source Profile').selectOption(sourceSeed.id);
       await page.getByPlaceholder('Paste bfshare1...').first().fill(source.shares[0].bfshare);

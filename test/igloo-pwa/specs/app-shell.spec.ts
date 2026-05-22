@@ -9,7 +9,7 @@ test.describe('igloo-pwa ui-first shell', () => {
     await expect(page.getByText('Split your Nostr key. Sign from anywhere.')).toBeVisible();
     await page.getByRole('button', { name: 'New Keyset' }).click();
     await page.getByLabel('Group Name').fill('Playwright Treasury');
-    await page.getByRole('button', { name: 'Generate Keyset' }).click();
+    await page.getByRole('button', { name: 'Create Keyset' }).click();
     await expect(page.getByText('Select the Device Share')).toBeVisible();
 
     await page.getByLabel('Device Profile Name').fill('Primary Browser Device');

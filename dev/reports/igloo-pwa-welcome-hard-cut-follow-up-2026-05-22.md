@@ -47,6 +47,20 @@ Generated captures:
 - Returning row and modal spacing are structurally aligned, but should be tightened with direct screenshot review before calling them pixel-close.
 - The next hard-cut target is `create-generate`, mapped to `repos/igloo-paper/screens/create/1-create-keyset/screenshot.png`.
 
+## Create Keyset Follow-Up Slice
+
+The first `create-generate` slice is now included in the visual harness. It covers the default create-keyset entry screen reached from Welcome.
+
+Generated capture:
+
+- `.tmp/igloo-pwa-create/01-create-keyset.png`
+
+Remaining deltas:
+
+- The stepper still uses the shared chip structure instead of Paper's connector-first geometry.
+- The legacy `New Keyset` / `Rotate Existing` mode control is intentionally retained below the primary action to preserve the existing rotate-keyset entry path until that flow receives its own Paper hard cut.
+- The private-key field is presentational in this slice; the current runtime still generates the keyset from the existing `groupName`, `threshold`, and `count` contract.
+
 ## Verification
 
 Passed:
@@ -66,3 +80,12 @@ npm --prefix test run test:typecheck
 ```
 
 This root typecheck is blocked by existing `igloo-chrome` path/type errors outside the Welcome change set. Do not treat it as a Welcome regression.
+
+Additional known non-pass:
+
+```sh
+npm --prefix repos/igloo-pwa run test:unit:raw
+FROSTR_TEST_PREPARED=1 npm --prefix test exec -- playwright test -c test/igloo-pwa/playwright.config.ts test/igloo-pwa/specs/rotation-create.spec.ts
+```
+
+The PWA unit test command fails before app assertions because `window.localStorage` is not the expected Storage object in the current Vitest environment. The rotation-create Playwright spec is blocked by an offline Cargo dependency resolution failure for `frost-secp256k1-tr-unofficial` while preparing `bifrost-devtools`.
