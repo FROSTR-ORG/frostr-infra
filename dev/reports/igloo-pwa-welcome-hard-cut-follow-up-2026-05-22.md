@@ -47,19 +47,29 @@ Generated captures:
 - Returning row and modal spacing are structurally aligned, but should be tightened with direct screenshot review before calling them pixel-close.
 - The next hard-cut target is `create-generate`, mapped to `repos/igloo-paper/screens/create/1-create-keyset/screenshot.png`.
 
-## Create Keyset Follow-Up Slice
+## Create Flow Follow-Up Slice
 
-The first `create-generate` slice is now included in the visual harness. It covers the default create-keyset entry screen reached from Welcome.
+The first `create-generate` and `create-profile` slices are now included in the visual harness. They cover the default create-keyset entry screen reached from Welcome and the subsequent Paper-style local profile setup screen.
 
 Generated capture:
 
 - `.tmp/igloo-pwa-create/01-create-keyset.png`
+- `.tmp/igloo-pwa-create/02-create-profile.png`
+
+Implementation notes:
+
+- `StepProgress` now renders Paper-style complete, active, and pending states while preserving the existing `steps` plus `active` API.
+- `igloo-ui` exports `CreateFlowProfileSetup` for the local share chooser, profile name, password/confirm password, relays, and continue action.
+- `igloo-pwa` now routes `create-profile` through the shared Paper-style setup surface.
+- The PWA unit harness now restores a browser-like `window.localStorage` before each test, which unblocks the unit app shell suite under the current Vitest environment.
+- `FROSTR_TEST_PREPARED=1` rotation E2E runs now fail fast with a clear missing prepared binary error instead of attempting an offline Cargo dependency resolution path.
 
 Remaining deltas:
 
-- The stepper still uses the shared chip structure instead of Paper's connector-first geometry.
 - The legacy `New Keyset` / `Rotate Existing` mode control is intentionally retained below the primary action to preserve the existing rotate-keyset entry path until that flow receives its own Paper hard cut.
 - The private-key field is presentational in this slice; the current runtime still generates the keyset from the existing `groupName`, `threshold`, and `count` contract.
+- The create-profile spacing and typography are browser-aligned, but should receive one direct Paper overlay pass before calling it pixel-close.
+- The relays block remains a functional textarea with a Paper-style status header; the exact Paper interaction model may need adjustment when relay editing becomes first-class.
 
 ## Verification
 
@@ -68,6 +78,7 @@ Passed:
 ```sh
 npm --prefix repos/igloo-ui test
 npm --prefix repos/igloo-ui run build
+npm --prefix repos/igloo-pwa run test:unit:raw
 npm --prefix repos/igloo-pwa run build:app
 FROSTR_TEST_PREPARED=1 npm --prefix test exec -- playwright test -c test/igloo-pwa/playwright.config.ts test/igloo-pwa/specs/welcome-visual.spec.ts
 FROSTR_TEST_PREPARED=1 npm --prefix test exec -- playwright test -c test/igloo-pwa/playwright.config.ts test/igloo-pwa/specs/app-shell.spec.ts
@@ -84,8 +95,7 @@ This root typecheck is blocked by existing `igloo-chrome` path/type errors outsi
 Additional known non-pass:
 
 ```sh
-npm --prefix repos/igloo-pwa run test:unit:raw
 FROSTR_TEST_PREPARED=1 npm --prefix test exec -- playwright test -c test/igloo-pwa/playwright.config.ts test/igloo-pwa/specs/rotation-create.spec.ts
 ```
 
-The PWA unit test command fails before app assertions because `window.localStorage` is not the expected Storage object in the current Vitest environment. The rotation-create Playwright spec is blocked by an offline Cargo dependency resolution failure for `frost-secp256k1-tr-unofficial` while preparing `bifrost-devtools`.
+The rotation-create Playwright spec is still blocked until a prepared `bifrost-devtools` binary exists under the expected browser-artifacts path. With `FROSTR_TEST_PREPARED=1`, the spec now reports that missing binary directly and instructs the operator to run `make test-prep`.

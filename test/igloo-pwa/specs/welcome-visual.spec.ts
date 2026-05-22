@@ -140,7 +140,7 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
     await capture(page, '06-unlock-modal-error.png');
   });
 
-  test('captures the Create Keyset entry screen', async ({ page }) => {
+  test('captures the Create Keyset and Create Profile screens', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1080 });
     await setPwaState(page, []);
     await page.getByRole('button', { name: 'New Keyset' }).click();
@@ -149,5 +149,13 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
     await expect(page.getByText('Create New Keyset')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Create Keyset' })).toBeVisible();
     await captureIn(page, CREATE_CAPTURE_DIR, '01-create-keyset.png');
+
+    await page.getByLabel('Group Name').fill('My Signing Key');
+    await page.getByRole('button', { name: 'Create Keyset' }).click();
+    await expect(page.getByRole('heading', { name: 'Create Profile' })).toBeVisible();
+    await expect(page.getByText('Choose Local Share')).toBeVisible();
+
+    await page.setViewportSize({ width: 1440, height: 1861 });
+    await captureIn(page, CREATE_CAPTURE_DIR, '02-create-profile.png');
   });
 });

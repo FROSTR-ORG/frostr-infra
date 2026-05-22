@@ -10,7 +10,8 @@ test.describe('igloo-pwa ui-first shell', () => {
     await page.getByRole('button', { name: 'New Keyset' }).click();
     await page.getByLabel('Group Name').fill('Playwright Treasury');
     await page.getByRole('button', { name: 'Create Keyset' }).click();
-    await expect(page.getByText('Select the Device Share')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Create Profile' })).toBeVisible();
+    await expect(page.getByText('Choose Local Share')).toBeVisible();
 
     await page.getByLabel('Device Profile Name').fill('Primary Browser Device');
     await page.getByLabel('Device Password').fill('playwright-browser-pass');

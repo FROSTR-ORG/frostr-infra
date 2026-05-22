@@ -19,6 +19,11 @@ export function ensureBifrostDevtoolsBinary() {
     devtoolsPrepared = true;
     return BIFROST_DEVTOOLS_BINARY_PATH;
   }
+  if (process.env.FROSTR_TEST_PREPARED === '1') {
+    throw new Error(
+      `FROSTR_TEST_PREPARED=1 but missing prepared bifrost-devtools binary at ${BIFROST_DEVTOOLS_BINARY_PATH}. Run make test-prep before this spec.`,
+    );
+  }
   execFileSync(
     'cargo',
     ['build', '--offline', '--locked', '-p', 'bifrost-devtools', '--bin', 'bifrost-devtools'],
