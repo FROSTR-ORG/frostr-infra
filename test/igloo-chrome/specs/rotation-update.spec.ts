@@ -10,7 +10,7 @@ import { startLocalRelay } from '../../shared/local-relay';
 import {
   startBrowserRuntimeSession,
   type BrowserRuntimeSession,
-} from '../../../repos/igloo-pwa/src/lib/page-runtime-host';
+} from '../../shared/browser-runtime-host';
 import { test } from '../fixtures/extension';
 import {
   confirmChromeRotationPackage,

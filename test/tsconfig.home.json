@@ -1,5 +1,11 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "igloo-shared": ["../repos/igloo-shared/src/index.ts"]
+    }
+  },
   "include": [
     "./global.d.ts",
     "./shared/**/*.ts",
