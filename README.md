@@ -95,6 +95,18 @@ not import or run Paper tooling.
 
 ## Quick Start
 
+Install Rust through rustup before running browser wasm or release checks. This
+workspace does not support Homebrew Rust on `PATH`.
+
+```bash
+brew unlink rust # or: brew uninstall rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+export PATH="$HOME/.cargo/bin:$PATH"
+rustup target add wasm32-unknown-unknown
+cargo install --locked --version 0.14.0 wasm-pack
+brew install llvm # required on macOS for wasm-capable clang
+```
+
 ```bash
 cp .env.example .env
 make repo-init

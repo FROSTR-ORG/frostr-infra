@@ -1,0 +1,152 @@
+name: client-scoped-validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/client-scoped-validation.yml"
+      - ".gitmodules"
+      - "scripts/**"
+      - "test/**"
+      - "repos/igloo-pwa"
+      - "repos/igloo-chrome"
+      - "repos/igloo-home"
+      - "repos/igloo-shared"
+      - "repos/igloo-ui"
+      - "repos/bifrost-rs"
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/client-scoped-validation.yml"
+      - ".gitmodules"
+      - "scripts/**"
+      - "test/**"
+      - "repos/igloo-pwa"
+      - "repos/igloo-chrome"
+      - "repos/igloo-home"
+      - "repos/igloo-shared"
+      - "repos/igloo-ui"
+      - "repos/bifrost-rs"
+
+jobs:
+  pwa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize PWA submodules
+        run: |
+          git config --global url."https://github.com/".insteadOf git@github.com:
+          git submodule update --init repos/bifrost-rs repos/igloo-shared repos/igloo-ui repos/igloo-pwa
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            test/package-lock.json
+            repos/igloo-shared/package-lock.json
+            repos/igloo-ui/package-lock.json
+            repos/igloo-pwa/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang ripgrep
+          cargo install --locked --version 0.14.0 wasm-pack
+          npm ci --prefix repos/igloo-shared
+          npm ci --prefix repos/igloo-ui
+          npm ci --prefix repos/igloo-pwa
+          npm ci --prefix test
+          cargo fetch --manifest-path repos/bifrost-rs/Cargo.toml --locked --target wasm32-unknown-unknown
+
+      - name: Run PWA scoped validation
+        run: |
+          npm --prefix test run test:guards:pwa
+          npm --prefix test run test:typecheck:pwa
+
+  chrome:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize Chrome submodules
+        run: |
+          git config --global url."https://github.com/".insteadOf git@github.com:
+          git submodule update --init repos/bifrost-rs repos/igloo-shared repos/igloo-ui repos/igloo-chrome
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            test/package-lock.json
+            repos/igloo-shared/package-lock.json
+            repos/igloo-ui/package-lock.json
+            repos/igloo-chrome/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang ripgrep
+          cargo install --locked --version 0.14.0 wasm-pack
+          npm ci --prefix repos/igloo-shared
+          npm ci --prefix repos/igloo-ui
+          npm ci --prefix repos/igloo-chrome
+          npm ci --prefix test
+          cargo fetch --manifest-path repos/bifrost-rs/Cargo.toml --locked --target wasm32-unknown-unknown
+
+      - name: Run Chrome scoped validation
+        run: |
+          npm --prefix test run test:guards:chrome
+          npm --prefix test run test:typecheck:chrome
+
+  home:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize Home submodules
+        run: |
+          git config --global url."https://github.com/".insteadOf git@github.com:
+          git submodule update --init repos/igloo-shared repos/igloo-ui repos/igloo-home
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            test/package-lock.json
+            repos/igloo-shared/package-lock.json
+            repos/igloo-ui/package-lock.json
+            repos/igloo-home/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+          npm ci --prefix repos/igloo-shared
+          npm ci --prefix repos/igloo-ui
+          npm ci --prefix repos/igloo-home
+          npm ci --prefix test
+
+      - name: Run Home scoped validation
+        run: |
+          npm --prefix test run test:guards:home
+          npm --prefix test run test:typecheck:home

@@ -29,8 +29,64 @@ normalize_scope() {
   esac
 }
 
+ensure_wasm_target() {
+  if [[ "${FROSTR_TEST_PREBUILD_SKIP_WASM_TARGET_CHECK:-0}" == "1" ]]; then
+    return
+  fi
+
+  local target_libdir
+  target_libdir="$(rustc --print target-libdir --target wasm32-unknown-unknown 2>/dev/null || true)"
+  if [[ -n "${target_libdir}" && -d "${target_libdir}" ]]; then
+    return
+  fi
+
+  echo "error: wasm32-unknown-unknown Rust target is not available for $(command -v rustc)" >&2
+  echo "hint: remove or unlink Homebrew Rust, put ~/.cargo/bin ahead of /opt/homebrew/bin, then run 'rustup target add wasm32-unknown-unknown'." >&2
+  exit 1
+}
+
+clang_supports_wasm() {
+  local clang_bin="$1"
+  printf 'int main(void){return 0;}' \
+    | "${clang_bin}" --target=wasm32-unknown-unknown -x c -c - -o /dev/null >/dev/null 2>&1
+}
+
+select_wasm_clang() {
+  local candidate
+  for candidate in \
+    "${CC_wasm32_unknown_unknown:-}" \
+    "${WASM_CC:-}" \
+    "/opt/homebrew/opt/llvm/bin/clang" \
+    "clang"; do
+    if [[ -z "${candidate}" ]]; then
+      continue
+    fi
+    if command -v "${candidate}" >/dev/null 2>&1 && clang_supports_wasm "${candidate}"; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+ensure_wasm_clang() {
+  local wasm_clang
+  if wasm_clang="$(select_wasm_clang)"; then
+    export CC_wasm32_unknown_unknown="${wasm_clang}"
+    export TARGET_CC="${wasm_clang}"
+    return
+  fi
+
+  echo "error: no clang with wasm32-unknown-unknown target support found" >&2
+  echo "hint: install LLVM (for example: brew install llvm) or set WASM_CC/CC_wasm32_unknown_unknown to a wasm-capable clang." >&2
+  exit 1
+}
+
 sync_scope() {
   local scope="$1"
+
+  ensure_wasm_target
+  ensure_wasm_clang
 
   echo "==> Rebuild shared browser wasm artifacts"
   npm --prefix "${ROOT_DIR}/repos/igloo-shared" run build:browser-wasm

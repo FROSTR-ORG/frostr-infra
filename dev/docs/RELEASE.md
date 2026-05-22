@@ -72,6 +72,13 @@ Typical release-facing repos and checks:
 
 Run the release matrix against the candidate state.
 
+The workspace Rust toolchain is rustup-managed. Homebrew Rust must be removed
+or unlinked locally, `~/.cargo/bin` must be first on `PATH`, and
+`wasm32-unknown-unknown` plus `wasm-pack 0.14.0` must be available before
+running browser wasm validation. macOS also requires a wasm-capable clang; use
+Homebrew LLVM or set `WASM_CC`/`CC_wasm32_unknown_unknown` to an equivalent
+compiler.
+
 Canonical root entrypoint:
 
 ```bash
@@ -108,6 +115,7 @@ Cross-repo E2E:
 ```bash
 npm --prefix test run test:e2e:igloo-home
 npm --prefix test run test:e2e:igloo-pwa
+npm --prefix test run test:e2e:igloo-pwa:cross
 npm --prefix test run test:e2e:igloo-chrome
 ```
 

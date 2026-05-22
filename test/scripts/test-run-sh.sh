@@ -19,8 +19,10 @@ trap cleanup EXIT
 
 mkdir -p \
   "${TRACE_BIN_DIR}" \
+  "${TRACE_DIR}/.cargo/bin" \
   "${TRACE_HARNESS_DIR}" \
   "${TRACE_PREBUILD_DIR}" \
+  "${TRACE_DIR}/wasm-target-lib" \
   "${TRACE_IGLOO_PAPER_DIR}/scripts"
 : >"${TRACE_IGLOO_PAPER_DIR}/scripts/verify.py"
 : >"${TRACE_IGLOO_PAPER_DIR}/scripts/export_from_paper.py"
@@ -78,6 +80,33 @@ write_stub "cargo" '#!/usr/bin/env bash
 printf "cargo|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
 exit 0'
 
+write_stub "rustup" '#!/usr/bin/env bash
+printf "rustup|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
+exit 0'
+
+write_stub "rustc" '#!/usr/bin/env bash
+if [[ "$*" == "--print target-libdir --target wasm32-unknown-unknown" ]]; then
+  printf "%s/wasm-target-lib\n" "${TRACE_DIR}"
+  exit 0
+fi
+printf "rustc|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
+exit 0'
+
+write_stub "wasm-pack" '#!/usr/bin/env bash
+if [[ "${1:-}" == "--version" ]]; then
+  printf "wasm-pack 0.14.0\n"
+  exit 0
+fi
+printf "wasm-pack|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
+exit 0'
+
+write_stub "clang" '#!/usr/bin/env bash
+if [[ "$*" == *"--target=wasm32-unknown-unknown"* ]]; then
+  exit 0
+fi
+printf "clang|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
+exit 0'
+
 write_stub "docker" '#!/usr/bin/env bash
 printf "docker|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
 exit 0'
@@ -94,6 +123,11 @@ write_stub "ss" '#!/usr/bin/env bash
 printf "ss|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
 exit 0'
 
+cp "${TRACE_BIN_DIR}/cargo" "${TRACE_DIR}/.cargo/bin/cargo"
+cp "${TRACE_BIN_DIR}/rustc" "${TRACE_DIR}/.cargo/bin/rustc"
+cp "${TRACE_BIN_DIR}/rustup" "${TRACE_DIR}/.cargo/bin/rustup"
+cp "${TRACE_BIN_DIR}/wasm-pack" "${TRACE_DIR}/.cargo/bin/wasm-pack"
+
 run_with_trace() {
   TRACE_FILE="${TRACE_FILE}" PATH="${TRACE_BIN_DIR}:${PATH}" make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" "$@" >/dev/null
 }
@@ -103,6 +137,8 @@ run_with_fresh_prebuild_trace() {
   prebuild_dir="$(mktemp -d "${TRACE_PREBUILD_DIR}/prebuild.XXXXXX")"
   TRACE_FILE="${TRACE_FILE}" \
     PATH="${TRACE_BIN_DIR}:${PATH}" \
+    FROSTR_TEST_PREBUILD_SKIP_SUBMODULE_CHECK=1 \
+    FROSTR_TEST_PREBUILD_SKIP_WASM_TARGET_CHECK=1 \
     FROSTR_TEST_PREBUILD_DIR="${prebuild_dir}" \
     make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" "$@" >/dev/null
 }
@@ -186,6 +222,8 @@ EOF
 reset_trace
 TRACE_FILE="${TRACE_FILE}" \
   PATH="${TRACE_BIN_DIR}:${PATH}" \
+  FROSTR_TEST_PREBUILD_SKIP_SUBMODULE_CHECK=1 \
+  FROSTR_TEST_PREBUILD_SKIP_WASM_TARGET_CHECK=1 \
   FROSTR_TEST_HARNESS_DIR="${TRACE_HARNESS_DIR}" \
   FROSTR_TEST_PREBUILD_DIR="$(mktemp -d "${TRACE_PREBUILD_DIR}/demo.XXXXXX")" \
   make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" demo-start PORT=8394 >/dev/null
@@ -196,6 +234,11 @@ assert_trace_contains "cargo|cwd=${ROOT_DIR}/repos/bifrost-rs|args=build --offli
 assert_trace_contains "cargo|cwd=${ROOT_DIR}/repos/igloo-shell|args=build --offline --locked -p igloo-shell-cli --bin igloo-shell"
 assert_trace_contains "docker|cwd=${ROOT_DIR}|args=compose -f ${ROOT_DIR}/compose.test.yml up -d --build --remove-orphans dev-relay igloo-demo"
 
-make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" repo-check >/dev/null
+TRACE_FILE="${TRACE_FILE}" \
+  TRACE_DIR="${TRACE_DIR}" \
+  HOME="${TRACE_DIR}" \
+  PATH="${TRACE_DIR}/.cargo/bin:${TRACE_BIN_DIR}:${PATH}" \
+  WASM_CC="${TRACE_BIN_DIR}/clang" \
+  make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" repo-check >/dev/null
 
 echo "ok: make command surface smoke tests passed"
