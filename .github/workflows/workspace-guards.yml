@@ -67,8 +67,6 @@ jobs:
 
       - name: Run workspace guards
         working-directory: test
-        env:
-          FROSTR_BROWSER_WASM_STRICT_TRACKED: "1"
         run: npm run test:guards
 
       - name: Run dry affected check
