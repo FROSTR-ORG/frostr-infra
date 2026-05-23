@@ -186,6 +186,12 @@ Shared prep and root workflows:
 If the root `./.tmp/` tree becomes stale or unwritable, repair it with
 `make repo-reset` before rerunning prep or demo commands.
 
+macOS sandboxed command runners can fail inside `wasm-pack` at the `wasm-opt`
+step with `Operation not permitted`. When that happens, rerun only the affected
+WASM guard or `make browser-wasm-refresh` outside the sandbox. Do not use
+`make browser-wasm-refresh` as a routine test command; it intentionally updates
+tracked `public/wasm` artifacts.
+
 ## Manual Demo Flows
 
 Browser-facing local demo flows should use `ws://localhost:<port>`.

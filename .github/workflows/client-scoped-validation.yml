@@ -64,6 +64,7 @@ jobs:
           npm ci --prefix repos/igloo-ui
           npm ci --prefix repos/igloo-pwa
           npm ci --prefix test
+          npx --prefix test playwright install chromium --with-deps
           cargo fetch --manifest-path repos/bifrost-rs/Cargo.toml --locked --target wasm32-unknown-unknown
 
       - name: Run PWA scoped validation
@@ -116,6 +117,7 @@ jobs:
           npm ci --prefix repos/igloo-ui
           npm ci --prefix repos/igloo-chrome
           npm ci --prefix test
+          npm audit --prefix repos/igloo-chrome --audit-level=moderate
           cargo fetch --manifest-path repos/bifrost-rs/Cargo.toml --locked --target wasm32-unknown-unknown
 
       - name: Run Chrome scoped validation

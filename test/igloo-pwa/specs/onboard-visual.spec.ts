@@ -73,7 +73,7 @@ test.describe('igloo-pwa Paper Onboard visual harness', () => {
         },
       }),
     );
-    await expect(page.getByRole('heading', { name: 'Could not complete handshake' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Package Did Not Apply' })).toBeVisible();
     await capture(page, '02-onboarding-failed.png');
 
     await seedState(
@@ -84,8 +84,8 @@ test.describe('igloo-pwa Paper Onboard visual harness', () => {
         drafts: {
           onboardSaveForm: {
             label: 'Onboarded Device',
-            password: '',
-            confirmPassword: '',
+            password: 'paper-onboard-pass',
+            confirmPassword: 'paper-onboard-pass',
           },
         },
       }),

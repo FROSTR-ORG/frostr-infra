@@ -154,12 +154,13 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
     await page.getByRole('button', { name: 'Create Keyset' }).click();
     await expect(page.getByRole('heading', { name: 'Create Profile' })).toBeVisible();
     await expect(page.getByText('Choose Local Share')).toBeVisible();
+    await page.locator('.igloo-create-share-option').filter({ hasText: 'My Signing Key Device 2' }).click();
+    await page.getByLabel('Device Password').fill('paper-browser-pass');
+    await page.getByLabel('Confirm Password').fill('paper-browser-pass');
 
     await page.setViewportSize({ width: 1440, height: 1861 });
     await captureIn(page, CREATE_CAPTURE_DIR, '02-create-profile.png');
 
-    await page.getByLabel('Device Password').fill('paper-browser-pass');
-    await page.getByLabel('Confirm Password').fill('paper-browser-pass');
     await page.getByRole('button', { name: 'Continue to Review' }).click();
     await expect(page.getByRole('heading', { name: 'Review Device Profile', level: 2 })).toBeVisible();
     await captureIn(page, CREATE_CAPTURE_DIR, '03-create-confirm.png');
@@ -167,15 +168,21 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
     await page.getByRole('button', { name: 'Accept and Continue' }).click();
     await expect(page.getByText('Distribute Shares')).toBeVisible();
     await expect(page.getByText('Remaining Shares')).toBeVisible();
+    const distributionCards = page.locator('section.igloo-create-distribution-card');
+    const stagedCard = distributionCards.nth(1);
+    await stagedCard.getByLabel('Package password').fill('remote-device-pass');
+    await stagedCard.getByLabel('Confirm Password').fill('remote-device-pass');
+    await stagedCard.getByRole('button', { name: 'Create package' }).click();
     await captureIn(page, CREATE_CAPTURE_DIR, '04-distribute-shares.png');
 
-    const distributionCards = page.locator('section.igloo-create-distribution-card');
     const cardCount = await distributionCards.count();
     for (let index = 0; index < cardCount; index += 1) {
       const card = distributionCards.nth(index);
-      await card.getByLabel('Package password').fill('remote-device-pass');
-      await card.getByLabel('Confirm Password').fill('remote-device-pass');
-      await card.getByRole('button', { name: 'Create package' }).click();
+      if (await card.getByRole('button', { name: 'Create package' }).isVisible()) {
+        await card.getByLabel('Package password').fill('remote-device-pass');
+        await card.getByLabel('Confirm Password').fill('remote-device-pass');
+        await card.getByRole('button', { name: 'Create package' }).click();
+      }
       await card.getByRole('button', { name: 'Mark distributed' }).click();
     }
     await expect(page.getByText('Distribution Completion')).toBeVisible();

@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+mkdir -p "${ROOT_DIR}/.tmp"
 
 compare_wasm_dir() {
   local expected_dir="$1"
