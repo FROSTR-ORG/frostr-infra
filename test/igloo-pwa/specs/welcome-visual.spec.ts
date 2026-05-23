@@ -171,7 +171,6 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
     const distributionCards = page.locator('section.igloo-create-distribution-card');
     const stagedCard = distributionCards.nth(1);
     await stagedCard.getByLabel('Package password').fill('remote-device-pass');
-    await stagedCard.getByLabel('Confirm Password').fill('remote-device-pass');
     await stagedCard.getByRole('button', { name: 'Create package' }).click();
     await captureIn(page, CREATE_CAPTURE_DIR, '04-distribute-shares.png');
 
@@ -180,7 +179,6 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
       const card = distributionCards.nth(index);
       if (await card.getByRole('button', { name: 'Create package' }).isVisible()) {
         await card.getByLabel('Package password').fill('remote-device-pass');
-        await card.getByLabel('Confirm Password').fill('remote-device-pass');
         await card.getByRole('button', { name: 'Create package' }).click();
       }
       await card.getByRole('button', { name: 'Mark distributed' }).click();

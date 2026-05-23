@@ -5,6 +5,29 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 mkdir -p "${ROOT_DIR}/.tmp"
 
+if [[ "${FROSTR_TEST_SKIP_STRICT_WASM:-0}" == "1" ]]; then
+  echo "ok: skipped strict browser wasm rebuild because FROSTR_TEST_SKIP_STRICT_WASM=1"
+  echo "note: run npm --prefix test run test:guards:wasm:strict outside sandbox before release validation."
+  exit 0
+fi
+
+prebuild_dir=""
+
+cleanup_prebuild_dir() {
+  local status="$?"
+  if [[ -z "${prebuild_dir}" ]]; then
+    exit "${status}"
+  fi
+  if [[ "${status}" -eq 0 ]]; then
+    rm -rf "${prebuild_dir}"
+  else
+    echo "preserving failed prebuild scratch directory: ${prebuild_dir}" >&2
+  fi
+  exit "${status}"
+}
+
+trap cleanup_prebuild_dir EXIT
+
 compare_wasm_dir() {
   local expected_dir="$1"
   local actual_dir="$2"

@@ -127,11 +127,15 @@ test_readme_npm_commands=(
   "npm run test:guards:pwa"
   "npm run test:guards:chrome"
   "npm run test:guards:home"
+  "npm run test:guards:wasm"
+  "npm run test:guards:wasm:strict"
   "npm run test:guards:visual"
   "npm run test:typecheck:pwa"
   "npm run test:typecheck:chrome"
   "npm run test:typecheck:home"
   "npm run test:typecheck:strict-support"
+  "npm run test:typecheck:strict-helpers"
+  "npm run test:typecheck:strict-visual-specs"
 )
 
 for command in "${test_readme_npm_commands[@]}"; do
@@ -195,6 +199,9 @@ assert_file_contains "${DEV_WORKFLOWS_FILE}" "Follow-Up Harvest"
 assert_file_contains "${TEST_WORKFLOWS_FILE}" "Client-Scoped Validation"
 assert_file_contains "${TEST_WORKFLOWS_FILE}" "Browser WASM"
 assert_file_contains "${TEST_WORKFLOWS_FILE}" "test:guards:visual"
+assert_file_contains "${TEST_WORKFLOWS_FILE}" "test:guards:wasm:strict"
+assert_file_contains "${RELEASE_DOC_FILE}" "npm --prefix test run test:guards:wasm:strict"
+assert_file_contains "${TEST_README_FILE}" "FROSTR_TEST_SKIP_STRICT_WASM=1"
 assert_file_contains "${CONTRIBUTING_FILE}" "Makefile"
 assert_file_contains "${AGENTS_FILE}" "make"
 

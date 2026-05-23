@@ -4,8 +4,15 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const MANIFEST_PATH = path.join(ROOT_DIR, 'test', 'igloo-pwa', 'visual-manifest.json');
+const MANIFEST_PATH = process.env.FROSTR_PWA_VISUAL_MANIFEST_PATH
+  ? path.resolve(process.env.FROSTR_PWA_VISUAL_MANIFEST_PATH)
+  : path.join(ROOT_DIR, 'test', 'igloo-pwa', 'visual-manifest.json');
+const PAPER_DIR = path.join(ROOT_DIR, 'repos', 'igloo-paper');
 const ALLOWED_STATUSES = new Set(['aligned', 'needs-work']);
+
+function pathExists(filePath) {
+  return fs.existsSync(filePath);
+}
 
 function fail(message) {
   console.error(message);
@@ -31,6 +38,9 @@ if (screens.length === 0) {
 
 const names = new Set();
 const outputs = new Set();
+const paperPopulated = pathExists(path.join(PAPER_DIR, 'design')) || pathExists(path.join(PAPER_DIR, 'screens'));
+const requirePaperReferences = process.env.FROSTR_PWA_VISUAL_REQUIRE_PAPER === '1';
+const checkPaperReferences = paperPopulated || requirePaperReferences;
 
 for (const [index, screen] of screens.entries()) {
   const label = `screen[${index}]`;
@@ -70,6 +80,8 @@ for (const [index, screen] of screens.entries()) {
     || !paperReference.endsWith('/screenshot.png')
   ) {
     fail(`${label}.paperReference must point to a repos/igloo-paper/*/screenshot.png path`);
+  } else if (checkPaperReferences && !pathExists(path.join(ROOT_DIR, paperReference))) {
+    fail(`${label}.paperReference does not exist: ${paperReference}`);
   }
 
   if (typeof status !== 'string' || !ALLOWED_STATUSES.has(status)) {
@@ -82,3 +94,6 @@ if (process.exitCode) {
 }
 
 console.log(`ok: validated ${screens.length} PWA visual manifest entries`);
+if (!checkPaperReferences) {
+  console.log('ok: skipped Paper reference existence checks because repos/igloo-paper is not populated');
+}

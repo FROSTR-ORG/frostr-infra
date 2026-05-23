@@ -55,28 +55,28 @@
       "viewport": "1440x1861",
       "output": ".tmp/visual/igloo-pwa/create/02-create-profile.png",
       "paperReference": "repos/igloo-paper/screens/shared/2-create-profile/screenshot.png",
-      "status": "needs-work"
+      "status": "aligned"
     },
     {
       "name": "create-confirm",
       "viewport": "1440x1861",
       "output": ".tmp/visual/igloo-pwa/create/03-create-confirm.png",
       "paperReference": "repos/igloo-paper/screens/shared/2-create-profile/screenshot.png",
-      "status": "needs-work"
+      "status": "aligned"
     },
     {
       "name": "distribute-shares",
       "viewport": "1440x1861",
       "output": ".tmp/visual/igloo-pwa/create/04-distribute-shares.png",
       "paperReference": "repos/igloo-paper/screens/shared/3-distribute-shares/screenshot.png",
-      "status": "needs-work"
+      "status": "aligned"
     },
     {
       "name": "distribution-completion",
       "viewport": "1440x1861",
       "output": ".tmp/visual/igloo-pwa/create/05-distribution-completion.png",
       "paperReference": "repos/igloo-paper/screens/shared/3b-distribution-completion/screenshot.png",
-      "status": "needs-work"
+      "status": "aligned"
     },
     {
       "name": "onboard-enter-package",
@@ -86,18 +86,25 @@
       "status": "aligned"
     },
     {
+      "name": "onboard-handshake",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/onboard/02-handshake.png",
+      "paperReference": "repos/igloo-paper/screens/onboard/2-handshake/screenshot.png",
+      "status": "aligned"
+    },
+    {
       "name": "onboard-failed",
       "viewport": "1440x1080",
-      "output": ".tmp/visual/igloo-pwa/onboard/02-onboarding-failed.png",
+      "output": ".tmp/visual/igloo-pwa/onboard/03-onboarding-failed.png",
       "paperReference": "repos/igloo-paper/screens/onboard/2b-onboarding-failed/screenshot.png",
-      "status": "needs-work"
+      "status": "aligned"
     },
     {
       "name": "onboard-complete",
       "viewport": "1440x1080",
-      "output": ".tmp/visual/igloo-pwa/onboard/03-onboarding-complete.png",
+      "output": ".tmp/visual/igloo-pwa/onboard/04-onboarding-complete.png",
       "paperReference": "repos/igloo-paper/screens/onboard/3-onboarding-complete/screenshot.png",
-      "status": "needs-work"
+      "status": "aligned"
     }
   ]
 }

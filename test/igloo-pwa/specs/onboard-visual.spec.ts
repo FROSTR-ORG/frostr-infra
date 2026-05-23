@@ -61,6 +61,10 @@ test.describe('igloo-pwa Paper Onboard visual harness', () => {
     await expect(page.getByRole('heading', { name: 'Enter Onboarding Package' })).toBeVisible();
     await capture(page, '01-enter-package.png');
 
+    await page.getByRole('button', { name: 'Apply Onboarding Package' }).click();
+    await expect(page.getByRole('heading', { name: 'Onboarding...' })).toBeVisible();
+    await capture(page, '02-handshake.png');
+
     await seedState(
       page,
       buildPwaPersistedState({
@@ -74,7 +78,7 @@ test.describe('igloo-pwa Paper Onboard visual harness', () => {
       }),
     );
     await expect(page.getByRole('heading', { name: 'Package Did Not Apply' })).toBeVisible();
-    await capture(page, '02-onboarding-failed.png');
+    await capture(page, '03-onboarding-failed.png');
 
     await seedState(
       page,
@@ -90,7 +94,7 @@ test.describe('igloo-pwa Paper Onboard visual harness', () => {
         },
       }),
     );
-    await expect(page.getByRole('heading', { name: 'Review Onboarded Profile' })).toBeVisible();
-    await capture(page, '03-onboarding-complete.png');
+    await expect(page.getByRole('heading', { name: 'Onboarding Complete' })).toBeVisible();
+    await capture(page, '04-onboarding-complete.png');
   });
 });

@@ -21,7 +21,13 @@ if [ "$FORCE" = false ]; then
 fi
 
 echo "Stopping demo compose services..."
-docker compose -f "$ROOT_DIR/compose.test.yml" down || true
+if docker info >/dev/null 2>&1; then
+  if ! docker compose -f "$ROOT_DIR/compose.test.yml" down; then
+    echo "warning: demo compose shutdown failed; continuing reset." >&2
+  fi
+else
+  echo "Skipping demo compose shutdown; Docker daemon is not reachable."
+fi
 
 echo "Resetting root scratch directories, including visual and prebuild scratch..."
 if [[ -e "${TMP_ROOT}" && ! -w "${TMP_ROOT}" ]]; then

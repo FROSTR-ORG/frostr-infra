@@ -154,14 +154,17 @@ Browser WASM command model:
 
 ```bash
 make wasm-toolchain-check
+npm --prefix test run test:guards:wasm:strict
 make browser-wasm-check
 make browser-wasm-refresh
 ```
 
 Use `make wasm-toolchain-check` to verify the local Rust, wasm-pack, and clang
-toolchain. Use `make browser-wasm-check` for scratch browser-WASM validation
-before or during release work; it builds into `./.tmp/browser-wasm-check` and
-leaves tracked artifacts untouched. Use `make browser-wasm-refresh` only when
+toolchain. Use `npm --prefix test run test:guards:wasm:strict` when you want
+the explicit non-mutating browser-WASM rebuild guard outside the full release
+matrix. Use `make browser-wasm-check` for scratch browser-WASM validation before
+or during release work; it builds into `./.tmp/browser-wasm-check` and leaves
+tracked artifacts untouched. Use `make browser-wasm-refresh` only when
 intentionally updating the tracked browser-WASM artifacts in `repos/igloo-pwa`
 and `repos/igloo-chrome`. To require the scratch check to compare against the
 tracked copies, run:
@@ -169,6 +172,9 @@ tracked copies, run:
 ```bash
 FROSTR_BROWSER_WASM_STRICT_TRACKED=1 make browser-wasm-check
 ```
+
+Do not use `FROSTR_TEST_SKIP_STRICT_WASM=1` for release validation; that skip is
+only for sandboxed agent runs where `wasm-opt` cannot execute.
 
 ## Cut Submodule Releases
 

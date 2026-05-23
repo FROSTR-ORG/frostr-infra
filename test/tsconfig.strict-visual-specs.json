@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["../repos/igloo-chrome/src/*"],
+      "igloo-shared": ["../repos/igloo-shared/src/index.ts"]
+    }
+  },
+  "include": [
+    "./global.d.ts",
+    "./shared/**/*.ts",
+    "./igloo-pwa/support/**/*.ts",
+    "./igloo-pwa/specs/welcome-visual.spec.ts",
+    "./igloo-pwa/specs/onboard-visual.spec.ts",
+    "./igloo-ui-showcase/specs/reference-screens.spec.ts"
+  ]
+}

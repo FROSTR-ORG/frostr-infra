@@ -47,11 +47,15 @@ npm run test:e2e:igloo-chrome:live
 npm run test:guards:pwa
 npm run test:guards:chrome
 npm run test:guards:home
+npm run test:guards:wasm
+npm run test:guards:wasm:strict
 npm run test:guards:visual
 npm run test:typecheck:pwa
 npm run test:typecheck:chrome
 npm run test:typecheck:home
 npm run test:typecheck:strict-support
+npm run test:typecheck:strict-helpers
+npm run test:typecheck:strict-visual-specs
 ```
 
 From the repo root:
@@ -154,6 +158,7 @@ npm --prefix test run test:guards
 npm --prefix test run test:guards:docs
 npm --prefix test run test:guards:workflows
 npm --prefix test run test:guards:wasm
+npm --prefix test run test:guards:wasm:strict
 npm --prefix test run test:guards:selectors
 npm --prefix test run test:guards:visual
 npm --prefix test run test:typecheck
@@ -180,15 +185,28 @@ Shared prep and root workflows:
   - set `FROSTR_BROWSER_WASM_STRICT_TRACKED=1` for an explicit tracked-artifact
     reproducibility audit
 - `npm --prefix test run test:guards:wasm`
+  - runs the routine browser-WASM harness contract check without invoking
+    `wasm-pack`
+  - verifies that test prebuild and Playwright helper paths stay scratch-based
+    and client-neutral
+- `npm --prefix test run test:guards:wasm:strict`
   - builds aggregate browser wasm once through the non-mutating prebuild path
   - compares scratch shared, PWA, and Chrome wasm outputs
   - respects `FROSTR_BROWSER_WASM_STRICT_TRACKED=1` for the tracked-artifact
     reproducibility audit
+  - accepts `FROSTR_TEST_SKIP_STRICT_WASM=1` only for sandboxed agent runs
+    where `wasm-opt` cannot execute; do not use that skip for release
+    validation
 - `npm --prefix test run test:guards:visual`
   - validates the PWA visual manifest shape and screenshot/reference paths
+  - checks Paper screenshot references when `repos/igloo-paper` is populated
+  - runs a fixture-backed negative check for missing Paper references
 - `npm --prefix test run test:typecheck:strict-support`
-  - runs the strict TypeScript pilot for shared helpers, support modules, and
-    fixtures that are ready for strict checking
+  - aggregate compatibility entrypoint for the strict TypeScript pilot
+- `npm --prefix test run test:typecheck:strict-helpers`
+  - runs strict TypeScript over shared helpers, support modules, and fixtures
+- `npm --prefix test run test:typecheck:strict-visual-specs`
+  - runs strict TypeScript over selected visual/reference specs
 - `make test-affected`
   - runs the deterministic minimal test surface for the current branch
 - `make test-release`
@@ -203,6 +221,11 @@ step with `Operation not permitted`. When that happens, rerun only the affected
 WASM guard or `make browser-wasm-refresh` outside the sandbox. Do not use
 `make browser-wasm-refresh` as a routine test command; it intentionally updates
 tracked `public/wasm` artifacts.
+
+For sandboxed agent verification where strict WASM cannot be rerun outside the
+sandbox, `FROSTR_TEST_SKIP_STRICT_WASM=1 npm --prefix test run
+test:guards:wasm:strict` records an explicit skip. Release validation must run
+the strict rebuild without that environment variable.
 
 ## Manual Demo Flows
 

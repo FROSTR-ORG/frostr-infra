@@ -12,8 +12,8 @@ Start with the narrowest lane that covers the changed surface:
 - Chrome changes: run Chrome guards, Chrome typecheck, and the relevant Chrome
   Playwright slice.
 - Home changes: run Home guards, Home typecheck, and the Home E2E wrapper.
-- Shared browser runtime or WASM changes: run the browser-WASM guard and the
-  affected browser client lanes.
+- Shared browser runtime or WASM changes: run the routine browser-WASM guard,
+  the strict browser-WASM guard, and the affected browser client lanes.
 - Cross-client behavior changes: run the explicit cross-client PWA lane.
 - Demo-harness changes: run the demo smoke or demo E2E lane.
 - Release-facing coordinated changes: escalate to the root release matrix.
@@ -38,10 +38,15 @@ marked cross-client.
 
 ## Browser WASM
 
-Routine validation must build browser-WASM artifacts in scratch paths under
-`./.tmp/`, not by rewriting tracked `public/wasm` files.
+Routine validation must keep browser-WASM checks scratch-based and
+client-neutral, without requiring a full `wasm-pack` rebuild.
 
-- Use the browser-WASM guards for scratch build and sync validation.
+- Use `npm --prefix test run test:guards:wasm` for the routine harness
+  contract check.
+- Use `npm --prefix test run test:guards:wasm:strict` for scratch build and
+  sync validation.
+- Use `FROSTR_TEST_SKIP_STRICT_WASM=1` only when an agent sandbox cannot run
+  `wasm-opt` and the skip is recorded in final notes.
 - Use strict tracked checks only when auditing reproducibility against tracked
   artifacts.
 - Use `make browser-wasm-refresh` only when intentionally updating tracked
@@ -64,6 +69,8 @@ When aligning implementation to Paper designs:
 
 Run `npm --prefix test run test:guards:visual` after changing visual capture
 names, outputs, viewport dimensions, statuses, or Paper reference mappings.
+The visual guard also runs a `.tmp` fixture that proves missing Paper
+references fail when Paper reference checks are required.
 
 PWA scoped CI uploads visual artifacts for review.
 
@@ -81,5 +88,7 @@ Run:
 ```bash
 npm --prefix test run test:guards:docs
 npm --prefix test run test:guards:workflows
+npm --prefix test run test:guards:wasm
+npm --prefix test run test:guards:wasm:strict
 npm --prefix test run test:guards:visual
 ```
