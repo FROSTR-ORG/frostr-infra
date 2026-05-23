@@ -12,7 +12,7 @@ if [ "${1:-}" = "--force" ] || [ "${1:-}" = "-f" ]; then
 fi
 
 if [ "$FORCE" = false ]; then
-  echo "This will remove root scratch data under ./.tmp, including stale visual and test-prebuild artifacts, plus build scratch under ./build/igloo-shell-target."
+  echo "This will remove root scratch data under ./.tmp, test Playwright artifacts, and build scratch under ./build/igloo-shell-target."
   read -r -p "Continue? [y/N] " reply
   if [[ ! "$reply" =~ ^[Yy]$ ]]; then
     echo "Aborted."
@@ -32,5 +32,10 @@ fi
 rm -rf "${TMP_ROOT}"
 rm -rf "${BUILD_ROOT}"
 mkdir -p "${TMP_ROOT}"
+
+echo "Removing ignored Playwright test artifacts..."
+find "${ROOT_DIR}/test" \
+  -type d \( -name test-results -o -name results -o -name playwright-report \) \
+  -prune -exec rm -rf {} +
 
 echo "Reset complete."

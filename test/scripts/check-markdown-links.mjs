@@ -35,6 +35,15 @@ for (const entry of fs.readdirSync(path.join(ROOT_DIR, 'dev', 'policies'))) {
   }
 }
 
+const TEST_DOCS_DIR = path.join(ROOT_DIR, 'test', 'docs');
+if (fs.existsSync(TEST_DOCS_DIR)) {
+  for (const entry of fs.readdirSync(TEST_DOCS_DIR)) {
+    if (entry.endsWith('.md')) {
+      DOC_PATHS.push(path.join('test', 'docs', entry));
+    }
+  }
+}
+
 const SLUG_INVALID_RE = /[^\p{Letter}\p{Number}\s-]/gu;
 const LINK_RE = /!?\[([^\]]*)\]\(([^)\s]+(?:\s+"[^"]*")?)\)/g;
 const CODE_FENCE_RE = /```[\s\S]*?```/g;

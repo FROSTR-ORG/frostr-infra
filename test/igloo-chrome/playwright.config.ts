@@ -1,32 +1,19 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { defineConfig } from '@playwright/test';
+import {
+  defineFrostrPlaywrightConfig,
+  frostrPlaywrightOutputDir,
+} from '../shared/playwright-config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export default defineConfig({
+export default defineFrostrPlaywrightConfig({
   testDir: path.join(__dirname, 'specs'),
   globalSetup: path.join(__dirname, 'global-setup.ts'),
-  timeout: 60_000,
-  reporter: [['line']],
-  reportSlowTests: {
-    max: 10,
-    threshold: 15_000
-  },
-  expect: {
-    timeout: 10_000
-  },
-  fullyParallel: false,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
-  workers: 1,
-  outputDir: path.join(__dirname, 'results'),
+  outputDir: frostrPlaywrightOutputDir('igloo-chrome'),
   use: {
-    headless: true,
-    trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
     video: 'retain-on-failure'
   }
 });

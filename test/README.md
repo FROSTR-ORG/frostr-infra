@@ -15,6 +15,10 @@ These tests live here because they exercise runtime behavior sourced from
 multiple repos, especially `repos/bifrost-rs` and the host repos under
 `repos/`.
 
+For test workflow selection, client-scoped validation policy, visual iteration,
+and browser-WASM testing guidance, use [`docs/WORKFLOWS.md`](./docs/WORKFLOWS.md).
+This README remains the command reference.
+
 ## Install
 
 ```bash
@@ -43,9 +47,11 @@ npm run test:e2e:igloo-chrome:live
 npm run test:guards:pwa
 npm run test:guards:chrome
 npm run test:guards:home
+npm run test:guards:visual
 npm run test:typecheck:pwa
 npm run test:typecheck:chrome
 npm run test:typecheck:home
+npm run test:typecheck:strict-support
 ```
 
 From the repo root:
@@ -149,6 +155,7 @@ npm --prefix test run test:guards:docs
 npm --prefix test run test:guards:workflows
 npm --prefix test run test:guards:wasm
 npm --prefix test run test:guards:selectors
+npm --prefix test run test:guards:visual
 npm --prefix test run test:typecheck
 make test-release
 ```
@@ -177,6 +184,11 @@ Shared prep and root workflows:
   - compares scratch shared, PWA, and Chrome wasm outputs
   - respects `FROSTR_BROWSER_WASM_STRICT_TRACKED=1` for the tracked-artifact
     reproducibility audit
+- `npm --prefix test run test:guards:visual`
+  - validates the PWA visual manifest shape and screenshot/reference paths
+- `npm --prefix test run test:typecheck:strict-support`
+  - runs the strict TypeScript pilot for shared helpers, support modules, and
+    fixtures that are ready for strict checking
 - `make test-affected`
   - runs the deterministic minimal test surface for the current branch
 - `make test-release`

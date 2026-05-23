@@ -2,6 +2,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 import { IGLOO_HOME_DIR, REPO_ROOT_DIR } from './repo-paths';
+import { setDefaultTestBrowserWasmDir } from './browser-wasm-paths';
 
 const PREPARED_TARGETS_ENV = 'FROSTR_TEST_PREPARED_TARGETS';
 
@@ -37,6 +38,7 @@ export function runTestPrebuild(targets: string[]) {
   const includesDemo = requestedTargets.includes('demo');
 
   if (process.env.FROSTR_TEST_PREPARED === '1' || targetsPrepared(requestedTargets)) {
+    setDefaultTestBrowserWasmDir();
     if (includesHome) {
       process.env.IGLOO_HOME_TEST_SKIP_BUILD = '1';
       process.env.IGLOO_HOME_TEST_BINARY ??= path.join(
@@ -69,6 +71,7 @@ export function runTestPrebuild(targets: string[]) {
   }
 
   markPrepared(requestedTargets);
+  setDefaultTestBrowserWasmDir();
   if (includesHome) {
     process.env.IGLOO_HOME_TEST_SKIP_BUILD = '1';
     process.env.IGLOO_HOME_TEST_BINARY ??= path.join(

@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["../repos/igloo-chrome/src/*"],
+      "igloo-shared": ["../repos/igloo-shared/src/index.ts"]
+    }
+  },
+  "include": [
+    "./global.d.ts",
+    "./shared/**/*.ts",
+    "./igloo-pwa/support/**/*.ts",
+    "./igloo-chrome/support/**/*.ts",
+    "./igloo-home/fixtures/**/*.ts"
+  ]
+}

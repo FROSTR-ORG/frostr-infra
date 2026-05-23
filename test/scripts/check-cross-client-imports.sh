@@ -36,4 +36,20 @@ if rg -n 'repos/igloo-(pwa|chrome|home|ui)' "${ROOT_DIR}/test/shared" --glob '*.
   exit 1
 fi
 
+shared_client_constant_hits=()
+while IFS= read -r file; do
+  case "${file#${ROOT_DIR}/}" in
+    test/shared/repo-paths.ts|test/shared/test-prebuild.ts)
+      continue
+      ;;
+  esac
+  shared_client_constant_hits+=("${file}")
+done < <(rg -l '\bIGLOO_(PWA|CHROME|HOME)_DIR\b' "${ROOT_DIR}/test/shared" --glob '*.ts' --glob '*.tsx' || true)
+
+if [[ "${#shared_client_constant_hits[@]}" -gt 0 ]]; then
+  printf '%s\n' "${shared_client_constant_hits[@]}"
+  echo "test/shared helpers must not depend on client app path constants outside allowlisted infrastructure files" >&2
+  exit 1
+fi
+
 echo "ok: client test lanes do not import other client apps directly"

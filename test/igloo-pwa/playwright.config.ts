@@ -1,9 +1,11 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { defineConfig } from '@playwright/test';
-
 import { IGLOO_PWA_DIR } from '../shared/repo-paths';
+import {
+  defineFrostrPlaywrightConfig,
+  frostrPlaywrightOutputDir,
+} from '../shared/playwright-config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,19 +14,12 @@ const webServerEnv = { ...process.env };
 delete webServerEnv.NO_COLOR;
 delete webServerEnv.FORCE_COLOR;
 
-export default defineConfig({
+export default defineFrostrPlaywrightConfig({
   testDir: path.join(__dirname, 'specs'),
   globalSetup: path.join(__dirname, 'global-setup.ts'),
-  timeout: 60_000,
-  expect: {
-    timeout: 10_000,
-  },
-  fullyParallel: false,
-  retries: process.env.CI ? 1 : 0,
-  workers: 1,
+  outputDir: frostrPlaywrightOutputDir('igloo-pwa'),
   use: {
     baseURL: `http://127.0.0.1:${process.env.IGLOO_PWA_TEST_PORT ?? '4174'}`,
-    headless: true,
   },
   webServer: {
     command: `npx vite --host 127.0.0.1 --port ${process.env.IGLOO_PWA_TEST_PORT ?? '4174'} --strictPort`,

@@ -11,8 +11,9 @@ under [`../docs/`](../docs) or the cross-repo test manual under
 
 - [`docs/`](./docs)
   - canonical workspace process docs
-  - currently includes the parent design handoff manual in
-    [`docs/DESIGN.md`](./docs/DESIGN.md) and the coordinated parent release
+  - currently includes the workspace workflow guide in
+    [`docs/WORKFLOWS.md`](./docs/WORKFLOWS.md), the parent design handoff manual
+    in [`docs/DESIGN.md`](./docs/DESIGN.md), and the coordinated parent release
     manual in [`docs/RELEASE.md`](./docs/RELEASE.md)
 - [`adrs/`](./adrs)
   - architecture decision records
@@ -47,20 +48,27 @@ Use the workspace docs this way:
 - [`docs/DESIGN.md`](./docs/DESIGN.md)
   - design handoff rules between reference design exports and implementation
     packages
+- [`docs/WORKFLOWS.md`](./docs/WORKFLOWS.md)
+  - workspace workflows, documentation drift control, and follow-up harvests
 - [`../test/README.md`](../test/README.md)
   - cross-repo demo harness and E2E guidance
+- [`../test/docs/WORKFLOWS.md`](../test/docs/WORKFLOWS.md)
+  - test workflow selection, client-scoped validation, visual loops, and WASM
+    test guidance
 
 ## Retention And Ownership
 
 - Shared system semantics belong in [`../docs/`](../docs), not in `dev/`.
 - Cross-repo validation and manual demo guidance belong in
-  [`../test/README.md`](../test/README.md), not in `dev/`.
+  [`../test/README.md`](../test/README.md) and
+  [`../test/docs/WORKFLOWS.md`](../test/docs/WORKFLOWS.md), not in `dev/`.
 - Repo-specific implementation and release detail belong in the owning repo
   under [`../repos/`](../repos).
 - `plans/`, `reports/`, and `done/` are workspace records, not canonical
   manuals. They may go stale as the codebase evolves.
 - If a `plans/`, `reports/`, or `done/` note captures a lasting rule, move that
   rule into [`../docs/`](../docs), [`./docs/`](./docs), [`./policies/`](./policies),
-  or [`../test/README.md`](../test/README.md).
+  [`../test/README.md`](../test/README.md), or
+  [`../test/docs/WORKFLOWS.md`](../test/docs/WORKFLOWS.md).
 - Remove or archive stale working notes when they no longer help contributors
   understand the current workspace.

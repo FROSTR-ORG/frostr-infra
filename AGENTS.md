@@ -12,6 +12,19 @@
 
 Use root docs for workspace behavior, then read the owning submodule’s docs for repo-local implementation details.
 
+## Agent Routing Map
+
+Use this file as the always-loaded routing layer, not as the full manual.
+
+- `README.md`: workspace entrypoint and supported top-level commands
+- `dev/README.md`: where engineering notes, plans, reports, and policies belong
+- `dev/docs/WORKFLOWS.md`: workspace workflows, documentation drift control, and follow-up harvests
+- `test/README.md`: cross-repo test commands and demo harness reference
+- `test/docs/WORKFLOWS.md`: test workflow selection, scoped validation, visual loops, and WASM test guidance
+- `dev/docs/DESIGN.md`: Paper design handoff and implementation boundary rules
+- `dev/docs/RELEASE.md`: coordinated release, tagging, and submodule pointer process
+- `docs/INDEX.md`: shared FROSTR architecture, protocol, artifact, and wire specs
+
 ## Build, Test, and Development Commands
 
 Use `make` as the public root interface. Root `scripts/` are implementation detail.

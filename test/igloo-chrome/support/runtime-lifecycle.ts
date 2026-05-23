@@ -85,7 +85,12 @@ export async function getProviderPublicKeyWithApproval(
     context,
     serverOrigin,
     'wants to read your public key',
-    async (page) => await page.evaluate(() => window.nostr!.getPublicKey())
+    async (page) => await page.evaluate(() => {
+      if (!window.nostr?.getPublicKey) {
+        throw new Error('window.nostr.getPublicKey is not available');
+      }
+      return window.nostr.getPublicKey();
+    })
   );
 }
 
@@ -100,7 +105,10 @@ export async function signProviderEventWithApproval(
     'wants to sign a Nostr event',
     async (page) => await page.evaluate(async (nextEvent) => {
       try {
-        return { ok: true, event: await window.nostr!.signEvent(nextEvent), message: null };
+        if (!window.nostr?.signEvent) {
+          throw new Error('window.nostr.signEvent is not available');
+        }
+        return { ok: true, event: await window.nostr.signEvent(nextEvent), message: null };
       } catch (error) {
         return {
           ok: false,

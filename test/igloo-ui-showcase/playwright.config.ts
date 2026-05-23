@@ -1,22 +1,18 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { defineConfig } from '@playwright/test';
+import {
+  defineFrostrPlaywrightConfig,
+  frostrPlaywrightOutputDir,
+} from '../shared/playwright-config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export default defineConfig({
+export default defineFrostrPlaywrightConfig({
   testDir: path.join(__dirname, 'specs'),
-  timeout: 60_000,
-  expect: {
-    timeout: 10_000,
-  },
-  fullyParallel: false,
-  retries: process.env.CI ? 1 : 0,
-  workers: 1,
+  outputDir: frostrPlaywrightOutputDir('igloo-ui-showcase'),
   use: {
-    headless: true,
     viewport: { width: 1440, height: 1080 },
   },
 });

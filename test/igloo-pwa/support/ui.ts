@@ -6,10 +6,10 @@ import { PWA_STORAGE_KEY } from './state';
 
 export async function seedPwaState(page: Page, state: unknown) {
   await page.addInitScript(
-    ([storageKey, payload]: [string, unknown]) => {
+    ({ storageKey, payload }: { storageKey: string; payload: unknown }) => {
       window.localStorage.setItem(storageKey, JSON.stringify(payload));
     },
-    [PWA_STORAGE_KEY, state],
+    { storageKey: PWA_STORAGE_KEY, payload: state },
   );
 }
 

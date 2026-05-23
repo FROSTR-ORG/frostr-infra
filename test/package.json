@@ -4,11 +4,12 @@
   "type": "module",
   "scripts": {
     "test:e2e": "npm run test:e2e:fast && npm run test:e2e:live",
-    "test:guards": "npm run test:guards:docs && npm run test:guards:workflows && npm run test:guards:wasm && npm run test:guards:selectors && bash ./scripts/test-run-sh.sh && bash ./scripts/test-igloo-home-run-e2e.sh && bash ./scripts/test-affected.sh",
+    "test:guards": "npm run test:guards:docs && npm run test:guards:workflows && npm run test:guards:wasm && npm run test:guards:selectors && npm run test:guards:visual && bash ./scripts/test-run-sh.sh && bash ./scripts/test-igloo-home-run-e2e.sh && bash ./scripts/test-affected.sh",
     "test:guards:docs": "node ./scripts/check-markdown-links.mjs && bash ./scripts/check-no-legacy-surfaces.sh && bash ./scripts/check-doc-surfaces.sh && bash ./scripts/check-doc-command-surfaces.sh",
     "test:guards:workflows": "bash ./scripts/check-workflow-node24-actions.sh && bash ./scripts/check-client-scoped-submodules.sh",
     "test:guards:wasm": "bash ./scripts/check-test-prebuild-nonmutating.sh",
     "test:guards:selectors": "bash ./scripts/check-cross-client-imports.sh && bash ./scripts/check-e2e-selector-contracts.sh",
+    "test:guards:visual": "node ./scripts/check-pwa-visual-manifest.mjs",
     "test:guards:pwa": "bash ./scripts/check-browser-wasm-artifacts.sh pwa && bash ./scripts/check-e2e-selector-contracts.sh pwa && bash ./scripts/test-affected.sh",
     "test:guards:chrome": "bash ./scripts/check-browser-wasm-artifacts.sh chrome && bash ./scripts/check-e2e-selector-contracts.sh chrome && bash ./scripts/test-affected.sh",
     "test:guards:home": "bash ./scripts/test-igloo-home-run-e2e.sh && bash ./scripts/test-affected.sh",
@@ -27,21 +28,22 @@
     "test:e2e:igloo-chrome:demo": "IGLOO_DEMO_LIVE_REPRO=1 playwright test -c ./igloo-chrome/playwright.config.ts igloo-chrome/specs/demo-harness.spec.ts igloo-chrome/specs/chrome-home-demo-harness.spec.ts",
     "test:e2e:igloo-chrome:fast": "playwright test -c ./igloo-chrome/playwright.config.ts --grep-invert @live",
     "test:e2e:igloo-chrome:live": "playwright test -c ./igloo-chrome/playwright.config.ts --grep @live",
-    "test:typecheck": "npm run test:typecheck:pwa && npm run test:typecheck:chrome && npm run test:typecheck:home",
+    "test:typecheck": "npm run test:typecheck:pwa && npm run test:typecheck:chrome && npm run test:typecheck:home && npm run test:typecheck:strict-support",
     "test:typecheck:pwa": "tsc --noEmit -p tsconfig.pwa.json",
     "test:typecheck:chrome": "tsc --noEmit -p tsconfig.chrome.json",
     "test:typecheck:home": "tsc --noEmit -p tsconfig.home.json",
+    "test:typecheck:strict-support": "tsc --noEmit -p tsconfig.strict-support.json",
     "test:run-sh": "bash ./scripts/test-run-sh.sh",
     "test:install-browsers": "playwright install --with-deps chromium"
   },
   "devDependencies": {
-    "@noble/curves": "^2.0.1",
-    "@playwright/test": "^1.58.2",
+    "@noble/curves": "^2.2.0",
+    "@playwright/test": "^1.60.0",
     "@scure/base": "^1.2.6",
-    "@types/node": "^24.10.1",
+    "@types/node": "^24.12.4",
     "@types/ws": "^8.18.1",
     "nostr-tools": "^2.17.2",
     "typescript": "^5.9.3",
-    "ws": "^8.18.3"
+    "ws": "^8.20.1"
   }
 }
