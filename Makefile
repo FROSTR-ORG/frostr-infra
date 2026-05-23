@@ -16,7 +16,7 @@ PORT ?= 8194
 	demo-start demo-foreground demo-stop demo-logs demo-onboard demo-smoke \
 	compose-start compose-stop compose-restart compose-logs \
 	test-smoke test-fast test-live test-demo test-e2e test-prep test-affected test-release \
-	browser-wasm-sync browser-wasm-check \
+	browser-wasm-refresh browser-wasm-sync browser-wasm-check wasm-toolchain-check \
 	igloo-paper-sync igloo-paper-verify igloo-ui-paper-token-sync igloo-ui-paper-token-check \
 	igloo-chrome-dev igloo-chrome-build igloo-chrome-test-unit igloo-chrome-test-e2e \
 	igloo-pwa-dev igloo-pwa-build igloo-pwa-test-unit igloo-pwa-test-e2e \
@@ -47,8 +47,10 @@ help:
 		'  make test-prep' \
 		'  make test-affected' \
 		'  make test-release' \
+		'  make browser-wasm-refresh' \
 		'  make browser-wasm-sync' \
 		'  make browser-wasm-check' \
+		'  make wasm-toolchain-check' \
 		'  make igloo-paper-sync [STRICT=1]' \
 		'  make igloo-paper-verify [STRICT=1]' \
 		'  make igloo-ui-paper-token-sync' \
@@ -147,11 +149,16 @@ test-affected:
 test-release:
 	@"$(ROOT_DIR)/scripts/release-matrix.sh"
 
-browser-wasm-sync:
+browser-wasm-refresh:
 	@"$(ROOT_DIR)/scripts/prepare-browser-wasm.sh" sync all
+
+browser-wasm-sync: browser-wasm-refresh
 
 browser-wasm-check:
 	@"$(ROOT_DIR)/scripts/prepare-browser-wasm.sh" check all
+
+wasm-toolchain-check:
+	@"$(ROOT_DIR)/test/scripts/check-wasm-toolchain.sh"
 
 igloo-paper-sync:
 	@if [[ ! -f "$(IGLOO_PAPER_DIR)/scripts/export_from_paper.py" ]]; then \

@@ -12,7 +12,7 @@ if [ "${1:-}" = "--force" ] || [ "${1:-}" = "-f" ]; then
 fi
 
 if [ "$FORCE" = false ]; then
-  echo "This will remove root scratch data under ./.tmp and build scratch under ./build/igloo-shell-target."
+  echo "This will remove root scratch data under ./.tmp, including stale visual and test-prebuild artifacts, plus build scratch under ./build/igloo-shell-target."
   read -r -p "Continue? [y/N] " reply
   if [[ ! "$reply" =~ ^[Yy]$ ]]; then
     echo "Aborted."
@@ -23,7 +23,7 @@ fi
 echo "Stopping demo compose services..."
 docker compose -f "$ROOT_DIR/compose.test.yml" down || true
 
-echo "Resetting root scratch directories..."
+echo "Resetting root scratch directories, including visual and prebuild scratch..."
 if [[ -e "${TMP_ROOT}" && ! -w "${TMP_ROOT}" ]]; then
   stale_root="${ROOT_DIR}/.tmp.stale.$(date +%s)"
   echo "Workspace scratch root is not writable; moving it to ${stale_root}"

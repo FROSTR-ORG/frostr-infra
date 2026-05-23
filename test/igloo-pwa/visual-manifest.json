@@ -1,0 +1,103 @@
+{
+  "suite": "igloo-pwa-paper-visuals",
+  "screens": [
+    {
+      "name": "welcome-first-launch",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/welcome/01-first-launch.png",
+      "paperReference": "repos/igloo-paper/design/patterns/welcome-flow/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "welcome-returning-single",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/welcome/02-returning-single.png",
+      "paperReference": "repos/igloo-paper/design/patterns/welcome-flow/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "welcome-returning-multi",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/welcome/03-returning-multi.png",
+      "paperReference": "repos/igloo-paper/design/patterns/welcome-flow/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "welcome-returning-many",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/welcome/04-returning-many.png",
+      "paperReference": "repos/igloo-paper/design/patterns/welcome-flow/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "welcome-unlock-modal",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/welcome/05-unlock-modal.png",
+      "paperReference": "repos/igloo-paper/design/patterns/welcome-flow/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "welcome-unlock-modal-error",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/welcome/06-unlock-modal-error.png",
+      "paperReference": "repos/igloo-paper/design/patterns/welcome-flow/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "create-keyset",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/create/01-create-keyset.png",
+      "paperReference": "repos/igloo-paper/screens/create/1-create-keyset/screenshot.png",
+      "status": "aligned"
+    },
+    {
+      "name": "create-profile",
+      "viewport": "1440x1861",
+      "output": ".tmp/visual/igloo-pwa/create/02-create-profile.png",
+      "paperReference": "repos/igloo-paper/screens/shared/2-create-profile/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "create-confirm",
+      "viewport": "1440x1861",
+      "output": ".tmp/visual/igloo-pwa/create/03-create-confirm.png",
+      "paperReference": "repos/igloo-paper/screens/shared/2-create-profile/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "distribute-shares",
+      "viewport": "1440x1861",
+      "output": ".tmp/visual/igloo-pwa/create/04-distribute-shares.png",
+      "paperReference": "repos/igloo-paper/screens/shared/3-distribute-shares/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "distribution-completion",
+      "viewport": "1440x1861",
+      "output": ".tmp/visual/igloo-pwa/create/05-distribution-completion.png",
+      "paperReference": "repos/igloo-paper/screens/shared/3b-distribution-completion/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "onboard-enter-package",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/onboard/01-enter-package.png",
+      "paperReference": "repos/igloo-paper/screens/onboard/1-enter-package/screenshot.png",
+      "status": "aligned"
+    },
+    {
+      "name": "onboard-failed",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/onboard/02-onboarding-failed.png",
+      "paperReference": "repos/igloo-paper/screens/onboard/2b-onboarding-failed/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "onboard-complete",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/onboard/03-onboarding-complete.png",
+      "paperReference": "repos/igloo-paper/screens/onboard/3-onboarding-complete/screenshot.png",
+      "status": "needs-work"
+    }
+  ]
+}

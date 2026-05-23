@@ -56,6 +56,10 @@ root_commands=(
   "make test-prep"
   "make test-affected"
   "make test-release"
+  "make browser-wasm-refresh"
+  "make browser-wasm-sync"
+  "make browser-wasm-check"
+  "make wasm-toolchain-check"
   "make igloo-chrome-build"
   "make igloo-pwa-dev"
   "make igloo-home-tauri-dev"
@@ -83,6 +87,9 @@ for command in \
   "make test-prep" \
   "make test-affected" \
   "make test-release" \
+  "make browser-wasm-refresh" \
+  "make browser-wasm-check" \
+  "make wasm-toolchain-check" \
   "make igloo-paper-sync" \
   "make igloo-paper-verify" \
   "make igloo-ui-paper-token-sync" \
@@ -110,6 +117,7 @@ test_readme_npm_commands=(
   "npm run test:e2e:demo"
   "npm run test:e2e:igloo-home"
   "npm run test:e2e:igloo-pwa"
+  "npm run test:e2e:igloo-pwa:visual"
   "npm run test:e2e:igloo-pwa:cross"
   "npm run test:e2e:igloo-chrome"
   "npm run test:e2e:igloo-chrome:fast"
@@ -160,6 +168,7 @@ done
 for script_name in \
   "test:e2e:igloo-home" \
   "test:e2e:igloo-pwa" \
+  "test:e2e:igloo-pwa:visual" \
   "test:e2e:igloo-pwa:cross" \
   "test:e2e:igloo-chrome"; do
   assert_package_has_script "${script_name}"

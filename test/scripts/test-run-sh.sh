@@ -61,6 +61,15 @@ assert_trace_contains() {
   fi
 }
 
+assert_trace_not_contains() {
+  local needle="$1"
+  if grep -F --quiet -- "${needle}" "${TRACE_FILE}"; then
+    echo "expected trace not to contain: ${needle}" >&2
+    cat "${TRACE_FILE}" >&2
+    exit 1
+  fi
+}
+
 reset_trace() {
   : >"${TRACE_FILE}"
 }
@@ -73,7 +82,15 @@ write_stub() {
 }
 
 write_stub "npm" '#!/usr/bin/env bash
-printf "npm|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
+printf "npm|cwd=%s|args=%s|shared_out=%s|wasm_source=%s|wasm_target=%s|pwa_wasm=%s|chrome_wasm=%s\n" "$PWD" "$*" "${IGLOO_SHARED_BROWSER_WASM_OUT_DIR:-}" "${IGLOO_BROWSER_WASM_SOURCE_DIR:-}" "${IGLOO_BROWSER_WASM_TARGET_DIR:-}" "${IGLOO_PWA_WASM_SOURCE_DIR:-}" "${IGLOO_CHROME_WASM_SOURCE_DIR:-}" >>"${TRACE_FILE}"
+if [[ -n "${IGLOO_SHARED_BROWSER_WASM_OUT_DIR:-}" ]]; then
+  mkdir -p "${IGLOO_SHARED_BROWSER_WASM_OUT_DIR}"
+  cp -R "${ROOT_DIR}/repos/igloo-shared/public/wasm/." "${IGLOO_SHARED_BROWSER_WASM_OUT_DIR}/"
+fi
+if [[ -n "${IGLOO_BROWSER_WASM_SOURCE_DIR:-}" && -n "${IGLOO_BROWSER_WASM_TARGET_DIR:-}" ]]; then
+  mkdir -p "${IGLOO_BROWSER_WASM_TARGET_DIR}"
+  cp -R "${IGLOO_BROWSER_WASM_SOURCE_DIR}/." "${IGLOO_BROWSER_WASM_TARGET_DIR}/"
+fi
 exit 0'
 
 write_stub "cargo" '#!/usr/bin/env bash
@@ -129,13 +146,15 @@ cp "${TRACE_BIN_DIR}/rustup" "${TRACE_DIR}/.cargo/bin/rustup"
 cp "${TRACE_BIN_DIR}/wasm-pack" "${TRACE_DIR}/.cargo/bin/wasm-pack"
 
 run_with_trace() {
-  TRACE_FILE="${TRACE_FILE}" PATH="${TRACE_BIN_DIR}:${PATH}" make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" "$@" >/dev/null
+  TRACE_FILE="${TRACE_FILE}" TRACE_DIR="${TRACE_DIR}" ROOT_DIR="${ROOT_DIR}" PATH="${TRACE_BIN_DIR}:${PATH}" make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" "$@" >/dev/null
 }
 
 run_with_fresh_prebuild_trace() {
   local prebuild_dir
   prebuild_dir="$(mktemp -d "${TRACE_PREBUILD_DIR}/prebuild.XXXXXX")"
   TRACE_FILE="${TRACE_FILE}" \
+    TRACE_DIR="${TRACE_DIR}" \
+    ROOT_DIR="${ROOT_DIR}" \
     PATH="${TRACE_BIN_DIR}:${PATH}" \
     FROSTR_TEST_PREBUILD_SKIP_SUBMODULE_CHECK=1 \
     FROSTR_TEST_PREBUILD_SKIP_WASM_TARGET_CHECK=1 \
@@ -150,6 +169,9 @@ assert_contains "${HELP_OUTPUT}" "make demo-foreground [PORT=<port>]"
 assert_contains "${HELP_OUTPUT}" "make test-prep"
 assert_contains "${HELP_OUTPUT}" "make test-affected"
 assert_contains "${HELP_OUTPUT}" "make test-release"
+assert_contains "${HELP_OUTPUT}" "make browser-wasm-refresh"
+assert_contains "${HELP_OUTPUT}" "make browser-wasm-check"
+assert_contains "${HELP_OUTPUT}" "make wasm-toolchain-check"
 assert_contains "${HELP_OUTPUT}" "make igloo-paper-sync [STRICT=1]"
 assert_contains "${HELP_OUTPUT}" "make igloo-paper-verify [STRICT=1]"
 assert_contains "${HELP_OUTPUT}" "make igloo-ui-paper-token-sync"
@@ -173,6 +195,15 @@ assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo
 reset_trace
 run_with_trace igloo-home-test-unit
 assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-home run test:unit"
+
+reset_trace
+run_with_trace browser-wasm-refresh
+assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-shared run build:browser-wasm"
+assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-pwa run build:browser-wasm"
+assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-chrome run build:browser-wasm"
+
+reset_trace
+run_with_trace wasm-toolchain-check
 
 reset_trace
 run_with_trace IGLOO_PAPER_DIR="${TRACE_IGLOO_PAPER_DIR}" igloo-paper-verify
@@ -205,6 +236,80 @@ run_with_fresh_prebuild_trace test-prep
 assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-shared run build:browser-wasm"
 assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-pwa run build:browser-wasm"
 assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-chrome run build:browser-wasm"
+assert_trace_contains "shared_out=${TRACE_PREBUILD_DIR}"
+assert_trace_contains "wasm_source=${TRACE_PREBUILD_DIR}"
+assert_trace_contains "wasm_target=${TRACE_PREBUILD_DIR}"
+
+reset_trace
+PWA_RUNTIME_PREBUILD_DIR="$(mktemp -d "${TRACE_PREBUILD_DIR}/pwa-runtime.XXXXXX")"
+TRACE_FILE="${TRACE_FILE}" \
+  TRACE_DIR="${TRACE_DIR}" \
+  ROOT_DIR="${ROOT_DIR}" \
+  PATH="${TRACE_BIN_DIR}:${PATH}" \
+  FROSTR_TEST_PREBUILD_SKIP_SUBMODULE_CHECK=1 \
+  FROSTR_TEST_PREBUILD_SKIP_WASM_TARGET_CHECK=1 \
+  FROSTR_TEST_PREBUILD_DIR="${PWA_RUNTIME_PREBUILD_DIR}" \
+  "${ROOT_DIR}/scripts/test-prebuild.sh" sync pwa-runtime >/dev/null
+assert_trace_contains "args=--prefix ${ROOT_DIR}/repos/igloo-shared run build:browser-wasm"
+assert_trace_contains "args=--prefix ${ROOT_DIR}/repos/igloo-pwa run build:browser-wasm"
+assert_trace_contains "args=--prefix ${ROOT_DIR}/repos/igloo-ui run build"
+assert_trace_not_contains "args=--prefix ${ROOT_DIR}/repos/igloo-chrome run build:browser-wasm"
+assert_trace_not_contains "args=--prefix ${ROOT_DIR}/repos/igloo-pwa run build:app"
+test -f "${PWA_RUNTIME_PREBUILD_DIR}/stamps/pwa-runtime.state"
+
+reset_trace
+CHROME_RUNTIME_PREBUILD_DIR="$(mktemp -d "${TRACE_PREBUILD_DIR}/chrome-runtime.XXXXXX")"
+TRACE_FILE="${TRACE_FILE}" \
+  TRACE_DIR="${TRACE_DIR}" \
+  ROOT_DIR="${ROOT_DIR}" \
+  PATH="${TRACE_BIN_DIR}:${PATH}" \
+  FROSTR_TEST_PREBUILD_SKIP_SUBMODULE_CHECK=1 \
+  FROSTR_TEST_PREBUILD_SKIP_WASM_TARGET_CHECK=1 \
+  FROSTR_TEST_PREBUILD_DIR="${CHROME_RUNTIME_PREBUILD_DIR}" \
+  "${ROOT_DIR}/scripts/test-prebuild.sh" sync chrome-runtime >/dev/null
+assert_trace_contains "args=--prefix ${ROOT_DIR}/repos/igloo-shared run build:browser-wasm"
+assert_trace_contains "args=--prefix ${ROOT_DIR}/repos/igloo-chrome run build:browser-wasm"
+assert_trace_contains "args=--prefix ${ROOT_DIR}/repos/igloo-ui run build"
+assert_trace_not_contains "args=--prefix ${ROOT_DIR}/repos/igloo-pwa run build:browser-wasm"
+assert_trace_not_contains "args=--prefix ${ROOT_DIR}/repos/igloo-chrome run build:app"
+test -f "${CHROME_RUNTIME_PREBUILD_DIR}/stamps/chrome-runtime.state"
+
+reset_trace
+CHROME_PREBUILD_DIR="$(mktemp -d "${TRACE_PREBUILD_DIR}/chrome.XXXXXX")"
+TRACE_FILE="${TRACE_FILE}" \
+  TRACE_DIR="${TRACE_DIR}" \
+  ROOT_DIR="${ROOT_DIR}" \
+  PATH="${TRACE_BIN_DIR}:${PATH}" \
+  FROSTR_TEST_PREBUILD_SKIP_SUBMODULE_CHECK=1 \
+  FROSTR_TEST_PREBUILD_SKIP_WASM_TARGET_CHECK=1 \
+  FROSTR_TEST_PREBUILD_DIR="${CHROME_PREBUILD_DIR}" \
+  "${ROOT_DIR}/scripts/test-prebuild.sh" sync chrome >/dev/null
+assert_trace_contains "args=--prefix ${ROOT_DIR}/repos/igloo-chrome run build:app"
+assert_trace_contains "chrome_wasm=${CHROME_PREBUILD_DIR}/browser-wasm/igloo-chrome/public/wasm"
+
+reset_trace
+TRACE_FILE="${TRACE_FILE}" \
+  ROOT_DIR="${ROOT_DIR}" \
+  PATH="${TRACE_BIN_DIR}:${PATH}" \
+  FROSTR_TEST_PREBUILD_SKIP_WASM_TARGET_CHECK=1 \
+  FROSTR_BROWSER_WASM_CHECK_DIR="$(mktemp -d "${TRACE_PREBUILD_DIR}/wasm-check.XXXXXX")" \
+  WASM_CC="${TRACE_BIN_DIR}/clang" \
+  "${ROOT_DIR}/scripts/prepare-browser-wasm.sh" check pwa >/dev/null
+assert_trace_contains "shared_out=${TRACE_PREBUILD_DIR}"
+assert_trace_contains "wasm_source=${TRACE_PREBUILD_DIR}"
+assert_trace_contains "wasm_target=${TRACE_PREBUILD_DIR}"
+
+reset_trace
+TRACE_FILE="${TRACE_FILE}" \
+  ROOT_DIR="${ROOT_DIR}" \
+  PATH="${TRACE_BIN_DIR}:${PATH}" \
+  FROSTR_TEST_PREBUILD_SKIP_WASM_TARGET_CHECK=1 \
+  FROSTR_BROWSER_WASM_PREPARE_DIR="$(mktemp -d "${TRACE_PREBUILD_DIR}/wasm-prepare.XXXXXX")" \
+  WASM_CC="${TRACE_BIN_DIR}/clang" \
+  "${ROOT_DIR}/scripts/prepare-browser-wasm.sh" prepare pwa >/dev/null
+assert_trace_contains "shared_out=${TRACE_PREBUILD_DIR}"
+assert_trace_contains "wasm_source=${TRACE_PREBUILD_DIR}"
+assert_trace_contains "wasm_target=${TRACE_PREBUILD_DIR}"
 
 cat >"${TRACE_HARNESS_DIR}/onboard-bob.txt" <<'EOF'
 bfonboard1bob-demo
@@ -221,6 +326,7 @@ EOF
 
 reset_trace
 TRACE_FILE="${TRACE_FILE}" \
+  ROOT_DIR="${ROOT_DIR}" \
   PATH="${TRACE_BIN_DIR}:${PATH}" \
   FROSTR_TEST_PREBUILD_SKIP_SUBMODULE_CHECK=1 \
   FROSTR_TEST_PREBUILD_SKIP_WASM_TARGET_CHECK=1 \

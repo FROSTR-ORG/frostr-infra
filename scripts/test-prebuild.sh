@@ -7,6 +7,7 @@ source "${ROOT_DIR}/scripts/lib-scratch.sh"
 PREBUILD_DIR="$(resolve_workspace_scratch_dir FROSTR_TEST_PREBUILD_DIR test-prebuild)"
 TIMINGS_FILE="${PREBUILD_DIR}/timings.tsv"
 STAMP_DIR="${PREBUILD_DIR}/stamps"
+BROWSER_WASM_PREBUILD_DIR="${PREBUILD_DIR}/browser-wasm"
 
 mkdir -p "${PREBUILD_DIR}" "${STAMP_DIR}"
 printf 'step\telapsed_seconds\n' >"${TIMINGS_FILE}"
@@ -66,6 +67,16 @@ select_target() {
     browser-wasm)
       selected_add "browser-wasm"
       ;;
+    pwa-runtime)
+      selected_add "ui"
+      selected_add "browser-wasm"
+      selected_add "pwa-wasm"
+      ;;
+    chrome-runtime)
+      selected_add "ui"
+      selected_add "browser-wasm"
+      selected_add "chrome-wasm"
+      ;;
     pwa|chrome)
       selected_add "ui"
       selected_add "browser-wasm"
@@ -96,18 +107,70 @@ selected_targets() {
   printf '%s\n' "${SELECTED[@]}" | sort
 }
 
-selected_key() {
-  local key
-  key="$(selected_targets | paste -sd '__' -)"
-  printf '%s\n' "${key:-release}"
+selected_count() {
+  printf '%s\n' "${#SELECTED[@]}"
 }
 
-browser_wasm_scope() {
-  if selected_has pwa && ! selected_has chrome && ! selected_has shared; then
+selected_is() {
+  local expected="$1"
+  [[ "$(selected_targets | paste -sd ',' -)" == "${expected}" ]]
+}
+
+selected_key() {
+  if selected_is "browser-wasm,chrome-wasm,ui" && [[ "$(selected_count)" == "3" ]]; then
+    printf '%s\n' "chrome-runtime"
+    return
+  fi
+  if selected_is "browser-wasm,pwa-wasm,ui" && [[ "$(selected_count)" == "3" ]]; then
+    printf '%s\n' "pwa-runtime"
+    return
+  fi
+  if selected_is "browser-wasm,chrome,ui" && [[ "$(selected_count)" == "3" ]]; then
+    printf '%s\n' "chrome"
+    return
+  fi
+  if selected_is "browser-wasm,pwa,ui" && [[ "$(selected_count)" == "3" ]]; then
     printf '%s\n' "pwa"
     return
   fi
-  if selected_has chrome && ! selected_has pwa && ! selected_has shared; then
+  if selected_is "browser-wasm,demo-binaries,shared" && [[ "$(selected_count)" == "3" ]]; then
+    printf '%s\n' "demo-runtime"
+    return
+  fi
+  if selected_is "demo,demo-binaries" && [[ "$(selected_count)" == "2" ]]; then
+    printf '%s\n' "demo"
+    return
+  fi
+  if selected_is "home,ui" && [[ "$(selected_count)" == "2" ]]; then
+    printf '%s\n' "home"
+    return
+  fi
+  if selected_is "browser-wasm" && [[ "$(selected_count)" == "1" ]]; then
+    printf '%s\n' "browser-wasm"
+    return
+  fi
+  if selected_is "shared" && [[ "$(selected_count)" == "1" ]]; then
+    printf '%s\n' "shared"
+    return
+  fi
+  if selected_is "ui" && [[ "$(selected_count)" == "1" ]]; then
+    printf '%s\n' "ui"
+    return
+  fi
+  if selected_is "browser-wasm,chrome,demo,demo-binaries,home,pwa,shared,ui" && [[ "$(selected_count)" == "8" ]]; then
+    printf '%s\n' "release"
+    return
+  fi
+
+  selected_targets | paste -sd '_' -
+}
+
+browser_wasm_scope() {
+  if { selected_has pwa || selected_has pwa-wasm; } && ! selected_has chrome && ! selected_has chrome-wasm && ! selected_has shared; then
+    printf '%s\n' "pwa"
+    return
+  fi
+  if { selected_has chrome || selected_has chrome-wasm; } && ! selected_has pwa && ! selected_has pwa-wasm && ! selected_has shared; then
     printf '%s\n' "chrome"
     return
   fi
@@ -136,6 +199,10 @@ check_required_submodules() {
     require_submodule_path "browser-wasm" "repos/bifrost-rs" "repos/bifrost-rs/Cargo.toml" || missing=1
     require_submodule_path "browser-wasm" "repos/igloo-shared" "repos/igloo-shared/package.json" || missing=1
   fi
+  if { selected_has browser-wasm || selected_has shared; } && [[ "$(browser_wasm_scope)" == "all" ]]; then
+    require_submodule_path "browser-wasm" "repos/igloo-pwa" "repos/igloo-pwa/package.json" || missing=1
+    require_submodule_path "browser-wasm" "repos/igloo-chrome" "repos/igloo-chrome/package.json" || missing=1
+  fi
   if selected_has shared || selected_has demo-binaries; then
     require_submodule_path "shared" "repos/igloo-shell" "repos/igloo-shell/Cargo.toml" || missing=1
   fi
@@ -145,8 +212,14 @@ check_required_submodules() {
   if selected_has pwa; then
     require_submodule_path "pwa" "repos/igloo-pwa" "repos/igloo-pwa/package.json" || missing=1
   fi
+  if selected_has pwa-wasm; then
+    require_submodule_path "pwa-runtime" "repos/igloo-pwa" "repos/igloo-pwa/package.json" || missing=1
+  fi
   if selected_has chrome; then
     require_submodule_path "chrome" "repos/igloo-chrome" "repos/igloo-chrome/package.json" || missing=1
+  fi
+  if selected_has chrome-wasm; then
+    require_submodule_path "chrome-runtime" "repos/igloo-chrome" "repos/igloo-chrome/package.json" || missing=1
   fi
   if selected_has home; then
     require_submodule_path "home" "repos/igloo-home" "repos/igloo-home/package.json" || missing=1
@@ -231,27 +304,36 @@ collect_input_paths() {
     )
   fi
 
-  if selected_has pwa; then
+  if selected_has pwa || selected_has pwa-wasm; then
     entries_ref+=(
       "${ROOT_DIR}/repos/igloo-pwa/package.json"
       "${ROOT_DIR}/repos/igloo-pwa/package-lock.json"
       "${ROOT_DIR}/repos/igloo-pwa/scripts"
+    )
+  fi
+
+  if selected_has pwa; then
+    entries_ref+=(
       "${ROOT_DIR}/repos/igloo-pwa/src"
-      "${ROOT_DIR}/repos/igloo-pwa/public"
+      "${ROOT_DIR}/repos/igloo-pwa/public/manifest.webmanifest"
       "${ROOT_DIR}/repos/igloo-pwa/tsconfig.json"
       "${ROOT_DIR}/repos/igloo-pwa/vite.config.ts"
     )
   fi
 
-  if selected_has chrome; then
+  if selected_has chrome || selected_has chrome-wasm; then
     entries_ref+=(
       "${ROOT_DIR}/repos/igloo-chrome/package.json"
       "${ROOT_DIR}/repos/igloo-chrome/package-lock.json"
       "${ROOT_DIR}/repos/igloo-chrome/scripts"
+    )
+  fi
+
+  if selected_has chrome; then
+    entries_ref+=(
       "${ROOT_DIR}/repos/igloo-chrome/src"
-      "${ROOT_DIR}/repos/igloo-chrome/public"
+      "${ROOT_DIR}/repos/igloo-chrome/public/manifest.json"
       "${ROOT_DIR}/repos/igloo-chrome/tsconfig.json"
-      "${ROOT_DIR}/repos/igloo-chrome/vite.config.ts"
     )
   fi
 
@@ -313,12 +395,12 @@ render_output_state() {
   fi
 
   if selected_has browser-wasm || selected_has shared; then
-    append_dir_state "${ROOT_DIR}/repos/igloo-shared/public/wasm"
-    if selected_has pwa || selected_has shared || { ! selected_has pwa && ! selected_has chrome; }; then
-      append_dir_state "${ROOT_DIR}/repos/igloo-pwa/public/wasm"
+    append_dir_state "${BROWSER_WASM_PREBUILD_DIR}/igloo-shared/public/wasm"
+    if selected_has pwa || selected_has pwa-wasm || selected_has shared || { ! selected_has pwa && ! selected_has pwa-wasm && ! selected_has chrome && ! selected_has chrome-wasm; }; then
+      append_dir_state "${BROWSER_WASM_PREBUILD_DIR}/igloo-pwa/public/wasm"
     fi
-    if selected_has chrome || selected_has shared || { ! selected_has pwa && ! selected_has chrome; }; then
-      append_dir_state "${ROOT_DIR}/repos/igloo-chrome/public/wasm"
+    if selected_has chrome || selected_has chrome-wasm || selected_has shared || { ! selected_has pwa && ! selected_has pwa-wasm && ! selected_has chrome && ! selected_has chrome-wasm; }; then
+      append_dir_state "${BROWSER_WASM_PREBUILD_DIR}/igloo-chrome/public/wasm"
     fi
   fi
 
@@ -365,14 +447,14 @@ check_stamp() {
   local current_stamp saved_stamp
   saved_stamp="$(stamp_file)"
   if [[ ! -f "${saved_stamp}" ]]; then
-    echo "missing prebuild stamp for $(selected_key)" >&2
+    echo "prebuild cache miss for $(selected_key); rebuilding" >&2
     return 1
   fi
 
   current_stamp="$(mktemp)"
   render_state_stamp >"${current_stamp}"
   if ! cmp -s "${saved_stamp}" "${current_stamp}"; then
-    echo "prebuild outputs are stale for $(selected_key)" >&2
+    echo "prebuild cache stale for $(selected_key); rebuilding" >&2
     rm -f "${current_stamp}"
     return 1
   fi
@@ -419,7 +501,7 @@ if selected_has shared; then
 fi
 
 if selected_has browser-wasm || selected_has shared; then
-  run_step "Prepare browser wasm artifacts" "${ROOT_DIR}/scripts/prepare-browser-wasm.sh" sync "$(browser_wasm_scope)"
+  run_step "Prepare browser wasm artifacts" env FROSTR_BROWSER_WASM_PREPARE_DIR="${BROWSER_WASM_PREBUILD_DIR}" "${ROOT_DIR}/scripts/prepare-browser-wasm.sh" prepare "$(browser_wasm_scope)"
 fi
 
 if selected_has ui; then
@@ -427,11 +509,11 @@ if selected_has ui; then
 fi
 
 if selected_has pwa; then
-  run_step "Build igloo-pwa app assets" npm --prefix "${ROOT_DIR}/repos/igloo-pwa" run build:app
+  run_step "Build igloo-pwa app assets" env IGLOO_PWA_WASM_SOURCE_DIR="${BROWSER_WASM_PREBUILD_DIR}/igloo-pwa/public/wasm" npm --prefix "${ROOT_DIR}/repos/igloo-pwa" run build:app
 fi
 
 if selected_has chrome; then
-  run_step "Build igloo-chrome extension" npm --prefix "${ROOT_DIR}/repos/igloo-chrome" run build:app
+  run_step "Build igloo-chrome extension" env IGLOO_CHROME_WASM_SOURCE_DIR="${BROWSER_WASM_PREBUILD_DIR}/igloo-chrome/public/wasm" npm --prefix "${ROOT_DIR}/repos/igloo-chrome" run build:app
 fi
 
 if selected_has home; then

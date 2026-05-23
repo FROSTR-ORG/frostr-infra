@@ -6,7 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { REPO_ROOT_DIR } from '../../shared/repo-paths';
 import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
 
-const ONBOARD_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'igloo-pwa-onboard');
+const ONBOARD_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'onboard');
 
 function buildPendingOnboardConnection() {
   return {
@@ -46,8 +46,19 @@ test.describe('igloo-pwa Paper Onboard visual harness', () => {
   test('captures recipient onboarding states', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1080 });
 
-    await seedState(page, buildPwaPersistedState({ activeView: 'onboard-connect' }));
-    await expect(page.getByRole('heading', { name: 'Enter bfonboard Package' })).toBeVisible();
+    await seedState(
+      page,
+      buildPwaPersistedState({
+        activeView: 'onboard-connect',
+        drafts: {
+          onboardConnectForm: {
+            packageText: `bfonboard1${'q'.repeat(96)}`,
+            password: 'paper-onboard-pass',
+          },
+        },
+      }),
+    );
+    await expect(page.getByRole('heading', { name: 'Enter Onboarding Package' })).toBeVisible();
     await capture(page, '01-enter-package.png');
 
     await seedState(

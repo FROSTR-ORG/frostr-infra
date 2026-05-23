@@ -35,6 +35,7 @@ npm run test:e2e:live
 npm run test:e2e:demo
 npm run test:e2e:igloo-home
 npm run test:e2e:igloo-pwa
+npm run test:e2e:igloo-pwa:visual
 npm run test:e2e:igloo-pwa:cross
 npm run test:e2e:igloo-chrome
 npm run test:e2e:igloo-chrome:fast
@@ -94,17 +95,33 @@ The release-facing CI gate runs that `demo` tier explicitly through
 Use client-scoped commands for routine local work. These commands avoid
 initializing unrelated client submodules.
 
+Minimal submodule sets:
+- PWA: `repos/bifrost-rs`, `repos/igloo-shared`, `repos/igloo-ui`, and
+  `repos/igloo-pwa`
+- Chrome: `repos/bifrost-rs`, `repos/igloo-shared`, `repos/igloo-ui`, and
+  `repos/igloo-chrome`
+- Home: `repos/igloo-shared`, `repos/igloo-ui`, and `repos/igloo-home`
+
+Scoped lanes should not require unrelated client submodules. For example, PWA
+validation must not require `repos/igloo-chrome`, and Chrome validation must
+not require `repos/igloo-pwa`.
+
 PWA-only validation:
 
 ```bash
 npm --prefix test run test:guards:pwa
 npm --prefix test run test:typecheck:pwa
 npm --prefix test run test:e2e:igloo-pwa
+npm --prefix test run test:e2e:igloo-pwa:visual
 ```
 
 This path requires `repos/bifrost-rs`, `repos/igloo-shared`, `repos/igloo-ui`,
 and `repos/igloo-pwa`. It does not require `repos/igloo-chrome`,
 `repos/igloo-home`, or `repos/igloo-shell`.
+The visual command captures Welcome, Create, and Onboard screenshots under
+`./.tmp/visual/igloo-pwa/` and is included in PWA scoped CI as artifact
+evidence. `test/igloo-pwa/visual-manifest.json` maps each capture to its Paper
+reference and current alignment status.
 
 Chrome-only and Home-only validation:
 
@@ -128,6 +145,10 @@ Full workspace validation still uses:
 
 ```bash
 npm --prefix test run test:guards
+npm --prefix test run test:guards:docs
+npm --prefix test run test:guards:workflows
+npm --prefix test run test:guards:wasm
+npm --prefix test run test:guards:selectors
 npm --prefix test run test:typecheck
 make test-release
 ```
@@ -136,8 +157,26 @@ Shared prep and root workflows:
 - `make test-prep`
   - prebuilds shared Rust binaries, browser artifacts, and demo-harness images
   - uses `./.tmp/test-prebuild/` by default
+  - prepares browser wasm under `./.tmp/test-prebuild/browser-wasm/` without
+    mutating tracked `repos/*/public/wasm` artifacts
   - `FROSTR_TEST_PREBUILD_DIR` is an explicit override for custom scratch
     locations
+- `make browser-wasm-refresh`
+  - intentionally refreshes tracked browser wasm artifacts under
+    `repos/*/public/wasm`
+- `make wasm-toolchain-check`
+  - verifies rustup, `wasm32-unknown-unknown`, `wasm-pack 0.14.0`, and a
+    wasm-capable clang
+- `npm --prefix test run test:guards:pwa` / `test:guards:chrome`
+  - build browser wasm into `./.tmp/browser-wasm-check/` and verify client sync
+    behavior without mutating tracked wasm artifacts
+  - set `FROSTR_BROWSER_WASM_STRICT_TRACKED=1` for an explicit tracked-artifact
+    reproducibility audit
+- `npm --prefix test run test:guards:wasm`
+  - builds aggregate browser wasm once through the non-mutating prebuild path
+  - compares scratch shared, PWA, and Chrome wasm outputs
+  - respects `FROSTR_BROWSER_WASM_STRICT_TRACKED=1` for the tracked-artifact
+    reproducibility audit
 - `make test-affected`
   - runs the deterministic minimal test surface for the current branch
 - `make test-release`

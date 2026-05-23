@@ -43,7 +43,7 @@ function assertHomeRuntimeHydrated(label: string, snapshot: HomeRuntimeSnapshot,
   }
 }
 
-test.describe('chrome <-> home pairing', () => {
+test.describe('chrome <-> home pairing @cross-client', () => {
   test.setTimeout(120_000);
 
   test('hydrates nonce pools between a chrome device and an igloo-home device over a local relay', async ({

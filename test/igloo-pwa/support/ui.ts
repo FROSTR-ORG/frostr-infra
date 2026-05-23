@@ -75,9 +75,9 @@ export async function onboardPwaDevice(
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Welcome to Igloo' })).toBeVisible();
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.landingContinueOnboarding).click();
-  await page.getByPlaceholder('Paste bfonboard1...').fill(input.onboardPackage);
-  await page.getByLabel('Decryption Password').fill(input.packagePassword);
-  await page.getByRole('button', { name: 'Connect' }).click();
+  await page.getByPlaceholder('bfonboard1...').fill(input.onboardPackage);
+  await page.getByLabel('Package Password').fill(input.packagePassword);
+  await page.getByRole('button', { name: 'Apply Onboarding Package' }).click();
   await expect(page.getByText('Review Onboarded Profile')).toBeVisible();
   await page.getByLabel('Device Name').fill(input.label);
   await page.getByLabel('Password', { exact: true }).fill(input.localPassword);

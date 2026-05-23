@@ -65,6 +65,9 @@ make test-demo
 make test-prep
 make test-affected
 make test-release
+make browser-wasm-refresh
+make browser-wasm-check
+make wasm-toolchain-check
 make igloo-paper-sync
 make igloo-paper-verify
 make igloo-ui-paper-token-sync
@@ -111,6 +114,7 @@ brew install llvm # required on macOS for wasm-capable clang
 cp .env.example .env
 make repo-init
 make repo-check
+make wasm-toolchain-check
 make demo-start
 make demo-onboard
 ```

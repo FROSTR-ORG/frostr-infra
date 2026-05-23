@@ -129,7 +129,7 @@ async function loadStoredPwaProfileAtOrigin(
   await loadSelectedChromeStoredProfile(page);
 }
 
-test.describe('chrome <-> pwa browser pairing', () => {
+test.describe('chrome <-> pwa browser pairing @cross-client', () => {
   test.setTimeout(120_000);
 
   test('hydrates nonce pools between a chrome device and a pwa device over a local relay', async ({

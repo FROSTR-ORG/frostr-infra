@@ -3,10 +3,15 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${ROOT_DIR}/scripts/lib-scratch.sh"
+
+if ! command -v rustc >/dev/null 2>&1 && [[ -n "${HOME:-}" && -x "${HOME}/.cargo/bin/rustc" ]]; then
+  export PATH="${HOME}/.cargo/bin:${PATH}"
+fi
 
 usage() {
   cat <<'EOF'
-usage: scripts/prepare-browser-wasm.sh <sync|check> [all|igloo-chrome|igloo-pwa]
+usage: scripts/prepare-browser-wasm.sh <prepare|sync|check> [all|igloo-chrome|igloo-pwa]
 EOF
 }
 
@@ -105,30 +110,119 @@ sync_scope() {
   esac
 }
 
-check_scope() {
-  local scope="$1"
-  sync_scope "${scope}"
+build_shared_wasm() {
+  local out_dir="$1"
+  echo "==> Rebuild shared browser wasm artifacts"
+  IGLOO_SHARED_BROWSER_WASM_OUT_DIR="${out_dir}" \
+    npm --prefix "${ROOT_DIR}/repos/igloo-shared" run build:browser-wasm
+}
 
-  local -a diff_paths=("${ROOT_DIR}/repos/igloo-shared/public/wasm")
+sync_client_wasm() {
+  local scope="$1"
+  local source_dir="$2"
+  local target_dir="$3"
+
+  echo "==> Sync browser wasm into ${scope}"
+  IGLOO_BROWSER_WASM_SOURCE_DIR="${source_dir}" \
+    IGLOO_BROWSER_WASM_TARGET_DIR="${target_dir}" \
+    npm --prefix "${ROOT_DIR}/repos/${scope}" run build:browser-wasm
+}
+
+prepare_scope() {
+  local scope="$1"
+
+  ensure_wasm_target
+  ensure_wasm_clang
+
+  local scratch_root
+  scratch_root="$(resolve_workspace_scratch_dir FROSTR_BROWSER_WASM_PREPARE_DIR "test-prebuild/browser-wasm")"
+  local scratch_shared="${scratch_root}/igloo-shared/public/wasm"
+  local scratch_pwa="${scratch_root}/igloo-pwa/public/wasm"
+  local scratch_chrome="${scratch_root}/igloo-chrome/public/wasm"
+
+  rm -rf "${scratch_root}/igloo-shared" "${scratch_root}/igloo-pwa" "${scratch_root}/igloo-chrome"
+
+  build_shared_wasm "${scratch_shared}"
+
   case "${scope}" in
     all)
-      diff_paths+=(
-        "${ROOT_DIR}/repos/igloo-chrome/public/wasm"
-        "${ROOT_DIR}/repos/igloo-pwa/public/wasm"
-      )
+      sync_client_wasm "igloo-pwa" "${scratch_shared}" "${scratch_pwa}"
+      sync_client_wasm "igloo-chrome" "${scratch_shared}" "${scratch_chrome}"
       ;;
-    igloo-chrome|igloo-pwa)
-      diff_paths+=("${ROOT_DIR}/repos/${scope}/public/wasm")
+    igloo-pwa)
+      sync_client_wasm "igloo-pwa" "${scratch_shared}" "${scratch_pwa}"
+      ;;
+    igloo-chrome)
+      sync_client_wasm "igloo-chrome" "${scratch_shared}" "${scratch_chrome}"
       ;;
   esac
 
-  if ! git -C "${ROOT_DIR}" diff --quiet -- "${diff_paths[@]}"; then
-    echo "browser wasm artifacts are out of sync with source" >&2
-    git -C "${ROOT_DIR}" diff -- "${diff_paths[@]}"
+  echo "ok: browser wasm artifacts prepared under ${scratch_root}"
+}
+
+compare_wasm_dir() {
+  local expected_dir="$1"
+  local actual_dir="$2"
+  local label="$3"
+
+  if ! diff -qr -x .gitkeep "${expected_dir}" "${actual_dir}" >/dev/null; then
+    echo "browser wasm artifacts are out of sync for ${label}" >&2
+    diff -qr -x .gitkeep "${expected_dir}" "${actual_dir}" >&2 || true
     exit 1
   fi
+}
 
-  echo "ok: browser wasm artifacts are in sync"
+compare_tracked_wasm_dir() {
+  local tracked_dir="$1"
+  local generated_dir="$2"
+  local label="$3"
+
+  if [[ "${FROSTR_BROWSER_WASM_STRICT_TRACKED:-0}" != "1" ]]; then
+    return
+  fi
+
+  compare_wasm_dir "${tracked_dir}" "${generated_dir}" "${label}"
+}
+
+check_scope() {
+  local scope="$1"
+
+  ensure_wasm_target
+  ensure_wasm_clang
+
+  local scratch_root
+  scratch_root="$(resolve_workspace_scratch_dir FROSTR_BROWSER_WASM_CHECK_DIR browser-wasm-check)"
+  local scratch_shared="${scratch_root}/igloo-shared/public/wasm"
+  local scratch_pwa="${scratch_root}/igloo-pwa/public/wasm"
+  local scratch_chrome="${scratch_root}/igloo-chrome/public/wasm"
+
+  rm -rf "${scratch_root}/igloo-shared" "${scratch_root}/igloo-pwa" "${scratch_root}/igloo-chrome"
+
+  build_shared_wasm "${scratch_shared}"
+  compare_tracked_wasm_dir "${ROOT_DIR}/repos/igloo-shared/public/wasm" "${scratch_shared}" "igloo-shared"
+
+  case "${scope}" in
+    all)
+      sync_client_wasm "igloo-pwa" "${scratch_shared}" "${scratch_pwa}"
+      sync_client_wasm "igloo-chrome" "${scratch_shared}" "${scratch_chrome}"
+      compare_wasm_dir "${scratch_shared}" "${scratch_pwa}" "igloo-pwa scratch sync"
+      compare_wasm_dir "${scratch_shared}" "${scratch_chrome}" "igloo-chrome scratch sync"
+      compare_tracked_wasm_dir "${ROOT_DIR}/repos/igloo-pwa/public/wasm" "${scratch_pwa}" "igloo-pwa"
+      compare_tracked_wasm_dir "${ROOT_DIR}/repos/igloo-chrome/public/wasm" "${scratch_chrome}" "igloo-chrome"
+      ;;
+    igloo-pwa)
+      sync_client_wasm "igloo-pwa" "${scratch_shared}" "${scratch_pwa}"
+      compare_wasm_dir "${scratch_shared}" "${scratch_pwa}" "igloo-pwa scratch sync"
+      compare_tracked_wasm_dir "${ROOT_DIR}/repos/igloo-pwa/public/wasm" "${scratch_pwa}" "igloo-pwa"
+      ;;
+    igloo-chrome)
+      sync_client_wasm "igloo-chrome" "${scratch_shared}" "${scratch_chrome}"
+      compare_wasm_dir "${scratch_shared}" "${scratch_chrome}" "igloo-chrome scratch sync"
+      compare_tracked_wasm_dir "${ROOT_DIR}/repos/igloo-chrome/public/wasm" "${scratch_chrome}" "igloo-chrome"
+      ;;
+  esac
+
+  echo "ok: browser wasm artifacts build and sync from scratch"
 }
 
 main() {
@@ -137,6 +231,9 @@ main() {
   scope="$(normalize_scope "${2:-all}")"
 
   case "${mode}" in
+    prepare)
+      prepare_scope "${scope}"
+      ;;
     sync)
       sync_scope "${scope}"
       ;;

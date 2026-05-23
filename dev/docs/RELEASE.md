@@ -115,6 +115,7 @@ Cross-repo E2E:
 ```bash
 npm --prefix test run test:e2e:igloo-home
 npm --prefix test run test:e2e:igloo-pwa
+npm --prefix test run test:e2e:igloo-pwa:visual
 npm --prefix test run test:e2e:igloo-pwa:cross
 npm --prefix test run test:e2e:igloo-chrome
 ```
@@ -144,8 +145,30 @@ release.
 
 `make test-prep` is optional but useful when you want the shared build and
 Docker work separated from the full release gate. It uses the parent `./.tmp/`
-scratch tree by default; repair that tree with `make repo-reset` if it
-becomes stale.
+scratch tree by default, including browser WASM under
+`./.tmp/test-prebuild/browser-wasm`, so normal release validation does not
+rewrite tracked `public/wasm` files. Repair that tree with `make repo-reset` if
+it becomes stale.
+
+Browser WASM command model:
+
+```bash
+make wasm-toolchain-check
+make browser-wasm-check
+make browser-wasm-refresh
+```
+
+Use `make wasm-toolchain-check` to verify the local Rust, wasm-pack, and clang
+toolchain. Use `make browser-wasm-check` for scratch browser-WASM validation
+before or during release work; it builds into `./.tmp/browser-wasm-check` and
+leaves tracked artifacts untouched. Use `make browser-wasm-refresh` only when
+intentionally updating the tracked browser-WASM artifacts in `repos/igloo-pwa`
+and `repos/igloo-chrome`. To require the scratch check to compare against the
+tracked copies, run:
+
+```bash
+FROSTR_BROWSER_WASM_STRICT_TRACKED=1 make browser-wasm-check
+```
 
 ## Cut Submodule Releases
 

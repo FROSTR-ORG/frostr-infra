@@ -32,14 +32,14 @@ jobs:
   pwa:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Initialize PWA submodules
         run: |
           git config --global url."https://github.com/".insteadOf git@github.com:
           git submodule update --init repos/bifrost-rs repos/igloo-shared repos/igloo-ui repos/igloo-pwa
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
@@ -68,20 +68,30 @@ jobs:
 
       - name: Run PWA scoped validation
         run: |
+          bash scripts/test-prebuild.sh ensure pwa-runtime
           npm --prefix test run test:guards:pwa
           npm --prefix test run test:typecheck:pwa
+          npm --prefix test run test:e2e:igloo-pwa:visual
+
+      - name: Upload PWA visual artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: igloo-pwa-visual-screenshots
+          path: .tmp/visual/igloo-pwa
+          if-no-files-found: ignore
 
   chrome:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Initialize Chrome submodules
         run: |
           git config --global url."https://github.com/".insteadOf git@github.com:
           git submodule update --init repos/bifrost-rs repos/igloo-shared repos/igloo-ui repos/igloo-chrome
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
@@ -110,20 +120,22 @@ jobs:
 
       - name: Run Chrome scoped validation
         run: |
+          bash scripts/test-prebuild.sh ensure chrome-runtime
           npm --prefix test run test:guards:chrome
           npm --prefix test run test:typecheck:chrome
+          npm --prefix repos/igloo-chrome run build:app
 
   home:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Initialize Home submodules
         run: |
           git config --global url."https://github.com/".insteadOf git@github.com:
           git submodule update --init repos/igloo-shared repos/igloo-ui repos/igloo-home
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm

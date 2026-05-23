@@ -7,8 +7,8 @@ import type { PwaStoredProfileSeed } from '../../shared/browser-artifacts';
 import { REPO_ROOT_DIR } from '../../shared/repo-paths';
 import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
 
-const WELCOME_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'igloo-pwa-welcome');
-const CREATE_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'igloo-pwa-create');
+const WELCOME_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'welcome');
+const CREATE_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'create');
 const PAPER_PASSWORD = 'paper-pass';
 
 function fixedHex(index: number, prefix: string) {
