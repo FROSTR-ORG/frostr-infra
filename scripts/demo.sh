@@ -4,13 +4,13 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT_DIR}/scripts/lib-scratch.sh"
+source "${ROOT_DIR}/scripts/lib-demo-services.sh"
 ONBOARD_MEMBERS="${IGLOO_SHELL_DEMO_INVITE_MEMBERS:-bob,carol}"
 TIMEOUT_SECS="${TIMEOUT_SECS:-60}"
 HOST_HARNESS_DIR="$(resolve_workspace_scratch_dir FROSTR_TEST_HARNESS_DIR test-harness)"
 CONTAINER_HARNESS_DIR="${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}"
 RELAY_PORT_FILE="${HOST_HARNESS_DIR}/demo-relay-port.txt"
 DEFAULT_PORT="${DEMO_RELAY_PORT:-8194}"
-DEMO_HARNESS_SERVICES=(dev-relay igloo-demo)
 
 usage() {
   cat <<'EOF'
@@ -83,9 +83,9 @@ resolve_free_port() {
 resolve_port() {
   local port="${1:-$DEFAULT_PORT}"
 
-  if docker compose -f "${ROOT_DIR}/compose.test.yml" ps -q dev-relay >/dev/null 2>&1; then
+  if docker compose -f "${ROOT_DIR}/compose.test.yml" ps -q "${DEMO_RELAY_SERVICE}" >/dev/null 2>&1; then
     local existing
-    existing="$(docker compose -f "${ROOT_DIR}/compose.test.yml" ps -q dev-relay 2>/dev/null || true)"
+    existing="$(docker compose -f "${ROOT_DIR}/compose.test.yml" ps -q "${DEMO_RELAY_SERVICE}" 2>/dev/null || true)"
     if [[ -n "${existing}" ]]; then
       printf '%s\n' "${port}"
       return 0
@@ -114,8 +114,8 @@ stop_projects() {
       --filter "label=com.docker.compose.project.working_dir=${ROOT_DIR}" \
       --filter "label=com.docker.compose.project.config_files=${ROOT_DIR}/compose.test.yml" \
       --format '{{.Label "com.docker.compose.project"}}	{{.Label "com.docker.compose.service"}}	{{.Ports}}' \
-      | awk -F '\t' -v port="${port_filter}" '
-          ($2 == "dev-relay" || $2 == "igloo-demo") {
+      | awk -F '\t' -v port="${port_filter}" -v relay_service="${DEMO_RELAY_SERVICE}" -v node_service="${DEMO_NODE_SERVICE}" '
+          ($2 == relay_service || $2 == node_service) {
             if (port == "" || index($3, ":" port "->") > 0) {
               print $1
             }

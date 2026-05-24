@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const rootDir = path.resolve(__dirname, '..');
+const rootDir = path.resolve(__dirname, '..', '..');
 const paperTokenDir = path.join(rootDir, 'repos', 'igloo-paper', 'design', 'tokens');
 const uiTokenDir = path.join(rootDir, 'repos', 'igloo-ui', 'src', 'tokens');
 const tsOutputFile = path.join(uiTokenDir, 'design-tokens.ts');
@@ -349,12 +349,12 @@ async function check() {
   console.log('ok: Igloo UI token handoff outputs are current');
 }
 
-const mode = process.argv[2] ?? 'sync';
+const mode = process.argv[2];
 if (mode === 'sync') {
   await sync();
 } else if (mode === 'check') {
   await check();
 } else {
-  console.error('usage: node scripts/sync-igloo-paper-tokens-to-ui.mjs <sync|check>');
+  console.error('usage: node dev/scripts/sync-igloo-paper-tokens-to-ui.mjs <sync|check>');
   process.exit(1);
 }

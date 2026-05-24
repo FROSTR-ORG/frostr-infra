@@ -75,7 +75,7 @@ help:
 		'' \
 		'Notes:' \
 		'  Makefile is the only supported root command interface.' \
-		'  scripts/ remains private implementation detail.' \
+		'  scripts/, dev/scripts/, and test/scripts/ remain private implementation detail.' \
 		'  demo-start launches the demo stack in the background.' \
 		'  demo-foreground stays attached to the terminal.' \
 		'  igloo-paper-sync and igloo-paper-verify are manual; excluded from default test/CI lanes (require Paper desktop and Paper MCP).' \
@@ -184,10 +184,10 @@ igloo-paper-verify:
 	fi
 
 igloo-ui-paper-token-sync:
-	@cd "$(ROOT_DIR)" && node scripts/sync-igloo-paper-tokens-to-ui.mjs sync
+	@cd "$(ROOT_DIR)" && node dev/scripts/sync-igloo-paper-tokens-to-ui.mjs sync
 
 igloo-ui-paper-token-check:
-	@cd "$(ROOT_DIR)" && node scripts/sync-igloo-paper-tokens-to-ui.mjs check
+	@cd "$(ROOT_DIR)" && node dev/scripts/sync-igloo-paper-tokens-to-ui.mjs check
 
 igloo-chrome-dev:
 	@npm --prefix "$(IGLOO_CHROME_DIR)" run dev

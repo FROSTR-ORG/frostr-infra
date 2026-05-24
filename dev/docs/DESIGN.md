@@ -52,7 +52,7 @@ The flow is one-way:
 The parent script currently lives at:
 
 ```bash
-scripts/sync-igloo-paper-tokens-to-ui.mjs
+dev/scripts/sync-igloo-paper-tokens-to-ui.mjs
 ```
 
 That script is private workspace plumbing. Contributors should use the root

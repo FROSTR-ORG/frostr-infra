@@ -45,8 +45,12 @@ Use the workspace docs this way:
 
 ## Root Command Surface
 
-`make` is the supported root command interface. Root `scripts/` are private
-implementation detail.
+`make` is the supported root command interface. Script directories are private
+implementation detail:
+
+- `scripts/` backs root workspace and demo/test-prep workflows.
+- `dev/scripts/` holds development-only bridge tooling.
+- `test/scripts/` holds harness guards and test-only helpers.
 
 Common commands:
 
@@ -166,6 +170,11 @@ path is required.
 The shared prep and timing scratch path is `./.tmp/test-prebuild/`. Override it
 with `FROSTR_TEST_PREBUILD_DIR` only when you intentionally want a different
 scratch location.
+
+Validation tiers are intentionally layered. Use `make test-prep` when a local
+workflow needs prebuilt shared binaries, browser wasm artifacts, or demo images.
+Use `make test-affected` for the minimal branch-dependent validation surface,
+and reserve `make test-release` for coordinated release checks.
 
 If `./.tmp/` becomes stale or unwritable, repair it with:
 

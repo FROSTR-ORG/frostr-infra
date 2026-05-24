@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT_DIR}/scripts/lib-scratch.sh"
+source "${ROOT_DIR}/scripts/lib-demo-services.sh"
 PREBUILD_DIR="$(resolve_workspace_scratch_dir FROSTR_TEST_PREBUILD_DIR test-prebuild)"
 TIMINGS_FILE="${PREBUILD_DIR}/timings.tsv"
 STAMP_DIR="${PREBUILD_DIR}/stamps"
@@ -270,6 +271,7 @@ collect_input_paths() {
 
   entries_ref+=("${ROOT_DIR}/scripts/test-prebuild.sh")
   entries_ref+=("${ROOT_DIR}/scripts/prepare-browser-wasm.sh")
+  entries_ref+=("${ROOT_DIR}/scripts/lib-demo-services.sh")
 
   if selected_has shared || selected_has browser-wasm; then
     entries_ref+=(
@@ -368,7 +370,7 @@ collect_input_paths() {
     entries_ref+=(
       "${ROOT_DIR}/compose.test.yml"
       "${ROOT_DIR}/services/dev-relay"
-      "${ROOT_DIR}/services/igloo-demo"
+      "${ROOT_DIR}/${DEMO_NODE_SERVICE_DIR}"
     )
   fi
 
@@ -427,8 +429,8 @@ render_output_state() {
   fi
 
   if selected_has demo; then
-    append_image_state "bifrost-infra-dev-relay:dev"
-    append_image_state "bifrost-infra-igloo-demo:dev"
+    append_image_state "${DEMO_RELAY_IMAGE}"
+    append_image_state "${DEMO_NODE_IMAGE}"
   fi
 }
 
@@ -527,7 +529,7 @@ if selected_has demo-binaries; then
 fi
 
 if selected_has demo; then
-  run_step "Build demo-harness images" docker compose -f "${ROOT_DIR}/compose.test.yml" build dev-relay igloo-demo
+  run_step "Build demo-harness images" docker compose -f "${ROOT_DIR}/compose.test.yml" build "${DEMO_HARNESS_SERVICES[@]}"
 fi
 
 write_stamp

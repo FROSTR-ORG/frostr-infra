@@ -225,11 +225,11 @@ assert_trace_contains "python3|cwd=${TRACE_IGLOO_PAPER_DIR}|py_dont=1|args=scrip
 
 reset_trace
 run_with_trace ROOT_DIR="${TRACE_DIR}" igloo-ui-paper-token-sync
-assert_trace_contains "node|cwd=${TRACE_DIR}|args=scripts/sync-igloo-paper-tokens-to-ui.mjs sync"
+assert_trace_contains "node|cwd=${TRACE_DIR}|args=dev/scripts/sync-igloo-paper-tokens-to-ui.mjs sync"
 
 reset_trace
 run_with_trace ROOT_DIR="${TRACE_DIR}" igloo-ui-paper-token-check
-assert_trace_contains "node|cwd=${TRACE_DIR}|args=scripts/sync-igloo-paper-tokens-to-ui.mjs check"
+assert_trace_contains "node|cwd=${TRACE_DIR}|args=dev/scripts/sync-igloo-paper-tokens-to-ui.mjs check"
 
 reset_trace
 run_with_fresh_prebuild_trace test-prep

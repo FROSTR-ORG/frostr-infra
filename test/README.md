@@ -396,8 +396,10 @@ make demo-logs
 - `make demo-...` wraps the manual demo flow but does not replace direct
   compose usage
 
-Root `scripts/` are private implementation detail. Public root workflows should
-use `make ...`.
+Root script directories are private implementation detail. Public root
+workflows should use `make ...`; `scripts/` backs workspace operations,
+`dev/scripts/` backs development-only bridge tooling, and `test/scripts/`
+backs harness guards and test-only helpers.
 
 Submodule convenience scripts still proxy here:
 - `repos/igloo-pwa`: `npm run test:e2e`
