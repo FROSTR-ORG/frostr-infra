@@ -19,6 +19,7 @@ Use this file as the always-loaded routing layer, not as the full manual.
 - `README.md`: workspace entrypoint and supported top-level commands
 - `dev/README.md`: where engineering notes, plans, reports, and policies belong
 - `dev/docs/WORKFLOWS.md`: workspace workflows, documentation drift control, and follow-up harvests
+- `.agents/skills/frostr-paper-ui-workflows/SKILL.md`: quick agent routing for Paper source sync, Paper-to-UI alignment, and dual Paper plus UI changes
 - `test/README.md`: cross-repo test commands and demo harness reference
 - `test/docs/WORKFLOWS.md`: test workflow selection, scoped validation, visual loops, and WASM test guidance
 - `dev/docs/DESIGN.md`: Paper design handoff and implementation boundary rules

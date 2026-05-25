@@ -1,4 +1,4 @@
-import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { expect, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { CRITICAL_E2E_TEST_IDS } from '../../../repos/igloo-ui/src/lib/e2e-test-ids';
 import { DEFAULT_BROWSER_PASSWORD } from '../../shared/browser-artifacts';
 
@@ -79,9 +79,27 @@ export async function onboardPwaDevice(
   await page.getByLabel('Package Password').fill(input.packagePassword);
   await page.getByRole('button', { name: 'Apply Onboarding Package' }).click();
   await expect(page.getByRole('heading', { name: 'Onboarding Complete' })).toBeVisible();
+  await page.getByLabel('Device Name').fill(input.label);
   await page.getByLabel('Password', { exact: true }).fill(input.localPassword);
   await page.getByLabel('Confirm Password').fill(input.localPassword);
   await page.getByRole('button', { name: 'Save & Launch Signer' }).click();
+}
+
+export async function prepareDistributionPackage(card: Locator, password: string, label?: string) {
+  if (label !== undefined) {
+    await card.getByLabel('Share label').fill(label);
+  }
+  await card.getByLabel('Package password').fill(password);
+  await card.getByRole('button', { name: 'Create package' }).click();
+}
+
+export async function markDistributionCardDistributed(card: Locator) {
+  await card.getByRole('button', { name: 'Mark distributed' }).click();
+}
+
+export async function completeDistributionCard(card: Locator, password: string, label?: string) {
+  await prepareDistributionPackage(card, password, label);
+  await markDistributionCardDistributed(card);
 }
 
 export async function loadStoredPwaProfile(page: Page, label: string) {

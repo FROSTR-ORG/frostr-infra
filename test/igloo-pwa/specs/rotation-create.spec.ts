@@ -7,7 +7,15 @@ import {
 } from '../../shared/browser-artifacts';
 import { startLocalRelay } from '../../shared/local-relay';
 import { buildPwaPersistedState } from '../support/state';
-import { expectPwaDashboard, onboardPwaDevice, openFreshPwaPage, seedPwaState } from '../support/ui';
+import {
+  completeDistributionCard,
+  expectPwaDashboard,
+  markDistributionCardDistributed,
+  onboardPwaDevice,
+  openFreshPwaPage,
+  prepareDistributionPackage,
+  seedPwaState,
+} from '../support/ui';
 
 test.describe('igloo-pwa rotation operator flow', () => {
   test('rotates from threshold bfshare sources and distributes a rotated share via bfonboard', async ({ browser, page }) => {
@@ -53,22 +61,18 @@ test.describe('igloo-pwa rotation operator flow', () => {
         .locator('section.igloo-create-distribution-card')
         .filter({ has: page.getByRole('heading', { name: /Source Treasury Device 2/ }) })
         .first();
-      await distributeCard.getByLabel('Share label').fill('Rotated Remote Device');
-      await distributeCard.getByLabel('Package password').fill('rotate-remote-pass');
-      await distributeCard.getByRole('button', { name: 'Create package' }).click();
+      await prepareDistributionPackage(distributeCard, 'rotate-remote-pass', 'Rotated Remote Device');
       await distributeCard.getByRole('button', { name: 'QR code' }).click();
       const onboardPackage = (await page.locator('pre.igloo-code-block').textContent())?.trim();
       expect(onboardPackage?.startsWith('bfonboard1')).toBe(true);
       await page.keyboard.press('Escape');
-      await distributeCard.getByRole('button', { name: 'Mark distributed' }).click();
+      await markDistributionCardDistributed(distributeCard);
 
       const finalCard = page
         .locator('section.igloo-create-distribution-card')
         .filter({ has: page.getByRole('heading', { name: /Source Treasury Device 3/ }) })
         .first();
-      await finalCard.getByLabel('Package password').fill('rotate-remote-pass');
-      await finalCard.getByRole('button', { name: 'Create package' }).click();
-      await finalCard.getByRole('button', { name: 'Mark distributed' }).click();
+      await completeDistributionCard(finalCard, 'rotate-remote-pass');
 
       await page.getByRole('button', { name: 'Finish Distribution' }).click();
       await expectPwaDashboard(page, 'Rotated Treasury Device');
@@ -81,7 +85,7 @@ test.describe('igloo-pwa rotation operator flow', () => {
         label: 'Rotated Remote Device',
         localPassword: 'playwright-passphrase',
       });
-      await expectPwaDashboard(secondary.page, 'Onboarded Device');
+      await expectPwaDashboard(secondary.page, 'Rotated Remote Device');
     } finally {
       await secondaryContext?.close().catch(() => undefined);
       await relay.close();

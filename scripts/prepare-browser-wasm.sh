@@ -120,6 +120,8 @@ build_shared_wasm() {
 write_wasm_module_package() {
   local out_dir="$1"
   mkdir -p "${out_dir}"
+  # wasm-bindgen emits ES modules; the scratch package marker keeps Node-based
+  # client tests from interpreting copied artifacts as CommonJS.
   printf '{"type":"module"}\n' >"${out_dir}/package.json"
 }
 

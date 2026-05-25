@@ -146,6 +146,10 @@ case "${IGLOO_PWA_DEV_TEST_PORT_STATE:-free}" in
     printf "4242\n"
     exit 0
     ;;
+  multi)
+    printf "4242\n4343\n"
+    exit 0
+    ;;
   clears)
     state_file="${TRACE_DIR}/pwa-port-clears.state"
     if [[ -f "${state_file}" ]]; then
@@ -263,7 +267,19 @@ TRACE_FILE="${TRACE_FILE}" \
   IGLOO_PWA_DEV_TEST_PORT_STATE=occupied \
   IGLOO_PWA_DEV_KILL_BIN="${TRACE_BIN_DIR}/igloo-test-kill" \
   IGLOO_PWA_DEV_SLEEP_BIN="${TRACE_BIN_DIR}/igloo-test-sleep" \
-  expect_fail_contains "Port 1430 is already in use by PID 4242" "${ROOT_DIR}/scripts/igloo-pwa-dev.sh"
+expect_fail_contains "Port 1430 is already in use by PID 4242" "${ROOT_DIR}/scripts/igloo-pwa-dev.sh"
+assert_trace_not_contains "kill|"
+assert_trace_not_contains "npm|"
+
+reset_trace
+TRACE_FILE="${TRACE_FILE}" \
+  TRACE_DIR="${TRACE_DIR}" \
+  ROOT_DIR="${ROOT_DIR}" \
+  PATH="${TRACE_BIN_DIR}:${PATH}" \
+  IGLOO_PWA_DEV_TEST_PORT_STATE=multi \
+  IGLOO_PWA_DEV_KILL_BIN="${TRACE_BIN_DIR}/igloo-test-kill" \
+  IGLOO_PWA_DEV_SLEEP_BIN="${TRACE_BIN_DIR}/igloo-test-sleep" \
+  expect_fail_contains "Port 1430 is already in use by PIDs: 4242, 4343" "${ROOT_DIR}/scripts/igloo-pwa-dev.sh"
 assert_trace_not_contains "kill|"
 assert_trace_not_contains "npm|"
 

@@ -27,10 +27,6 @@ find_port_pids() {
   return 0
 }
 
-first_line() {
-  sed -n '1p'
-}
-
 describe_pid() {
   local pid="$1"
   local command_name
@@ -38,6 +34,40 @@ describe_pid() {
   if [[ -n "${command_name}" ]]; then
     printf ' (%s)' "${command_name}"
   fi
+}
+
+describe_pids() {
+  local pid
+  while IFS= read -r pid; do
+    [[ -n "${pid}" ]] || continue
+    printf '  - PID %s%s\n' "${pid}" "$(describe_pid "${pid}")"
+  done
+}
+
+join_pids() {
+  awk 'NF { if (out) out = out ", " $0; else out = $0 } END { print out }'
+}
+
+pid_count() {
+  awk 'NF { count++ } END { print count + 0 }'
+}
+
+pid_phrase() {
+  local count="$1"
+  local list="$2"
+  if [[ "${count}" -eq 1 ]]; then
+    printf 'PID %s' "${list}"
+  else
+    printf 'PIDs: %s' "${list}"
+  fi
+}
+
+kill_pids() {
+  local pid
+  while IFS= read -r pid; do
+    [[ -n "${pid}" ]] || continue
+    "${KILL_BIN}" -TERM "${pid}"
+  done
 }
 
 is_interactive() {
@@ -67,32 +97,34 @@ if [[ -z "${pids}" ]]; then
   start_dev
 fi
 
-pid="$(printf '%s\n' "${pids}" | first_line)"
-owner="$(describe_pid "${pid}")"
+pid_list="$(printf '%s\n' "${pids}" | join_pids)"
+pid_total="$(printf '%s\n' "${pids}" | pid_count)"
+pid_owner="$(pid_phrase "${pid_total}" "${pid_list}")"
 
 if ! is_interactive; then
-  printf 'error: Port %s is already in use by PID %s%s.\n' "${PORT}" "${pid}" "${owner}" >&2
+  printf 'error: Port %s is already in use by %s.\n' "${PORT}" "${pid_owner}" >&2
+  printf '%s\n' "${pids}" | describe_pids >&2
   printf 'Stop that process or rerun from an interactive terminal to approve terminating it.\n' >&2
   exit 1
 fi
 
-printf 'Port %s is already in use by PID %s%s. Kill it and continue? [y/N] ' "${PORT}" "${pid}" "${owner}" >&2
+printf 'Port %s is already in use by %s. Kill and continue? [y/N] ' "${PORT}" "${pid_owner}" >&2
 if ! read -r reply; then
   reply=""
 fi
 
 case "${reply}" in
   y|Y|yes|YES|Yes)
-    "${KILL_BIN}" -TERM "${pid}"
+    printf '%s\n' "${pids}" | kill_pids
     if wait_for_port_clear "${PORT}"; then
       start_dev
     fi
-    printf 'error: Port %s is still in use by PID %s after TERM.\n' "${PORT}" "${pid}" >&2
+    printf 'error: Port %s is still in use after TERM.\n' "${PORT}" >&2
     printf 'Stop that process manually, then rerun make igloo-pwa-dev.\n' >&2
     exit 1
     ;;
   *)
-    printf 'Aborted. Port %s is still in use by PID %s%s.\n' "${PORT}" "${pid}" "${owner}" >&2
+    printf 'Aborted. Port %s is still in use by %s.\n' "${PORT}" "${pid_owner}" >&2
     exit 1
     ;;
 esac

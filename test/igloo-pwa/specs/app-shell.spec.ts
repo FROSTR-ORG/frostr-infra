@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
 
+import {
+  completeDistributionCard,
+  markDistributionCardDistributed,
+  prepareDistributionPackage,
+} from '../support/ui';
+
 const STORAGE_KEY = 'igloo-pwa.state.v1';
 
 test.describe('igloo-pwa ui-first shell', () => {
@@ -25,22 +31,18 @@ test.describe('igloo-pwa ui-first shell', () => {
       .locator('section.igloo-create-distribution-card')
       .filter({ has: page.getByLabel('Share label') })
       .first();
-    await shareCard.getByLabel('Share label').fill('Remote Tablet');
-    await shareCard.getByLabel('Package password').fill('remote-tablet-pass');
-    await shareCard.getByRole('button', { name: 'Create package' }).click();
+    await prepareDistributionPackage(shareCard, 'remote-tablet-pass', 'Remote Tablet');
     await shareCard.getByRole('button', { name: 'QR code' }).click();
     await expect(page.getByText('Onboarding Package QR')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByText('Onboarding Package QR')).not.toBeVisible();
-    await shareCard.getByRole('button', { name: 'Mark distributed' }).click();
+    await markDistributionCardDistributed(shareCard);
 
     const remainingCard = page
       .locator('section.igloo-create-distribution-card')
       .filter({ has: page.getByRole('heading', { name: /Playwright Treasury Device 3/ }) })
       .first();
-    await remainingCard.getByLabel('Package password').fill('remote-tablet-pass');
-    await remainingCard.getByRole('button', { name: 'Create package' }).click();
-    await remainingCard.getByRole('button', { name: 'Mark distributed' }).click();
+    await completeDistributionCard(remainingCard, 'remote-tablet-pass');
 
     await expect(page.getByText('Distribution Completion')).toBeVisible();
     await page.getByRole('button', { name: 'Finish Distribution' }).click();

@@ -67,6 +67,64 @@ Before finishing documentation-affecting work, run the doc guards:
 npm --prefix test run test:guards:docs
 ```
 
+## Paper/UI Workflows
+
+Use these routes for the Paper Desktop, `igloo-paper`, `igloo-ui`, and
+`igloo-pwa` design handoff. The repo-local agent skill
+`.agents/skills/frostr-paper-ui-workflows/SKILL.md` is the quick routing card;
+this section is the durable workspace workflow.
+
+### Paper Source To `igloo-paper`
+
+Use this when the source of truth is the live Paper Desktop canvas and the goal
+is to refresh checked-in design references.
+
+1. Open Paper Desktop to the `igloo-ui-shared` file and the `core` page.
+2. For chat-driven MCP edits, follow
+   [`../../repos/igloo-paper/docs/mcp-edit-workflow.md`](../../repos/igloo-paper/docs/mcp-edit-workflow.md).
+3. Export and verify from the parent workspace:
+
+```bash
+make igloo-paper-sync
+make igloo-paper-verify STRICT=1
+```
+
+Do not hand-edit generated `igloo-paper` screenshots, HTML, manifests, or
+contract output. Fix Paper source or export metadata, then sync again.
+
+### `igloo-paper` To `igloo-ui`
+
+Use this when the Paper references are already exported and the implementation
+needs to visually align with them.
+
+1. Identify the target Paper screen or pattern under `repos/igloo-paper`.
+2. Update `repos/igloo-ui` components and package-local tests.
+3. Validate the PWA rendering path that consumes those components.
+4. Capture the visual comparison set and write a Markdown review report:
+
+```bash
+npm --prefix test run test:e2e:igloo-pwa:visual
+npm --prefix test run test:visual:report
+```
+
+The report is written to `.tmp/visual/igloo-pwa/comparison-report.md` by
+default. Override with `FROSTR_PWA_VISUAL_REPORT_PATH` only when archiving a
+point-in-time review under `dev/reports/`.
+
+### Paper Source Plus `igloo-ui`
+
+Use this when the product decision changes both the Paper source and the
+functional React implementation.
+
+1. Make the live Paper MCP edit first and review the canvas screenshot.
+2. Run `make igloo-paper-sync` and inspect the generated export.
+3. Apply the matching implementation change in `repos/igloo-ui`.
+4. Validate the consuming client, usually `repos/igloo-pwa`.
+5. Run the visual capture and report commands above.
+
+Commit in dependency order: `igloo-paper`, then `igloo-ui` and consuming app
+repos, then the parent workspace pointer and workflow docs.
+
 ## Follow-Up Harvest
 
 Use this workflow when a substantial work stream ends and the user asks for

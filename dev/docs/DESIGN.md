@@ -34,6 +34,8 @@ verification by default. `make igloo-paper-verify` validates the checked-in
 design export without refreshing it. Both require Paper Desktop and Paper MCP.
 For live canvas edits through an agent chat, use
 `repos/igloo-paper/docs/mcp-edit-workflow.md` before syncing.
+For choosing between Paper-only sync, Paper-to-UI alignment, and dual Paper
+plus UI changes, use [`WORKFLOWS.md`](./WORKFLOWS.md#paperui-workflows).
 
 `make igloo-ui-paper-token-sync` refreshes the package-local token files in
 `repos/igloo-ui/src/tokens/`. `make igloo-ui-paper-token-check` verifies that

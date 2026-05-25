@@ -6,6 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
 import type { PwaStoredProfileSeed } from '../../shared/browser-artifacts';
 import { REPO_ROOT_DIR } from '../../shared/repo-paths';
 import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
+import { completeDistributionCard, prepareDistributionPackage } from '../support/ui';
 
 const WELCOME_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'welcome');
 const CREATE_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'create');
@@ -170,18 +171,17 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
     await expect(page.getByText('Remaining Shares')).toBeVisible();
     const distributionCards = page.locator('section.igloo-create-distribution-card');
     const stagedCard = distributionCards.nth(1);
-    await stagedCard.getByLabel('Package password').fill('remote-device-pass');
-    await stagedCard.getByRole('button', { name: 'Create package' }).click();
+    await prepareDistributionPackage(stagedCard, 'remote-device-pass');
     await captureIn(page, CREATE_CAPTURE_DIR, '04-distribute-shares.png');
 
     const cardCount = await distributionCards.count();
     for (let index = 0; index < cardCount; index += 1) {
       const card = distributionCards.nth(index);
       if (await card.getByRole('button', { name: 'Create package' }).isVisible()) {
-        await card.getByLabel('Package password').fill('remote-device-pass');
-        await card.getByRole('button', { name: 'Create package' }).click();
+        await completeDistributionCard(card, 'remote-device-pass');
+      } else {
+        await card.getByRole('button', { name: 'Mark distributed' }).click();
       }
-      await card.getByRole('button', { name: 'Mark distributed' }).click();
     }
     await expect(page.getByText('Distribution Completion')).toBeVisible();
     await captureIn(page, CREATE_CAPTURE_DIR, '05-distribution-completion.png');
