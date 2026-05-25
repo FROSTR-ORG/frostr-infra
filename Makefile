@@ -202,7 +202,7 @@ igloo-chrome-test-e2e:
 	@npm --prefix "$(IGLOO_CHROME_DIR)" run test:e2e
 
 igloo-pwa-dev:
-	@npm --prefix "$(IGLOO_PWA_DIR)" run dev
+	@"$(ROOT_DIR)/scripts/igloo-pwa-dev.sh"
 
 igloo-pwa-build:
 	@npm --prefix "$(IGLOO_PWA_DIR)" run build

@@ -136,6 +136,36 @@ write_stub "node" '#!/usr/bin/env bash
 printf "node|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
 exit 0'
 
+write_stub "lsof" '#!/usr/bin/env bash
+printf "lsof|cwd=%s|args=%s|state=%s\n" "$PWD" "$*" "${IGLOO_PWA_DEV_TEST_PORT_STATE:-free}" >>"${TRACE_FILE}"
+case "${IGLOO_PWA_DEV_TEST_PORT_STATE:-free}" in
+  free)
+    exit 1
+    ;;
+  occupied)
+    printf "4242\n"
+    exit 0
+    ;;
+  clears)
+    state_file="${TRACE_DIR}/pwa-port-clears.state"
+    if [[ -f "${state_file}" ]]; then
+      exit 1
+    fi
+    printf "4242\n"
+    : >"${state_file}"
+    exit 0
+    ;;
+esac
+exit 1'
+
+write_stub "igloo-test-kill" '#!/usr/bin/env bash
+printf "kill|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
+exit 0'
+
+write_stub "igloo-test-sleep" '#!/usr/bin/env bash
+printf "sleep|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
+exit 0'
+
 write_stub "ss" '#!/usr/bin/env bash
 printf "ss|cwd=%s|args=%s\n" "$PWD" "$*" >>"${TRACE_FILE}"
 exit 0'
@@ -191,6 +221,51 @@ assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo
 reset_trace
 run_with_trace igloo-pwa-build
 assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-pwa run build"
+
+reset_trace
+run_with_trace igloo-pwa-dev
+assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-pwa run dev"
+assert_trace_contains "lsof|cwd=${ROOT_DIR}|args=-nP -iTCP:1430 -sTCP:LISTEN -t|state=free"
+
+reset_trace
+TRACE_FILE="${TRACE_FILE}" \
+  TRACE_DIR="${TRACE_DIR}" \
+  ROOT_DIR="${ROOT_DIR}" \
+  PATH="${TRACE_BIN_DIR}:${PATH}" \
+  IGLOO_PWA_DEV_TEST_PORT_STATE=occupied \
+  IGLOO_PWA_DEV_ASSUME_TTY=1 \
+  IGLOO_PWA_DEV_KILL_BIN="${TRACE_BIN_DIR}/igloo-test-kill" \
+  IGLOO_PWA_DEV_SLEEP_BIN="${TRACE_BIN_DIR}/igloo-test-sleep" \
+  bash -c 'printf "n\n" | "${ROOT_DIR}/scripts/igloo-pwa-dev.sh"' >"${TRACE_DIR}/igloo-pwa-dev-decline.out" 2>&1 || true
+assert_contains "$(cat "${TRACE_DIR}/igloo-pwa-dev-decline.out")" "Port 1430 is already in use by PID 4242"
+assert_trace_not_contains "kill|"
+assert_trace_not_contains "npm|"
+
+reset_trace
+rm -f "${TRACE_DIR}/pwa-port-clears.state"
+TRACE_FILE="${TRACE_FILE}" \
+  TRACE_DIR="${TRACE_DIR}" \
+  ROOT_DIR="${ROOT_DIR}" \
+  PATH="${TRACE_BIN_DIR}:${PATH}" \
+  IGLOO_PWA_DEV_TEST_PORT_STATE=clears \
+  IGLOO_PWA_DEV_ASSUME_TTY=1 \
+  IGLOO_PWA_DEV_KILL_BIN="${TRACE_BIN_DIR}/igloo-test-kill" \
+  IGLOO_PWA_DEV_SLEEP_BIN="${TRACE_BIN_DIR}/igloo-test-sleep" \
+  bash -c 'printf "y\n" | "${ROOT_DIR}/scripts/igloo-pwa-dev.sh"' >/dev/null 2>&1
+assert_trace_contains "kill|cwd=${ROOT_DIR}|args=-TERM 4242"
+assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-pwa run dev"
+
+reset_trace
+TRACE_FILE="${TRACE_FILE}" \
+  TRACE_DIR="${TRACE_DIR}" \
+  ROOT_DIR="${ROOT_DIR}" \
+  PATH="${TRACE_BIN_DIR}:${PATH}" \
+  IGLOO_PWA_DEV_TEST_PORT_STATE=occupied \
+  IGLOO_PWA_DEV_KILL_BIN="${TRACE_BIN_DIR}/igloo-test-kill" \
+  IGLOO_PWA_DEV_SLEEP_BIN="${TRACE_BIN_DIR}/igloo-test-sleep" \
+  expect_fail_contains "Port 1430 is already in use by PID 4242" "${ROOT_DIR}/scripts/igloo-pwa-dev.sh"
+assert_trace_not_contains "kill|"
+assert_trace_not_contains "npm|"
 
 reset_trace
 run_with_trace igloo-home-test-unit
