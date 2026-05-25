@@ -32,6 +32,8 @@ make igloo-ui-paper-token-check
 `make igloo-paper-sync` exports the live Paper canvas and runs strict design
 verification by default. `make igloo-paper-verify` validates the checked-in
 design export without refreshing it. Both require Paper Desktop and Paper MCP.
+For live canvas edits through an agent chat, use
+`repos/igloo-paper/docs/mcp-edit-workflow.md` before syncing.
 
 `make igloo-ui-paper-token-sync` refreshes the package-local token files in
 `repos/igloo-ui/src/tokens/`. `make igloo-ui-paper-token-check` verifies that

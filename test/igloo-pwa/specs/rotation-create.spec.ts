@@ -30,9 +30,8 @@ test.describe('igloo-pwa rotation operator flow', () => {
 
       await seedPwaState(page, buildPwaPersistedState({ profiles: [sourceSeed] }));
       await page.goto('/');
-      await page.getByRole('button', { name: 'New Keyset' }).click();
+      await page.getByRole('button', { name: 'Generate' }).click();
       await page.getByRole('button', { name: 'Rotate Existing' }).click();
-      await page.getByLabel('Group Name').fill('Rotated Treasury');
       await page.getByLabel('Source Profile').selectOption(sourceSeed.id);
       await page.getByPlaceholder('Paste bfshare1...').first().fill(source.shares[0].bfshare);
       await page.getByLabel('Package Password').first().fill('playwright-passphrase');
@@ -41,8 +40,7 @@ test.describe('igloo-pwa rotation operator flow', () => {
       await page.getByLabel('Package Password').nth(1).fill('playwright-passphrase');
       await page.getByRole('button', { name: 'Rotate Keyset' }).click();
 
-      await expect(page.getByText('Select the Device Share')).toBeVisible();
-      await page.getByRole('button', { name: /Rotated Treasury Device 1/i }).click();
+      await expect(page.getByRole('heading', { name: 'Create Profile' })).toBeVisible();
       await page.getByLabel('Device Profile Name').fill('Rotated Treasury Device');
       await page.getByLabel('Relays').fill(relay.url);
       await page.getByLabel('Device Password').fill('playwright-passphrase');
@@ -51,15 +49,28 @@ test.describe('igloo-pwa rotation operator flow', () => {
       await page.getByRole('button', { name: 'Accept and Continue' }).click();
 
       await expect(page.getByRole('heading', { name: 'Remaining Shares', exact: true })).toBeVisible();
-      const distributeCard = page.locator('section.igloo-panel').filter({ hasText: /Member 2/ }).first();
+      const distributeCard = page
+        .locator('section.igloo-create-distribution-card')
+        .filter({ has: page.getByRole('heading', { name: /Source Treasury Device 2/ }) })
+        .first();
       await distributeCard.getByLabel('Share label').fill('Rotated Remote Device');
       await distributeCard.getByLabel('Package password').fill('rotate-remote-pass');
-      await distributeCard.getByLabel('Confirm Password').fill('rotate-remote-pass');
-      await distributeCard.getByRole('button', { name: 'QR' }).click();
+      await distributeCard.getByRole('button', { name: 'Create package' }).click();
+      await distributeCard.getByRole('button', { name: 'QR code' }).click();
       const onboardPackage = (await page.locator('pre.igloo-code-block').textContent())?.trim();
       expect(onboardPackage?.startsWith('bfonboard1')).toBe(true);
       await page.keyboard.press('Escape');
-      await page.getByRole('button', { name: 'Finish' }).click();
+      await distributeCard.getByRole('button', { name: 'Mark distributed' }).click();
+
+      const finalCard = page
+        .locator('section.igloo-create-distribution-card')
+        .filter({ has: page.getByRole('heading', { name: /Source Treasury Device 3/ }) })
+        .first();
+      await finalCard.getByLabel('Package password').fill('rotate-remote-pass');
+      await finalCard.getByRole('button', { name: 'Create package' }).click();
+      await finalCard.getByRole('button', { name: 'Mark distributed' }).click();
+
+      await page.getByRole('button', { name: 'Finish Distribution' }).click();
       await expectPwaDashboard(page, 'Rotated Treasury Device');
 
       const secondary = await openFreshPwaPage(browser);
@@ -70,7 +81,7 @@ test.describe('igloo-pwa rotation operator flow', () => {
         label: 'Rotated Remote Device',
         localPassword: 'playwright-passphrase',
       });
-      await expectPwaDashboard(secondary.page, 'Rotated Remote Device');
+      await expectPwaDashboard(secondary.page, 'Onboarded Device');
     } finally {
       await secondaryContext?.close().catch(() => undefined);
       await relay.close();

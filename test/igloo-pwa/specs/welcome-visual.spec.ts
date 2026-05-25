@@ -143,7 +143,7 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
   test('captures the Create Keyset and Create Profile screens', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1080 });
     await setPwaState(page, []);
-    await page.getByRole('button', { name: 'New Keyset' }).click();
+    await page.getByRole('button', { name: 'Generate' }).click();
 
     await expect(page.getByText('Back to Welcome')).toBeVisible();
     await expect(page.getByText('Create New Keyset')).toBeVisible();

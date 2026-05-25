@@ -7,7 +7,7 @@ test.describe('igloo-pwa ui-first shell', () => {
     await page.goto('/');
 
     await expect(page.getByText('Split your Nostr key. Sign from anywhere.')).toBeVisible();
-    await page.getByRole('button', { name: 'New Keyset' }).click();
+    await page.getByRole('button', { name: 'Generate' }).click();
     await page.getByLabel('Group Name').fill('Playwright Treasury');
     await page.getByRole('button', { name: 'Create Keyset' }).click();
     await expect(page.getByRole('heading', { name: 'Create Profile' })).toBeVisible();
@@ -27,7 +27,6 @@ test.describe('igloo-pwa ui-first shell', () => {
       .first();
     await shareCard.getByLabel('Share label').fill('Remote Tablet');
     await shareCard.getByLabel('Package password').fill('remote-tablet-pass');
-    await shareCard.getByLabel('Confirm Password').fill('remote-tablet-pass');
     await shareCard.getByRole('button', { name: 'Create package' }).click();
     await shareCard.getByRole('button', { name: 'QR code' }).click();
     await expect(page.getByText('Onboarding Package QR')).toBeVisible();
@@ -37,10 +36,9 @@ test.describe('igloo-pwa ui-first shell', () => {
 
     const remainingCard = page
       .locator('section.igloo-create-distribution-card')
-      .filter({ has: page.getByRole('button', { name: 'Create package' }) })
+      .filter({ has: page.getByRole('heading', { name: /Playwright Treasury Device 3/ }) })
       .first();
     await remainingCard.getByLabel('Package password').fill('remote-tablet-pass');
-    await remainingCard.getByLabel('Confirm Password').fill('remote-tablet-pass');
     await remainingCard.getByRole('button', { name: 'Create package' }).click();
     await remainingCard.getByRole('button', { name: 'Mark distributed' }).click();
 

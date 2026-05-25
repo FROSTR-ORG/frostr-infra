@@ -73,16 +73,15 @@ export async function onboardPwaDevice(
   },
 ) {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Welcome to Igloo' })).toBeVisible();
-  await page.getByTestId(CRITICAL_E2E_TEST_IDS.landingContinueOnboarding).click();
+  await expect(page.getByRole('heading', { name: 'Igloo Web' })).toBeVisible();
+  await page.getByRole('button', { name: 'Onboard New Device' }).click();
   await page.getByPlaceholder('bfonboard1...').fill(input.onboardPackage);
   await page.getByLabel('Package Password').fill(input.packagePassword);
   await page.getByRole('button', { name: 'Apply Onboarding Package' }).click();
-  await expect(page.getByText('Review Onboarded Profile')).toBeVisible();
-  await page.getByLabel('Device Name').fill(input.label);
+  await expect(page.getByRole('heading', { name: 'Onboarding Complete' })).toBeVisible();
   await page.getByLabel('Password', { exact: true }).fill(input.localPassword);
   await page.getByLabel('Confirm Password').fill(input.localPassword);
-  await page.getByRole('button', { name: 'Save Device' }).click();
+  await page.getByRole('button', { name: 'Save & Launch Signer' }).click();
 }
 
 export async function loadStoredPwaProfile(page: Page, label: string) {

@@ -117,6 +117,12 @@ build_shared_wasm() {
     npm --prefix "${ROOT_DIR}/repos/igloo-shared" run build:browser-wasm
 }
 
+write_wasm_module_package() {
+  local out_dir="$1"
+  mkdir -p "${out_dir}"
+  printf '{"type":"module"}\n' >"${out_dir}/package.json"
+}
+
 sync_client_wasm() {
   local scope="$1"
   local source_dir="$2"
@@ -143,6 +149,7 @@ prepare_scope() {
   rm -rf "${scratch_root}/igloo-shared" "${scratch_root}/igloo-pwa" "${scratch_root}/igloo-chrome"
 
   build_shared_wasm "${scratch_shared}"
+  write_wasm_module_package "${scratch_shared}"
 
   case "${scope}" in
     all)
