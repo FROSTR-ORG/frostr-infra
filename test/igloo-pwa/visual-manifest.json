@@ -51,60 +51,95 @@
       "status": "aligned"
     },
     {
-      "name": "create-profile",
+      "name": "select-share",
       "viewport": "1440x1861",
-      "output": ".tmp/visual/igloo-pwa/create/02-create-profile.png",
-      "paperReference": "repos/igloo-paper/screens/shared/2-create-profile/screenshot.png",
-      "status": "aligned"
+      "output": ".tmp/visual/igloo-pwa/create/02-select-share.png",
+      "paperReference": "repos/igloo-paper/screens/shared/2-select-share/screenshot.png",
+      "status": "needs-work"
     },
     {
-      "name": "create-confirm",
+      "name": "save-profile",
       "viewport": "1440x1861",
-      "output": ".tmp/visual/igloo-pwa/create/03-create-confirm.png",
-      "paperReference": "repos/igloo-paper/screens/shared/2-create-profile/screenshot.png",
-      "status": "aligned"
+      "output": ".tmp/visual/igloo-pwa/create/03-save-profile.png",
+      "paperReference": "repos/igloo-paper/screens/shared/3-save-profile/screenshot.png",
+      "status": "needs-work"
     },
     {
       "name": "distribute-shares",
       "viewport": "1440x1861",
       "output": ".tmp/visual/igloo-pwa/create/04-distribute-shares.png",
-      "paperReference": "repos/igloo-paper/screens/shared/3-distribute-shares/screenshot.png",
-      "status": "aligned"
+      "paperReference": "repos/igloo-paper/screens/shared/4-distribute-shares/screenshot.png",
+      "status": "needs-work"
     },
     {
-      "name": "distribution-completion",
-      "viewport": "1440x1861",
-      "output": ".tmp/visual/igloo-pwa/create/05-distribution-completion.png",
-      "paperReference": "repos/igloo-paper/screens/shared/3b-distribution-completion/screenshot.png",
-      "status": "aligned"
-    },
-    {
-      "name": "onboard-enter-package",
+      "name": "welcome-returning-menu-open",
       "viewport": "1440x1080",
-      "output": ".tmp/visual/igloo-pwa/onboard/01-enter-package.png",
-      "paperReference": "repos/igloo-paper/screens/onboard/1-enter-package/screenshot.png",
-      "status": "aligned"
+      "output": ".tmp/visual/igloo-pwa/welcome/07-returning-menu-open.png",
+      "paperReference": "repos/igloo-paper/screens/welcome/1b-1-returning-menu-open/screenshot.png",
+      "status": "needs-work"
     },
     {
-      "name": "onboard-handshake",
+      "name": "import-device-profile",
       "viewport": "1440x1080",
-      "output": ".tmp/visual/igloo-pwa/onboard/02-handshake.png",
-      "paperReference": "repos/igloo-paper/screens/onboard/2-handshake/screenshot.png",
-      "status": "aligned"
+      "output": ".tmp/visual/igloo-pwa/import/01-import-device-profile.png",
+      "paperReference": "repos/igloo-paper/screens/import/1-import-device-profile/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "import-save-profile",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/import/02-save-profile.png",
+      "paperReference": "repos/igloo-paper/screens/import/2-save-profile/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "import-error",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/import/03-error.png",
+      "paperReference": "repos/igloo-paper/screens/import/error/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "onboard-input-package",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/onboard/01-input-package.png",
+      "paperReference": "repos/igloo-paper/screens/onboard/1-input-package/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "onboard-onboard-device",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/onboard/02-onboard-device.png",
+      "paperReference": "repos/igloo-paper/screens/onboard/2-onboard-device/screenshot.png",
+      "status": "needs-work"
     },
     {
       "name": "onboard-failed",
       "viewport": "1440x1080",
       "output": ".tmp/visual/igloo-pwa/onboard/03-onboarding-failed.png",
       "paperReference": "repos/igloo-paper/screens/onboard/2b-onboarding-failed/screenshot.png",
-      "status": "aligned"
+      "status": "needs-work"
     },
     {
-      "name": "onboard-complete",
+      "name": "onboard-save-profile",
       "viewport": "1440x1080",
-      "output": ".tmp/visual/igloo-pwa/onboard/04-onboarding-complete.png",
-      "paperReference": "repos/igloo-paper/screens/onboard/3-onboarding-complete/screenshot.png",
-      "status": "aligned"
+      "output": ".tmp/visual/igloo-pwa/onboard/04-save-profile.png",
+      "paperReference": "repos/igloo-paper/screens/onboard/3-save-profile/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "recover-collect-shares",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/recover/01-collect-shares.png",
+      "paperReference": "repos/igloo-paper/screens/recover/1-collect-shares/screenshot.png",
+      "status": "needs-work"
+    },
+    {
+      "name": "recover-success",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/recover/02-recover-success.png",
+      "paperReference": "repos/igloo-paper/screens/recover/1b-recover-success/screenshot.png",
+      "status": "needs-work"
     }
   ]
 }
