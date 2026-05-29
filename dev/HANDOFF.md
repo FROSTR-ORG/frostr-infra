@@ -28,8 +28,8 @@ R2 (structural refactor, Buckets G+H), R3 (tests + docs, Buckets I+J).
 | Release | Buckets | PRs | Status |
 |---|---|---|---|
 | R1 | A + B + C + D + E + F | 28 (some +follow-ups) | **✅ Complete — integrated on `security-hardening` 2026-05-29** |
-| R2 | G + H | ~10 | Not started |
-| R3 | I + J | 8+ | Not started |
+| R2 | G + H | 10 | **✅ Complete — integrated on `security-hardening` 2026-05-29** |
+| R3 | I + J | 8+ | Next |
 | Backlog | K | 18 deferred items | Not scheduled |
 
 ## R1 Bucket status
@@ -179,20 +179,32 @@ All branches **pushed to `origin/security-hardening`** on GitHub
 
 | Repo | `security-hardening` HEAD | `master` (== origin/master) | Notes |
 |---|---|---|---|
-| `frostr-infra` (parent) | R1 release commit (this tip) | `4c43ef3` | R1 closeout: `--no-ff` merge `6a23cbc` (WS4/WS5b/PR20 test) + the submodule-pointer bump that is this tip |
+| `frostr-infra` (parent) | R2 release commit (this tip) | `4c43ef3` | R1 + R2 integrated: R1 release `5eccbe1`, guard/demo fixes, R2 e2e fixes `befbb50`, and the R2 submodule-pointer bump that is this tip |
 | `repos/bifrost-rs` | `2c3037b` | `4a9d4f8` | + fast-KDF knob (`for_new_envelope`, both Argon2Params types) + devtools env rename |
 | `repos/igloo-shell` | `15d2543` | `24248c0` | + WS5: managed_integration sets `BIFROST_TEST_FAST_KDF` (1381s→416s) |
-| `repos/igloo-shared` | `842cdcd` | `7f9c8ab` | + PR20: self-verifying `_loader.mjs` (embedded SHA-384) + console.warn removal + regenerated artifacts |
-| `repos/igloo-pwa` | `e825163` | `e12f2e5` | + PR20: loader repointed to `_loader.mjs` + synced artifacts |
-| `repos/igloo-home` | `bb758af` | `eed7b7a` | + PR24: Passphrase newtype IPC migration + DaemonToken/Cargo.lock build-break fix |
-| `repos/igloo-chrome` | `3111b1c` | `1d92ce0` | + PR20: synced self-verifying artifacts (already used `_loader.mjs`) |
-| `repos/igloo-ui` | `87f2ac5` | `32b6188` | unchanged; will gain Bucket H work in R2 |
+| `repos/igloo-shared` | `3a8bf92` | `7f9c8ab` | **R2 Bucket G**: `wire/` module + named exports, monolith split (browser-runtime-core deleted), `BrowserBridgeNode` exported / `NodeWithEvents` gone, runtime-projections, `browser-profile/` consolidation. 242-name surface preserved, 103 tests |
+| `repos/igloo-pwa` | `13ce1c1` | `e12f2e5` | **R2 G/H consumer**: dropped local `Pwa*` types → shared wire types + selectors, `runtime_status` typed, `igloo-entry-*` tokens |
+| `repos/igloo-home` | `0b5f105` | `eed7b7a` | **R2 G consumer**: type-only `wire` import + `parseRuntimeStatus` boundary (41→3 casts), `igloo-entry-*` tokens. Bundle erasure verified |
+| `repos/igloo-chrome` | `eaf7eb4` | `1d92ce0` | **R2 G consumer (minimal)**: deduped `runtime-types.ts` → shared wire re-exports, `NodeWithEvents`→`BrowserBridgeNode` |
+| `repos/igloo-ui` | `24e3b81` | `32b6188` | **R2 Bucket H**: `igloo-entry-*` tokens, vendored font, named exports, NonceBar capacity, `SensitiveField`/`SensitiveTextarea`, `Dialog`+a11y primitives (Modal deleted), LogEntry hardening, 88 tests + axe |
 | `repos/igloo-paper` | (detached) | `8f29f71` | Reference-only; not touched |
 
-**Not pushed.** R1 is integrated locally on `security-hardening` in every
-repo; `master` everywhere is still pristine at `origin/master`. The L2
-cutover (`security-hardening` → `master`) is deferred until R2 + R3 land
-and is gated on explicit operator approval.
+**Not pushed.** R1 + R2 are integrated locally on `security-hardening` in
+every repo; `master` everywhere is still pristine at `origin/master`. The L2
+cutover (`security-hardening` → `master`) is deferred until R3 lands and is
+gated on explicit operator approval.
+
+**R2 e2e verification note:** the PWA suite was baseline-compared against the
+R1 tips. R2 introduced exactly **two** e2e regressions, both the same class —
+PR36's (correct) HelpHint a11y tooltip text colliding with fragile
+`getByText('Pending Operations')` substring matchers (pwa `app-shell:6`,
+chrome `dashboard:50`); both fixed by tightening to `getByRole('heading')`.
+All other e2e failures (8 pwa, the chrome `@live` test) are **pre-existing on
+the R1 baseline** — this local env lacks the live-relay/onboarding/rotation
+infra; not R2 regressions. Two pre-existing unit failures also carried (not
+R2): igloo-home `api.test.ts` (2 error-message-normalization), igloo-chrome
+`observability.test.ts` (a *stale* assertion — `password` is dropped, not
+leaked). Flag these for R3/Bucket-I.
 
 Note: igloo-shell's `security-hardening` is the renamed
 `remediation/pr12-igloo-shell-bucket-c-migration` branch — same commits,
@@ -326,14 +338,19 @@ done
 ## Resume prompt
 
 > Continuing the FROSTR remediation track from `dev/HANDOFF.md`. **R1
-> (Buckets A–F) is COMPLETE and integrated locally on `security-hardening`
-> in every repo** (see the HEAD snapshot table); `master` everywhere is
-> still pristine at `origin/master` and nothing is pushed. All three R1
-> live caveats are closed (fast-KDF knob, `data/` scrub+guard, env-var
-> rename). **Next: R2 (Buckets G + H, ~10 PRs)** — TS structural refactor
-> + UI hardening. Plans at `dev/plans/remediation-2026-04-22/bucket-g-runtime-types.md`
-> and `bucket-h-ui-hardening.md`. Keep landing work on `security-hardening`
-> (L1 merges as we go); the `master` cutover (L2) waits until R2 + R3 are
-> done and the operator explicitly approves. Conventions unchanged: one
-> agent per repo, hard-cut, ff-only submodules / `--no-ff` parent, local
-> merges only, no `Co-Authored-By`.
+> (Buckets A–F) and R2 (Buckets G + H) are COMPLETE and integrated locally
+> on `security-hardening`** in every repo (see the HEAD snapshot table);
+> `master` everywhere is still pristine at `origin/master` and nothing is
+> pushed. R2 e2e was baseline-compared against R1 tips: the only two R2 e2e
+> regressions (HelpHint `getByText` collisions) are fixed; remaining e2e
+> failures are pre-existing local-env limitations (see the "R2 e2e
+> verification note"). **Next: R3 (Buckets I + J, 8+ PRs)** — residual test
+> coverage + docs + `igloo-chrome` re-audit. Plans at
+> `dev/plans/remediation-2026-04-22/bucket-i-test-coverage.md` and
+> `bucket-j-docs-chrome.md`. R3 should also fold in the carried pre-existing
+> failures (igloo-home `api.test.ts`, igloo-chrome `observability.test.ts`)
+> and the deep-import test-hygiene flagged during R2. Keep landing work on
+> `security-hardening` (L1 merges as we go); the `master` cutover (L2) waits
+> until R3 is done and the operator explicitly approves. Conventions
+> unchanged: one agent per repo, hard-cut, ff-only submodules / `--no-ff`
+> parent, local merges only, no `Co-Authored-By`.
