@@ -9,6 +9,23 @@ resolve_workspace_scratch_dir() {
   local target_dir=""
 
   if [[ -n "${override}" ]]; then
+    # Scratch-discipline guard: an override may point anywhere OUTSIDE the repo
+    # working tree, or under <ROOT_DIR>/.tmp/, but it must never resolve to a
+    # tracked-looking path inside the repo (e.g. data/). This stops live
+    # secrets (daemon tokens, onboarding passwords, sockets) from leaking into
+    # the working tree, which is the failure mode that put secrets in
+    # data/test-harness/. Use `realpath -m` so the check works before the
+    # directory exists; relative overrides resolve against the current dir.
+    local root_abs override_abs tmp_abs
+    root_abs="$(realpath -m "${ROOT_DIR}")"
+    tmp_abs="${root_abs}/.tmp"
+    override_abs="$(realpath -m "${override}")"
+    if [[ "${override_abs}/" == "${root_abs}/"* && "${override_abs}/" != "${tmp_abs}/"* ]]; then
+      echo "error: scratch directory '${override}' from ${env_name} resolves inside the repo" >&2
+      echo "       working tree but outside '${tmp_abs}'. Scratch artifacts must live under" >&2
+      echo "       .tmp/ (or a path entirely outside the repo). Refusing to write secrets there." >&2
+      exit 1
+    fi
     target_dir="${override}"
     mkdir -p "${target_dir}" || {
       echo "error: unable to create scratch directory '${target_dir}' from ${env_name}" >&2

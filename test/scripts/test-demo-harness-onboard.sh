@@ -18,7 +18,7 @@ cleanup() {
       XDG_CONFIG_HOME="${XDG_ROOT}/config" \
       XDG_DATA_HOME="${XDG_ROOT}/data" \
       XDG_STATE_HOME="${XDG_ROOT}/state" \
-      IGLOO_SHELL_PROFILE_PASSPHRASE="demo-harness-smoke-pass" \
+      IGLOO_SHELL_TEST_PASSPHRASE="demo-harness-smoke-pass" \
       "${IGLOO_SHELL_BIN}" daemon stop --profile "${PROFILE_ID}" >/dev/null 2>&1 || true
   fi
   env DEV_RELAY_PORT="${RELAY_PORT}" docker compose -p "${PROJECT_NAME}" -f "${ROOT_DIR}/compose.test.yml" down -v >/dev/null 2>&1 || true
@@ -71,7 +71,7 @@ printf '%s\n' "demo-harness-smoke-pass" >"${PASSPHRASE_FILE}"
 export XDG_CONFIG_HOME="${XDG_ROOT}/config"
 export XDG_DATA_HOME="${XDG_ROOT}/data"
 export XDG_STATE_HOME="${XDG_ROOT}/state"
-export IGLOO_SHELL_PROFILE_PASSPHRASE="demo-harness-smoke-pass"
+export IGLOO_SHELL_TEST_PASSPHRASE="demo-harness-smoke-pass"
 
 ONBOARD_JSON="$(
   "${IGLOO_SHELL_BIN}" onboard "${PACKAGE_FILE}" \
