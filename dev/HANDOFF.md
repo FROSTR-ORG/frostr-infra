@@ -231,6 +231,23 @@ of `dev/plans/remediation-2026-04-22/README.md`.
   only.) Note: the two sites in `test-demo-harness-onboard.sh` look
   vestigial (set/exported while `onboard` uses `--passphrase-file`);
   candidate for outright removal in a later pass.
+- **demo-smoke gate repaired — ✅ (2026-05-29, during R1 review).** `make
+  test-smoke` had been **red on `security-hardening`** since Bucket F made the
+  igloo-demo container non-root and Bucket C removed the implicit passphrase
+  env fallback — NOT an R1-closeout regression, but surfaced by the R1
+  verification pass. Four demo-harness fixes (commit `7e51d69`): state-link
+  moved off `/w` (non-root can't write `/`) to `/tmp/w`; `XDG_RUNTIME_DIR`
+  set to `/tmp/r` so igloo-shell's socket-shortening fallback engages (the
+  socket exceeded the 100-byte `sun_path` budget and `/run/user/$UID` doesn't
+  exist for the non-root user); explicit passphrase wired into the
+  container `daemon start` (stdin), the `bfonboard` export (`--passphrase-env`),
+  and the host-side `daemon start` (`--passphrase-file`). `make test-smoke`
+  now prints "demo harness onboard smoke passed".
+- **Non-fatal: auto profile-backup publish lacks a passphrase channel.**
+  The demo logs `warning: failed to publish encrypted profile backup:
+  passphrase not provided` during import/daemon-start. Non-blocking (smoke
+  passes; onboarding packages are produced). The auto-backup-publish path
+  needs the passphrase plumbed like the other steps — minor follow-up.
 - **bifrost-rs WASM bridge doesn't echo `request_id`** — PR14 in
   `igloo-shared` worked around this with a client-UUID map + per-kind
   FIFO tombstone. Future bifrost-rs simplification candidate.
