@@ -242,7 +242,7 @@ of `dev/plans/remediation-2026-04-22/README.md`.
   timeouts. PR12 bumped them; if more flakes appear elsewhere, that's the
   first thing to check.
 - **`data/` scratch dir leak — ✅ CLOSED (2026-05-29).** The leaked
-  `data/test-harness/` tree (28 stale files: daemon tokens, onboarding
+  `data/` scratch tree (28 stale files: daemon tokens, onboarding
   passwords, sockets, encrypted vaults) was confirmed to be a *stale
   leftover* — no current script writes `data/` (the audit said as much,
   and `FROSTR_TEST_HARNESS_DIR` was unset). Fix: (1) scrubbed the stale
@@ -250,7 +250,10 @@ of `dev/plans/remediation-2026-04-22/README.md`.
   `scripts/lib-scratch.sh` now rejects any override that resolves inside
   the repo working tree but outside `<ROOT_DIR>/.tmp/` (uses `realpath -m`
   + trailing-slash prefix match; 5 cases tested incl. prefix-sibling).
-  `.gitignore data/` kept as defense-in-depth.
+  (3) **removed** the `.gitignore data/` carve-out — the resolver guard is
+  now the real defense, and the workspace doc-surface guard forbids the
+  carve-out so any stray `data/` stays visible (untracked) rather than
+  silently ignored.
 - **`igloo-shell` integration tests are very slow — ✅ CLOSED (2026-05-29).**
   Implemented mitigation #1: `bifrost-profile` and `frostr-utils` (they
   have separate `Argon2Params` types) gained

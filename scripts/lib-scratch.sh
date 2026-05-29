@@ -13,9 +13,9 @@ resolve_workspace_scratch_dir() {
     # working tree, or under <ROOT_DIR>/.tmp/, but it must never resolve to a
     # tracked-looking path inside the repo (e.g. data/). This stops live
     # secrets (daemon tokens, onboarding passwords, sockets) from leaking into
-    # the working tree, which is the failure mode that put secrets in
-    # data/test-harness/. Use `realpath -m` so the check works before the
-    # directory exists; relative overrides resolve against the current dir.
+    # the working tree, which is the failure mode that put secrets under the
+    # retired `data/` scratch path. Use `realpath -m` so the check works before
+    # the directory exists; relative overrides resolve against the current dir.
     local root_abs override_abs tmp_abs
     root_abs="$(realpath -m "${ROOT_DIR}")"
     tmp_abs="${root_abs}/.tmp"
