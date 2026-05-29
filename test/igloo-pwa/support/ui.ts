@@ -81,11 +81,11 @@ export async function prepareDistributionPackage(card: Locator, password: string
     await card.getByLabel('Share label').fill(label);
   }
   await card.getByLabel('Package password').fill(password);
-  await card.getByRole('button', { name: 'Create package' }).click();
+  await card.getByRole('button', { name: 'Create Package' }).click();
 }
 
 export async function markDistributionCardDistributed(card: Locator) {
-  await card.getByRole('button', { name: 'Done' }).click();
+  await card.getByRole('button', { name: 'Mark Delivered' }).click();
 }
 
 export async function completeDistributionCard(card: Locator, password: string, label?: string) {

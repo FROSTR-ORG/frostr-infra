@@ -159,7 +159,7 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
     await setPwaState(page, []);
     await page.getByRole('button', { name: 'Generate Keyset' }).click();
 
-    await expect(page.getByText('Back to Welcome')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Go Back' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Create Keyset' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Next Step' })).toBeVisible();
     await captureIn(page, CREATE_CAPTURE_DIR, '01-create-keyset.png');
