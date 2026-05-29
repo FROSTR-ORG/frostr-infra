@@ -40,7 +40,10 @@ test.describe('igloo-pwa ui-first shell', () => {
     await expect(page.getByRole('tab', { name: /Permissions\s+peer policies/i })).toBeVisible();
     await expect(page.getByRole('tab', { name: /Settings\s+operator controls/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Manage your signer runtime', exact: true })).toBeVisible();
-    await expect(page.getByText('Pending Operations')).toBeVisible();
+    // Target the card heading by role: the OperatorSignerPanel help tooltip
+    // (HelpHint, igloo-ui H.8) also contains the substring "pending operations",
+    // so a loose getByText() now matches two elements.
+    await expect(page.getByRole('heading', { name: 'Pending Operations' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Create Keyset' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Load Profile' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Onboard Device' })).toHaveCount(0);
