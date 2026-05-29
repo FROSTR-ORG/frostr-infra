@@ -9,6 +9,7 @@ IGLOO_PWA_DIR := $(ROOT_DIR)/repos/igloo-pwa
 IGLOO_CHROME_DIR := $(ROOT_DIR)/repos/igloo-chrome
 IGLOO_HOME_DIR := $(ROOT_DIR)/repos/igloo-home
 PORT ?= 8194
+RELAY ?= 0
 
 .PHONY: \
 	help \
@@ -17,7 +18,7 @@ PORT ?= 8194
 	compose-start compose-stop compose-restart compose-logs \
 	test-smoke test-fast test-live test-demo test-e2e test-prep test-affected test-release \
 	browser-wasm-refresh browser-wasm-sync browser-wasm-check wasm-toolchain-check \
-	igloo-paper-sync igloo-paper-verify igloo-ui-paper-token-sync igloo-ui-paper-token-check \
+	igloo-paper-sync igloo-paper-verify igloo-paper-usage-coverage-sync igloo-ui-paper-token-sync igloo-ui-paper-token-check \
 	igloo-chrome-dev igloo-chrome-build igloo-chrome-test-unit igloo-chrome-test-e2e \
 	igloo-pwa-dev igloo-pwa-build igloo-pwa-test-unit igloo-pwa-test-e2e \
 	igloo-home-dev igloo-home-tauri-dev igloo-home-build igloo-home-typecheck igloo-home-test-unit \
@@ -53,13 +54,14 @@ help:
 		'  make wasm-toolchain-check' \
 		'  make igloo-paper-sync [STRICT=1]' \
 		'  make igloo-paper-verify [STRICT=1]' \
+		'  make igloo-paper-usage-coverage-sync' \
 		'  make igloo-ui-paper-token-sync' \
 		'  make igloo-ui-paper-token-check' \
 		'  make igloo-chrome-dev' \
 		'  make igloo-chrome-build' \
 		'  make igloo-chrome-test-unit' \
 		'  make igloo-chrome-test-e2e' \
-		'  make igloo-pwa-dev' \
+		'  make igloo-pwa-dev [RELAY=1] [PORT=<port>]' \
 		'  make igloo-pwa-build' \
 		'  make igloo-pwa-test-unit' \
 		'  make igloo-pwa-test-e2e' \
@@ -78,6 +80,7 @@ help:
 		'  scripts/, dev/scripts/, and test/scripts/ remain private implementation detail.' \
 		'  demo-start launches the demo stack in the background.' \
 		'  demo-foreground stays attached to the terminal.' \
+		'  igloo-pwa-dev RELAY=1 also starts the test relay (dev-relay) and points the app at it; stop it with make demo-stop.' \
 		'  igloo-paper-sync and igloo-paper-verify are manual; excluded from default test/CI lanes (require Paper desktop and Paper MCP).' \
 		'  igloo-ui-paper-token-sync is a parent-owned handoff; igloo-ui does not depend on Paper tooling.'
 
@@ -183,6 +186,13 @@ igloo-paper-verify:
 		cd "$(IGLOO_PAPER_DIR)" && PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify.py; \
 	fi
 
+igloo-paper-usage-coverage-sync:
+	@if [[ ! -f "$(IGLOO_PAPER_DIR)/scripts/update_usage_coverage.py" ]]; then \
+		echo 'error: igloo-paper submodule is not initialized. Run make repo-init.' >&2; \
+		exit 1; \
+	fi
+	@cd "$(IGLOO_PAPER_DIR)" && PYTHONDONTWRITEBYTECODE=1 python3 scripts/update_usage_coverage.py
+
 igloo-ui-paper-token-sync:
 	@cd "$(ROOT_DIR)" && node dev/scripts/sync-igloo-paper-tokens-to-ui.mjs sync
 
@@ -202,7 +212,7 @@ igloo-chrome-test-e2e:
 	@npm --prefix "$(IGLOO_CHROME_DIR)" run test:e2e
 
 igloo-pwa-dev:
-	@"$(ROOT_DIR)/scripts/igloo-pwa-dev.sh"
+	@RELAY="$(RELAY)" RELAY_PORT="$(PORT)" "$(ROOT_DIR)/scripts/igloo-pwa-dev.sh"
 
 igloo-pwa-build:
 	@npm --prefix "$(IGLOO_PWA_DIR)" run build

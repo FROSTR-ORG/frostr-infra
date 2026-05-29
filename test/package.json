@@ -20,7 +20,7 @@
     "test:e2e:igloo-pwa:fast": "playwright test -c ./igloo-pwa/playwright.config.ts --grep-invert \"@live|@cross-client\"",
     "test:e2e:igloo-pwa:live": "playwright test -c ./igloo-pwa/playwright.config.ts --grep @live",
     "test:e2e:igloo-pwa:cross": "playwright test -c ./igloo-pwa/playwright.config.ts --grep @cross-client",
-    "test:e2e:igloo-pwa:visual": "playwright test -c ./igloo-pwa/playwright.config.ts welcome-visual.spec.ts onboard-visual.spec.ts",
+    "test:e2e:igloo-pwa:visual": "playwright test -c ./igloo-pwa/playwright.config.ts welcome-visual.spec.ts onboard-visual.spec.ts import-visual.spec.ts recover-visual.spec.ts",
     "test:visual:report": "node ./scripts/report-pwa-visual-comparison.mjs",
     "test:e2e:smoke": "bash ./scripts/test-demo-harness-onboard.sh",
     "test:e2e:fast": "npm run test:e2e:igloo-pwa:fast && npm run test:e2e:igloo-chrome:fast",

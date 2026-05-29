@@ -9,6 +9,7 @@ export function buildPwaPersistedState(input?: {
   activeDashboardTab?: 'signer' | 'permissions' | 'settings';
   runtimeSnapshot?: unknown;
   pendingOnboardConnection?: unknown;
+  pendingLoadConfirmation?: unknown;
   drafts?: Record<string, unknown>;
 }) {
   const profiles = input?.profiles ?? [];
@@ -21,7 +22,7 @@ export function buildPwaPersistedState(input?: {
     unlockPhrase: '',
     generatedKeyset: null,
     selectedGeneratedShareIdx: null,
-    pendingLoadConfirmation: null,
+    pendingLoadConfirmation: input?.pendingLoadConfirmation ?? null,
     pendingOnboardConnection: input?.pendingOnboardConnection ?? null,
     pendingRotationConnection: null,
     distributionSession: null,
@@ -51,10 +52,6 @@ export function buildPwaPersistedState(input?: {
       distributionForms: {},
       importProfileForm: {
         profileString: '',
-        password: '',
-      },
-      recoverProfileForm: {
-        shareString: '',
         password: '',
       },
       onboardConnectForm: {

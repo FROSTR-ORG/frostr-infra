@@ -14,7 +14,7 @@ DEFAULT_PORT="${DEMO_RELAY_PORT:-8194}"
 
 usage() {
   cat <<'EOF'
-usage: scripts/demo.sh <build-binaries|resolve-port|start|foreground|stop|logs|onboard> [port]
+usage: scripts/demo.sh <build-binaries|resolve-port|relay-up|start|foreground|stop|logs|onboard> [port]
 EOF
 }
 
@@ -222,6 +222,24 @@ start_stack() {
   fi
 }
 
+relay_up() {
+  local requested_port="${1:-$DEFAULT_PORT}"
+  local resolved_port
+  resolved_port="$(resolve_port "${requested_port}")"
+  echo "==> Using demo relay port ${resolved_port}" >&2
+  mkdir -p "${HOST_HARNESS_DIR}"
+  printf '%s\n' "${resolved_port}" > "${RELAY_PORT_FILE}"
+
+  # Bring up only the relay (no demo signer node); compose output to stderr so
+  # stdout carries just the resolved port for the caller to capture.
+  FROSTR_TEST_HARNESS_DIR="${HOST_HARNESS_DIR}" \
+  FROSTR_TEST_HARNESS_CONTAINER_DIR="${CONTAINER_HARNESS_DIR}" \
+  DEV_RELAY_PORT="${resolved_port}" DEV_RELAY_EXTERNAL_HOST=localhost \
+    docker compose -f "${ROOT_DIR}/compose.test.yml" up -d --build --remove-orphans "${DEMO_RELAY_SERVICE}" >&2
+
+  printf '%s\n' "${resolved_port}"
+}
+
 logs() {
   FROSTR_TEST_HARNESS_DIR="${HOST_HARNESS_DIR}" \
   FROSTR_TEST_HARNESS_CONTAINER_DIR="${CONTAINER_HARNESS_DIR}" \
@@ -238,6 +256,9 @@ main() {
       ;;
     resolve-port)
       resolve_port "${port}"
+      ;;
+    relay-up)
+      relay_up "${port}"
       ;;
     start)
       if [[ "${BG:-0}" == "1" ]]; then

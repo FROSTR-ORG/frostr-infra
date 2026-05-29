@@ -1,0 +1,64 @@
+# Workspace Gotchas
+
+The footguns that most often cost time in `frostr-infra`. Each entry says what
+to do and why. This is the long-tail companion to the short list in
+[`../../AGENTS.md`](../../AGENTS.md); keep the few highest-impact items mirrored
+there.
+
+## Toolchain
+
+- **Install Rust via rustup, not Homebrew.** Homebrew Rust on `PATH` is
+  unsupported and breaks browser WASM builds. `rust-toolchain.toml` pins stable
+  with the `wasm32-unknown-unknown` target and `rustfmt` + `clippy`; rustup
+  honors it automatically.
+- **Pin `wasm-pack` to `0.14.0`** (`cargo install --locked --version 0.14.0
+  wasm-pack`). Other versions can emit incompatible artifacts.
+- **macOS needs `llvm`/`clang`** for a WASM-capable `clang`. Without it the
+  WASM build fails with opaque compiler errors.
+- **Verify before building:** `make wasm-toolchain-check` confirms the toolchain
+  is set up before you spend time on a failing WASM build.
+- **JavaScript/TypeScript uses npm, not Bun.** Run JS workflows through `make`
+  or `npm --prefix test ...`; do not assume a Bun runtime.
+
+## Demo Harness
+
+- **`make demo-start` backgrounds by default.** Use `make demo-foreground` when
+  you want to stay attached to compose output in the current terminal.
+- **The relay port auto-resolves.** If the default is occupied, the harness
+  picks the next free port and records it in
+  `./.tmp/test-harness/demo-relay-port.txt`. Pin one with
+  `make demo-start PORT=<port>` when you need a fixed port.
+- **`.env` is optional, not required.** `make repo-check` only warns if it is
+  missing; the demo runs without it.
+
+## Scratch & State
+
+- **Generated output belongs under `./.tmp/`,** not tracked-looking paths like
+  `data/`. The live demo-harness scratch path is `./.tmp/test-harness/`; the
+  prep/timing scratch path is `./.tmp/test-prebuild/`.
+- **Override scratch locations** with `FROSTR_TEST_HARNESS_DIR` and
+  `FROSTR_TEST_PREBUILD_DIR` only when you intentionally want a different path.
+- **Repair a stale or unwritable scratch tree** with `make repo-reset` rather
+  than hand-deleting directories.
+
+## Submodules
+
+- **Use non-recursive submodule commands.** Recursive operations from the parent
+  workspace are unsupported and can scramble pointers.
+- **Commit inside the submodule first, then bump the pointer here.** A parent
+  commit that points at an unpushed submodule commit is unreproducible for
+  everyone else.
+- **Treat each repo under `repos/` as an independent project** with its own root
+  manuals and release surface.
+
+## Design Reference Boundary
+
+- **`repos/igloo-paper` is reference-only design material.** Never import it into
+  runtime code, product packages, or app builds.
+- **Design tokens flow one way:** Paper canvas → `igloo-paper` export → parent
+  workspace sync → `igloo-ui` package-local generated files. `igloo-ui` does not
+  import or run Paper tooling. See [`DESIGN.md`](./DESIGN.md) for the full
+  handoff rules.
+- **Paper sync targets are manual** and excluded from default test/CI lanes:
+  `make igloo-paper-sync` / `make igloo-paper-verify` require Paper desktop and
+  Paper MCP.

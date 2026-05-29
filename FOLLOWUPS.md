@@ -1,5 +1,51 @@
 # Follow-ups
 
+## 2026-05-27 — after hard-cut Create flow implementation
+
+### Loose ends
+- [ ] Review and commit the multi-repo branch state across root, `repos/igloo-paper`, `repos/igloo-ui`, `repos/igloo-pwa`, `repos/bifrost-rs`, `repos/igloo-shared`, and `repos/igloo-chrome` (effort: M) — this implementation is validated but spans several submodules plus refreshed WASM artifacts, so commit ordering and submodule pointers need a deliberate pass.
+- [ ] Decide what to do with the pre-existing untracked `dev/plans/igloo-ui-remaining-paper-sync-hard-cut-plan-2026-05-25.md` before final staging (effort: S) — it still appears in root status and should be either intentionally added, archived, or left out of this branch.
+
+### Issues discovered, not fixed
+- [ ] Investigate the PWA visual web-server `NO_COLOR` / `FORCE_COLOR` warning around `test/igloo-pwa/playwright.config.ts:14` (effort: S) — the visual lane still prints the warning even though the config deletes both env keys, and `repos/igloo-pwa/CHANGELOG.md:15` says it was fixed.
+- [ ] Investigate the Vitest `--localstorage-file` warning in `repos/igloo-pwa` unit tests (effort: S) — every PWA unit run reports the warning before tests pass, which adds noise to otherwise clean validation output.
+
+### Adjacent improvements
+- [ ] Add focused tests for `optionalSigningKeyBytes` in `repos/igloo-pwa/src/lib/local-adapter/profile-generate.ts:38` (effort: S) — Rust covers splitting an existing key and the UI covers the field, but the PWA nsec/hex decoding bridge has no direct test.
+- [ ] Decide whether `Launch Signer` should be disabled until every remote share is marked `Done` (effort: S) — the current implementation leaves it enabled so users can enter the signer immediately, but the distribution cards now expose completion state.
+- [ ] Extract the repeated Create flow Playwright setup across `test/igloo-pwa/specs/app-shell.spec.ts`, `test/igloo-pwa/specs/rotation-create.spec.ts`, and `test/igloo-pwa/specs/welcome-visual.spec.ts` (effort: M) — the new Select Share / Save Profile path is repeated in several specs and will be easy to drift.
+- [ ] Add a small regression test for `repos/igloo-paper/scripts/update_usage_coverage.py` (effort: M) — the command is now part of the Paper workflow, but only the manifest pruning and verifier-count helpers have direct script-level tests.
+
+### Open questions
+- [ ] Confirm whether the UI copy for `Existing Private Key (optional)` should explicitly mention 64-character hex as well as nsec (effort: S) — `repos/igloo-pwa/src/lib/local-adapter/profile-generate.ts:38` accepts both formats, while the Paper/user-facing label emphasizes nsec.
+- [ ] Confirm default peer permissions for new remote shares (effort: S) — `repos/igloo-pwa/src/lib/store.tsx` initializes each remote share with `sign`, `ecdh`, `ping`, and `onboard` enabled, which is permissive and may need product confirmation.
+
+### Future scope
+- [ ] Run and archive a visual comparison report with `npm --prefix test run test:visual:report` after design review (effort: M) — the capture lane passed, but the Paper-to-PWA screenshot review artifact is still the next useful review deliverable.
+- [ ] Consider a smaller routine WASM validation path for sandboxed agent runs (effort: L) — `wasm-opt` still requires escalation for full browser WASM refresh/build work, which is accurate but slows routine iteration.
+
+## 2026-05-27 — after Create flow Paper redesign
+
+### Loose ends
+- [ ] Review and commit the `repos/igloo-paper` export changes, then commit the parent workspace pointer and `test/igloo-pwa/visual-manifest.json` update (effort: S) — this session left validated work on branch `paper-create-flow-update`, but no commits were made.
+
+### Issues discovered, not fixed
+- [x] Make `make igloo-paper-sync` run Python with bytecode disabled or clean `__pycache__` before verification (effort: S) — the first sync failed because generated Python caches under `repos/igloo-paper/scripts/` violated the verifier’s cache-artifact guard.
+- [x] Teach the Paper export workflow to remove stale generated screen directories when artboards are deleted or renamed (effort: M) — deleting `Generation Progress`, `Distribution Completion`, and renamed shared screens required manual directory cleanup before manifest verification could pass.
+- [x] Replace or wrap the hard-coded `artboard-map.json` count checks in `repos/igloo-paper/scripts/verify.py:190` with a less brittle update path (effort: M) — deleting two mapped screens and adding one new screen required manually changing the expected total and screen count.
+- [x] Add a documented command for regenerating `design/tokens/usage-coverage.json` from current exports (effort: M) — strict drift coverage had to be regenerated manually after the new Paper nodes introduced and removed prototype-only colors and typography pairs.
+
+### Adjacent improvements
+- [x] Update `repos/igloo-paper/docs/mcp-edit-workflow.md:40` with a “renaming or deleting artboards” checklist (effort: S) — the current workflow lists files to update when adding artboards, but not stale export cleanup, visual-manifest updates, or manifest rebuild order.
+- [x] Update `repos/igloo-paper/docs/mcp-edit-workflow.md:55` to recommend `PYTHONDONTWRITEBYTECODE=1 make igloo-paper-sync` until the command handles caches itself (effort: S) — this avoids a known verifier failure mode during Paper sync.
+- [x] Add a note in `dev/docs/WORKFLOWS.md` that Paper screen renames may require `test/igloo-pwa/visual-manifest.json` updates (effort: S) — the guard caught stale Paper screenshot paths only after the old exports were removed.
+
+### Open questions
+- [x] Decide what the final `Next Step` on `Distribute Shares` should do now that Distribution Completion is removed (effort: S) — the final action is now `Launch Signer` and transitions directly to the signer dashboard.
+
+### Future scope
+- [x] Update `igloo-ui` / `igloo-pwa` implementation to match the new four-step Paper design (effort: L) — this pass wires the four-step flow through `igloo-ui` and `igloo-pwa`.
+
 ## 2026-05-25 — after Paper welcome label sync and UI workflow cleanup
 
 ### Loose ends
@@ -44,3 +90,67 @@
 
 ### Future scope
 - [ ] Decide whether browser WASM validation should use a cached fixture lane for routine guards and reserve full `wasm-pack` rebuilds for release validation (effort: L) — the current guard is accurate, but it needs unrestricted execution in this sandbox because `wasm-opt` cannot run under the restricted profile.
+
+## 2026-05-28 — after wiring the threshold key-recovery flow
+
+### Loose ends
+- [ ] Commit the `recover_secret_key_from_shares` binding in `repos/bifrost-rs/crates/bifrost-bridge-wasm/src/lib.rs` (effort: S) — it is woven into extensive pre-existing `bifrost-rs` WIP (frostr-utils, bifrost-app, signer, router) and was intentionally left uncommitted to avoid fragmenting that work; the consuming repos already vendor the built wasm, so the source change should land with the rest of the bifrost-rs WIP.
+- [ ] Wire encrypted export on the Recover Private Key screen (effort: M) — the "Encrypt Key" checkbox + password/confirm fields render for design fidelity, but `RecoverPrivateKeyView` in `repos/igloo-pwa/src/App.tsx` currently saves the plaintext nsec; password-encrypted save/QR is not implemented.
+
+### Issues discovered, not fixed
+- [ ] `load-recover` (single-bfshare profile download) is now orphaned (effort: S) — dropping the import `load-choice` screen removed its only entry point in `repos/igloo-pwa/src/App.tsx`; either remove the dead view or give it a dedicated entry.
+- [ ] Recover "Collect Shares" reuses `RotateKeysetPanel` with an inert "Source Profile" dropdown (effort: M) — it diverges from Paper `49W` ("Share #1 this device validated" + paste); build a tailored recover collect-shares panel. Until then `recover-collect-shares` legitimately stays `needs-work` in the visual manifest.
+
+### Adjacent improvements
+- [x] Design a capture path for the `recover-success` visual entry (effort: M) — resolved 2026-05-29 via a DEV-only `window.__IGLOO_TEST_RECOVERED_KEY__` injection seam (`import.meta.env.DEV`-gated, fake nsec, stripped from prod) that `test/igloo-pwa/specs/recover-visual.spec.ts` sets through `page.addInitScript`.
+- [ ] Auto-include the unlocked device's own share in recover/rotate Collect Shares (effort: M) — both flows are currently paste-only; matching Paper's "Share #1 (this device) validated" affordance would save users from pasting their own device share.
+
+### Future scope
+- [ ] Reconcile the Welcome Flow-Section board's secondary-CTA labels with the canonical screens (effort: S) — the board embeds read "New Keyset" / "Import Device Profile" / "Onboard" vs the canonical "Generate New Keyset" / "Import Existing Device" / "Onboard New Device".
+- [ ] Dashboard / settings / export alignment to Paper (effort: L) — the next planned focus after the recover flow and screenshot review.
+
+## 2026-05-29 — after Alert adoption, Encrypt Key, and Recover-from-Share removal
+
+### Issues discovered, not fixed
+- [ ] Bring `repos/igloo-chrome` current with the redesigned `igloo-ui` API (effort: L) — `npx tsc --noEmit` surfaces pre-existing drift unrelated to this work: `AppHeader` has no `title`/`subtitle` props (`App.tsx`, `Dashboard.tsx`, `Signer.tsx`, `Onboarding.tsx`, `popup.tsx`), `igloo-ui` no longer exports `OperatorMethodPermissionOverride`/`OperatorPolicyOverrideValue` (`components/options/PermissionsPanel.tsx`), `StoredProfileCardModel` now requires `shortId` (`Onboarding.tsx`), and `PermissionsPanel`/`Signer` prop shapes changed. The extension was never migrated alongside igloo-pwa.
+- [ ] Fix the `repos/igloo-chrome` vitest environment so unit tests run locally (effort: S) — all 24 files fail at `vitest.setup.ts:7` with `localStorage.clear is not a function` despite `environment: 'jsdom'`; this blocks local validation, so the (symbol-clean) Recover-from-Share removal in the extension still needs a CI run to confirm green.
+- [ ] Adopt `PasswordField` (the igloo-ui reveal-toggle input) in `repos/igloo-chrome` import/onboard forms (effort: S) — they still use plain `type="password"` inputs; naturally part of the chrome alignment above.
+
+### Loose ends
+- [ ] Land the accumulated multi-session work in coherent per-repo commits (effort: M) — three uncommitted layers now stack across the submodules (the needs-work hard-cut, this follow-up cut, and the Paper export). Order: `igloo-shared` → `igloo-ui` → `igloo-pwa` + `igloo-chrome` → `igloo-paper` → parent. Commit the `repos/igloo-paper` 67-file diff as its own "Paper export refresh (SVG serialization normalization + Alerts contents/contract)" checkpoint so the intent reads clearly; keep pre-existing parent WIP (`app-shell.spec.ts`, `rotation-create.spec.ts`, `test-run-sh.sh`) out of the feature commits.
+- [ ] Commit the `repos/bifrost-rs` WIP (recover binding + `signing_key32` / `CreateKeysetConfig::new()` cleanup) (effort: M) — still the one deliberately-uncommitted submodule carried from the original handoff.
+- [ ] Remove the stale `recoverProfileForm` (and legacy `recoverForm`) seed keys from `test/igloo-pwa/specs/app-shell.spec.ts` (effort: S) — harmless (the store ignores unknown drafts) but dead after the Recover-from-Share removal; clean up when that pre-existing WIP is resolved.
+
+### Future scope
+- [ ] Dashboard / settings / export alignment to Paper (effort: L) — still the next planned major surface; no audit done yet (carried from prior sessions).
+
+## 2026-05-29 — after Create-Keyset stepper + relay refinements (WS1/WS2)
+
+(Active-plan WS3–WS5 are the next phase and tracked in `HANDOFF.md` + the plan file — not repeated here.)
+
+### Adjacent improvements
+- [ ] Validate relay input in the new `RelayList` (`repos/igloo-ui/src/components/flows/CreateFlow.tsx`) before adding (effort: S) — the "Add Relay" field currently accepts any string and only dedupes; reuse the existing relay normalizer (`normalizeRelays` / `normalizeRelayUrls` in `repos/igloo-pwa/src/lib/local-adapter/profile-generate.ts`) to require `wss://` and surface an inline error, instead of failing later at profile creation.
+- [ ] Clear stale per-URL ping state when a relay is removed in `RelayList` (effort: S) — ping results are kept in component state keyed by URL and not pruned on delete, so removing then re-adding the same URL shows the old status until it re-pings.
+- [ ] Add a unit test for `pingRelay` + `RelayList` ping/status behavior (effort: S) — mock `WebSocket` to cover ok/failed/timeout and the auto-ping-on-add path; there is no coverage of the new relay-connectivity code yet.
+
+### Loose ends
+- [ ] Decide the fate of the now-redundant `RelayInput` component (`repos/igloo-ui/src/components/ui/relay-input.tsx`) (effort: S) — it predates and overlaps the new `RelayList`; either remove it or consolidate so there's one relay-entry component.
+
+## 2026-05-29 — after Distribute-Shares redesign + onboard-complete event (WS3)
+
+(WS4 Paper sync and WS5 full verify/visual re-capture are the next phase, tracked in `HANDOFF.md` + the plan file — not repeated here.)
+
+### Loose ends
+- [ ] Commit the `repos/bifrost-rs` WS3d change with the re-vendored wasm (effort: M) — `CompletedOperation::OnboardServed` (signer `lib.rs:1713`), the bridge-wasm `CompletedOperationJson::OnboardServed` variant, and the bridge-tokio kind arm land in the existing bifrost-rs WIP; the rebuilt `bifrost_bridge_wasm_bg.wasm` is now modified (binary-only; JS/.d.ts unchanged) in all three of `repos/{igloo-pwa,igloo-shared,igloo-chrome}/public/wasm` and must be committed coherently with the Rust source.
+- [ ] Remove the dead `.igloo-create-local-share-card` CSS rules in `repos/igloo-ui/src/styles.css` (effort: S) — the local-share card was removed in WS3b but its style rules remain (grouped into shared selectors); cleanest to drop during the WS4 Paper sync that rewrites that area.
+
+### Adjacent improvements
+- [ ] Add store-level unit tests for the new distribute lifecycle in `repos/igloo-pwa/src/lib/store.tsx` (effort: M) — `distributeShare` (`prepare/copy/qr/save/mark/cancel/revert`), `startDistributionClient`/`stopDistributionClient`, and `finishSetup` (snapshot-persist → stop → purge secrets → locked Welcome) have no direct coverage; App.test only walks the happy path to Finish Setup.
+- [ ] Add coverage for the onboard-complete wiring (effort: M) — `parseOnboardServedCompletion` (`repos/igloo-shared/src/browser-runtime-core.ts`) and the store's peer→share→`onboarded` mapping (prefix-normalized `share_public_key` match) are untested; a bridge-wasm Rust test asserting the `{"OnboardServed":{request_id,peer_pubkey32_hex}}` JSON shape would also lock the serde contract the TS parser depends on.
+- [ ] Replace the native `window.confirm` undelivered-shares guard in `renderCreateDistribute` (`repos/igloo-pwa/src/App.tsx`) with a styled modal (effort: S) — the rest of the app uses dedicated modals (e.g. `WelcomeDeleteModal`); the raw `confirm()` is inconsistent and is also why `App.test` has to stub `window.confirm`.
+- [ ] Make `OnboardingClientCard`'s peer count meaningful (effort: S) — it currently shows `store.peerPermissionStates.length`, which can read 0 until peers are observed; consider sourcing the count from the runtime snapshot/remaining shares so the summary reflects the live session.
+- [ ] Prune stale per-URL ping state is already tracked for `RelayList`; verify the same component-state-keyed-by-URL pattern in the distribute flow does not leak after `cancel`/`revert` (effort: S) — the distribute cards key drafts/results by `member_idx` (fine), but confirm no orphaned `distributionForms` entries survive a `cancel`.
+
+### Open questions
+- [ ] Confirm the `onboarded`-from-`draft` promotion semantics (effort: S) — the onboard-complete handler sets a matched share to `onboarded` even if it had no package (no prior `packaged`/`delivered`), materializing a result entry; the plan's assumption said "auto-promotes from any non-Draft state." Current behavior favors never dropping a real onboard signal — confirm that's desired.
+- [ ] Confirm the File System Access save semantics (effort: S) — `saveTextToFile` (`repos/igloo-pwa/src/lib/store.tsx`) advances a share to `saved` on a confirmed `showSaveFilePicker` write and keeps status on user-cancel, but the anchor-download fallback (unsupported browsers) optimistically marks `saved` without a write confirmation.

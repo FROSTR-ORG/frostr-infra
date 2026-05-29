@@ -67,12 +67,14 @@ test.describe('igloo-pwa Paper Onboard visual harness', () => {
         },
       }),
     );
-    await expect(page.getByRole('heading', { name: 'Enter Onboarding Package' })).toBeVisible();
-    await capture(page, '01-enter-package.png');
+    await expect(page.getByRole('heading', { name: 'Input Package' })).toBeVisible();
+    await capture(page, '01-input-package.png');
 
-    await page.getByRole('button', { name: 'Apply Onboarding Package' }).click();
-    await expect(page.getByRole('heading', { name: 'Onboarding...' })).toBeVisible();
-    await capture(page, '02-handshake.png');
+    // The `onboard-handshake` view is transient/runtime-only (normalized away on load),
+    // but the store holds it for a guaranteed minimum window after Next Step, so drive it.
+    await page.getByRole('button', { name: 'Next Step' }).click();
+    await expect(page.getByRole('heading', { name: 'Onboard Device' })).toBeVisible();
+    await capture(page, '02-onboard-device.png');
 
     await seedState(
       page,
@@ -86,7 +88,7 @@ test.describe('igloo-pwa Paper Onboard visual harness', () => {
         },
       }),
     );
-    await expect(page.getByRole('heading', { name: 'Package Did Not Apply' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Onboarding Failed' })).toBeVisible();
     await capture(page, '03-onboarding-failed.png');
 
     await seedState(
@@ -99,11 +101,12 @@ test.describe('igloo-pwa Paper Onboard visual harness', () => {
             label: 'Onboarded Device',
             password: 'paper-onboard-pass',
             confirmPassword: 'paper-onboard-pass',
+            relayUrls: 'wss://relay.primal.net\nwss://relay.damus.io',
           },
         },
       }),
     );
-    await expect(page.getByRole('heading', { name: 'Onboarding Complete' })).toBeVisible();
-    await capture(page, '04-onboarding-complete.png');
+    await expect(page.getByRole('heading', { name: 'Save Profile' })).toBeVisible();
+    await capture(page, '04-save-profile.png');
   });
 });

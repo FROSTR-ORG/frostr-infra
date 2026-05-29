@@ -6,6 +6,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PORT="${IGLOO_PWA_DEV_PORT:-1430}"
 KILL_BIN="${IGLOO_PWA_DEV_KILL_BIN:-kill}"
 SLEEP_BIN="${IGLOO_PWA_DEV_SLEEP_BIN:-sleep}"
+RELAY="${RELAY:-0}"
+RELAY_PORT="${RELAY_PORT:-8194}"
 
 cd "${ROOT_DIR}"
 
@@ -88,7 +90,16 @@ wait_for_port_clear() {
   return 1
 }
 
+maybe_start_relay() {
+  [[ "${RELAY}" == "1" ]] || return 0
+  local resolved_port
+  resolved_port="$("${ROOT_DIR}/scripts/demo.sh" relay-up "${RELAY_PORT}")"
+  export VITE_DEFAULT_RELAYS="ws://localhost:${resolved_port}"
+  printf 'Test relay ready at %s (stop with: make demo-stop)\n' "${VITE_DEFAULT_RELAYS}" >&2
+}
+
 start_dev() {
+  maybe_start_relay
   exec npm --prefix "${ROOT_DIR}/repos/igloo-pwa" run dev
 }
 

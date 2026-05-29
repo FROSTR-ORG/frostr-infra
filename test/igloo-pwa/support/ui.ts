@@ -53,15 +53,6 @@ export async function importPwaProfile(page: Page, profileText: string, password
   await page.getByRole('button', { name: 'Accept and Load Device' }).click();
 }
 
-export async function recoverPwaProfile(page: Page, shareText: string, password: string) {
-  await openPwaLoadProfile(page);
-  await page.getByRole('button', { name: 'Recover from Share' }).click();
-  await page.getByPlaceholder('Paste bfshare1...').fill(shareText);
-  await page.getByLabel('Decryption Password').fill(password);
-  await page.getByRole('button', { name: 'Recover Profile' }).click();
-  await expect(page.getByText('Review Loaded Profile')).toBeVisible();
-  await page.getByRole('button', { name: 'Accept and Load Device' }).click();
-}
 
 export async function onboardPwaDevice(
   page: Page,
@@ -94,7 +85,7 @@ export async function prepareDistributionPackage(card: Locator, password: string
 }
 
 export async function markDistributionCardDistributed(card: Locator) {
-  await card.getByRole('button', { name: 'Mark distributed' }).click();
+  await card.getByRole('button', { name: 'Done' }).click();
 }
 
 export async function completeDistributionCard(card: Locator, password: string, label?: string) {

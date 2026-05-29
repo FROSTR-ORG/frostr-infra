@@ -14,6 +14,8 @@
     "./igloo-pwa/support/**/*.ts",
     "./igloo-pwa/specs/welcome-visual.spec.ts",
     "./igloo-pwa/specs/onboard-visual.spec.ts",
+    "./igloo-pwa/specs/import-visual.spec.ts",
+    "./igloo-pwa/specs/recover-visual.spec.ts",
     "./igloo-ui-showcase/specs/reference-screens.spec.ts"
   ]
 }

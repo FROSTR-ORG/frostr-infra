@@ -90,7 +90,9 @@ make igloo-paper-verify STRICT=1
 ```
 
 Do not hand-edit generated `igloo-paper` screenshots, HTML, manifests, or
-contract output. Fix Paper source or export metadata, then sync again.
+contract output. Fix Paper source or export metadata, then sync again. Use
+`make igloo-paper-usage-coverage-sync` when a Paper change introduces or
+removes token usage that strict verification tracks.
 
 ### `igloo-paper` To `igloo-ui`
 
@@ -118,9 +120,11 @@ functional React implementation.
 
 1. Make the live Paper MCP edit first and review the canvas screenshot.
 2. Run `make igloo-paper-sync` and inspect the generated export.
-3. Apply the matching implementation change in `repos/igloo-ui`.
-4. Validate the consuming client, usually `repos/igloo-pwa`.
-5. Run the visual capture and report commands above.
+3. When screens are renamed, split, deleted, or replaced, update
+   `test/igloo-pwa/visual-manifest.json` in the same pass.
+4. Apply the matching implementation change in `repos/igloo-ui`.
+5. Validate the consuming client, usually `repos/igloo-pwa`.
+6. Run the visual capture and report commands above.
 
 Commit in dependency order: `igloo-paper`, then `igloo-ui` and consuming app
 repos, then the parent workspace pointer and workflow docs.
