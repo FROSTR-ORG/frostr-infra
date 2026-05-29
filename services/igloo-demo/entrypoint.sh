@@ -26,7 +26,17 @@ IGLOO_SHELL_DEMO_ARTIFACT_DIR="${IGLOO_SHELL_DEMO_ARTIFACT_DIR:-${FROSTR_TEST_HA
 IGLOO_SHELL_DEMO_PASSWORD_BYTES="${IGLOO_SHELL_DEMO_PASSWORD_BYTES:-16}"
 IGLOO_SHELL_DEMO_PASSPHRASE="${IGLOO_SHELL_DEMO_PASSPHRASE:-dev-harness-passphrase}"
 IGLOO_SHELL_DEMO_XDG_ROOT="${IGLOO_SHELL_DEMO_XDG_ROOT:-${IGLOO_SHELL_DEMO_ARTIFACT_DIR}/igloo-shell-home}"
-IGLOO_SHELL_DEMO_STATE_LINK="${IGLOO_SHELL_DEMO_STATE_LINK:-/w}"
+# Short alias for the (long, bind-mounted) XDG_STATE_HOME. Lives under
+# world-writable /tmp because `/` is not writable by the non-root `igloo`
+# container user (so the historical `/w` at the filesystem root cannot be
+# created).
+IGLOO_SHELL_DEMO_STATE_LINK="${IGLOO_SHELL_DEMO_STATE_LINK:-/tmp/w}"
+# Short, writable XDG_RUNTIME_DIR for the daemon's AF_UNIX control socket.
+# igloo-shell shortens the socket to `<XDG_RUNTIME_DIR>/igloo-shell-<hash>.sock`
+# when the state-dir path would exceed the 100-byte sun_path budget; the
+# default `/run/user/$UID` does not exist for the non-root demo user, so the
+# fallback would otherwise fail with SocketPathTooLong.
+IGLOO_SHELL_DEMO_RUNTIME_DIR="${IGLOO_SHELL_DEMO_RUNTIME_DIR:-/tmp/r}"
 IGLOO_SHELL_DEMO_TMPDIR="${IGLOO_SHELL_DEMO_TMPDIR:-${IGLOO_SHELL_DEMO_ARTIFACT_DIR}/tmp}"
 
 export IGLOO_SHELL_BIN
@@ -36,6 +46,7 @@ export DEV_RELAY_PORT
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/data}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-${IGLOO_SHELL_DEMO_STATE_LINK}}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-${IGLOO_SHELL_DEMO_RUNTIME_DIR}}"
 export IGLOO_SHELL_TEST_PASSPHRASE="${IGLOO_SHELL_DEMO_PASSPHRASE}"
 export TMPDIR="${TMPDIR:-${IGLOO_SHELL_DEMO_TMPDIR}}"
 
@@ -138,9 +149,12 @@ cleanup_shell_home() {
 prepare_shell_home() {
   mkdir -p \
     "${TMPDIR}" \
+    "${XDG_RUNTIME_DIR}" \
     "${IGLOO_SHELL_DEMO_XDG_ROOT}/config" \
     "${IGLOO_SHELL_DEMO_XDG_ROOT}/data" \
     "${IGLOO_SHELL_DEMO_XDG_ROOT}/state"
+  # XDG_RUNTIME_DIR must be private (0700) per spec; the control socket lives here.
+  chmod 0700 "${XDG_RUNTIME_DIR}" 2>/dev/null || true
   if [ "${XDG_STATE_HOME}" = "${IGLOO_SHELL_DEMO_STATE_LINK}" ]; then
     ln -sfn "${IGLOO_SHELL_DEMO_XDG_ROOT}/state" "${IGLOO_SHELL_DEMO_STATE_LINK}"
   fi
@@ -239,6 +253,7 @@ export_onboarding_package() {
       --recipient-share "${IGLOO_SHELL_DEMO_DIR}/share-${member}.json" \
       --relay-url "${DEV_RELAY_EXTERNAL_URL}" \
       --package-password-env IGLOO_SHELL_PACKAGE_PASSWORD \
+      --passphrase-env IGLOO_SHELL_TEST_PASSPHRASE \
       >/dev/null
 }
 
@@ -250,7 +265,11 @@ start_demo_daemon() {
   local daemon_socket_link_target
   local daemon_socket_dir
 
-  daemon_json="$("${IGLOO_SHELL_BIN}" daemon start --profile "${DEMO_PROFILE_ID}")"
+  # Bucket C removed the implicit profile-passphrase env fallback, so the
+  # daemon must be handed the passphrase explicitly. Pipe it on stdin (the CLI
+  # reads the passphrase from a stdin pipe) rather than putting it on argv.
+  daemon_json="$(printf '%s\n' "${IGLOO_SHELL_TEST_PASSPHRASE}" \
+    | "${IGLOO_SHELL_BIN}" daemon start --profile "${DEMO_PROFILE_ID}")"
   daemon_token="$(printf '%s' "${daemon_json}" | jq -r '.token // empty')"
   daemon_socket_bind="$(printf '%s' "${daemon_json}" | jq -r '.socket_path // empty')"
   daemon_socket_link_name="$(basename "${IGLOO_SHELL_DEMO_CONTROL_SOCKET}")"

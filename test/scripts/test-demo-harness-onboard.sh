@@ -100,7 +100,10 @@ if [[ -z "${PROFILE_ID}" ]]; then
   exit 1
 fi
 
-"${IGLOO_SHELL_BIN}" daemon start --profile "${PROFILE_ID}" >/dev/null
+# Bucket C removed the implicit passphrase env fallback, so the daemon must be
+# handed the passphrase explicitly to unlock the onboarded profile.
+"${IGLOO_SHELL_BIN}" daemon start --profile "${PROFILE_ID}" \
+  --passphrase-file "${PASSPHRASE_FILE}" >/dev/null
 "${IGLOO_SHELL_BIN}" runtime status --profile "${PROFILE_ID}" >/dev/null
 PEER_LIST="$("${IGLOO_SHELL_BIN}" peer list --profile "${PROFILE_ID}")"
 if ! printf '%s\n' "${PEER_LIST}" | grep -q '"pubkey"'; then
