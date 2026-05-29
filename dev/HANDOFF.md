@@ -27,7 +27,7 @@ R2 (structural refactor, Buckets G+H), R3 (tests + docs, Buckets I+J).
 
 | Release | Buckets | PRs | Status |
 |---|---|---|---|
-| R1 | A + B + C + D + E + F | 28 (some +follow-ups) | **C is finishing — see PR12 below** |
+| R1 | A + B + C + D + E + F | 28 (some +follow-ups) | **✅ Complete — integrated on `security-hardening` 2026-05-29** |
 | R2 | G + H | ~10 | Not started |
 | R3 | I + J | 8+ | Not started |
 | Backlog | K | 18 deferred items | Not scheduled |
@@ -79,27 +79,34 @@ per-instance `SessionController` with monotonic `SessionEpoch`. PR16b
 stripped `share_package_json` from persisted PWA state (red-team grep
 confirms 0 occurrences).
 
-### Bucket E — shell hardening (PRs 18–24) — 🟡 mostly complete
+### Bucket E — shell hardening (PRs 18–24) — ✅ Complete
 
 | PR | Scope | Submodule | Status |
 |---|---|---|---|
 | PR18 — Tauri CSP + capabilities | `igloo-home` | ✅ merged |
 | PR19 — PWA CSP + COOP/COEP | `igloo-pwa` | ✅ merged (`a1b0f95`) |
 | PR19 (Chrome side) — manifest CSP | `igloo-chrome` | ✅ merged (`6dfe68d`) |
-| PR20 — WASM SHA-384 integrity | `bifrost-rs` + `igloo-shared` | 🔴 deferred |
+| PR20 — WASM SHA-384 integrity | `igloo-shared` + `igloo-pwa` + `igloo-chrome` | ✅ merged (shared `842cdcd`) |
 | PR21 — test-mode server gating | various | ✅ merged |
 | PR22 — path canon under allowed roots | `igloo-home` | ✅ merged (`33285e1`, `85ddd69`) |
 | PR23 — typed Tauri IPC errors | `igloo-home` | ✅ merged + follow-up fix (`102c377`) |
-| PR24 — Tauri passphrase newtype migration | `igloo-home` | 🔴 deferred (depends on PR9 — now unblocked) |
+| PR24 — Tauri passphrase newtype migration | `igloo-home` | ✅ merged (`bb758af`) |
 
-**Remaining E work:**
-- **PR20:** WASM SHA-384 subresource integrity. Multi-repo (bifrost-rs
-  emits hashes during build; igloo-shared and the host bundlers verify
-  them). Plan: `dev/plans/remediation-2026-04-22/bucket-e-shell-hardening.md`
-  section E.5.
-- **PR24:** Wire the new `Passphrase` newtype (Bucket C PR9) through the
-  Tauri IPC layer in `igloo-home`. Sibling to Bucket C PR12 but in a
-  different host.
+**Bucket E delivered (2026-05-29):**
+- **PR20:** SHA-384 self-verifying WASM loader. Implemented entirely in
+  `igloo-shared` — `build-bridge-wasm.sh` embeds the hash in the generated
+  `_loader.mjs`, which fetches `_bg.wasm`, recomputes SHA-384, and throws
+  `wasm_integrity_check_failed` before `WebAssembly.instantiate`. No
+  `bifrost-rs` build change was needed. **Plan deviation:** the PWA had to
+  be repointed from the raw `.js` glue to `_loader.mjs` (`configure-igloo-shared.ts`)
+  or the check was inert; `igloo-chrome` already imported `_loader.mjs` via
+  `preloadedModule`, so it needed no config change. Regression test:
+  `test/igloo-pwa/specs/wasm-integrity.spec.ts` (4 cases, green).
+- **PR24:** `Passphrase` newtype wired through the Tauri IPC layer in
+  `igloo-home` (serde `deserialize_with` shim at the boundary, no frontend
+  change). Also carried a `DaemonToken::from_hex` fix + `Cargo.lock` regen
+  that repaired a latent build break of `igloo-home` against post-A/B/C
+  `bifrost-rs`.
 
 ### Bucket F — workspace hardening (PRs 25–28) — ✅ Complete
 
@@ -172,15 +179,20 @@ All branches **pushed to `origin/security-hardening`** on GitHub
 
 | Repo | `security-hardening` HEAD | `master` (== origin/master) | Notes |
 |---|---|---|---|
-| `frostr-infra` (parent) | `f8b503d` | `4c43ef3` | 28 commits on `security-hardening`; `f8b503d` bumps submodule pointers; `61454e5` adds audit/plans/handoff and gitignores `data/` |
-| `repos/bifrost-rs` | `1414d6b` | `4a9d4f8` | 43 commits; Buckets A, B, C (through PR11 + PR12b) |
-| `repos/igloo-shell` | `cb29a14` | `24248c0` | 4 commits; PR12 (Bucket C consumer migration) ✅ verified — all 57 tests pass |
-| `repos/igloo-shared` | `9b2d602` | `7f9c8ab` | 12 commits; Bucket D complete |
-| `repos/igloo-pwa` | `a1b0f95` | `e12f2e5` | 12 commits; Buckets D + E (PR19) complete |
-| `repos/igloo-home` | `102c377` | `eed7b7a` | 21 commits; Bucket E PR18/22/23 complete; PR24 deferred |
-| `repos/igloo-chrome` | `6dfe68d` | `1d92ce0` | 2 commits; Bucket E PR19 complete |
-| `repos/igloo-ui` | `87f2ac5` | `32b6188` | 1 commit (onboarding-status feature, pre-remediation); will gain Bucket H work later |
+| `frostr-infra` (parent) | R1 release commit (this tip) | `4c43ef3` | R1 closeout: `--no-ff` merge `6a23cbc` (WS4/WS5b/PR20 test) + the submodule-pointer bump that is this tip |
+| `repos/bifrost-rs` | `2c3037b` | `4a9d4f8` | + fast-KDF knob (`for_new_envelope`, both Argon2Params types) + devtools env rename |
+| `repos/igloo-shell` | `15d2543` | `24248c0` | + WS5: managed_integration sets `BIFROST_TEST_FAST_KDF` (1381s→416s) |
+| `repos/igloo-shared` | `842cdcd` | `7f9c8ab` | + PR20: self-verifying `_loader.mjs` (embedded SHA-384) + console.warn removal + regenerated artifacts |
+| `repos/igloo-pwa` | `e825163` | `e12f2e5` | + PR20: loader repointed to `_loader.mjs` + synced artifacts |
+| `repos/igloo-home` | `bb758af` | `eed7b7a` | + PR24: Passphrase newtype IPC migration + DaemonToken/Cargo.lock build-break fix |
+| `repos/igloo-chrome` | `3111b1c` | `1d92ce0` | + PR20: synced self-verifying artifacts (already used `_loader.mjs`) |
+| `repos/igloo-ui` | `87f2ac5` | `32b6188` | unchanged; will gain Bucket H work in R2 |
 | `repos/igloo-paper` | (detached) | `8f29f71` | Reference-only; not touched |
+
+**Not pushed.** R1 is integrated locally on `security-hardening` in every
+repo; `master` everywhere is still pristine at `origin/master`. The L2
+cutover (`security-hardening` → `master`) is deferred until R2 + R3 land
+and is gated on explicit operator approval.
 
 Note: igloo-shell's `security-hardening` is the renamed
 `remediation/pr12-igloo-shell-bucket-c-migration` branch — same commits,
@@ -206,10 +218,19 @@ of `dev/plans/remediation-2026-04-22/README.md`.
 
 ## Live caveats / known follow-ups
 
-- **frostr-infra harness env-var references:** the `test/` directory may
-  still reference retired env vars (`IGLOO_SHELL_PROFILE_PASSPHRASE`,
-  `IGLOO_SHELL_ONBOARDING_PASSWORD`). Out of scope for PR12; flag for a
-  sibling clean-up before R1 closes if the demo-smoke breaks.
+- **frostr-infra harness env-var references — ✅ CLOSED (2026-05-29).**
+  Investigation showed this was *not* the retired implicit fallback (that
+  has zero code references): the `test/` fixtures use the still-supported
+  explicit `--passphrase-env <NAME>` flag, they just reused the retired
+  var's *name*. Renamed the test-chosen var
+  `IGLOO_SHELL_PROFILE_PASSPHRASE` → `IGLOO_SHELL_TEST_PASSPHRASE` across
+  `test/scripts/test-demo-harness-onboard.sh`,
+  `test/igloo-chrome/fixtures/live-signer.ts`,
+  `services/igloo-demo/entrypoint.sh`, and `bifrost-devtools/src/e2e.rs`.
+  (`IGLOO_SHELL_ONBOARDING_PASSWORD` was already fully retired — comment
+  only.) Note: the two sites in `test-demo-harness-onboard.sh` look
+  vestigial (set/exported while `onboard` uses `--passphrase-file`);
+  candidate for outright removal in a later pass.
 - **bifrost-rs WASM bridge doesn't echo `request_id`** — PR14 in
   `igloo-shared` worked around this with a client-UUID map + per-kind
   FIFO tombstone. Future bifrost-rs simplification candidate.
@@ -220,34 +241,28 @@ of `dev/plans/remediation-2026-04-22/README.md`.
   several `igloo-shell` integration tests flaky under the original
   timeouts. PR12 bumped them; if more flakes appear elsewhere, that's the
   first thing to check.
-- **`data/` scratch dir leak.** Demo harness was writing live secrets
-  (daemon tokens, onboarding passwords, sockets) to `data/test-harness/`
-  in the workspace root, even though `CLAUDE.md` and PR26 mandate
-  `.tmp/test-harness/`. Worked around 2026-05-20 by adding `data/` to the
-  parent `.gitignore` (committed in `61454e5`). Root cause not yet
-  identified — candidates: shell-level `FROSTR_TEST_HARNESS_DIR` export,
-  a stale script in `repos/igloo-shell/scripts/`, or a docker-compose
-  mount path. Trace next session via `rg 'data/test-harness' --no-ignore`
-  or by checking `scripts/lib-scratch.sh::resolve_workspace_scratch_dir`.
-- **`igloo-shell` integration tests are very slow** (`managed_integration`
-  binary: 24 tests in 1381s ≈ 57 s/test). Cause: every test exercises the
-  real CLI, which uses production Argon2id parameters (`m=256 MiB, t=4`).
-  Each test pays the KDF cost twice (parent encrypt + daemon child
-  decrypt), and cargo test runs tests in parallel by default — N parallel
-  threads × 256 MiB Argon2 thrashes RAM and inflates per-test latency.
-  Tests are green, just slow. Mitigations to evaluate before R2:
-  1. Add a test-only `Argon2Params::minimum_secure()` path. Cleanest
-     shape is a `cfg(debug_assertions)`-gated env var (e.g.
-     `IGLOO_SHELL_TEST_FAST_KDF=1`) that the CLI honors; alpha tolerance
-     for this kind of debug knob is high but it must NOT be honored in
-     release builds.
-  2. `cargo test -- --test-threads=2` reduces RAM contention; cheaper but
-     leaves per-test wall time unchanged.
-  3. `cargo test --release` — slower compile, much faster Argon2.
-  Decision deferred; ran out of session time investigating. Background
-  evidence: a single `--test-threads=1 --exact <name>` invocation
-  *should* tell us whether the issue is per-test cost or parallelism
-  contention; the run got interrupted before producing a number.
+- **`data/` scratch dir leak — ✅ CLOSED (2026-05-29).** The leaked
+  `data/test-harness/` tree (28 stale files: daemon tokens, onboarding
+  passwords, sockets, encrypted vaults) was confirmed to be a *stale
+  leftover* — no current script writes `data/` (the audit said as much,
+  and `FROSTR_TEST_HARNESS_DIR` was unset). Fix: (1) scrubbed the stale
+  tree from disk; (2) `resolve_workspace_scratch_dir()` in
+  `scripts/lib-scratch.sh` now rejects any override that resolves inside
+  the repo working tree but outside `<ROOT_DIR>/.tmp/` (uses `realpath -m`
+  + trailing-slash prefix match; 5 cases tested incl. prefix-sibling).
+  `.gitignore data/` kept as defense-in-depth.
+- **`igloo-shell` integration tests are very slow — ✅ CLOSED (2026-05-29).**
+  Implemented mitigation #1: `bifrost-profile` and `frostr-utils` (they
+  have separate `Argon2Params` types) gained
+  `Argon2Params::for_new_envelope()`, a `cfg(debug_assertions)`-gated
+  resolver that returns `minimum_secure()` (64 MiB/t=3) when
+  `BIFROST_TEST_FAST_KDF` is set, else `default()` (256 MiB/t=4). Release
+  builds compile the branch out — production can never derive with weaker
+  params. The three encrypt-side `default()` call sites now route through
+  it. The `managed_integration` harness sets `BIFROST_TEST_FAST_KDF=1` on
+  every spawned CLI (the daemon inherits it). Result: **1381s → 416s** (24
+  passed, 0 failed). Residual is genuine non-KDF work (real daemon
+  round-trips, FROST signing, sleep-polling), not Argon2.
 
 ## Where to read next
 
@@ -290,13 +305,15 @@ done
 
 ## Resume prompt
 
-> Continuing the FROSTR remediation track from `dev/HANDOFF.md`. All
-> repos including the parent have `security-hardening` as the active
-> integration branch on origin (`master` everywhere is pristine at
-> `origin/master`). R1 Buckets A, B, C, D, E (PR18/19/21/22/23), and F
-> are all complete and verified. **Next:** PR20 (WASM SHA-384 integrity,
-> multi-repo bifrost-rs + igloo-shared) and PR24 (Tauri Passphrase
-> newtype migration, igloo-home, depends on Bucket C PR9 which has
-> shipped). After both land and the slow-test investigation closes (see
-> "Live caveats"), bump parent-repo submodule pointers as the
-> coordinated R1 release commit and tag.
+> Continuing the FROSTR remediation track from `dev/HANDOFF.md`. **R1
+> (Buckets A–F) is COMPLETE and integrated locally on `security-hardening`
+> in every repo** (see the HEAD snapshot table); `master` everywhere is
+> still pristine at `origin/master` and nothing is pushed. All three R1
+> live caveats are closed (fast-KDF knob, `data/` scrub+guard, env-var
+> rename). **Next: R2 (Buckets G + H, ~10 PRs)** — TS structural refactor
+> + UI hardening. Plans at `dev/plans/remediation-2026-04-22/bucket-g-runtime-types.md`
+> and `bucket-h-ui-hardening.md`. Keep landing work on `security-hardening`
+> (L1 merges as we go); the `master` cutover (L2) waits until R2 + R3 are
+> done and the operator explicitly approves. Conventions unchanged: one
+> agent per repo, hard-cut, ff-only submodules / `--no-ff` parent, local
+> merges only, no `Co-Authored-By`.
