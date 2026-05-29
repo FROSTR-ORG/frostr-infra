@@ -36,7 +36,7 @@ export DEV_RELAY_PORT
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/data}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-${IGLOO_SHELL_DEMO_STATE_LINK}}"
-export IGLOO_SHELL_PROFILE_PASSPHRASE="${IGLOO_SHELL_DEMO_PASSPHRASE}"
+export IGLOO_SHELL_TEST_PASSPHRASE="${IGLOO_SHELL_DEMO_PASSPHRASE}"
 export TMPDIR="${TMPDIR:-${IGLOO_SHELL_DEMO_TMPDIR}}"
 
 declare -a ONBOARD_MEMBERS=()
@@ -184,7 +184,7 @@ import_demo_profile() {
       --share "${IGLOO_SHELL_DEMO_DIR}/share-${IGLOO_SHELL_DEMO_MEMBER}.json" \
       --label "${IGLOO_SHELL_DEMO_MEMBER}" \
       --relay-profile "${IGLOO_SHELL_DEMO_RELAY_PROFILE}" \
-      --passphrase "${IGLOO_SHELL_PROFILE_PASSPHRASE}" \
+      --passphrase "${IGLOO_SHELL_TEST_PASSPHRASE}" \
       --json
   )"
   DEMO_PROFILE_ID="$(printf '%s' "${import_json}" | jq -r '.import.profile.id // empty')"

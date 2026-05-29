@@ -150,7 +150,7 @@ function managedShellEnv(root: string): NodeJS.ProcessEnv {
     XDG_CONFIG_HOME: path.join(xdgRoot, 'config'),
     XDG_DATA_HOME: path.join(xdgRoot, 'data'),
     XDG_STATE_HOME: path.join(xdgRoot, 'state'),
-    IGLOO_SHELL_PROFILE_PASSPHRASE: 'playwright-live-passphrase'
+    IGLOO_SHELL_TEST_PASSPHRASE: 'playwright-live-passphrase'
   };
 }
 
@@ -387,7 +387,7 @@ async function buildLiveProfile(
               '--recipient-share',
               path.join(demoDir, 'share-bob.json'),
               '--passphrase-env',
-              'IGLOO_SHELL_PROFILE_PASSPHRASE',
+              'IGLOO_SHELL_TEST_PASSPHRASE',
               '--package-password-env',
               'LIVE_ONBOARD_PASSWORD'
             ],
@@ -669,7 +669,7 @@ class SharedLiveSignerController implements LiveSignerController {
             'backup',
             this.responderProfileId,
             '--passphrase-env',
-            'IGLOO_SHELL_PROFILE_PASSPHRASE'
+            'IGLOO_SHELL_TEST_PASSPHRASE'
           ],
           this.shellEnv!,
         ),
