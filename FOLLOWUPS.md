@@ -1,5 +1,14 @@
 # Follow-ups
 
+## 2026-05-30 — after WS4 Paper sync, WS5 verify, and e2e spec alignment
+
+### Loose ends
+- [ ] Fix `rotation-create.spec.ts` secondary-device isolation so the live onboard handshake completes (effort: M) — after the Finish Setup + label alignment, the test reaches the secondary onboard but `openFreshPwaPage(browser)`'s context shows the seeded "Source Device 1" returning Welcome instead of a clean entry hero, so `onboardPwaDevice` never reaches the onboard screen (times out on "Apply Onboarding Package"). Likely `browser.newContext()` inheriting a global `storageState` from `test/igloo-pwa/playwright.config.ts`; pass an empty `storageState` (or clear localStorage) for the fresh page. The spec's label/structure alignment is staged but left uncommitted until the handshake passes. `app-shell.spec.ts` is fully aligned and green.
+
+### Adjacent improvements
+- [ ] Add an e2e assertion that the distributor's share card flips to **Onboarded** after a real peer onboarding (effort: M) — exercises the WS3d onboard-complete event end-to-end; depends on the rotation-create isolation fix above.
+- [ ] Give distribution cards a stable test id (effort: S) — `app-shell.spec.ts` now locates the first card positionally because the packaged card no longer renders a password field; a `data-test-id` per share card would make the create/rotation specs less brittle and unblock consolidating the duplicated create→distribute setup already tracked in earlier sections.
+
 ## 2026-05-27 — after hard-cut Create flow implementation
 
 ### Loose ends
