@@ -67,7 +67,7 @@ export async function onboardPwaDevice(
   await expect(page.getByRole('heading', { name: 'Igloo Web' })).toBeVisible();
   await page.getByRole('button', { name: 'Onboard New Device' }).click();
   await page.getByPlaceholder('bfonboard1...').fill(input.onboardPackage);
-  await page.getByLabel('Package Password').fill(input.packagePassword);
+  await page.getByLabel('Encryption Password').fill(input.packagePassword);
   await page.getByRole('button', { name: 'Apply Onboarding Package' }).click();
   await expect(page.getByRole('heading', { name: 'Onboarding Complete' })).toBeVisible();
   await page.getByLabel('Device Name').fill(input.label);

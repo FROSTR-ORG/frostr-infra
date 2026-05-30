@@ -9,29 +9,31 @@ import {
 const STORAGE_KEY = 'igloo-pwa.state.v1';
 
 test.describe('igloo-pwa ui-first shell', () => {
-  test('creates a generated profile, distributes a share, and lands on the dashboard', async ({ page }) => {
+  test('creates a generated profile, distributes shares, and finishes setup to the locked welcome', async ({ page }) => {
     await page.goto('/');
 
     await expect(page.getByText('Split your Nostr key. Sign from anywhere.')).toBeVisible();
     await page.getByRole('button', { name: 'Generate' }).click();
     await page.getByLabel('Group Name').fill('Playwright Treasury');
-    await page.getByRole('button', { name: 'Create Keyset' }).click();
-    await expect(page.getByRole('heading', { name: 'Create Profile' })).toBeVisible();
+    await page.getByRole('button', { name: 'Next Step' }).click();
+    await expect(page.getByRole('heading', { name: 'Select Share' })).toBeVisible();
     await expect(page.getByText('Choose Local Share')).toBeVisible();
+    await page.getByRole('button', { name: 'Next Step' }).click();
 
+    await expect(page.getByRole('heading', { name: 'Save Profile' })).toBeVisible();
     await page.getByLabel('Device Profile Name').fill('Primary Browser Device');
     await page.getByLabel('Device Password').fill('playwright-browser-pass');
     await page.getByLabel('Confirm Password').fill('playwright-browser-pass');
-    await page.getByRole('button', { name: 'Continue to Review' }).click();
-    await expect(page.getByRole('heading', { name: 'Review Device Profile', level: 2 })).toBeVisible();
-    await page.getByRole('button', { name: 'Accept and Continue' }).click();
-    await expect(page.getByText('Remaining Shares')).toBeVisible();
+    await page.getByRole('button', { name: 'Next Step' }).click();
+    await expect(page.getByText('Remote Shares')).toBeVisible();
+    await expect(page.getByText('Distribution Completion')).toHaveCount(0);
 
+    // Locate positionally: once packaged, the card no longer renders a password
+    // field, so filtering by it would stop matching after Create Package.
     const shareCard = page
       .locator('section.igloo-create-distribution-card')
-      .filter({ has: page.getByLabel('Share label') })
       .first();
-    await prepareDistributionPackage(shareCard, 'remote-tablet-pass', 'Remote Tablet');
+    await prepareDistributionPackage(shareCard, 'remote-tablet-pass');
     await shareCard.getByRole('button', { name: 'QR code' }).click();
     await expect(page.getByText('Onboarding Package QR')).toBeVisible();
     await page.keyboard.press('Escape');
@@ -44,17 +46,14 @@ test.describe('igloo-pwa ui-first shell', () => {
       .first();
     await completeDistributionCard(remainingCard, 'remote-tablet-pass');
 
-    await expect(page.getByText('Distribution Completion')).toBeVisible();
-    await page.getByRole('button', { name: 'Finish Distribution' }).click();
-    await expect(page.getByText('Device Dashboard')).toBeVisible();
-    await expect(page.getByRole('tab', { name: /Signer\s+runtime console/i })).toBeVisible();
-    await expect(page.getByRole('tab', { name: /Permissions\s+peer policies/i })).toBeVisible();
-    await expect(page.getByRole('tab', { name: /Settings\s+operator controls/i })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Manage your signer runtime', exact: true })).toBeVisible();
-    await expect(page.getByText('Pending Operations')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Create Keyset' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Load Profile' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Onboard Device' })).toHaveCount(0);
+    // Finish Setup persists the profile, stops the runtime, purges setup secrets,
+    // and returns to the locked returning Welcome (all shares delivered, so no
+    // undelivered-shares confirmation fires).
+    await page.getByRole('button', { name: 'Finish Setup' }).click();
+    await expect(page.getByText('Primary Browser Device')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Unlock' })).toBeVisible();
+    await expect(page.getByText('Device Dashboard')).toHaveCount(0);
+    await expect(page.getByRole('tab', { name: /Signer\s+runtime console/i })).toHaveCount(0);
   });
 
   test('persists settings across reloads', async ({ page }) => {
@@ -126,10 +125,8 @@ test.describe('igloo-pwa ui-first shell', () => {
               },
               distributionForms: {},
               importProfileForm: { profileString: '', password: '' },
-              recoverProfileForm: { shareString: '', password: '' },
               onboardConnectForm: { packageText: '', password: '' },
               onboardSaveForm: { label: '', password: '', confirmPassword: '' },
-              recoverForm: { groupPackageJson: '', sharePackageJsons: ['', ''] },
             },
           }),
         );
@@ -217,10 +214,8 @@ test.describe('igloo-pwa ui-first shell', () => {
               },
               distributionForms: {},
               importProfileForm: { profileString: '', password: '' },
-              recoverProfileForm: { shareString: '', password: '' },
               onboardConnectForm: { packageText: '', password: '' },
               onboardSaveForm: { label: '', password: '', confirmPassword: '' },
-              recoverForm: { groupPackageJson: '', sharePackageJsons: ['', ''] },
             },
           }),
         );
