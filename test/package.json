@@ -4,9 +4,10 @@
   "type": "module",
   "scripts": {
     "test:e2e": "npm run test:e2e:fast && npm run test:e2e:live",
-    "test:guards": "npm run test:guards:docs && npm run test:guards:workflows && npm run test:guards:wasm && npm run test:guards:selectors && npm run test:guards:visual && bash ./scripts/test-run-sh.sh && bash ./scripts/test-igloo-home-run-e2e.sh && bash ./scripts/test-affected.sh",
+    "test:guards": "npm run test:guards:docs && npm run test:guards:workflows && npm run test:guards:shared-setup && npm run test:guards:wasm && npm run test:guards:selectors && npm run test:guards:visual && bash ./scripts/test-run-sh.sh && bash ./scripts/test-igloo-home-run-e2e.sh && bash ./scripts/test-affected.sh",
     "test:guards:docs": "node ./scripts/check-markdown-links.mjs && bash ./scripts/check-no-legacy-surfaces.sh && bash ./scripts/check-doc-surfaces.sh && bash ./scripts/check-doc-command-surfaces.sh",
     "test:guards:workflows": "bash ./scripts/check-workflow-node24-actions.sh && bash ./scripts/check-client-scoped-submodules.sh",
+    "test:guards:shared-setup": "bash ./scripts/check-shared-test-setup.sh",
     "test:guards:wasm": "bash ./scripts/check-browser-wasm-harness-contracts.sh",
     "test:guards:wasm:strict": "bash ./scripts/check-test-prebuild-nonmutating.sh",
     "test:guards:selectors": "bash ./scripts/check-cross-client-imports.sh && bash ./scripts/check-e2e-selector-contracts.sh",
