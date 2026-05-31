@@ -5,21 +5,21 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${ROOT_DIR}"
 
 scope="${1:-all}"
+pwa_in_scope=0
 case "${scope}" in
   all)
     search_roots=(test/igloo-pwa test/igloo-chrome)
     allowed_helpers=("test/igloo-pwa/support/ui.ts" "test/igloo-chrome/support/ui.ts")
-    ignored_globs=("!test/igloo-pwa/support/ui.ts" "!test/igloo-chrome/support/ui.ts")
+    pwa_in_scope=1
     ;;
   pwa|igloo-pwa)
     search_roots=(test/igloo-pwa)
     allowed_helpers=("test/igloo-pwa/support/ui.ts")
-    ignored_globs=("!test/igloo-pwa/support/ui.ts")
+    pwa_in_scope=1
     ;;
   chrome|igloo-chrome)
     search_roots=(test/igloo-chrome)
     allowed_helpers=("test/igloo-chrome/support/ui.ts")
-    ignored_globs=("!test/igloo-chrome/support/ui.ts")
     ;;
   *)
     echo "usage: test/scripts/check-e2e-selector-contracts.sh [all|pwa|chrome]" >&2
@@ -27,6 +27,8 @@ case "${scope}" in
     ;;
 esac
 
+# 1. The e2e-test-id registry must be imported only in support/ui.ts. Page objects
+#    (support/pages.ts) consume it via the TID re-export from support/ui.ts.
 imported_contract_files=()
 while IFS= read -r file; do
   imported_contract_files+=("${file}")
@@ -39,36 +41,41 @@ for file in "${imported_contract_files[@]}"; do
       break
     fi
   done
-
   if [[ "${allowed}" -ne 1 ]]; then
     echo "critical browser E2E hooks must only be imported in shared helper modules: ${file}" >&2
     exit 1
   fi
 done
 
-rg_ignore_args=()
-for ignored_glob in "${ignored_globs[@]}"; do
-  rg_ignore_args+=(--glob "${ignored_glob}")
+# 2. Spec files must not use getByTestId directly — they drive the UI through the
+#    support/pages page objects (which own the test-id locators).
+spec_roots=()
+for root in "${search_roots[@]}"; do
+  spec_roots+=("${root}/specs")
 done
-
-if rg -n \
-  -e "getByTestId\\('stored-profile-load'\\)" \
-  -e 'getByTestId\("stored-profile-load"\)' \
-  -e "getByTestId\\('stored-profile-unlock-submit'\\)" \
-  -e 'getByTestId\("stored-profile-unlock-submit"\)' \
-  -e "getByTestId\\('landing-continue-onboarding'\\)" \
-  -e 'getByTestId\("landing-continue-onboarding"\)' \
-  -e "getByTestId\\('maintenance-rotate-share'\\)" \
-  -e 'getByTestId\("maintenance-rotate-share"\)' \
-  -e "getByTestId\\('rotation-connect-submit'\\)" \
-  -e 'getByTestId\("rotation-connect-submit"\)' \
-  -e "getByTestId\\('rotation-confirm-submit'\\)" \
-  -e 'getByTestId\("rotation-confirm-submit"\)' \
-  "${search_roots[@]}" \
-  "${rg_ignore_args[@]}"
-then
-  echo "critical browser E2E hooks must route through shared helpers only" >&2
+if rg -n "getByTestId\\(" "${spec_roots[@]}" 2>/dev/null; then
+  echo "specs must not call getByTestId directly; route through support/pages page objects" >&2
   exit 1
+fi
+
+# 3. igloo-pwa specs must be copy-independent: interaction selectors (button/tab by
+#    accessible name, label, placeholder) and the mutating flow CSS classes belong
+#    in the page objects, not specs. getByText / getByRole('heading') stay allowed
+#    as deliberate content assertions. (igloo-chrome specs are migrated separately.)
+if [[ "${pwa_in_scope}" -eq 1 ]]; then
+  if rg -n \
+    -e "getByRole\\('(button|tab)'" \
+    -e "getByRole\\(\"(button|tab)\"" \
+    -e "getByLabel\\(" \
+    -e "getByPlaceholder\\(" \
+    -e "igloo-welcome-profile-row" \
+    -e "igloo-create-distribution-card" \
+    -e "igloo-create-share-option" \
+    -e "igloo-create-relay-row" \
+    test/igloo-pwa/specs 2>/dev/null; then
+    echo "igloo-pwa specs must drive the UI via support/pages (no role/label/placeholder/class locators)" >&2
+    exit 1
+  fi
 fi
 
 echo "ok: browser E2E selector contract is helper-owned"

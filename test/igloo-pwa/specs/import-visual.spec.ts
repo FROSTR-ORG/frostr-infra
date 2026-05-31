@@ -52,7 +52,7 @@ async function capture(page: Page, fileName: string) {
   await page.screenshot({ path: path.join(IMPORT_CAPTURE_DIR, fileName), fullPage: true });
 }
 
-test.describe('igloo-pwa Paper Import visual harness', () => {
+test.describe('igloo-pwa Paper Import visual harness @visual', () => {
   test('captures the device-profile import flow screens', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1080 });
 

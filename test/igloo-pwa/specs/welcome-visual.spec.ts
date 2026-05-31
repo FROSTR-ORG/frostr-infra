@@ -85,7 +85,7 @@ async function captureIn(page: Page, directory: string, fileName: string) {
   await page.screenshot({ path: path.join(directory, fileName), fullPage: true });
 }
 
-test.describe('igloo-pwa Paper Welcome visual harness', () => {
+test.describe('igloo-pwa Paper Welcome visual harness @visual', () => {
   test('captures first-launch and returning Welcome states', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1080 });
     await setPwaState(page, []);

@@ -101,7 +101,7 @@ async function requestProviderSign(
   return await resultPromise;
 }
 
-test.describe('demo harness onboarding @live', () => {
+test.describe('demo harness onboarding @live @demo', () => {
   test.setTimeout(360_000);
 
   test('onboards from igloo-demo and signs through the live demo node', async ({

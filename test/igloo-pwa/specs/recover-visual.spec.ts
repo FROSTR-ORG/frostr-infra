@@ -76,7 +76,7 @@ const FAKE_RECOVERED_KEY = {
   signingKeyHex: '11'.repeat(32),
 };
 
-test.describe('igloo-pwa Paper Recover visual harness', () => {
+test.describe('igloo-pwa Paper Recover visual harness @visual', () => {
   test('captures the collect-shares recover step', async ({ page }) => {
     const profile = buildRecoverProfile();
     await page.setViewportSize({ width: 1440, height: 1080 });

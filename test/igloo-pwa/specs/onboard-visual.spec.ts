@@ -52,7 +52,7 @@ async function capture(page: Page, fileName: string) {
   await page.screenshot({ path: path.join(ONBOARD_CAPTURE_DIR, fileName), fullPage: true });
 }
 
-test.describe('igloo-pwa Paper Onboard visual harness', () => {
+test.describe('igloo-pwa Paper Onboard visual harness @visual', () => {
   test('captures recipient onboarding states', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1080 });
 

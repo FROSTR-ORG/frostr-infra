@@ -72,7 +72,7 @@ function assertPeerNonceReady(label: string, peers: RuntimePeer[] | undefined, p
   }
 }
 
-test.describe('demo harness chrome <-> home pairing @live @cross-client', () => {
+test.describe('demo harness chrome <-> home pairing @live @cross-client @demo', () => {
   test.setTimeout(360_000);
 
   test('onboards chrome and home from igloo-demo and reaches symmetric nonce readiness after refresh', async ({
