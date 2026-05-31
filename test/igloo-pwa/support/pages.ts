@@ -39,13 +39,31 @@ export class WelcomePage extends BasePage {
   async startOnboard(): Promise<void> {
     await this.tid(TID.welcomeEntryOnboard).click();
   }
-  async unlock(password: string, profileId?: string): Promise<void> {
+  rowCount(): Locator {
+    return this.tid(TID.welcomeProfileRow);
+  }
+  async expectRowCount(count: number): Promise<void> {
+    await expect(this.tid(TID.welcomeProfileRow)).toHaveCount(count);
+  }
+  async openUnlock(profileId?: string): Promise<void> {
     await this.row(profileId).getByTestId(TID.welcomeProfileUnlock).click();
+  }
+  async fillUnlockPassword(password: string): Promise<void> {
     await this.tid(TID.welcomeUnlockPassword).fill(password);
+  }
+  async submitUnlock(): Promise<void> {
     await this.tid(TID.welcomeUnlockSubmit).click();
+  }
+  async unlock(password: string, profileId?: string): Promise<void> {
+    await this.openUnlock(profileId);
+    await this.fillUnlockPassword(password);
+    await this.submitUnlock();
   }
   async openMenu(profileId?: string): Promise<void> {
     await this.row(profileId).getByTestId(TID.welcomeProfileMenuTrigger).click();
+  }
+  async expectMenuOpen(): Promise<void> {
+    await expect(this.tid(TID.welcomeProfileMenuRecover)).toBeVisible();
   }
   async rotate(profileId?: string): Promise<void> {
     await this.openMenu(profileId);
@@ -71,6 +89,12 @@ export class CreateFlowPage extends BasePage {
       await this.page.getByLabel('Existing Private Key (optional)').fill(opts.privateKey);
     }
   }
+  get generateNextButton(): Locator {
+    return this.tid(TID.createGenerateNext);
+  }
+  get backButton(): Locator {
+    return this.tid(TID.createBack);
+  }
   async generateNext(): Promise<void> {
     await this.tid(TID.createGenerateNext).click();
   }
@@ -85,6 +109,9 @@ export class CreateFlowPage extends BasePage {
   }
   async selectShare(memberIdx: number): Promise<void> {
     await this.shareOption(memberIdx).click();
+  }
+  async selectShareByName(name: string): Promise<void> {
+    await this.tid(TID.selectShareOption).filter({ hasText: name }).click();
   }
   async selectShareNext(): Promise<void> {
     await this.tid(TID.selectShareNext).click();
@@ -150,6 +177,9 @@ export class OnboardPage extends BasePage {
   async connect(opts: { packageText: string; password: string }): Promise<void> {
     await this.tid(TID.onboardPackageInput).fill(opts.packageText);
     await this.tid(TID.onboardPasswordInput).fill(opts.password);
+    await this.submitConnect();
+  }
+  async submitConnect(): Promise<void> {
     await this.tid(TID.onboardConnectSubmit).click();
   }
   async save(opts: { name?: string; password: string }): Promise<void> {
@@ -164,6 +194,9 @@ export class ImportPage extends BasePage {
   async submit(opts: { profileString: string; password: string }): Promise<void> {
     await this.tid(TID.importProfileInput).fill(opts.profileString);
     await this.tid(TID.importPasswordInput).fill(opts.password);
+    await this.next();
+  }
+  async next(): Promise<void> {
     await this.tid(TID.importNext).click();
   }
 }

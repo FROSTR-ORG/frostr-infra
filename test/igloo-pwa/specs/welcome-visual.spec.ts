@@ -5,8 +5,8 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { PwaStoredProfileSeed } from '../../shared/browser-artifacts';
 import { REPO_ROOT_DIR } from '../../shared/repo-paths';
+import { pages } from '../support/pages';
 import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
-import { prepareDistributionPackage } from '../support/ui';
 
 const WELCOME_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'welcome');
 const CREATE_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'create');
@@ -96,7 +96,7 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
     const singleProfiles = [buildPaperProfile(1, 'My Signing Key', 2, 3)];
     await setPwaState(page, singleProfiles);
     await expect(page.getByText('Welcome back.')).toBeVisible();
-    await expect(page.locator('.igloo-welcome-profile-row')).toHaveCount(1);
+    await pages(page).welcome.expectRowCount(1);
     await capture(page, '02-returning-single.png');
 
     const multiProfiles = [
@@ -105,7 +105,7 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
       buildPaperProfile(3, 'Travel Key', 2, 3),
     ];
     await setPwaState(page, multiProfiles);
-    await expect(page.locator('.igloo-welcome-profile-row')).toHaveCount(3);
+    await pages(page).welcome.expectRowCount(3);
     await capture(page, '03-returning-multi.png');
 
     const manyProfiles = [
@@ -118,7 +118,7 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
     ];
     await page.setViewportSize({ width: 1440, height: 1284 });
     await setPwaState(page, manyProfiles);
-    await expect(page.locator('.igloo-welcome-profile-row')).toHaveCount(6);
+    await pages(page).welcome.expectRowCount(6);
     await capture(page, '04-returning-many.png');
   });
 
@@ -131,12 +131,13 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
 
     await page.setViewportSize({ width: 1440, height: 1080 });
     await setPwaState(page, profiles);
-    await page.locator('.igloo-welcome-profile-row').filter({ hasText: 'My Signing Key' }).getByRole('button', { name: 'Unlock' }).click();
+    const welcome = pages(page).welcome;
+    await welcome.openUnlock('paper-profile-1');
     await expect(page.getByText('Unlock Profile')).toBeVisible();
     await capture(page, '05-unlock-modal.png');
 
-    await page.getByLabel('Profile Password').fill('incorrect-password');
-    await page.locator('form').getByRole('button', { name: 'Unlock' }).click();
+    await welcome.fillUnlockPassword('incorrect-password');
+    await welcome.submitUnlock();
     await expect(page.getByText('Incorrect password. Please try again.')).toBeVisible();
     await capture(page, '06-unlock-modal-error.png');
   });
@@ -144,48 +145,43 @@ test.describe('igloo-pwa Paper Welcome visual harness', () => {
   test('captures the returning card action menu open', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1080 });
     await setPwaState(page, [buildPaperProfile(1, 'My Signing Key', 2, 3)]);
-    await expect(page.locator('.igloo-welcome-profile-row')).toHaveCount(1);
-    await page
-      .locator('.igloo-welcome-profile-row')
-      .filter({ hasText: 'My Signing Key' })
-      .getByRole('button', { name: 'More actions' })
-      .click();
-    await expect(page.getByRole('menuitem', { name: 'Recover' })).toBeVisible();
+    const welcome = pages(page).welcome;
+    await welcome.expectRowCount(1);
+    await welcome.openMenu('paper-profile-1');
+    await welcome.expectMenuOpen();
     await capture(page, '07-returning-menu-open.png');
   });
 
   test('captures the Create Keyset flow screens', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1080 });
     await setPwaState(page, []);
-    await page.getByRole('button', { name: 'Generate Keyset' }).click();
+    const p = pages(page);
+    await p.welcome.startGenerate();
 
-    await expect(page.getByRole('button', { name: 'Go Back' })).toBeVisible();
+    await expect(p.create.backButton).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Create Keyset' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Next Step' })).toBeVisible();
+    await expect(p.create.generateNextButton).toBeVisible();
     await captureIn(page, CREATE_CAPTURE_DIR, '01-create-keyset.png');
 
-    await page.getByLabel('Group Name').fill('My Signing Key');
-    await page.getByRole('button', { name: 'Next Step' }).click();
+    await p.create.fillGenerate({ groupName: 'My Signing Key' });
+    await p.create.generateNext();
     await expect(page.getByRole('heading', { name: 'Select Share' })).toBeVisible();
     await expect(page.getByText('Choose Local Share')).toBeVisible();
     await page.setViewportSize({ width: 1440, height: 1861 });
-    await page.locator('.igloo-create-share-option').filter({ hasText: 'My Signing Key Device 2' }).click();
+    await p.create.selectShareByName('My Signing Key Device 2');
     await captureIn(page, CREATE_CAPTURE_DIR, '02-select-share.png');
 
-    await page.getByRole('button', { name: 'Next Step' }).click();
+    await p.create.selectShareNext();
     await expect(page.getByRole('heading', { name: 'Save Profile' })).toBeVisible();
-    await page.getByLabel('Device Password').fill('paper-browser-pass');
-    await page.getByLabel('Confirm Password').fill('paper-browser-pass');
+    await p.create.fillSaveProfile({ password: 'paper-browser-pass' });
 
     await page.setViewportSize({ width: 1440, height: 1861 });
     await captureIn(page, CREATE_CAPTURE_DIR, '03-save-profile.png');
 
-    await page.getByRole('button', { name: 'Next Step' }).click();
+    await p.create.saveProfileNext();
     await expect(page.getByText('Distribute Shares')).toBeVisible();
     await expect(page.getByText('Remote Shares')).toBeVisible();
-    const distributionCards = page.locator('section.igloo-create-distribution-card');
-    const stagedCard = distributionCards.nth(1);
-    await prepareDistributionPackage(stagedCard, 'remote-device-pass');
+    await p.distribute.preparePackage(p.distribute.cards().nth(1), 'remote-device-pass');
     await captureIn(page, CREATE_CAPTURE_DIR, '04-distribute-shares.png');
   });
 });

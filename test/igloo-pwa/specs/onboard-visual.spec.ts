@@ -4,6 +4,7 @@ import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 import { REPO_ROOT_DIR } from '../../shared/repo-paths';
+import { pages } from '../support/pages';
 import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
 
 const ONBOARD_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'onboard');
@@ -72,7 +73,7 @@ test.describe('igloo-pwa Paper Onboard visual harness', () => {
 
     // The `onboard-handshake` view is transient/runtime-only (normalized away on load),
     // but the store holds it for a guaranteed minimum window after Next Step, so drive it.
-    await page.getByRole('button', { name: 'Next Step' }).click();
+    await pages(page).onboard.submitConnect();
     await expect(page.getByRole('heading', { name: 'Onboard Device' })).toBeVisible();
     await capture(page, '02-onboard-device.png');
 

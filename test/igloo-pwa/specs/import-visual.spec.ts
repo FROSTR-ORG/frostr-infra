@@ -4,6 +4,7 @@ import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 import { REPO_ROOT_DIR } from '../../shared/repo-paths';
+import { pages } from '../support/pages';
 import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
 
 const IMPORT_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'import');
@@ -105,7 +106,7 @@ test.describe('igloo-pwa Paper Import visual harness', () => {
       }),
     );
     await expect(page.getByRole('heading', { name: 'Import Device Profile' })).toBeVisible();
-    await page.getByRole('button', { name: 'Next Step' }).click();
+    await pages(page).import.next();
     await expect(page.getByRole('heading', { name: 'Import Error' })).toBeVisible();
     await capture(page, '03-error.png');
   });
