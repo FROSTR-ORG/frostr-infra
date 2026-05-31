@@ -83,6 +83,21 @@ export class CreateFlowPage extends BasePage {
   async selectMode(mode: 'new' | 'rotate'): Promise<void> {
     await this.tid(mode === 'new' ? TID.createModeNew : TID.createModeRotate).click();
   }
+  async selectRotateSource(profileId: string): Promise<void> {
+    await this.tid(TID.rotateSourceProfile).selectOption(profileId);
+  }
+  // Per-source rows are dynamic; located by placeholder/label within the rotate
+  // panel (raw locators are allowed inside support, not in specs).
+  async fillRotateSource(index: number, opts: { bfshare: string; password: string }): Promise<void> {
+    await this.page.getByPlaceholder('Paste bfshare1...').nth(index).fill(opts.bfshare);
+    await this.page.getByLabel('Package Password').nth(index).fill(opts.password);
+  }
+  async addRotateSource(): Promise<void> {
+    await this.tid(TID.rotateAddSource).click();
+  }
+  async rotateSubmit(): Promise<void> {
+    await this.tid(TID.rotateSubmit).click();
+  }
   async fillGenerate(opts: { groupName?: string; privateKey?: string }): Promise<void> {
     if (opts.groupName != null) await this.page.getByLabel('Group Name').fill(opts.groupName);
     if (opts.privateKey != null) {
@@ -142,6 +157,15 @@ export class DistributePage extends BasePage {
   }
   card(memberIdx: number): Locator {
     return this.page.locator(`[data-testid="${TID.distributionCard}"][data-member-idx="${memberIdx}"]`);
+  }
+  cardByName(name: string): Locator {
+    return this.cards().filter({ hasText: name }).first();
+  }
+  async readQrPackage(): Promise<string> {
+    return (await this.page.locator('pre.igloo-code-block').textContent())?.trim() ?? '';
+  }
+  async closeQr(): Promise<void> {
+    await this.page.keyboard.press('Escape');
   }
   async cardStatus(card: Locator): Promise<string | null> {
     return card.getAttribute('data-status');
@@ -217,6 +241,18 @@ export class DashboardPage extends BasePage {
           ? TID.dashboardTabPermissions
           : TID.dashboardTabSettings;
     await this.tid(id).click();
+  }
+  get autoOpenToggle(): Locator {
+    return this.tid(TID.settingsAutoOpenToggle);
+  }
+  async expectSettingsActions(): Promise<void> {
+    await expect(this.tid(TID.settingsCopyProfile)).toBeVisible();
+    await expect(this.tid(TID.settingsCopyShare)).toBeVisible();
+    await expect(this.tid(TID.maintenanceRotateShare)).toBeVisible();
+    await expect(this.tid(TID.settingsLogout)).toBeVisible();
+  }
+  async logout(): Promise<void> {
+    await this.tid(TID.settingsLogout).click();
   }
 }
 

@@ -4,7 +4,7 @@ import { createGeneratedBrowserArtifacts } from '../../shared/browser-artifacts'
 import { startLocalRelay } from '../../shared/local-relay';
 import { expectPwaDashboard, importPwaProfile } from '../support/ui';
 
-test.describe('igloo-pwa bfprofile import', () => {
+test.describe('igloo-pwa bfprofile import @live', () => {
   test('imports a bfprofile package and lands on the dashboard', async ({ page }) => {
     const relay = await startLocalRelay();
     try {

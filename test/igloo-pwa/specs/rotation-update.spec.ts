@@ -22,7 +22,7 @@ function shortId(value: string) {
   return value.slice(0, 8);
 }
 
-test.describe('igloo-pwa rotate key', () => {
+test.describe('igloo-pwa rotate key @live', () => {
   test('replaces the active device with a rotated bfonboard package', async ({ browser, page }) => {
     test.slow();
     const relay = await startLocalRelay();

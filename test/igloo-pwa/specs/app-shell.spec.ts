@@ -119,15 +119,16 @@ test.describe('igloo-pwa ui-first shell', () => {
     }, [STORAGE_KEY]);
 
     await page.goto('/');
-    await expect(page.getByRole('tab', { name: /Settings\s+operator controls/i })).toBeVisible();
+    const dashboard = pages(page).dashboard;
+    await dashboard.expectDashboard();
+    await dashboard.openTab('settings');
     await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Browser Settings', exact: true })).toBeVisible();
 
-    const toggle = page.getByLabel(/Open signer after import/i);
-    await toggle.uncheck();
+    await dashboard.autoOpenToggle.uncheck();
     await page.reload();
-    await expect(page.getByRole('tab', { name: /Settings\s+operator controls/i })).toBeVisible();
-    await expect(toggle).not.toBeChecked();
+    await dashboard.expectDashboard();
+    await expect(dashboard.autoOpenToggle).not.toBeChecked();
   });
 
   test('settings expose the unified actions and logout returns to landing while preserving saved profiles', async ({ page }) => {
@@ -208,19 +209,16 @@ test.describe('igloo-pwa ui-first shell', () => {
     }, [STORAGE_KEY]);
 
     await page.goto('/');
-    await expect(page.getByText('Device Dashboard')).toBeVisible();
+    const p = pages(page);
+    await p.dashboard.expectDashboard();
     await expect(page.getByText('Choose one path to initialize this browser workspace.')).toHaveCount(0);
 
-    await page.getByRole('tab', { name: /Settings\s+operator controls/i }).click();
-    await expect(page.getByRole('button', { name: 'copy profile' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'copy share' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'rotate share' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'logout' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /reset browser workspace/i })).toHaveCount(0);
-    await page.getByRole('button', { name: 'logout' }).click();
+    await p.dashboard.openTab('settings');
+    await p.dashboard.expectSettingsActions();
+    await expect(page.getByText(/reset browser workspace/i)).toHaveCount(0);
+    await p.dashboard.logout();
     await expect(page.getByText('Welcome back.')).toBeVisible();
-    const profileRow = page.locator('.igloo-welcome-profile-row').filter({ hasText: 'Primary Browser Device' }).first();
-    await expect(profileRow).toBeVisible();
-    await expect(profileRow.getByRole('button', { name: 'Unlock' })).toBeVisible();
+    await p.welcome.expectReturning();
+    await expect(p.welcome.row('profile-1').getByText('Primary Browser Device')).toBeVisible();
   });
 });

@@ -8,6 +8,12 @@ export function frostrPlaywrightOutputDir(name: string) {
   return path.join(TEST_ROOT_DIR, 'test-results', name);
 }
 
+// Centralized timeouts for slow/live specs (two-device relay handshakes, desktop
+// app startup). Live specs opt in with `test.setTimeout(LIVE_TEST_TIMEOUT_MS)`
+// rather than scattering magic numbers / `test.slow()`.
+export const LIVE_TEST_TIMEOUT_MS = 240_000;
+export const LIVE_EXPECT_TIMEOUT_MS = 20_000;
+
 export function defineFrostrPlaywrightConfig(config: PlaywrightTestConfig) {
   return defineConfig({
     timeout: 60_000,

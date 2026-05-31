@@ -73,16 +73,17 @@ export async function onboardPwaDevice(
   },
 ) {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Igloo Web' })).toBeVisible();
-  await page.getByRole('button', { name: 'Onboard New Device' }).click();
-  await page.getByPlaceholder('bfonboard1...').fill(input.onboardPackage);
-  await page.getByLabel('Encryption Password').fill(input.packagePassword);
-  await page.getByRole('button', { name: 'Apply Onboarding Package' }).click();
-  await expect(page.getByRole('heading', { name: 'Onboarding Complete' })).toBeVisible();
-  await page.getByLabel('Device Name').fill(input.label);
-  await page.getByLabel('Password', { exact: true }).fill(input.localPassword);
-  await page.getByLabel('Confirm Password').fill(input.localPassword);
-  await page.getByRole('button', { name: 'Save & Launch Signer' }).click();
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.welcomeEntryOnboard).click();
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.onboardPackageInput).fill(input.onboardPackage);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.onboardPasswordInput).fill(input.packagePassword);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.onboardConnectSubmit).click();
+  // The onboard handshake negotiates with the inviter over the relay, which can
+  // take well over the default expect timeout.
+  await expect(page.getByText('Onboarding Complete')).toBeVisible({ timeout: 60_000 });
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.onboardSaveName).fill(input.label);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.onboardSavePassword).fill(input.localPassword);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.onboardSaveConfirm).fill(input.localPassword);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.onboardSaveSubmit).click();
 }
 
 export async function prepareDistributionPackage(card: Locator, password: string, label?: string) {
@@ -131,17 +132,20 @@ export async function confirmPwaRotationPackage(page: Page) {
 }
 
 export async function expectPwaDashboard(page: Page, profileLabel?: string) {
-  await expect(page.getByText('Device Dashboard')).toBeVisible();
-  await expect(page.getByRole('tab', { name: /Signer\s+runtime console/i })).toBeVisible();
-  await expect(page.getByRole('tab', { name: /Permissions\s+peer policies/i })).toBeVisible();
-  await expect(page.getByRole('tab', { name: /Settings\s+operator controls/i })).toBeVisible();
+  await expect(page.getByTestId(CRITICAL_E2E_TEST_IDS.dashboardRoot)).toBeVisible();
+  await expect(page.getByTestId(CRITICAL_E2E_TEST_IDS.dashboardTabSigner)).toBeVisible();
+  await expect(page.getByTestId(CRITICAL_E2E_TEST_IDS.dashboardTabPermissions)).toBeVisible();
+  await expect(page.getByTestId(CRITICAL_E2E_TEST_IDS.dashboardTabSettings)).toBeVisible();
   if (profileLabel) {
-    await expect(page.getByRole('heading', { name: new RegExp(profileLabel) })).toBeVisible();
+    await expect(page.getByTestId(CRITICAL_E2E_TEST_IDS.dashboardRoot)).toContainText(profileLabel);
   }
 }
 
 export async function openFreshPwaPage(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {
-  const context = await browser.newContext();
+  // Explicit empty storage state: a second device must start from a clean
+  // entry-hero (no profiles), independent of any state seeded into the primary
+  // context or any future global storageState default.
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
   return { context, page };
 }

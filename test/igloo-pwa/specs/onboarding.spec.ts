@@ -15,7 +15,7 @@ import {
   seedPwaState,
 } from '../support/ui';
 
-test.describe('igloo-pwa bfonboard onboarding', () => {
+test.describe('igloo-pwa bfonboard onboarding @live', () => {
   test('onboards a second browser device from a live inviter over a local relay', async ({ browser, page }) => {
     const relay = await startLocalRelay();
     let secondaryContext;

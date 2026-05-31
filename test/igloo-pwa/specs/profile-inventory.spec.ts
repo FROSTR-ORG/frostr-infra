@@ -5,7 +5,7 @@ import { startLocalRelay } from '../../shared/local-relay';
 import { buildPwaPersistedState } from '../support/state';
 import { expectPwaDashboard, loadStoredPwaProfile, seedPwaState } from '../support/ui';
 
-test.describe('igloo-pwa stored profiles', () => {
+test.describe('igloo-pwa stored profiles @live', () => {
   test('lists stored profiles on the landing page and loads the selected profile', async ({ page }) => {
     const relay = await startLocalRelay();
     try {
