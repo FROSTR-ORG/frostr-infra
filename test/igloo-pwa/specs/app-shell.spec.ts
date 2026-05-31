@@ -1,59 +1,44 @@
 import { expect, test } from '@playwright/test';
 
-import {
-  completeDistributionCard,
-  markDistributionCardDistributed,
-  prepareDistributionPackage,
-} from '../support/ui';
+import { gotoCreateDistribute } from '../support/flows';
+import { pages } from '../support/pages';
 
 const STORAGE_KEY = 'igloo-pwa.state.v1';
 
 test.describe('igloo-pwa ui-first shell', () => {
   test('creates a generated profile, distributes shares, and finishes setup to the locked welcome', async ({ page }) => {
-    await page.goto('/');
+    const p = pages(page);
+    await p.welcome.goto();
+    await p.welcome.expectEntryHero();
 
-    await expect(page.getByText('Split your Nostr key. Sign from anywhere.')).toBeVisible();
-    await page.getByRole('button', { name: 'Generate' }).click();
-    await page.getByLabel('Group Name').fill('Playwright Treasury');
-    await page.getByRole('button', { name: 'Next Step' }).click();
-    await expect(page.getByRole('heading', { name: 'Select Share' })).toBeVisible();
-    await expect(page.getByText('Choose Local Share')).toBeVisible();
-    await page.getByRole('button', { name: 'Next Step' }).click();
-
-    await expect(page.getByRole('heading', { name: 'Save Profile' })).toBeVisible();
-    await page.getByLabel('Device Profile Name').fill('Primary Browser Device');
-    await page.getByLabel('Device Password').fill('playwright-browser-pass');
-    await page.getByLabel('Confirm Password').fill('playwright-browser-pass');
-    await page.getByRole('button', { name: 'Next Step' }).click();
+    await gotoCreateDistribute(page, {
+      groupName: 'Playwright Treasury',
+      profileName: 'Primary Browser Device',
+      password: 'playwright-browser-pass',
+    });
     await expect(page.getByText('Remote Shares')).toBeVisible();
-    await expect(page.getByText('Distribution Completion')).toHaveCount(0);
 
-    // Locate positionally: once packaged, the card no longer renders a password
-    // field, so filtering by it would stop matching after Create Package.
-    const shareCard = page
-      .locator('section.igloo-create-distribution-card')
-      .first();
-    await prepareDistributionPackage(shareCard, 'remote-tablet-pass');
-    await shareCard.getByRole('button', { name: 'QR code' }).click();
+    // First remote share: package → QR → mark delivered.
+    const first = p.distribute.cards().nth(0);
+    await p.distribute.preparePackage(first, 'remote-tablet-pass');
+    await p.distribute.showQr(first);
     await expect(page.getByText('Onboarding Package QR')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByText('Onboarding Package QR')).not.toBeVisible();
-    await markDistributionCardDistributed(shareCard);
+    await p.distribute.markDelivered(first);
 
-    const remainingCard = page
-      .locator('section.igloo-create-distribution-card')
-      .filter({ has: page.getByRole('heading', { name: /Playwright Treasury Device 3/ }) })
-      .first();
-    await completeDistributionCard(remainingCard, 'remote-tablet-pass');
+    // Second remote share: package + mark delivered.
+    const second = p.distribute.cards().nth(1);
+    await p.distribute.preparePackage(second, 'remote-tablet-pass');
+    await p.distribute.markDelivered(second);
 
     // Finish Setup persists the profile, stops the runtime, purges setup secrets,
     // and returns to the locked returning Welcome (all shares delivered, so no
     // undelivered-shares confirmation fires).
-    await page.getByRole('button', { name: 'Finish Setup' }).click();
-    await expect(page.getByText('Primary Browser Device')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Unlock' })).toBeVisible();
+    await p.distribute.finish();
+    await p.welcome.expectReturning();
+    await expect(p.welcome.row().getByText('Primary Browser Device')).toBeVisible();
     await expect(page.getByText('Device Dashboard')).toHaveCount(0);
-    await expect(page.getByRole('tab', { name: /Signer\s+runtime console/i })).toHaveCount(0);
   });
 
   test('persists settings across reloads', async ({ page }) => {
