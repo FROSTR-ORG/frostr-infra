@@ -1,5 +1,43 @@
 # Follow-ups
 
+## 2026-05-30 — after the test-system hard-cut refactor
+
+### Loose ends
+- [ ] Convert the igloo-chrome e2e specs to the page-object model (effort: M) — the
+  tightened `check-e2e-selector-contracts.sh` scopes the role/label/placeholder/class bans
+  to `test/igloo-pwa/specs` because chrome specs (`dashboard.spec.ts`, `provider.spec.ts`,
+  `rotation-update.spec.ts`, …) still use raw interaction locators. Build
+  `test/igloo-chrome/support/pages/*` reusing the shared registry keys, then broaden the
+  guard to chrome. (igloo-chrome **unit** tests are already fixed and green.)
+- [ ] Decide whether the `@live` two-device specs should run in CI and confirm the live
+  onboard handshake there (effort: M) — see "Issues discovered" below.
+
+### Issues discovered, not fixed
+- [ ] The live two-device onboard handshake does not complete in the local sandbox
+  (effort: L) — `onboarding.spec.ts` / `rotation-create.spec.ts` drive the full flow
+  (inviter on dashboard + recipient pasting a bfonboard package over a local relay), but the
+  recipient's "Onboarding Complete" never arrives within 60s against the sandbox relay. The
+  specs are now fully page-object-driven and tagged `@live` (excluded from the deterministic
+  fast lane); they need a real relay / CI to verify whether this is a sandbox-relay limitation
+  or a genuine runtime regression. **This means the full onboarding handshake is currently
+  exercised by spec code but not verified green anywhere local — confirm in CI.**
+- [ ] The jsdom-28 `--localstorage-file` Node warning is benign but noisy across unit runs
+  (effort: S) — it fires before the setup shim installs; suppress via a vitest pool/Node-option
+  tweak if the noise matters.
+- [ ] `playwright test --grep @demo --list` for igloo-chrome errors with
+  "Cannot find package 'igloo-shared'" (effort: S) — pre-existing chrome-e2e Node resolution
+  gap surfaced while wiring `@demo` discovery; the demo lane runs under docker/CI where it's
+  set up, but `--list` outside that context fails. Add the igloo-shared resolution (alias/paths)
+  to the chrome config or document the CI-only constraint.
+
+### Adjacent improvements
+- [ ] Give the QR-package modal and the onboard "Apply"/connect surfaces explicit copy that
+  matches a test-id (effort: S) — the onboard-connect submit is labeled "Next Step" while the
+  helper history assumed "Apply Onboarding Package"; the test-id (`onboard-connect-submit`)
+  now decouples it, but the label drift is worth reconciling with Paper.
+- [ ] Remove the now-stale pre-existing `test/scripts/test-run-sh.sh` WIP from the working tree
+  or land it (effort: S) — it is the only remaining dirty parent file and predates this work.
+
 ## 2026-05-30 — after WS4 Paper sync, WS5 verify, and e2e spec alignment
 
 ### Loose ends

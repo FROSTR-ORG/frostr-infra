@@ -105,11 +105,16 @@ export async function completeDistributionCard(card: Locator, password: string, 
 
 export async function loadStoredPwaProfile(page: Page, label: string) {
   await page.goto('/');
-  const profileRow = page.locator('.igloo-welcome-profile-row').filter({ hasText: label }).first();
+  const profileRow = page
+    .getByTestId(CRITICAL_E2E_TEST_IDS.welcomeProfileRow)
+    .filter({ hasText: label })
+    .first();
   await expect(profileRow).toBeVisible();
-  await profileRow.getByRole('button', { name: 'Unlock' }).click();
-  await page.getByLabel('Profile Password').fill(DEFAULT_BROWSER_PASSWORD);
-  await page.getByRole('button', { name: 'Unlock' }).click();
+  // Use test-ids: the row "Unlock" trigger and the modal "Unlock" submit share the
+  // same accessible name, so role-by-name is ambiguous once the modal opens.
+  await profileRow.getByTestId(CRITICAL_E2E_TEST_IDS.welcomeProfileUnlock).click();
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.welcomeUnlockPassword).fill(DEFAULT_BROWSER_PASSWORD);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.welcomeUnlockSubmit).click();
 }
 
 export async function openPwaRotateShare(page: Page) {

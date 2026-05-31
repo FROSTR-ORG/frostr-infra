@@ -6,6 +6,7 @@ import {
   createPwaStoredProfileSeed,
 } from '../../shared/browser-artifacts';
 import { startLocalRelay } from '../../shared/local-relay';
+import { LIVE_TEST_TIMEOUT_MS } from '../../shared/playwright-config';
 import { buildPwaPersistedState } from '../support/state';
 import {
   expectPwaDashboard,
@@ -17,6 +18,7 @@ import {
 
 test.describe('igloo-pwa bfonboard onboarding @live', () => {
   test('onboards a second browser device from a live inviter over a local relay', async ({ browser, page }) => {
+    test.setTimeout(LIVE_TEST_TIMEOUT_MS);
     const relay = await startLocalRelay();
     let secondaryContext;
     try {
