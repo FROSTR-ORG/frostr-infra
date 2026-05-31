@@ -1,10 +1,28 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-import { IGLOO_HOME_DIR, REPO_ROOT_DIR } from './repo-paths';
+import { IGLOO_HOME_DIR, REPO_ROOT_DIR, TEST_ROOT_DIR } from './repo-paths';
 import { setDefaultTestBrowserWasmDir } from './browser-wasm-paths';
 
 const PREPARED_TARGETS_ENV = 'FROSTR_TEST_PREPARED_TARGETS';
+
+interface TestTargetsManifest {
+  clients: Record<string, { paths: string[]; prebuild: string[] }>;
+}
+
+// Single source of truth shared with scripts/test-affected.sh — the per-client
+// prebuild target set. Used by the per-client global-setup.ts files so they can
+// never drift from the affected-lane wiring.
+export function targetsForClient(client: string): string[] {
+  const manifestPath = path.join(TEST_ROOT_DIR, 'shared', 'test-targets.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as TestTargetsManifest;
+  const entry = manifest.clients[client];
+  if (!entry) {
+    throw new Error(`No test-targets manifest entry for client "${client}"`);
+  }
+  return entry.prebuild;
+}
 
 function normalizedTargets(targets: string[]) {
   return Array.from(new Set(targets)).sort();

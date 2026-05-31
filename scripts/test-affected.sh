@@ -3,6 +3,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib-test-targets.sh
+source "${ROOT_DIR}/scripts/lib-test-targets.sh"
 BASE_REF="${FROSTR_AFFECTED_BASE:-origin/master}"
 HOME_BINARY="${ROOT_DIR}/repos/igloo-home/src-tauri/target/debug/igloo-home"
 DRY_RUN="${FROSTR_AFFECTED_DRY_RUN:-0}"
@@ -77,15 +79,17 @@ if [[ "${#changed_files[@]}" -gt 0 ]]; then
   done
 fi
 
+# Prebuild target sets come from the shared manifest (test/shared/test-targets.json)
+# so they never drift from the per-client global-setup.ts wiring.
 prebuild_targets=()
 if [[ "${run_pwa}" -eq 1 ]]; then
-  prebuild_targets+=(pwa)
+  prebuild_targets+=($(test_targets_for_client pwa))
 fi
 if [[ "${run_chrome}" -eq 1 ]]; then
-  prebuild_targets+=(chrome demo)
+  prebuild_targets+=($(test_targets_for_client chrome))
 fi
 if [[ "${run_home}" -eq 1 ]]; then
-  prebuild_targets+=(home demo)
+  prebuild_targets+=($(test_targets_for_client home))
 fi
 
 deduped_targets=()
