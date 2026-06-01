@@ -98,38 +98,52 @@ ripple into related screens / the implementation):
 
 ## Other screens — to shape before implementation [TO SHAPE]
 
-Captured from the Paper export; no design decisions made yet. Each needs input the
-same way the dashboard did:
+All shaped over the 2026-06-01 grilling rounds. Decisions:
 
-- **Settings page** (`3-settings-lock-profile`): **[DECIDED] separate full page**
-  (Device Profile / Group Profile / Replace Share / Export & Backup / Lock
-  Profile). The numeric signer settings (Sign Timeout, Ping Timeout, Request TTL,
-  State Save Interval, Peer Selection Strategy) are **kept under a collapsible
-  "Advanced" section** so the default view matches Paper's simplicity without
-  losing operator tuning. **To shape:** exact section order/copy on the page;
-  Advanced collapsed-by-default; whether Replace Share lives here or stays in the
-  rotate flow.
-- **Export Profile / Export Share** (`4-export-profile`, `4c-export-share` + their
-  `-complete` states): **[DECIDED] adopt Paper's password modal.** Choose export →
-  set export password + confirm → produce an encrypted package → "complete" state.
-  Replaces the current one-click `copyProfilePackage` clipboard buttons. **To
-  shape:** reuse the existing password-encrypt path in
-  `repos/igloo-pwa/src/lib/local-adapter/profile-packages.ts`; what the "complete"
-  state offers (copy / save-to-file / QR); whether a quick unencrypted copy
-  survives anywhere.
-- **Permissions page** (`1c-policies`, renamed): align the renamed page; current
-  `OperatorPermissionsPanel` already renders site + peer policies. **To shape:**
-  copy/structure deltas vs Paper.
-- **Recover entry**: **[RESOLVED]** Recover is *not* a dashboard feature. It is
-  launched from the **Welcome returning-profile card action menu**
-  (`WelcomeReturningHero` `onRecover` → `store.startRecoverKey`, test-id
-  `welcomeProfileMenuRecover`, `App.tsx:680`), reachable while logged out. It
-  stays there; nothing dashboard-side to add. Recover screens are already aligned
-  + in the visual manifest.
+- **Settings page** (`3-settings-lock-profile`): **separate full page** (Device
+  Profile / Group Profile / Replace Share / Export & Backup / Logout). Numeric
+  signer settings (Sign Timeout, Ping Timeout, Request TTL, State Save Interval,
+  Peer Selection Strategy) live under a collapsible **"Advanced"** section
+  (collapsed by default) so the default view matches Paper's simplicity.
+- **Replace Share === the existing rotate-key flow** (investigated 2026-06-01,
+  confirmed). Paper's "Replace Share" ("import a bfonboard package to replace only
+  this device's local share while keeping the same group public key and profile")
+  is *behaviorally identical* to the PWA rotate flow (`store.connectRotationPackage`
+  → "Replacement Preview" → `finalizeRotationUpdate`, "Same keyset, fresh device
+  share"). Not a missing feature — **terminology drift**. **[DECIDED] standardize
+  the user-facing term to "Replace Share"** everywhere (Paper + igloo-ui): the
+  Settings section, the flow title (currently "Rotate Key"), and the button
+  (currently "Replace Active Device") all become "Replace Share". Keep "rotate" only
+  in internal store/protocol names (`startRotateKey`, `connectRotationPackage`,
+  `finalizeRotationUpdate`, the `rotate-*` activeViews) to avoid a churny rename.
+  The Settings "Replace Share" section launches that existing flow.
+- **Logout (not Lock)** [DECIDED]. Paper's "Lock Profile" and the PWA's "logout"
+  are the same return-to-Welcome action (`store.logout()`). Standardize on
+  **"Logout"** (more familiar) across igloo-ui **and** the Paper design — a small
+  Paper edit changes the Settings artboard "Lock Profile" → "Logout".
+- **Export Profile / Export Share** (`4-export-profile`, `4c-export-share` +
+  `-complete`): **adopt Paper's password modal** (export → password + confirm →
+  encrypted package → "complete" state with copy / save-to-file / QR). Replaces the
+  current one-click `copyProfilePackage` clipboard buttons. Reuse the existing
+  password-encrypt path in
+  `repos/igloo-pwa/src/lib/local-adapter/profile-packages.ts`.
+- **Settings modals** [DECIDED]: build the **Unsaved Changes** dirty-state guard
+  modal (`3c`) — adds dirty tracking on the Settings form + a confirm-on-leave
+  guard. **Defer Clear Credentials** (`3b`) — it introduces a new destructive
+  "clear credentials" concept the store doesn't have; track as a follow-up.
+- **Permissions page** (`1c-permissions`): align the renamed page; current
+  `OperatorPermissionsPanel` already renders site + peer policies. Apply
+  "Signer Permissions" / "Peer Permissions" titles (already in Paper). Copy/
+  structure deltas vs Paper to confirm during implementation.
+- **Recover entry**: **[RESOLVED]** Recover is *not* a dashboard feature. Launched
+  from the **Welcome returning-profile card action menu** (`WelcomeReturningHero`
+  `onRecover` → `store.startRecoverKey`, test-id `welcomeProfileMenuRecover`,
+  `App.tsx:680`), reachable while logged out. Nothing dashboard-side to add.
 - **Error / empty / modal states** (`1b-loading-profile`, `1b-profile-load-failed`,
-  `2-stopped`, `2b-all-relays-offline`, `2c-signing-blocked`, `6-signing-failed`,
-  `3b-clear-credentials-modal`, `3c-unsaved-changes-modal`): **to shape** — which
-  to align now vs. defer; several depend on runtime states the PWA may not surface.
+  `2b-all-relays-offline`, `2c-signing-blocked`, `6-signing-failed`): **deferred** —
+  align after the core Dashboard/Permissions/Settings pages; several depend on
+  runtime states the PWA may not surface yet. (`2-stopped` is already aligned in
+  Paper as part of Phase A.)
 
 ## Implementation decisions [DECIDED]
 
@@ -259,12 +273,44 @@ igloo-paper", `repos/igloo-paper/docs/mcp-edit-workflow.md`):
   test:typecheck`.
 - igloo-ui `npm test`; igloo-pwa `npm test`; `make test-fast` stays green.
 
-## Open questions for the next shaping round
+## Status
 
-1. **[CONFLICT]** Pending Approvals / signing-prompt: defer-with-stub (recommended)
-   vs build runtime support?
-2. Settings as a separate page vs. keep the current tab?
-3. Export as password-protected modals vs. keep inline copy-to-clipboard?
-4. Which error/empty/modal states to align now vs. defer?
-5. Recover launch point now that it is out of the top nav.
-6. Fate of the numeric signer settings (timeouts/TTL/peer-selection) Paper omits.
+- **Phase A — dashboard slice: DONE & committed.** Edited artboards `4HK-0`,
+  `4WB-0` (→ `1c. Permissions`), `7LC-0`; synced + strict-verified (0 token drift).
+  igloo-paper `4fedc72`, parent `207b494`.
+- **All six original open questions: resolved** (approvals defer-with-stub;
+  Settings = separate page; export = password modals; error states deferred;
+  Recover = Welcome-side; numeric settings → Advanced section).
+
+## Remaining Paper edits (before / alongside Phase B)
+
+Small Paper-source edits still needed on the Settings/export artboards when we
+align them, then a re-sync:
+
+- **`502-0` Settings**: "Lock Profile" → **"Logout"**; "Replace Share" copy
+  stays (it's now the canonical term — the *code* renames toward it, not Paper).
+- Confirm the export modal artboards (`6CH-0`/`70P-0` + `-complete`) match the
+  adopted password-modal flow; no rename expected.
+
+## Nav realization [DECIDED 2026-06-01]
+
+Render Dashboard · Permissions · Settings as **header nav links in the AppHeader**
+(pill+color active), still driven by `store.activeDashboardTab` — not new
+`activeView` values. Preserves all existing `App.test` setups (9 rely on
+`activeDashboardTab`), matches Paper visually, low risk. The in-card
+`OperatorDashboardTabs` tab strip is removed from the dashboard. (The true-router
+refactor remains the deferred future project.)
+
+## Phase B — execution order (DECIDED: Dashboard page first)
+
+1. **Routed shell + Dashboard page only** (extend `activeView`; header nav with
+   pill+color active state; merged identity/runtime card with `npub`/`hex` split
+   copy; reordered Peers → Pending-Approvals-stub → Event Log) + its
+   `dashboard-visual.spec.ts` + deterministic key fixture. Verify green before
+   moving on.
+2. Permissions page (rename + `OperatorPermissionsPanel` align).
+3. Settings page (sections + Advanced collapsible + Replace Share section + Logout
+   + Unsaved-Changes guard modal).
+4. Export Profile / Share password modals (+ complete states).
+5. Deferred follow-ups: error/empty states batch, Clear Credentials modal,
+   interactive signing-approval runtime feature, router refactor.

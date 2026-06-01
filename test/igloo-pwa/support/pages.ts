@@ -254,6 +254,23 @@ export class DashboardPage extends BasePage {
   async logout(): Promise<void> {
     await this.tid(TID.settingsLogout).click();
   }
+  // Merged identity/runtime card (Phase B dashboard redesign).
+  async expectNavLinks(): Promise<void> {
+    await expect(this.tid(TID.dashboardTabSigner)).toBeVisible();
+    await expect(this.tid(TID.dashboardTabPermissions)).toBeVisible();
+    await expect(this.tid(TID.dashboardTabSettings)).toBeVisible();
+  }
+  async expectKeyDisplays(groupDisplay: string, shareDisplay: string): Promise<void> {
+    await expect(this.page.getByText(groupDisplay)).toBeVisible();
+    await expect(this.page.getByText(shareDisplay)).toBeVisible();
+  }
+  async expectKeyCopyControls(): Promise<void> {
+    await expect(this.tid(TID.dashboardGroupKeyCopy)).toBeVisible();
+    await expect(this.tid(TID.dashboardShareKeyCopy)).toBeVisible();
+  }
+  async expectPendingApprovalsEmpty(): Promise<void> {
+    await expect(this.tid(TID.dashboardPendingApprovals)).toContainText('No pending approvals');
+  }
 }
 
 export interface PwaPages {
