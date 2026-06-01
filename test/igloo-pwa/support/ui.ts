@@ -22,9 +22,9 @@ export async function seedPwaState(page: Page, state: unknown) {
   );
 }
 
-export async function openPwaLoadProfile(page: Page) {
+export async function openPwaImportProfile(page: Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Load Profile' }).first().click();
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.welcomeEntryImport).click();
 }
 
 export async function getPwaStoredProfilesCard(page: Page) {
@@ -53,13 +53,19 @@ export async function loadSelectedPwaStoredProfile(page: Page) {
 }
 
 export async function importPwaProfile(page: Page, profileText: string, password: string) {
-  await openPwaLoadProfile(page);
-  await page.getByRole('button', { name: 'Import Profile' }).click();
-  await page.getByPlaceholder('Paste bfprofile1...').fill(profileText);
-  await page.getByLabel('Decryption Password').fill(password);
-  await page.getByRole('button', { name: 'Inspect Profile' }).click();
-  await expect(page.getByText('Review Loaded Profile')).toBeVisible();
-  await page.getByRole('button', { name: 'Accept and Load Device' }).click();
+  // Welcome -> Import Device (connect) -> Review Device -> Save Profile -> dashboard.
+  // The save screen derives the device name from the package (lockIdentity), so we
+  // only set a local profile password — reuse the package password for the test.
+  await openPwaImportProfile(page);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.importProfileInput).fill(profileText);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.importPasswordInput).fill(password);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.importNext).click();
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.importAccept).click();
+  const saveName = page.getByTestId(CRITICAL_E2E_TEST_IDS.saveProfileName);
+  await expect(saveName).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.saveProfilePassword).fill(password);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.saveProfileConfirm).fill(password);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.saveProfileNext).click();
 }
 
 
