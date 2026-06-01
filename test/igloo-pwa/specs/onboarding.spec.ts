@@ -63,11 +63,11 @@ test.describe('igloo-pwa bfonboard onboarding @live', () => {
       await onboardPwaDevice(secondary.page, {
         onboardPackage,
         packagePassword: 'onboard-package-pass',
-        // The PWA locks the onboarded device's name to the package-derived value.
-        label: 'Onboarded Device',
+        // The recipient names their own device during onboarding.
+        label: 'Onboarded Browser Device',
         localPassword: 'playwright-passphrase',
       });
-      await expectPwaDashboard(secondary.page, 'Onboarded Device');
+      await expectPwaDashboard(secondary.page, 'Onboarded Browser Device');
 
       // Prove the handshake genuinely happened over the wire: the recipient published
       // an onboard request, and the inviter published a response back to it.

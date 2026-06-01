@@ -90,11 +90,9 @@ export async function onboardPwaDevice(
       'Onboarding failed: the recipient reached the "Onboarding Failed" panel (handshake did not complete).',
     );
   }
-  // The onboard-save screen locks the device identity: the name is derived from the
-  // onboarding connection and rendered read-only (lockIdentity), so it cannot be
-  // filled here. We assert it matches the caller's expectation, then set only the
-  // local profile password.
-  await expect(saveName).toHaveValue(input.label);
+  // The onboard-save screen pre-fills a default device name but lets the recipient
+  // name their own device (relays stay locked). Set the requested name explicitly.
+  await saveName.fill(input.label);
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.saveProfilePassword).fill(input.localPassword);
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.saveProfileConfirm).fill(input.localPassword);
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.saveProfileNext).click();
