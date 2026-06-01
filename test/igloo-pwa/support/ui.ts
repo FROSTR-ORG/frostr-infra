@@ -135,7 +135,7 @@ export async function loadStoredPwaProfile(page: Page, label: string) {
 }
 
 export async function openPwaRotateShare(page: Page) {
-  await page.getByRole('tab', { name: /Settings\s+operator controls/i }).click();
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.dashboardTabSettings).click();
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.maintenanceRotateShare).click();
 }
 
@@ -144,8 +144,8 @@ export async function connectPwaRotationPackage(
   input: { packageText: string; packagePassword: string },
 ) {
   await openPwaRotateShare(page);
-  await page.getByPlaceholder('Paste bfonboard1...').fill(input.packageText);
-  await page.getByLabel('Package Password').fill(input.packagePassword);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.rotationPackageInput).fill(input.packageText);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.rotationPasswordInput).fill(input.packagePassword);
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.rotationConnectSubmit).click();
 }
 
