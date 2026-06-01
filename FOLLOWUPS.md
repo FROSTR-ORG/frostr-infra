@@ -18,11 +18,13 @@
   was rebuilt as `openPwaImportProfile` on the welcome/import test-ids
   (`welcomeEntryImport`, `importProfileInput`, `importPasswordInput`, `importNext`, then
   `saveProfile*`). profile-import is green.
-- [ ] `rotation-update.spec.ts` (`@live`) still drives a **stale dashboard rotate-key flow**
-  (effort: S–M) — `connectPwaRotationPackage`/`confirmPwaRotationPackage` and the spec's
-  `getByText('Replacement Preview')` no longer match the current rotate-connect → rotate-save
-  screens. Tracked separately; needs the dashboard rotate trigger + rotate-connect/save wired
-  to test-ids and the spec rewritten. (It does get past import now.)
+- [x] ~~`rotation-update.spec.ts` (`@live`) drives a stale dashboard rotate-key flow~~ —
+  RESOLVED: the rotate-connect/confirm flow was actually current (the spec only failed on the
+  now-fixed import helper). Hardened its remaining copy-coupled selectors anyway —
+  `connectPwaRotationPackage` uses new `rotationPackageInput`/`rotationPasswordInput` ids and
+  `openPwaRotateShare` opens Settings via `dashboardTabSettings`. The full igloo-pwa `@live`
+  lane is green (5/5: onboarding, profile-import, profile-inventory, rotation-create,
+  rotation-update).
 
 ### Resolved — recipients can name their device on onboard
 - [x] ~~Onboarded devices are auto-named "Onboarded Device" with a read-only name field~~ —
