@@ -77,13 +77,27 @@ export async function onboardPwaDevice(
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.onboardPackageInput).fill(input.onboardPackage);
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.onboardPasswordInput).fill(input.packagePassword);
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.onboardConnectSubmit).click();
-  // The onboard handshake negotiates with the inviter over the relay, which can
-  // take well over the default expect timeout.
-  await expect(page.getByText('Onboarding Complete')).toBeVisible({ timeout: 60_000 });
-  await page.getByTestId(CRITICAL_E2E_TEST_IDS.onboardSaveName).fill(input.label);
-  await page.getByTestId(CRITICAL_E2E_TEST_IDS.onboardSavePassword).fill(input.localPassword);
-  await page.getByTestId(CRITICAL_E2E_TEST_IDS.onboardSaveConfirm).fill(input.localPassword);
-  await page.getByTestId(CRITICAL_E2E_TEST_IDS.onboardSaveSubmit).click();
+  // The onboard handshake negotiates nonces with the inviter over the relay (a few
+  // ms locally, but allow ample margin for CI), then the PWA advances to the
+  // "Save Profile" screen — which renders CreateFlowProfileSetup, so the form carries
+  // the saveProfile* ids, not onboardSave*. A failed handshake instead shows the
+  // "Onboarding Failed" panel; surface that fast rather than waiting out the timeout.
+  const saveName = page.getByTestId(CRITICAL_E2E_TEST_IDS.saveProfileName);
+  const onboardFailed = page.getByText('Onboarding Failed');
+  await expect(saveName.or(onboardFailed)).toBeVisible({ timeout: 30_000 });
+  if (await onboardFailed.isVisible()) {
+    throw new Error(
+      'Onboarding failed: the recipient reached the "Onboarding Failed" panel (handshake did not complete).',
+    );
+  }
+  // The onboard-save screen locks the device identity: the name is derived from the
+  // onboarding connection and rendered read-only (lockIdentity), so it cannot be
+  // filled here. We assert it matches the caller's expectation, then set only the
+  // local profile password.
+  await expect(saveName).toHaveValue(input.label);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.saveProfilePassword).fill(input.localPassword);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.saveProfileConfirm).fill(input.localPassword);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.saveProfileNext).click();
 }
 
 export async function prepareDistributionPackage(card: Locator, password: string, label?: string) {
@@ -144,6 +158,13 @@ export async function expectPwaDashboard(page: Page, profileLabel?: string) {
   if (profileLabel) {
     await expect(page.getByTestId(CRITICAL_E2E_TEST_IDS.dashboardRoot)).toContainText(profileLabel);
   }
+}
+
+export async function expectPwaRuntimeConnected(page: Page) {
+  // The dashboard reports the live browser signer runtime once it has connected to
+  // its relays; gate cross-device flows on this so a peer can't race an unsubscribed
+  // inviter. (Deliberate copy assertion — the runtime-status line has no test-id.)
+  await expect(page.getByText('Browser runtime connected')).toBeVisible({ timeout: 30_000 });
 }
 
 export async function openFreshPwaPage(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {

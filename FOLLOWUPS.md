@@ -1,5 +1,37 @@
 # Follow-ups
 
+## 2026-05-31 — after fixing the two-device onboard handshake test
+
+### Resolved
+- [x] The live two-device onboard handshake **does** complete locally (~14ms relay
+  round-trip). The earlier "handshake never completes" was a false alarm: the test
+  helper `onboardPwaDevice` waited for "Onboarding Complete" text and `onboardSave*`
+  test-ids that the PWA never renders. The PWA's onboard-save screen is
+  `CreateFlowProfileSetup` (title "Save Profile", `saveProfile*` ids), with a
+  read-only, package-derived device name. Helper fixed; `onboarding.spec.ts` now
+  drives a complete onboard and asserts the request/response crossed the relay;
+  `rotation-create.spec.ts` (same helper) also green. The duplicate
+  `onboarding-live.spec.ts` was removed.
+
+### Discovered while verifying the `@live` lane (pre-existing, separate from the onboard fix)
+- [ ] `profile-import.spec.ts` and `rotation-update.spec.ts` (`@live`) fail because the
+  import helpers are stale (effort: S) — `openPwaLoadProfile`/`importPwaProfile` in
+  `support/ui.ts` click `"Load Profile"` / `"Import Profile"`, but the redesigned Paper
+  welcome renamed the entry to **"Import Existing Device"**, so both specs time out on the
+  welcome screen. Same stale-UI-assertion class as the onboard helper just fixed, but in the
+  import flow (untouched by the onboard work). Fix: rebuild `openPwaLoadProfile`/`importPwaProfile`
+  on the welcome/import test-ids (`welcomeEntryImport`, `importProfileInput`, `importPasswordInput`,
+  `importNext`, `importAccept`) the same way `onboardPwaDevice` now uses `saveProfile*`.
+
+### Open question (product, not a bug)
+- [ ] Onboarded devices are auto-named "Onboarded Device" and the name field is
+  rendered **read-only** on the onboard-save screen (igloo-ui `CreateFlowProfileSetup`
+  with `lockIdentity`, fed a hardcoded label from `igloo-pwa`
+  `local-adapter/profile-packages.ts connectOnboardingPackage`). So every onboarded
+  device — including a rotated remote device — shows the same name with no way to
+  rename during onboarding (effort: S–M). Decide whether this is intended; if not,
+  let the recipient name their device (and the tests can then assert a custom name).
+
 ## 2026-05-30 — after the test-system hard-cut refactor
 
 ### Loose ends
@@ -9,18 +41,15 @@
   `rotation-update.spec.ts`, …) still use raw interaction locators. Build
   `test/igloo-chrome/support/pages/*` reusing the shared registry keys, then broaden the
   guard to chrome. (igloo-chrome **unit** tests are already fixed and green.)
-- [ ] Decide whether the `@live` two-device specs should run in CI and confirm the live
-  onboard handshake there (effort: M) — see "Issues discovered" below.
+- [x] ~~Decide whether the `@live` two-device specs should run in CI and confirm the live
+  onboard handshake there~~ — RESOLVED (see 2026-05-31 above): the handshake completes
+  locally; both `@live` two-device specs are green and run in `make test-live` + CI's live lane.
 
 ### Issues discovered, not fixed
-- [ ] The live two-device onboard handshake does not complete in the local sandbox
-  (effort: L) — `onboarding.spec.ts` / `rotation-create.spec.ts` drive the full flow
-  (inviter on dashboard + recipient pasting a bfonboard package over a local relay), but the
-  recipient's "Onboarding Complete" never arrives within 60s against the sandbox relay. The
-  specs are now fully page-object-driven and tagged `@live` (excluded from the deterministic
-  fast lane); they need a real relay / CI to verify whether this is a sandbox-relay limitation
-  or a genuine runtime regression. **This means the full onboarding handshake is currently
-  exercised by spec code but not verified green anywhere local — confirm in CI.**
+- [x] ~~The live two-device onboard handshake does not complete in the local sandbox~~ —
+  RESOLVED (see 2026-05-31 above): it was a stale test-helper assertion, not a runtime/relay
+  problem. The handshake completes in ~14ms; both specs now pass locally and assert the
+  request/response crossed the relay.
 - [ ] The jsdom-28 `--localstorage-file` Node warning is benign but noisy across unit runs
   (effort: S) — it fires before the setup shim installs; suppress via a vitest pool/Node-option
   tweak if the noise matters.

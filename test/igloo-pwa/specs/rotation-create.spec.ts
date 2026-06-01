@@ -82,10 +82,11 @@ test.describe('igloo-pwa rotation operator flow @live', () => {
       await onboardPwaDevice(secondary.page, {
         onboardPackage,
         packagePassword: 'rotate-remote-pass',
-        label: 'Rotated Remote Device',
+        // The PWA locks the onboarded device's name to the package-derived value.
+        label: 'Onboarded Device',
         localPassword: 'playwright-passphrase',
       });
-      await expectPwaDashboard(secondary.page, 'Rotated Remote Device');
+      await expectPwaDashboard(secondary.page, 'Onboarded Device');
     } finally {
       await secondaryContext?.close().catch(() => undefined);
       await relay.close();
