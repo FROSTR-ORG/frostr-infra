@@ -67,19 +67,16 @@
   and added `@cross-client` to the chrome fast `--grep-invert` (matching the pwa fast lane).
   `make test-fast` no longer needs the uninitialized `igloo-home`/`igloo-shell` submodules or
   the Tauri toolchain. (The cross-client pairing specs still run in the full/CI lane.)
-- [ ] **REAL BUG (pre-existing): chrome profile import fails in the MV3 service worker** —
-  `import() is disallowed on ServiceWorkerGlobalScope` when loading `/wasm/bifrost_profile_wasm.js`
-  (effort: M). Confirmed NOT an env artifact: reproduces under the full `npm run
-  test:e2e:igloo-chrome:fast` (proper chrome prebuild). `COMMAND_TYPE.PROFILES_IMPORT` is handled
-  in `repos/igloo-chrome/src/background/router-profiles.ts` (the background **service worker**),
-  which calls `igloo-shared`'s `loadConfiguredWasmModule` → `dynamicImportModule` (`await import(url)`,
-  `repos/igloo-shared/src/wasm/loader-core.ts:5`); dynamic `import()` is spec-disallowed in a
-  ServiceWorker global. Fails `profile-import.spec.ts` and `rotation-update.spec.ts` (both
-  untagged → in the fast lane). The lane never reached these before because the two harness gaps
-  above blocked startup. Fix needs a SW-compatible WASM load path in igloo-shared (e.g. bundle the
-  loader statically / `importScripts`, or instantiate from the `wasmBinaryUrl` without a dynamic
-  `import()` of the JS glue). Unrelated to the igloo-ui API migration. Until fixed, the chrome
-  fast lane is red on these two specs even though typecheck/unit/build and 15 other chrome specs pass.
+- [x] ~~**REAL BUG: chrome profile import fails in the MV3 service worker**~~ — FIXED (2026-06-01):
+  `import() is disallowed on ServiceWorkerGlobalScope` when loading the profile/bridge WASM in the
+  background service worker (`COMMAND_TYPE.PROFILES_IMPORT` → `router-profiles.ts` → igloo-shared
+  `loadConfiguredWasmModule` → `dynamicImportModule`). Fixed in
+  `repos/igloo-chrome/src/lib/configure-igloo-shared.ts` by statically importing the two wasm-pack
+  glue modules (static import IS allowed in a module worker) and passing them via `preloadedModule`,
+  which bypasses the loader's dynamic-import branch. The glue still `fetch`es its `_bg.wasm` from the
+  explicit `wasmBinaryUrl` (allowed in a SW); no `.wasm` is inlined. igloo-shared + the PWA (page
+  context, dynamic import allowed) are untouched. `profile-import.spec.ts` + `rotation-update.spec.ts`
+  now pass; chrome fast lane 17/17 green.
 
 ### Adjacent improvements
 - [ ] Give the QR-package modal and the onboard "Apply"/connect surfaces explicit copy that
