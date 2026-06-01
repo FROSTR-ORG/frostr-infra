@@ -1,5 +1,50 @@
 # Follow-ups
 
+## 2026-06-01 — after Phase B dashboard slice (merged identity card + header nav)
+
+### Loose ends
+- [x] ~~Trim the redundant dashboard outer `ContentCard` title~~ — RESOLVED
+  (cleanup pass): removed the outer `ContentCard` wrapper entirely (bare surfaces;
+  see resolved open question). `dashboardRoot` test-id now sits on a plain `div`;
+  the profile label persists via the merged card's `profileName` badge so the
+  `expectDashboard`/`expectPwaDashboard` label assertions still hold (verified via
+  app-shell + dashboard-visual specs).
+- [ ] Promote the `dashboard-signer` visual-manifest entry from `needs-work` → `aligned` after a side-by-side Paper comparison (effort: S) — `test/igloo-pwa/visual-manifest.json`; still `needs-work`. Handled separately from this cleanup batch (run `test:visual:report` to diff against `repos/igloo-paper/screens/dashboard/1-signer-dashboard/screenshot.png`).
+
+### Issues discovered, not fixed
+- [x] ~~The split-copy hex/npub caret menu has no outside-click dismiss~~ — RESOLVED
+  (cleanup pass): `KeyRow` now registers a `document` `mousedown` listener while the
+  menu is open and closes it on an outside click (cleaned up on unmount); covered by
+  a new assertion in `OperatorPanels.test.tsx`.
+- [x] ~~The npub/hex copy menu can overflow/clip near a card edge~~ — CHECKED, no
+  change needed: the menu's container is `overflow-visible` and the merged card has
+  ample right-side room; not observed clipping in the 1440px capture. Re-evaluate if
+  a narrow-viewport dashboard is ever added.
+
+### Adjacent improvements
+- [x] ~~Add an igloo-pwa unit test for `toDashboardKey` / `deriveMemberLabel`~~ —
+  RESOLVED (cleanup pass): new `repos/igloo-pwa/test/frontend/dashboard-view.test.tsx`
+  covers valid/normalized/malformed inputs for both.
+- [x] ~~Extract `toDashboardKey`/`deriveMemberLabel` out of `App.tsx`~~ — RESOLVED
+  (cleanup pass): moved to `repos/igloo-pwa/src/lib/dashboard-view.ts` (pure, no
+  React/store); `deriveMemberLabel` now takes the share-package-json string directly.
+- [x] ~~Reconcile leftover `pulse-animation`/`User` imports in `OperatorSignerPanel`~~
+  — CHECKED: `pulse-animation` and `User` are already gone; `Input`/`KeyField` remain
+  in deliberate use as the single-copy fallback for consumers without structured keys
+  (igloo-chrome). No dead code.
+
+### Open questions
+- [x] ~~Remove the dashboard `ContentCard` wrapper in favor of bare surfaces?~~ —
+  DECIDED: yes. Wrapper removed this pass; establishes the surfaces-not-boxes pattern
+  for the upcoming Permissions/Settings pages.
+
+### Future scope
+- [ ] Remaining Phase B steps (all shaped in `dev/plans/dashboard-settings-export-paper-redesign-2026-06-01.md`): Permissions page (step 2), Settings page incl. Advanced section + Replace Share + Logout + Unsaved-Changes guard modal (step 3), Export Profile/Share password modals (step 4) (effort: L).
+- [ ] Two remaining Paper-source edits before the Settings pass: "Lock Profile" → "Logout" on artboard `502-0`, and reconcile "Replace Share" terminology (effort: S) — noted in the plan; needs a Paper MCP edit + re-sync.
+- [ ] Standardize the rotate→"Replace Share" user-facing rename across igloo-ui/igloo-pwa (flow title "Rotate Key", button "Replace Active Device", Settings action) while keeping internal `rotate*` names (effort: M) — decided this session; lands with the Settings page.
+- [ ] Deferred dashboard screens not yet aligned: error/empty states (`1b-loading-profile`, `1b-profile-load-failed`, `2b-all-relays-offline`, `2c-signing-blocked`, `6-signing-failed`), Clear Credentials modal, and the interactive signing-approval runtime feature behind the Pending Approvals shell (effort: L).
+- [ ] Evaluate a real router for the dashboard pages (effort: L) — currently header nav drives `store.activeDashboardTab`; URL deep-linking/back-button is a separate future refactor with route-guard considerations for sensitive unlocked states.
+
 ## 2026-05-31 — after fixing the two-device onboard handshake test
 
 ### Resolved
