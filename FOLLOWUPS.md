@@ -54,30 +54,32 @@
 - [ ] The jsdom-28 `--localstorage-file` Node warning is benign but noisy across unit runs
   (effort: S) — it fires before the setup shim installs; suppress via a vitest pool/Node-option
   tweak if the noise matters.
-- [ ] chrome e2e lane can't resolve `igloo-shared` from `test/` (effort: S) — ROOT CAUSE
-  pinned during the 2026-05-31 release-gate run: `test/shared/browser-runtime-host.ts` does a
-  bare `import … from 'igloo-shared'`, imported only by `igloo-chrome/specs/rotation-update.spec.ts`.
-  `igloo-shared` resolves via a `node_modules` symlink inside the *client* repos
-  (`repos/igloo-chrome/node_modules/igloo-shared -> ../../igloo-shared`) but there is **no**
-  `test/node_modules/igloo-shared`, and the tsconfig `paths` alias is typecheck-only (Playwright's
-  esbuild transform ignores it). The pwa lane never imports `browser-runtime-host`, which is why
-  pwa fast is green. **Verified fix:** a `test/node_modules/igloo-shared -> ../repos/igloo-shared`
-  symlink (the `exports` map points `.` → `src/index.ts`, which Playwright transforms) lets the
-  chrome lane launch and run — proven locally (7 specs passed once the symlink was in place).
-  Land it as either a `file:../repos/igloo-shared` devDependency in `test/package.json` or a
-  symlink created by `test-prebuild.sh`. (gitignored `node_modules`, so it must be wired, not committed.)
-- [ ] chrome fast lane drags in the home+demo prebuild it never runs (effort: S) — the chrome
-  `--grep-invert @live` fast lane selects `chrome-home-pairing.spec.ts` (tagged `@cross-client`,
-  not `@live`), so global-setup prebuilds `["chrome","home","demo"]`, which needs the
-  **uninitialized `repos/igloo-home` + `repos/igloo-shell` submodules** and the Tauri/Rust
-  toolchain (CI-deferred per the test-system plan). Options: also `--grep-invert @cross-client`
-  in the chrome fast lane (matching the pwa fast lane, which excludes `@cross-client`), or split
-  cross-client pairing into its own lane so `make test-fast` doesn't require the home toolchain.
-- [ ] chrome `profile-import.spec.ts` hit `import() is disallowed on ServiceWorkerGlobalScope`
-  loading `/wasm/bifrost_profile_wasm.js` (effort: S, may be env-only) — surfaced only when run
-  with `FROSTR_TEST_PREPARED=1` (which skips the WASM sync the normal chrome prebuild does), so it
-  is most likely a shortcut artifact, not a real regression. Re-confirm under a full
-  `npm run test:e2e:igloo-chrome` once the two items above are wired.
+- [x] ~~chrome e2e lane can't resolve `igloo-shared` from `test/`~~ — FIXED (2026-05-31):
+  added `"igloo-shared": "file:../repos/igloo-shared"` to `test/package.json` devDependencies
+  (`npm install` materialises the `test/node_modules/igloo-shared` symlink; the `exports` map
+  points `.` → `src/index.ts`, which Playwright transforms). The chrome lane now resolves it and
+  runs. Root cause was: `test/shared/browser-runtime-host.ts` bare-imports `igloo-shared`
+  (only `igloo-chrome/specs/rotation-update.spec.ts` pulls it in); the client repos have the
+  symlink but `test/` didn't, and the tsconfig `paths` alias is typecheck-only.
+- [x] ~~chrome fast lane drags in the home+demo prebuild it never runs~~ — FIXED (2026-05-31):
+  added a `fastPrebuild` set to `test/shared/test-targets.json` (`chrome → ["chrome"]`),
+  honoured by `targetsForClient` when `FROSTR_TEST_LANE=fast` (set by the `:fast` npm scripts),
+  and added `@cross-client` to the chrome fast `--grep-invert` (matching the pwa fast lane).
+  `make test-fast` no longer needs the uninitialized `igloo-home`/`igloo-shell` submodules or
+  the Tauri toolchain. (The cross-client pairing specs still run in the full/CI lane.)
+- [ ] **REAL BUG (pre-existing): chrome profile import fails in the MV3 service worker** —
+  `import() is disallowed on ServiceWorkerGlobalScope` when loading `/wasm/bifrost_profile_wasm.js`
+  (effort: M). Confirmed NOT an env artifact: reproduces under the full `npm run
+  test:e2e:igloo-chrome:fast` (proper chrome prebuild). `COMMAND_TYPE.PROFILES_IMPORT` is handled
+  in `repos/igloo-chrome/src/background/router-profiles.ts` (the background **service worker**),
+  which calls `igloo-shared`'s `loadConfiguredWasmModule` → `dynamicImportModule` (`await import(url)`,
+  `repos/igloo-shared/src/wasm/loader-core.ts:5`); dynamic `import()` is spec-disallowed in a
+  ServiceWorker global. Fails `profile-import.spec.ts` and `rotation-update.spec.ts` (both
+  untagged → in the fast lane). The lane never reached these before because the two harness gaps
+  above blocked startup. Fix needs a SW-compatible WASM load path in igloo-shared (e.g. bundle the
+  loader statically / `importScripts`, or instantiate from the `wasmBinaryUrl` without a dynamic
+  `import()` of the JS glue). Unrelated to the igloo-ui API migration. Until fixed, the chrome
+  fast lane is red on these two specs even though typecheck/unit/build and 15 other chrome specs pass.
 
 ### Adjacent improvements
 - [ ] Give the QR-package modal and the onboard "Apply"/connect surfaces explicit copy that

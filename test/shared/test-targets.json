@@ -1,17 +1,20 @@
 {
-  "_comment": "Single source of truth for client -> prebuild-target maps. Consumed by scripts/test-affected.sh (via scripts/lib-test-targets.sh) and test/shared/test-prebuild.ts (targetsForClient, used by the per-client global-setup.ts files). `paths` routes changed files to a client lane; `prebuild` is the target set that lane needs prebuilt. Guarded by scripts/check-test-targets.sh.",
+  "_comment": "Single source of truth for client -> prebuild-target maps. Consumed by scripts/test-affected.sh (via scripts/lib-test-targets.sh) and test/shared/test-prebuild.ts (targetsForClient, used by the per-client global-setup.ts files). `paths` routes changed files to a client lane; `prebuild` is the full target set that lane needs prebuilt; `fastPrebuild` (optional) is the leaner set the fast lane needs when it excludes @live and @cross-client specs (selected when FROSTR_TEST_LANE=fast). Guarded by scripts/check-test-targets.sh.",
   "clients": {
     "pwa": {
       "paths": ["repos/igloo-pwa/"],
-      "prebuild": ["pwa"]
+      "prebuild": ["pwa"],
+      "fastPrebuild": ["pwa"]
     },
     "chrome": {
       "paths": ["repos/igloo-chrome/"],
-      "prebuild": ["chrome", "home", "demo"]
+      "prebuild": ["chrome", "home", "demo"],
+      "fastPrebuild": ["chrome"]
     },
     "home": {
       "paths": ["repos/igloo-home/"],
-      "prebuild": ["home", "demo"]
+      "prebuild": ["home", "demo"],
+      "fastPrebuild": ["home", "demo"]
     }
   }
 }

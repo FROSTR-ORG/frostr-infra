@@ -8,18 +8,24 @@ import { setDefaultTestBrowserWasmDir } from './browser-wasm-paths';
 const PREPARED_TARGETS_ENV = 'FROSTR_TEST_PREPARED_TARGETS';
 
 interface TestTargetsManifest {
-  clients: Record<string, { paths: string[]; prebuild: string[] }>;
+  clients: Record<string, { paths: string[]; prebuild: string[]; fastPrebuild?: string[] }>;
 }
 
 // Single source of truth shared with scripts/test-affected.sh — the per-client
 // prebuild target set. Used by the per-client global-setup.ts files so they can
-// never drift from the affected-lane wiring.
+// never drift from the affected-lane wiring. When FROSTR_TEST_LANE=fast (set by the
+// :fast npm scripts, which exclude @live and @cross-client specs), the leaner
+// `fastPrebuild` set is used so the fast lane does not require cross-client clients
+// (e.g. igloo-home/Tauri) that its specs never exercise.
 export function targetsForClient(client: string): string[] {
   const manifestPath = path.join(TEST_ROOT_DIR, 'shared', 'test-targets.json');
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as TestTargetsManifest;
   const entry = manifest.clients[client];
   if (!entry) {
     throw new Error(`No test-targets manifest entry for client "${client}"`);
+  }
+  if (process.env.FROSTR_TEST_LANE === 'fast' && entry.fastPrebuild) {
+    return entry.fastPrebuild;
   }
   return entry.prebuild;
 }
