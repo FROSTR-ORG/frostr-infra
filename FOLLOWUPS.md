@@ -189,9 +189,17 @@
 ## 2026-05-29 — after Alert adoption, Encrypt Key, and Recover-from-Share removal
 
 ### Issues discovered, not fixed
-- [ ] Bring `repos/igloo-chrome` current with the redesigned `igloo-ui` API (effort: L) — `npx tsc --noEmit` surfaces pre-existing drift unrelated to this work: `AppHeader` has no `title`/`subtitle` props (`App.tsx`, `Dashboard.tsx`, `Signer.tsx`, `Onboarding.tsx`, `popup.tsx`), `igloo-ui` no longer exports `OperatorMethodPermissionOverride`/`OperatorPolicyOverrideValue` (`components/options/PermissionsPanel.tsx`), `StoredProfileCardModel` now requires `shortId` (`Onboarding.tsx`), and `PermissionsPanel`/`Signer` prop shapes changed. The extension was never migrated alongside igloo-pwa.
-- [ ] Fix the `repos/igloo-chrome` vitest environment so unit tests run locally (effort: S) — all 24 files fail at `vitest.setup.ts:7` with `localStorage.clear is not a function` despite `environment: 'jsdom'`; this blocks local validation, so the (symbol-clean) Recover-from-Share removal in the extension still needs a CI run to confirm green.
-- [ ] Adopt `PasswordField` (the igloo-ui reveal-toggle input) in `repos/igloo-chrome` import/onboard forms (effort: S) — they still use plain `type="password"` inputs; naturally part of the chrome alignment above.
+- [x] ~~Bring `repos/igloo-chrome` current with the redesigned `igloo-ui` API~~ — RESOLVED
+  (2026-05-31): migrated AppHeader (mode + taskLabel/actions), OperatorSignerPanel
+  (SignerDashboardViewModel), OperatorPermissionsPanel (PolicyDashboardViewModel +
+  onPeerPolicyOverrideChange + PolicyMethodOverrideState/PolicyOverrideValue), and
+  StoredProfileCardModel (shortId/state/primaryActionLabel/destructiveActionLabel).
+  `tsc --noEmit` clean; build:app succeeds.
+- [x] ~~Fix the `repos/igloo-chrome` vitest environment so unit tests run locally~~ —
+  RESOLVED: chrome's `vitest.setup.ts` already adopts `igloo-shared/testing/setup-dom`
+  `ensureLocalStorage()`; the full unit suite is green locally (24 files / 94 tests).
+- [ ] Adopt `PasswordField` (the igloo-ui reveal-toggle input) in `repos/igloo-chrome` import/onboard forms (effort: S) — they still use plain `type="password"` inputs; a small polish item now that the API migration is done.
+- [ ] Convert the igloo-chrome e2e specs to page objects + verify the chrome e2e lane (effort: M) — the migration unblocked chrome's typecheck/unit/build, but `playwright test -c igloo-chrome --list` outside the prepared context still hits the tracked "Cannot find package 'igloo-shared'" resolution gap (see 2026-05-30 entry); the chrome `@live`/`@demo` e2e specs run under docker/CI prep and still use raw interaction locators.
 
 ### Loose ends
 - [ ] Land the accumulated multi-session work in coherent per-repo commits (effort: M) — three uncommitted layers now stack across the submodules (the needs-work hard-cut, this follow-up cut, and the Paper export). Order: `igloo-shared` → `igloo-ui` → `igloo-pwa` + `igloo-chrome` → `igloo-paper` → parent. Commit the `repos/igloo-paper` 67-file diff as its own "Paper export refresh (SVG serialization normalization + Alerts contents/contract)" checkpoint so the intent reads clearly; keep pre-existing parent WIP (`app-shell.spec.ts`, `rotation-create.spec.ts`, `test-run-sh.sh`) out of the feature commits.
