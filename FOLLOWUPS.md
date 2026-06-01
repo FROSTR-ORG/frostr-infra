@@ -14,23 +14,22 @@
   `onboarding-live.spec.ts` was removed.
 
 ### Discovered while verifying the `@live` lane (pre-existing, separate from the onboard fix)
-- [ ] `profile-import.spec.ts` and `rotation-update.spec.ts` (`@live`) fail because the
-  import helpers are stale (effort: S) — `openPwaLoadProfile`/`importPwaProfile` in
-  `support/ui.ts` click `"Load Profile"` / `"Import Profile"`, but the redesigned Paper
-  welcome renamed the entry to **"Import Existing Device"**, so both specs time out on the
-  welcome screen. Same stale-UI-assertion class as the onboard helper just fixed, but in the
-  import flow (untouched by the onboard work). Fix: rebuild `openPwaLoadProfile`/`importPwaProfile`
-  on the welcome/import test-ids (`welcomeEntryImport`, `importProfileInput`, `importPasswordInput`,
-  `importNext`, `importAccept`) the same way `onboardPwaDevice` now uses `saveProfile*`.
+- [x] ~~`profile-import.spec.ts` import helper is stale~~ — RESOLVED: `openPwaLoadProfile`
+  was rebuilt as `openPwaImportProfile` on the welcome/import test-ids
+  (`welcomeEntryImport`, `importProfileInput`, `importPasswordInput`, `importNext`, then
+  `saveProfile*`). profile-import is green.
+- [ ] `rotation-update.spec.ts` (`@live`) still drives a **stale dashboard rotate-key flow**
+  (effort: S–M) — `connectPwaRotationPackage`/`confirmPwaRotationPackage` and the spec's
+  `getByText('Replacement Preview')` no longer match the current rotate-connect → rotate-save
+  screens. Tracked separately; needs the dashboard rotate trigger + rotate-connect/save wired
+  to test-ids and the spec rewritten. (It does get past import now.)
 
-### Open question (product, not a bug)
-- [ ] Onboarded devices are auto-named "Onboarded Device" and the name field is
-  rendered **read-only** on the onboard-save screen (igloo-ui `CreateFlowProfileSetup`
-  with `lockIdentity`, fed a hardcoded label from `igloo-pwa`
-  `local-adapter/profile-packages.ts connectOnboardingPackage`). So every onboarded
-  device — including a rotated remote device — shows the same name with no way to
-  rename during onboarding (effort: S–M). Decide whether this is intended; if not,
-  let the recipient name their device (and the tests can then assert a custom name).
+### Resolved — recipients can name their device on onboard
+- [x] ~~Onboarded devices are auto-named "Onboarded Device" with a read-only name field~~ —
+  FIXED: `CreateFlowProfileSetup` now takes a `lockName` prop (defaulting to `lockIdentity`
+  so create/import callers are unchanged), and the igloo-pwa onboard-save screen passes
+  `lockName={false}`. The recipient names their own device during onboarding while the keyset
+  relays stay locked; `onboarding.spec.ts`/`rotation-create.spec.ts` assert the chosen names.
 
 ## 2026-05-30 — after the test-system hard-cut refactor
 
