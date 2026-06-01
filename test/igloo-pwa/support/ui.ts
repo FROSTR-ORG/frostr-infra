@@ -53,14 +53,13 @@ export async function loadSelectedPwaStoredProfile(page: Page) {
 }
 
 export async function importPwaProfile(page: Page, profileText: string, password: string) {
-  // Welcome -> Import Device (connect) -> Review Device -> Save Profile -> dashboard.
-  // The save screen derives the device name from the package (lockIdentity), so we
-  // only set a local profile password — reuse the package password for the test.
+  // Welcome -> Import Device (paste + decrypt) -> Save Profile -> dashboard. The save
+  // screen derives the device name from the package backup (lockIdentity), so we only
+  // set a local profile password — reuse the package password for the test.
   await openPwaImportProfile(page);
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.importProfileInput).fill(profileText);
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.importPasswordInput).fill(password);
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.importNext).click();
-  await page.getByTestId(CRITICAL_E2E_TEST_IDS.importAccept).click();
   const saveName = page.getByTestId(CRITICAL_E2E_TEST_IDS.saveProfileName);
   await expect(saveName).toBeVisible({ timeout: 30_000 });
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.saveProfilePassword).fill(password);
