@@ -29,7 +29,7 @@ R2 (structural refactor, Buckets G+H), R3 (tests + docs, Buckets I+J).
 |---|---|---|---|
 | R1 | A + B + C + D + E + F | 28 (some +follow-ups) | **✅ Complete — integrated on `security-hardening` 2026-05-29** |
 | R2 | G + H | 10 | **✅ Complete — integrated on `security-hardening` 2026-05-29** |
-| R3 | I + J | 8+ | Next |
+| R3 | I + J | 12 | **✅ Complete — integrated on `security-hardening` 2026-06-02** |
 | Backlog | K | 18 deferred items | Not scheduled |
 
 ## R1 Bucket status
@@ -167,7 +167,56 @@ all future work in this track unless overridden.
 - **NIP-44 byte-compat is non-negotiable.** Every cipher refactor pins
   KATs before changing code, then re-runs them after.
 
-## Repo HEAD snapshot (2026-05-20)
+## R3 status (Buckets I + J) — ✅ Complete (2026-06-02)
+
+R3 is **purely additive** (tests + docs + one re-audit report + small carried
+fixes): no runtime behavior change, no version bumps, no operator migration.
+Reconciled plan: `dev/plans/remediation-2026-04-22/R3-reconciled-plan.md` (the
+draft bucket plans were written pre-R2 and over-scoped; the reconciliation
+records what was actually real vs. already-done).
+
+**Bucket I — residual test coverage:**
+- I.1/I.4 — `bifrost-core/tests/frost_sign_roundtrip.rs` (FROST sign→aggregate
+  →verify across 2-of-3/3-of-5/sweep) + `nonce_pool_props.rs` (single-use,
+  remap-merge, serde). *Decision:* verify-roundtrip, not pinned KAT (OsRng has
+  no deterministic seam); proptest avoided (offline-first → seeded splitmix64).
+- I.2 — `bifrost-codec/tests/wire_fuzz.rs` (all 17 `TryFrom<*Wire>` decoders
+  never-panic on randomized input + envelope junk).
+- I.3 — `bifrost-router/tests/router_contract.rs` pins the public type surface
+  (serde wire forms, `BridgeConfig` default-vs-constants, error Display) +
+  a coverage gap note: router *behavior* was already covered by in-crate tests
+  + `bifrost-bridge-tokio`. (`RequestPhase::Expired` is defined-but-unassigned.)
+- I.4 (TS) — `igloo-shared` tests for the post-G modules (`relay-transport`,
+  `runtime-pump` parsers, `onboarding-transport` parsers, `runtime-api`,
+  `wasm-bridge-node` construction/event-API/guards/shutdown/connect-error).
+  Full connect-success + sign round-trip stays with the demo/e2e harness.
+- I.5 — **reframed**: the home-error-surface `@live` Playwright spec isn't
+  verifiable here, so coverage landed as an igloo-home **frontend unit test**
+  (`home-error-surface.test.ts`) over all 9 `HomeError` variants.
+
+**Bucket J — docs + chrome:**
+- J.1 — shared docs caught up to the Bucket B v2 KDF/AEAD code (BACKUP /
+  CRYPTOGRAPHY / WIRE / GLOSSARY / PROFILE) + `check-doc-surfaces.sh` doc↔code
+  constant fences (envelope caps, Argon2 m_cost, BF_PACKAGE_VERSION, HRP).
+- J.2 — igloo-shared README "Runtime Integration" section + runtime-api JSDoc +
+  `docs/INTERFACES.md` cross-link. Scoped to the operator-facing surface, not
+  all 242 exports.
+- J.3 — `dev/reports/igloo-chrome-audit-2026-06-02.md`: all 2026-04-02 findings
+  closed (5) or reduced (4); the monoliths were already split by the
+  intervening refactor. So J.4 collapsed to test hygiene.
+- J.4 — fixed the stale `observability.test.ts` redaction expectation (fields
+  are dropped fail-closed, **not** leaked) + renamed the mis-named
+  `browser-runtime-core.test.ts`.
+- J.5 — fixed igloo-home `api.test.ts` (mocks updated to the typed
+  `HomeError` shape; production was correct).
+
+**Execution note:** background subagents were read-only this session, so R3 was
+implemented in the main thread on per-repo `r3/*` feature branches, each
+reviewed and ff-merged (submodules) — `master` untouched throughout. A
+`.claude/settings.local.json` allow-list was added (Write/Edit/git/cargo/npm,
+**excluding** push/merge) but did not restore background-agent writes.
+
+## Repo HEAD snapshot (2026-06-02)
 
 Every repo now has two branches: `master` (pristine, equal to
 `origin/master`) and `security-hardening` (the integration branch
@@ -179,20 +228,22 @@ All branches **pushed to `origin/security-hardening`** on GitHub
 
 | Repo | `security-hardening` HEAD | `master` (== origin/master) | Notes |
 |---|---|---|---|
-| `frostr-infra` (parent) | R2 release commit (this tip) | `4c43ef3` | R1 + R2 integrated: R1 release `5eccbe1`, guard/demo fixes, R2 e2e fixes `befbb50`, and the R2 submodule-pointer bump that is this tip |
-| `repos/bifrost-rs` | `2c3037b` | `4a9d4f8` | + fast-KDF knob (`for_new_envelope`, both Argon2Params types) + devtools env rename |
+| `frostr-infra` (parent) | R3 release commit (this tip) | `4c43ef3` | R1 + R2 + R3 integrated: R2 bump `8ee0f88`, R3 parent docs/CI fences (J.1) `bfbc357`, chrome re-audit (J.3) `7d12cae`, INTERFACES cross-link (J.2), and the R3 submodule-pointer bump that is this tip |
+| `repos/bifrost-rs` | `d0bf343` | `4a9d4f8` | **R3 Bucket I**: bifrost-core FROST/nonce tests (I.1/I.4), bifrost-codec wire fuzz (I.2), bifrost-router contract pins + gap note (I.3). Tests-only; proptest avoided (offline) |
 | `repos/igloo-shell` | `15d2543` | `24248c0` | + WS5: managed_integration sets `BIFROST_TEST_FAST_KDF` (1381s→416s) |
-| `repos/igloo-shared` | `3a8bf92` | `7f9c8ab` | **R2 Bucket G**: `wire/` module + named exports, monolith split (browser-runtime-core deleted), `BrowserBridgeNode` exported / `NodeWithEvents` gone, runtime-projections, `browser-profile/` consolidation. 242-name surface preserved, 103 tests |
+| `repos/igloo-shared` | `303514d` | `7f9c8ab` | R2 Bucket G (wire/ split, browser-runtime-core deleted). **R3**: post-G module tests (I.4, 103→141 tests) + Runtime Integration README & runtime-api JSDoc (J.2) |
 | `repos/igloo-pwa` | `13ce1c1` | `e12f2e5` | **R2 G/H consumer**: dropped local `Pwa*` types → shared wire types + selectors, `runtime_status` typed, `igloo-entry-*` tokens |
-| `repos/igloo-home` | `0b5f105` | `eed7b7a` | **R2 G consumer**: type-only `wire` import + `parseRuntimeStatus` boundary (41→3 casts), `igloo-entry-*` tokens. Bundle erasure verified |
-| `repos/igloo-chrome` | `eaf7eb4` | `1d92ce0` | **R2 G consumer (minimal)**: deduped `runtime-types.ts` → shared wire re-exports, `NodeWithEvents`→`BrowserBridgeNode` |
+| `repos/igloo-home` | `d99c987` | `eed7b7a` | R2 G consumer (type-only wire import). **R3**: HomeError-surface unit tests over all 9 variants (I.5) + fixed stale `api.test.ts` mocks to typed HomeError shape (J.5) |
+| `repos/igloo-chrome` | `5410f1d` | `1d92ce0` | R2 G consumer (minimal). **R3**: J.4 test hygiene — fixed stale `observability.test.ts` (fields dropped fail-closed, not leaked) + renamed mis-named `browser-runtime-core.test.ts`. Re-audit (J.3) found the monoliths already split |
 | `repos/igloo-ui` | `24e3b81` | `32b6188` | **R2 Bucket H**: `igloo-entry-*` tokens, vendored font, named exports, NonceBar capacity, `SensitiveField`/`SensitiveTextarea`, `Dialog`+a11y primitives (Modal deleted), LogEntry hardening, 88 tests + axe |
 | `repos/igloo-paper` | (detached) | `8f29f71` | Reference-only; not touched |
 
-**Not pushed.** R1 + R2 are integrated locally on `security-hardening` in
-every repo; `master` everywhere is still pristine at `origin/master`. The L2
-cutover (`security-hardening` → `master`) is deferred until R3 lands and is
-gated on explicit operator approval.
+**Not pushed.** R1 + R2 + R3 are integrated locally on `security-hardening` in
+every repo; `master` everywhere is still pristine at `origin/master`, and
+nothing is pushed. **R3 has now landed**, so the remediation track is
+content-complete. The L2 cutover (`security-hardening` → `master`, then push)
+is the only remaining step and is gated on explicit operator approval — it has
+NOT been performed.
 
 **R2 e2e verification note:** the PWA suite was baseline-compared against the
 R1 tips. R2 introduced exactly **two** e2e regressions, both the same class —
@@ -338,19 +389,17 @@ done
 ## Resume prompt
 
 > Continuing the FROSTR remediation track from `dev/HANDOFF.md`. **R1
-> (Buckets A–F) and R2 (Buckets G + H) are COMPLETE and integrated locally
-> on `security-hardening`** in every repo (see the HEAD snapshot table);
-> `master` everywhere is still pristine at `origin/master` and nothing is
-> pushed. R2 e2e was baseline-compared against R1 tips: the only two R2 e2e
-> regressions (HelpHint `getByText` collisions) are fixed; remaining e2e
-> failures are pre-existing local-env limitations (see the "R2 e2e
-> verification note"). **Next: R3 (Buckets I + J, 8+ PRs)** — residual test
-> coverage + docs + `igloo-chrome` re-audit. Plans at
-> `dev/plans/remediation-2026-04-22/bucket-i-test-coverage.md` and
-> `bucket-j-docs-chrome.md`. R3 should also fold in the carried pre-existing
-> failures (igloo-home `api.test.ts`, igloo-chrome `observability.test.ts`)
-> and the deep-import test-hygiene flagged during R2. Keep landing work on
-> `security-hardening` (L1 merges as we go); the `master` cutover (L2) waits
-> until R3 is done and the operator explicitly approves. Conventions
-> unchanged: one agent per repo, hard-cut, ff-only submodules / `--no-ff`
-> parent, local merges only, no `Co-Authored-By`.
+> (Buckets A–F), R2 (Buckets G + H), and R3 (Buckets I + J) are ALL COMPLETE
+> and integrated locally on `security-hardening`** in every repo (see the HEAD
+> snapshot table + "R3 status" section); `master` everywhere is still pristine
+> at `origin/master` and **nothing is pushed**. The remediation track is now
+> content-complete. **The only remaining step is the L2 cutover**
+> (`security-hardening` → `master` in every repo, then push to origin), which
+> is gated on explicit operator approval and has NOT been done. Before cutover,
+> consider a full green-run on a machine with live infra (`make test-release`):
+> R3 was verified per-repo (cargo + vitest + the doc/markdown guards) but the
+> `@live` e2e and Docker demo lanes were not run in this session's env. R3 was
+> implemented in the main thread (background subagents were read-only this
+> session) on per-repo `r3/*` branches, each reviewed and ff-merged. Conventions
+> unchanged: hard-cut, ff-only submodules / `--no-ff` parent, local merges only,
+> no `Co-Authored-By`.

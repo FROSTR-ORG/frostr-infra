@@ -339,6 +339,11 @@ Primary docs:
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
 - [PROFILE.md](./PROFILE.md)
 
+Concrete browser-host entry points: the `igloo-shared` package implements this
+boundary. Its README "Runtime Integration" section documents the canonical
+lifecycle (`createSignerNode` → `connectSignerNode` → `getRuntimeStatus` →
+prepare/sign/ecdh → `stopSignerNode`) and the `RuntimeConfig` bootstrap modes.
+
 ## Device And Device Interface
 
 Purpose:
