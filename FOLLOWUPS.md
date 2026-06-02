@@ -1,5 +1,26 @@
 # Follow-ups
 
+## 2026-06-02 — after the follow-up batch (Event-Log tags/filter, Peers counts, export)
+
+### Loose ends
+- [x] ~~No unit test for the `store.clearLogs` → `clearSessionLogs` adapter path~~ — RESOLVED: added `test/frontend/clear-session-logs.test.tsx` covering the active-session clearLogs call + the inactive/no-profile guards.
+
+### Issues discovered, not fixed
+- [x] ~~`App.tsx` `lastSeenLabel` skipped the seconds-vs-ms guard~~ — RESOLVED: now formatted via the existing `formatRuntimeTimestamp` helper (same ms-guard + `toLocaleString` as the igloo-ui adapter), fixing both the wrong-time bug and the format inconsistency below.
+- [x] ~~`observabilityEventsToEventRows` row id had no index~~ — RESOLVED: id is now prefixed with the array index so same-tick events can't collide on the React key.
+- [x] ~~`attachLogBuffer` kept two unbounded buffers~~ — RESOLVED: both `lines` and `events` are capped to the last 500 via `pushCapped`.
+
+### Adjacent improvements
+- [x] ~~`refreshSession` diverged from `toRuntimeSnapshot`~~ — RESOLVED: `refreshSession` now builds through `toRuntimeSnapshot` (so `peer_permission_states`/`events` stay in sync) and only annotates the log tail with the refresh marker.
+- [x] ~~Peer last-seen formatted two different ways~~ — RESOLVED together with the ms-guard fix (both paths now use `toLocaleString`-style formatting).
+- [x] ~~Clear-Log button could render on a stopped session~~ — RESOLVED: `App.tsx` only passes `onClearLogs` while the runtime is active, so the button is hidden when inactive.
+
+### Open questions
+- [ ] Filter chips key off `badgeLabel` = domain for structured events but = level (info/warn/error) for the string fallback (effort: S) — the Filter still works for the fallback but filters by level, not domain. Decide whether the fallback should be filterable at all or the chips should hide when events are unstructured.
+
+### Future scope
+- [ ] (Carried, unchanged) Per-peer latency / "Avg" latency / nonce sparkline / per-method SIGN·ECDH·PING capability badges — runtime instrumentation in bifrost-rs/igloo-shared; the trigger to promote the `dashboard-signer` manifest entry to `aligned` (documented in its `notes`).
+
 ## 2026-06-02 — RESOLVED: Phase B follow-up batch (Event Log structure, Peers counts, export + cleanups)
 
 Cleared the loose-end / issue / adjacent / one open-question items below in a
