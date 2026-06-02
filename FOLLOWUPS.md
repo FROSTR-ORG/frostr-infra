@@ -1,5 +1,70 @@
 # Follow-ups
 
+## 2026-06-02 — RESOLVED: Phase B follow-up batch (Event Log structure, Peers counts, export + cleanups)
+
+Cleared the loose-end / issue / adjacent / one open-question items below in a
+single pass. igloo-ui first (then dist rebuild), igloo-pwa next, parent pointer.
+
+### Resolved
+- [x] ~~Export Download uses an anchor blob with no save confirmation~~ — extracted
+  `downloadText`/`saveTextToFile` into `repos/igloo-pwa/src/lib/file-save.ts`;
+  `App.tsx` ExportPackageModal `onDownload` now routes through `saveTextToFile`
+  (File System Access API confirmed-write + anchor fallback), matching the
+  distribution flow. Verified by the export `@live` spec.
+- [x] ~~Inline `group_package_json`/`share_package_json` parsing duplicated in
+  `App.tsx`~~ — folded into `deriveGroupSummary` + `deriveExportSummary` in
+  `src/lib/dashboard-view.ts` (alongside the existing `deriveMemberLabel`/
+  `toDashboardKey`), with unit coverage in `test/frontend/dashboard-view.test.tsx`.
+- [x] ~~Reconcile Permissions summary pills vs Paper~~ — gated behind a new
+  `showPeerSummary` prop on `OperatorPermissionsPanel` (default true for other
+  consumers); the PWA passes `showPeerSummary={false}` so the page matches Paper.
+- [x] ~~Event Log Clear button was inert in the PWA~~ — wired `onClearLogs` →
+  `store.clearLogs()` → `clearSessionLogs` adapter → host-side `session.clearLogs()`.
+- [x] **Event Log structured tags + filter** — the host-side log buffer
+  (`page-runtime-host.ts`) now retains the raw `ObservabilityEvent` objects it
+  already received (no igloo-shared change); threaded `events` through the snapshot/
+  types/adapter and rendered via igloo-ui's `observabilityEventsToEventRows`, with a
+  domain-tag Filter control in `OperatorSignerPanel`.
+- [x] **Peers header counts (UI-only)** — online/total + ready counts and per-row
+  last-seen from data the runtime already exposes. Also fixed a latent state-mapping
+  bug in `derivePwaPeers` (sign-ready peers were flagged `'warning'`, contradicting
+  their `sign-ready` status label and the shared igloo-ui adapter).
+- [x] `dashboard-signer` manifest stays `needs-work` with a `notes:` promotion
+  trigger documenting the remaining runtime-gated gaps.
+
+### Still future scope (runtime-gated; unchanged)
+- [ ] Per-peer latency, "Avg" latency, the nonce sparkline, and per-method
+  SIGN/ECDH/PING capability badges (effort: L) — require bifrost-rs/igloo-shared
+  runtime instrumentation; the promotion trigger for the dashboard manifest entries.
+- [ ] Persisting structured events end-to-end was NOT needed for the log tags — the
+  PWA host already receives them; a deeper structured-event *store* (history,
+  cross-session) remains future scope if richer Event-Log queries are wanted.
+
+## 2026-06-02 — after Phase B complete (Settings, Export modals, Unsaved-changes guard)
+
+### Loose ends
+- [ ] Promote the dashboard family's `needs-work` visual-manifest entries → `aligned` (effort: M) — `dashboard-signer`, `dashboard-permissions`, `dashboard-settings`, `dashboard-export-profile` in `test/igloo-pwa/visual-manifest.json` are all still `needs-work`. They're structurally faithful but gated on the deferred Peers/Event-Log parity (and a deliberate side-by-side review) before honestly flipping to `aligned`.
+
+### Issues discovered, not fixed
+- [ ] The export Download uses an anchor-click blob download with no save confirmation (effort: S) — `repos/igloo-pwa/src/App.tsx` ExportPackageModal `onDownload` mirrors the recover flow's optimistic anchor download; unlike `saveTextToFile` in `store.tsx` it doesn't use `showSaveFilePicker`. Consider routing both through the same save helper so "Download" reflects an actual write.
+- [ ] Export modal has no busy/disabled treatment on Copy/Download while re-encrypting (effort: S, unsure) — `exportBusy` gates the Export submit but the complete-state actions assume `result` is ready; fine in practice since they only render post-result, but worth confirming no flicker between busy→complete.
+
+### Adjacent improvements
+- [ ] Reconcile the Permissions summary pills (Peers / Effective responders) with Paper (effort: S) — carried from step 2; Paper doesn't draw them. Confirm they stay or drop.
+- [ ] `deriveExportSummary` + `deriveMemberLabel` + `toDashboardKey` now all parse `group_package_json`/`share_package_json` inline in `App.tsx` (effort: S) — the export summary parse duplicates member/group parsing; could fold into the extracted `src/lib/dashboard-view.ts` for one parsing path + unit coverage.
+- [ ] Settings dirty-check compares via `JSON.stringify` of relays/signerSettings (effort: S, unsure) — `settingsDirty` in `App.tsx` relies on key-order-stable stringify; true for these fixed-shape objects, but a structural compare would be more robust if the shapes grow.
+
+### Open questions
+- [ ] Should the merged identity/runtime card also top the Permissions + Settings sub-pages? (effort: M) — carried from step 2; Paper shows it on all three, the PWA shows it only on Dashboard. Header nav already gives context; decide the cross-page pattern (and whether to lift the card into a shared page-shell) rather than leave it Dashboard-only.
+- [ ] Confirm whether `Export Profile`/`Export Share` should also keep a quick unencrypted copy-to-clipboard alongside the password modal (effort: S) — step 3→4 replaced copy with the modal entirely; some users may want a fast copy. Product call.
+
+### Future scope
+- [ ] Dashboard Peers + Event Log full Paper parity (effort: M) — Peers rows (online/ready counts, latency sparkline, per-method badges) + Event Log (type-tagged rows + filter); the trigger to promote the dashboard visual entries to `aligned`.
+- [ ] Interactive signing-approval runtime feature behind the Pending Approvals shell (effort: L) — the empty-state card is shipped; real Deny/Allow-once/Always-allow needs runtime hooks in `igloo-shared`/`bifrost-rs`.
+- [ ] Deferred dashboard screens: error/empty states (loading, load-failed, all-relays-offline, signing-blocked, signing-failed) + Clear Credentials modal (`3b`) (effort: L) — Clear Credentials needs a new destructive "clear this device's saved profile/share/password/relays" store action.
+- [ ] Evaluate a real router for the dashboard pages (effort: L) — header nav still drives `store.activeDashboardTab`; URL deep-linking/back-button is a separate refactor with route-guard considerations.
+- [ ] Adopt the new igloo-ui Settings `sections` API + ExportPackageModal in igloo-chrome (effort: M) — chrome still uses the flat `maintenanceActions` row and its own export; aligning it would unify the operator surface, but is out of the PWA-focused Paper pass.
+
 ## 2026-06-02 — after Phase B step 2 (Permissions page)
 
 ### Open questions

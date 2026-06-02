@@ -6,7 +6,8 @@
       "viewport": "1440x1080",
       "output": ".tmp/visual/igloo-pwa/dashboard/01-signer-dashboard.png",
       "paperReference": "repos/igloo-paper/screens/dashboard/1-signer-dashboard/screenshot.png",
-      "status": "needs-work"
+      "status": "needs-work",
+      "notes": "Peer online/ready counts, per-row last-seen, and a domain-tagged + filterable Event Log are implemented. Stays needs-work until the remaining Paper elements that the PWA runtime cannot yet supply are available: per-peer latency, 'Avg' latency, the nonce sparkline, and per-method SIGN/ECDH/PING capability badges (require bifrost-rs/igloo-shared runtime instrumentation). Promote once those land."
     },
     {
       "name": "dashboard-permissions",
