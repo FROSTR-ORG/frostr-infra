@@ -279,6 +279,14 @@ export class DashboardPage extends BasePage {
     // The PWA signer has no website/origin permissions, so that section must not render.
     await expect(this.page.getByRole('heading', { name: 'Signer Permissions' })).toHaveCount(0);
   }
+  // Settings page (Paper-aligned section layout).
+  async expectSettingsSections(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Device Profile', exact: true })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Replace Share', exact: true })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Export Profile', exact: true })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Export Share', exact: true })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Logout', exact: true })).toBeVisible();
+  }
 }
 
 export interface PwaPages {

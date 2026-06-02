@@ -122,7 +122,7 @@ test.describe('igloo-pwa ui-first shell', () => {
     const dashboard = pages(page).dashboard;
     await dashboard.expectDashboard();
     await dashboard.openTab('settings');
-    await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Device Profile', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Browser Settings', exact: true })).toBeVisible();
 
     await dashboard.autoOpenToggle.uncheck();

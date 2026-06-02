@@ -16,6 +16,13 @@
       "status": "needs-work"
     },
     {
+      "name": "dashboard-settings",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/dashboard/03-settings.png",
+      "paperReference": "repos/igloo-paper/screens/dashboard/3-settings-lock-profile/screenshot.png",
+      "status": "needs-work"
+    },
+    {
       "name": "welcome-first-launch",
       "viewport": "1440x1080",
       "output": ".tmp/visual/igloo-pwa/welcome/01-first-launch.png",

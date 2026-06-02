@@ -103,8 +103,21 @@ All shaped over the 2026-06-01 grilling rounds. Decisions:
 - **Settings page** (`3-settings-lock-profile`): **separate full page** (Device
   Profile / Group Profile / Replace Share / Export & Backup / Logout). Numeric
   signer settings (Sign Timeout, Ping Timeout, Request TTL, State Save Interval,
-  Peer Selection Strategy) live under a collapsible **"Advanced"** section
-  (collapsed by default) so the default view matches Paper's simplicity.
+  Peer Selection Strategy) live under an **"Advanced"** section.
+  **[REFINED 2026-06-02 for step 3 build]:**
+  - Sections to build now: **Device Profile** (name + password-change + relays),
+    **Replace Share** (= rotate flow), **Export & Backup**, **Profile Security
+    (Logout)**, plus **Advanced** (numeric settings). **Dropped from PWA scope:**
+    Group Profile read-only card and the "Onboard a Device" Settings entry (onboard
+    stays welcome-side); **Clear Credentials deferred**.
+  - **Advanced is expanded by default** (not collapsed — revised from the earlier
+    collapsed-by-default note).
+  - **Surface = routed page** (`activeDashboardTab='settings'`), matching steps 1-2;
+    Paper's slide-over treatment is a prototype affordance, not adopted.
+  - **Export & Backup in step 3 = relabel only** ("Export Profile"/"Export Share"
+    under the section heading) keeping the current copy-to-clipboard behavior; the
+    password modal lands in step 4.
+  - **Paper edit in step 3:** rename `502-0` "Lock Profile" → "Logout" + re-sync.
 - **Replace Share === the existing rotate-key flow** (investigated 2026-06-01,
   confirmed). Paper's "Replace Share" ("import a bfonboard package to replace only
   this device's local share while keeping the same group public key and profile")
