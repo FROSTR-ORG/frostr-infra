@@ -93,6 +93,13 @@ Examples:
 
 This state is not part of the portable profile format. Different hosts may store it differently.
 
+When a host persists secret-bearing profile material locally (an encrypted
+device-profile envelope), it is sealed with the v2 host-local encryption
+contract (`ENCRYPTED_PROFILE_VERSION = 2`): Argon2id key derivation over
+XChaCha20-Poly1305. See
+[CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md#envelope-encryption-v2) for parameters and
+[BACKUP.md](./BACKUP.md) for the portable-package layout.
+
 ### 3. Operational Runtime State
 
 This is mutable live state owned by the runtime while the device is active.

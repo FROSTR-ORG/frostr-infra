@@ -49,24 +49,27 @@ Recovery always depends on both:
 
 ## Common Package Envelope
 
-`bfprofile` and `bfshare` both use:
+`bfprofile`, `bfshare`, and `bfonboard` all use:
 - bech32m encoding
 - a distinct HRP:
   - `bfprofile`
   - `bfshare`
-- password-based encryption using PBKDF2-SHA256 + AES-GCM
-- a versioned JSON envelope containing:
-  - `version`
-  - `passwordEncoding`
-  - `iterations`
-  - `ivBytes`
-  - `saltHex`
-  - `cipherText`
+  - `bfonboard`
+- password-based authenticated encryption using **Argon2id** key derivation
+  over the **XChaCha20-Poly1305** AEAD. The legacy v1 scheme (PBKDF2-SHA256 +
+  AES-256-GCM) was retired in the 2026-04-22 remediation; `BF_PACKAGE_VERSION`
+  was bumped `1 → 2` and v1 envelopes are no longer readable.
+- a versioned, domain-separated envelope. The current envelope version is
+  `BF_PACKAGE_VERSION = 2`.
 
-Current defaults:
-- iterations: `600000`
-- salt bytes: `16`
-- IV bytes: `24`
+Current v2 KDF/AEAD parameters (canonical defaults — see
+[CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md#envelope-encryption-v2)):
+- KDF: Argon2id (v0x13), `m_cost = 262144` KiB (256 MiB), `t_cost = 4`,
+  `p_cost = 1`
+- KDF salt: `16` bytes; derived key: `32` bytes
+- AEAD: XChaCha20-Poly1305 with a `24`-byte nonce
+- length-prefixed associated data binds the envelope version and salt so a
+  ciphertext cannot be replayed under a different envelope shape
 
 `frostr-utils` is the canonical owner of these codecs, payload validation rules, backup cryptography, and backup-event construction/parsing.
 
