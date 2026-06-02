@@ -9,7 +9,23 @@
   the profile label persists via the merged card's `profileName` badge so the
   `expectDashboard`/`expectPwaDashboard` label assertions still hold (verified via
   app-shell + dashboard-visual specs).
-- [ ] Promote the `dashboard-signer` visual-manifest entry from `needs-work` → `aligned` after a side-by-side Paper comparison (effort: S) — `test/igloo-pwa/visual-manifest.json`; still `needs-work`. Handled separately from this cleanup batch (run `test:visual:report` to diff against `repos/igloo-paper/screens/dashboard/1-signer-dashboard/screenshot.png`).
+- [~] `dashboard-signer` visual manifest stays `needs-work` — REVIEWED 2026-06-02
+  (ran `test:visual:report` + a direct side-by-side of the PWA capture vs
+  `repos/igloo-paper/screens/dashboard/1-signer-dashboard/screenshot.png`).
+  **Structurally faithful** (Dashboard·Permissions·Settings nav + active pill,
+  merged identity/runtime card with split npub copy, Peers → Pending Approvals →
+  Event Log order). **Remaining fidelity gaps = exactly the deferred work**, so
+  `aligned` would be premature:
+  1. **Peers rows** — Paper shows online/ready counts, a latency sparkline, avg
+     latency, and per-method SIGN/ECDH/PING badges; the PWA shows bare metric tiles.
+     (Deferred "Peers full-parity" enhancement.)
+  2. **Event Log** — Paper is populated with type-tagged rows + a filter control;
+     the PWA seeds an empty log. (Deferred "Event Log parity" enhancement.)
+  3. **Pending Approvals** — Paper shows populated approval rows; the PWA shows the
+     intentional empty-state shell (interactive approval is the deferred runtime
+     feature — working as designed).
+  Promote to `aligned` only after the Peers/Event-Log parity pass; until then
+  `needs-work` is the accurate status.
 
 ### Issues discovered, not fixed
 - [x] ~~The split-copy hex/npub caret menu has no outside-click dismiss~~ — RESOLVED
@@ -43,6 +59,7 @@
 - [ ] Two remaining Paper-source edits before the Settings pass: "Lock Profile" → "Logout" on artboard `502-0`, and reconcile "Replace Share" terminology (effort: S) — noted in the plan; needs a Paper MCP edit + re-sync.
 - [ ] Standardize the rotate→"Replace Share" user-facing rename across igloo-ui/igloo-pwa (flow title "Rotate Key", button "Replace Active Device", Settings action) while keeping internal `rotate*` names (effort: M) — decided this session; lands with the Settings page.
 - [ ] Deferred dashboard screens not yet aligned: error/empty states (`1b-loading-profile`, `1b-profile-load-failed`, `2b-all-relays-offline`, `2c-signing-blocked`, `6-signing-failed`), Clear Credentials modal, and the interactive signing-approval runtime feature behind the Pending Approvals shell (effort: L).
+- [ ] Dashboard Peers + Event Log full Paper parity (effort: M) — Peers rows want online/ready counts, latency sparkline, avg latency, and per-method SIGN/ECDH/PING badges (vs current bare metric tiles); Event Log wants type-tagged rows + a filter control. This is the trigger to promote the `dashboard-signer` visual manifest entry from `needs-work` → `aligned` (see the 2026-06-01 reviewed loose end).
 - [ ] Evaluate a real router for the dashboard pages (effort: L) — currently header nav drives `store.activeDashboardTab`; URL deep-linking/back-button is a separate future refactor with route-guard considerations for sensitive unlocked states.
 
 ## 2026-05-31 — after fixing the two-device onboard handshake test
