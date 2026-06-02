@@ -296,6 +296,20 @@ export class DashboardPage extends BasePage {
     await expect(this.tid(TID.exportConfirm)).toBeVisible();
     await expect(this.tid(TID.exportSubmit)).toBeVisible();
   }
+  // Makes the Settings form dirty by editing the signer name (Device Profile).
+  async editSignerName(value: string): Promise<void> {
+    await this.page.getByPlaceholder('Unnamed signer').fill(value);
+  }
+  // Unsaved-changes guard modal (leaving Settings with edits).
+  async expectUnsavedGuard(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Discard unsaved changes?' })).toBeVisible();
+  }
+  async keepEditing(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Keep editing' }).click();
+  }
+  async discardChanges(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Discard' }).click();
+  }
   // Drives the export modal to completion and returns the re-encrypted package text.
   async exportProfileWithPassword(password: string): Promise<string> {
     await this.openExportProfile();

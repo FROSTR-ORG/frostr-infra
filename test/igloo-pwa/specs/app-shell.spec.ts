@@ -2,8 +2,41 @@ import { expect, test } from '@playwright/test';
 
 import { gotoCreateDistribute } from '../support/flows';
 import { pages } from '../support/pages';
+import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
 
 const STORAGE_KEY = 'igloo-pwa.state.v1';
+
+function seededDashboardProfile() {
+  return {
+    id: 'guard-profile',
+    label: 'Guard Device',
+    share_public_key: '33'.repeat(32),
+    group_public_key: '22'.repeat(32),
+    relays: ['wss://relay.primal.net'],
+    group_package_json: '{"group_name":"Guard Group","group_pk":"22","threshold":2,"members":[]}',
+    share_package_json: '{"idx":1,"seckey":"11"}',
+    source: 'bfprofile' as const,
+    relay_profile: 'wss://relay.primal.net',
+    group_ref: 'g',
+    encrypted_profile_ref: 'e',
+    state_path: '/tmp/guard',
+    created_at: 1_700_000_000_000,
+    stored_password: 'pw',
+    profile_string: 'bfprofile1guard',
+    share_string: 'bfshare1guard',
+    signer_settings: {
+      sign_timeout_secs: 30,
+      ping_timeout_secs: 15,
+      request_ttl_secs: 300,
+      state_save_interval_secs: 30,
+      peer_selection_strategy: 'deterministic_sorted' as const,
+    },
+    manual_peer_policy_overrides: [] as [],
+    peer_pubkey: null,
+    runtime_snapshot_json: null,
+    onboarding_package: null,
+  };
+}
 
 test.describe('igloo-pwa ui-first shell', () => {
   test('creates a generated profile, distributes shares, and finishes setup to the locked welcome', async ({ page }) => {
@@ -220,5 +253,42 @@ test.describe('igloo-pwa ui-first shell', () => {
     await expect(page.getByText('Welcome back.')).toBeVisible();
     await p.welcome.expectReturning();
     await expect(p.welcome.row('profile-1').getByText('Primary Browser Device')).toBeVisible();
+  });
+
+  test('guards unsaved Settings edits when navigating away', async ({ page }) => {
+    const profile = seededDashboardProfile();
+    await page.addInitScript(
+      ([storageKey, payload]) => {
+        window.localStorage.setItem(storageKey, payload as string);
+      },
+      [
+        PWA_STORAGE_KEY,
+        JSON.stringify(
+          buildPwaPersistedState({
+            profiles: [profile],
+            selectedProfileId: profile.id,
+            activeView: 'dashboard',
+            activeDashboardTab: 'settings',
+          }),
+        ),
+      ] as const,
+    );
+
+    await page.goto('/');
+    const dashboard = pages(page).dashboard;
+    await dashboard.expectDashboard();
+    await dashboard.editSignerName('Edited Name');
+
+    // Leaving Settings with unsaved edits opens the guard; Keep editing stays put.
+    await dashboard.openTab('permissions');
+    await dashboard.expectUnsavedGuard();
+    await dashboard.keepEditing();
+    await dashboard.expectSettingsSections();
+
+    // Discard navigates away and resets the draft.
+    await dashboard.openTab('permissions');
+    await dashboard.expectUnsavedGuard();
+    await dashboard.discardChanges();
+    await dashboard.expectPeerPermissions();
   });
 });
