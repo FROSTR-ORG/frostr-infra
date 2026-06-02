@@ -8,6 +8,7 @@ export function buildPwaPersistedState(input?: {
   activeView?: string;
   activeDashboardTab?: 'signer' | 'permissions' | 'settings';
   runtimeSnapshot?: unknown;
+  peerPermissionStates?: unknown[];
   pendingOnboardConnection?: unknown;
   pendingLoadConfirmation?: unknown;
   drafts?: Record<string, unknown>;
@@ -15,7 +16,7 @@ export function buildPwaPersistedState(input?: {
   const profiles = input?.profiles ?? [];
   return {
     profiles,
-    peerPermissionStates: [],
+    peerPermissionStates: input?.peerPermissionStates ?? [],
     selectedProfileId: input?.selectedProfileId ?? '',
     activeView: input?.activeView ?? 'landing',
     activeDashboardTab: input?.activeDashboardTab ?? 'signer',

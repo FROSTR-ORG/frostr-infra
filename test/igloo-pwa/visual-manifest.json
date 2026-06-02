@@ -9,6 +9,13 @@
       "status": "needs-work"
     },
     {
+      "name": "dashboard-permissions",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/dashboard/02-permissions.png",
+      "paperReference": "repos/igloo-paper/screens/dashboard/1c-permissions/screenshot.png",
+      "status": "needs-work"
+    },
+    {
       "name": "welcome-first-launch",
       "viewport": "1440x1080",
       "output": ".tmp/visual/igloo-pwa/welcome/01-first-launch.png",

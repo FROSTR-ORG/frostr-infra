@@ -1,5 +1,23 @@
 # Follow-ups
 
+## 2026-06-02 — after Phase B step 2 (Permissions page)
+
+### Open questions
+- [ ] Should the merged identity/runtime card also appear at the top of the
+  Permissions (and Settings) sub-pages? (effort: M) — Paper's `1c-permissions`
+  artboard shows the identity card above the permissions sections, but the PWA
+  Permissions page currently renders only the permissions panel (the identity card
+  is dashboard-only). The header nav already provides context, so omitting it is
+  defensible; decide the cross-page pattern before/with the Settings page so it's
+  consistent. If "yes," the merged card likely wants to move into a shared
+  page-shell above the tab content rather than be duplicated per panel.
+
+### Adjacent improvements
+- [ ] Reconcile the Permissions summary pills (Peers / Effective responders) with
+  Paper (effort: S) — the PWA `OperatorPermissionsPanel` shows summary pills Paper
+  doesn't draw. Harmless and arguably useful, but confirm whether they stay when
+  the page is finalized.
+
 ## 2026-06-01 — after Phase B dashboard slice (merged identity card + header nav)
 
 ### Loose ends

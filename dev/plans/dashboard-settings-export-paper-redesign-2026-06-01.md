@@ -131,10 +131,17 @@ All shaped over the 2026-06-01 grilling rounds. Decisions:
   modal (`3c`) — adds dirty tracking on the Settings form + a confirm-on-leave
   guard. **Defer Clear Credentials** (`3b`) — it introduces a new destructive
   "clear credentials" concept the store doesn't have; track as a follow-up.
-- **Permissions page** (`1c-permissions`): align the renamed page; current
-  `OperatorPermissionsPanel` already renders site + peer policies. Apply
-  "Signer Permissions" / "Peer Permissions" titles (already in Paper). Copy/
-  structure deltas vs Paper to confirm during implementation.
+- **Permissions page** (`1c-permissions`): **[DONE 2026-06-02]** Section titles
+  parameterized in `OperatorPermissionsPanel` (defaults now "Signer Permissions" /
+  "Peer Permissions", matching Paper). **CONFLICT RESOLVED:** Paper's "Signer
+  Permissions" section (per-origin `sign_event:1`/`get_public_key` rows + "Default
+  policy: Ask every time" selector) is a **NIP-07 website-bridge concept that only
+  igloo-chrome has** — the igloo-pwa signer is standalone with no site/origin
+  permissions. Decision: **PWA Permissions is peer-only** (the site section simply
+  doesn't render on the PWA because `siteRows` is undefined; it still renders on
+  chrome, which populates `siteRows`). The **default-policy selector is deferred**
+  (ties to the same site-permission + interactive-approval model the PWA lacks).
+  Net PWA change: just the title rename via the component default.
 - **Recover entry**: **[RESOLVED]** Recover is *not* a dashboard feature. Launched
   from the **Welcome returning-profile card action menu** (`WelcomeReturningHero`
   `onRecover` → `store.startRecoverKey`, test-id `welcomeProfileMenuRecover`,

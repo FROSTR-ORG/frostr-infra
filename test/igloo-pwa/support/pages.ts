@@ -271,6 +271,14 @@ export class DashboardPage extends BasePage {
   async expectPendingApprovalsEmpty(): Promise<void> {
     await expect(this.tid(TID.dashboardPendingApprovals)).toContainText('No pending approvals');
   }
+  // Permissions page (peer-only on the PWA; the site/origin section is chrome-only).
+  async expectPeerPermissions(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Peer Permissions' })).toBeVisible();
+  }
+  async expectNoSignerPermissions(): Promise<void> {
+    // The PWA signer has no website/origin permissions, so that section must not render.
+    await expect(this.page.getByRole('heading', { name: 'Signer Permissions' })).toHaveCount(0);
+  }
 }
 
 export interface PwaPages {
