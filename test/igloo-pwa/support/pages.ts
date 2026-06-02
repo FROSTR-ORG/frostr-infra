@@ -287,6 +287,26 @@ export class DashboardPage extends BasePage {
     await expect(this.page.getByRole('heading', { name: 'Export Share', exact: true })).toBeVisible();
     await expect(this.page.getByRole('heading', { name: 'Logout', exact: true })).toBeVisible();
   }
+  // Export package modal (Phase B step 4).
+  async openExportProfile(): Promise<void> {
+    await this.tid(TID.settingsCopyProfile).click();
+  }
+  async expectExportModalEntry(): Promise<void> {
+    await expect(this.tid(TID.exportPassword)).toBeVisible();
+    await expect(this.tid(TID.exportConfirm)).toBeVisible();
+    await expect(this.tid(TID.exportSubmit)).toBeVisible();
+  }
+  // Drives the export modal to completion and returns the re-encrypted package text.
+  async exportProfileWithPassword(password: string): Promise<string> {
+    await this.openExportProfile();
+    await this.expectExportModalEntry();
+    await this.tid(TID.exportPassword).fill(password);
+    await this.tid(TID.exportConfirm).fill(password);
+    await this.tid(TID.exportSubmit).click();
+    const result = this.tid(TID.exportResult);
+    await expect(result).toBeVisible({ timeout: 30_000 });
+    return (await result.textContent()) ?? '';
+  }
 }
 
 export interface PwaPages {

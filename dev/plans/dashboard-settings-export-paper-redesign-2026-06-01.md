@@ -135,11 +135,20 @@ All shaped over the 2026-06-01 grilling rounds. Decisions:
   **"Logout"** (more familiar) across igloo-ui **and** the Paper design — a small
   Paper edit changes the Settings artboard "Lock Profile" → "Logout".
 - **Export Profile / Export Share** (`4-export-profile`, `4c-export-share` +
-  `-complete`): **adopt Paper's password modal** (export → password + confirm →
-  encrypted package → "complete" state with copy / save-to-file / QR). Replaces the
-  current one-click `copyProfilePackage` clipboard buttons. Reuse the existing
-  password-encrypt path in
-  `repos/igloo-pwa/src/lib/local-adapter/profile-packages.ts`.
+  `-complete`): **adopt Paper's password modal**. **[BUILT 2026-06-02, step 4]:**
+  - **"Export Password" = re-encrypt with a fresh password** (decided). The stored
+    `profile_string`/`share_string` are already encrypted with the profile's
+    `stored_password`; export decodes with `stored_password` then re-encodes with
+    the user's export password → a portable package independent of the local
+    password. Path: `decodeBfProfilePackage`/`decodeBfSharePackage`(stored_password)
+    → `createProfilePackagePair`(exportPassword), in a new adapter export fn + store
+    action `exportEncryptedPackage(profileId, format, exportPassword)`.
+  - **Shared `ExportPackageModal` in igloo-ui**: entry state = summary line (Share #
+    / Keyset / N relays / N peers) + Export Password + Confirm + Cancel/Export;
+    complete state = "Backup Ready" + masked package + **Copy + Download + Done** +
+    safety note. (No QR — matches Paper.)
+  - The Settings "Export Profile"/"Export Share" section buttons open the modal
+    (replacing the relabeled copy-to-clipboard from step 3).
 - **Settings modals** [DECIDED]: build the **Unsaved Changes** dirty-state guard
   modal (`3c`) — adds dirty tracking on the Settings form + a confirm-on-leave
   guard. **Defer Clear Credentials** (`3b`) — it introduces a new destructive

@@ -95,5 +95,10 @@ test.describe('igloo-pwa Paper Settings visual harness @visual', () => {
     await dashboard.expectSettingsSections();
 
     await capture(page, '03-settings.png');
+
+    // Export Profile opens the password-modal entry state.
+    await dashboard.openExportProfile();
+    await dashboard.expectExportModalEntry();
+    await capture(page, '04-export-profile-modal.png');
   });
 });
