@@ -14,3 +14,9 @@ data/**
 
 build
 build/**
+
+# Host Rust build output: huge, and the wrong arch/OS for the in-image build
+# (the demo Dockerfile compiles binaries fresh from source). Keep it out of the
+# build context.
+**/target
+**/.tmp

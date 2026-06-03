@@ -3,10 +3,10 @@
 set -euo pipefail
 
 ROOT_DIR="/workspace"
-DEVTOOLS_DIR="${ROOT_DIR}/repos/bifrost-rs"
-IGLOO_SHELL_DIR="${ROOT_DIR}/repos/igloo-shell"
-DEVTOOLS_BIN="${DEVTOOLS_DIR}/target/debug/bifrost-devtools"
-IGLOO_SHELL_BIN="${IGLOO_SHELL_DIR}/target/debug/igloo-shell"
+# Binaries are compiled into the image (see services/demo/Dockerfile) and installed
+# on PATH; no host bind-mount or source tree is required.
+DEVTOOLS_BIN="${BIFROST_DEVTOOLS_BIN:-bifrost-devtools}"
+IGLOO_SHELL_BIN="${IGLOO_SHELL_BIN:-igloo-shell}"
 
 DEV_RELAY_HOST="${DEV_RELAY_HOST:-dev-relay}"
 DEV_RELAY_PORT="${DEV_RELAY_PORT:-8194}"
@@ -386,27 +386,13 @@ cleanup() {
   fi
 }
 
-if [ ! -f "${DEVTOOLS_DIR}/Cargo.toml" ]; then
-  echo "bifrost-rs source is not available at ${DEVTOOLS_DIR} (missing Cargo.toml)"
+if ! command -v "${DEVTOOLS_BIN}" >/dev/null 2>&1; then
+  echo "missing required binary: ${DEVTOOLS_BIN} (expected on PATH; rebuild the image)"
   exit 1
 fi
 
-if [ ! -f "${IGLOO_SHELL_DIR}/Cargo.toml" ]; then
-  echo "igloo-shell source is not available at ${IGLOO_SHELL_DIR} (missing Cargo.toml)"
-  exit 1
-fi
-
-if [ ! -x "${DEVTOOLS_BIN}" ]; then
-  echo "missing required binary: ${DEVTOOLS_BIN}"
-  echo "build it first with:"
-  echo "  cargo build --locked -p bifrost-devtools --bin bifrost-devtools"
-  exit 1
-fi
-
-if [ ! -x "${IGLOO_SHELL_BIN}" ]; then
-  echo "missing required binary: ${IGLOO_SHELL_BIN}"
-  echo "build it first with:"
-  echo "  cargo build --locked -p igloo-shell-cli --bin igloo-shell"
+if ! command -v "${IGLOO_SHELL_BIN}" >/dev/null 2>&1; then
+  echo "missing required binary: ${IGLOO_SHELL_BIN} (expected on PATH; rebuild the image)"
   exit 1
 fi
 
@@ -428,7 +414,9 @@ prepare_shell_home
 echo "==> Waiting for relay ${DEV_RELAY_INTERNAL_URL}"
 wait_for_relay "${DEV_RELAY_HOST}" "${DEV_RELAY_PORT}" 60
 
-cd "${IGLOO_SHELL_DIR}"
+# Run from a stable, always-present directory. igloo-shell uses explicit XDG_*
+# dirs (set above), so its state/config don't depend on the working directory.
+cd "${ROOT_DIR}"
 
 generate_demo_material_if_needed
 ensure_onboard_members_exist

@@ -5,6 +5,16 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT_DIR}/scripts/lib-scratch.sh"
 source "${ROOT_DIR}/scripts/lib-demo-services.sh"
+
+# Build/run the demo containers for the host architecture by default so the
+# in-image Rust build compiles natively (not under QEMU). Override with
+# DOCKER_PLATFORM. Exported so every `docker compose` call below inherits it.
+if [[ -z "${DOCKER_PLATFORM:-}" ]]; then
+  case "$(uname -m)" in
+    arm64 | aarch64) export DOCKER_PLATFORM="linux/arm64" ;;
+    x86_64 | amd64) export DOCKER_PLATFORM="linux/amd64" ;;
+  esac
+fi
 ONBOARD_MEMBERS="${IGLOO_SHELL_DEMO_INVITE_MEMBERS:-bob,carol}"
 TIMEOUT_SECS="${TIMEOUT_SECS:-60}"
 HOST_HARNESS_DIR="$(resolve_workspace_scratch_dir FROSTR_TEST_HARNESS_DIR test-harness)"

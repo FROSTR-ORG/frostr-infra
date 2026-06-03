@@ -3,11 +3,27 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+# Match the demo containers to the host arch by default (native in-image Rust
+# build); override with DOCKER_PLATFORM.
+if [[ -z "${DOCKER_PLATFORM:-}" ]]; then
+  case "$(uname -m)" in
+    arm64 | aarch64) export DOCKER_PLATFORM="linux/arm64" ;;
+    x86_64 | amd64) export DOCKER_PLATFORM="linux/amd64" ;;
+  esac
+fi
+
 PROJECT_NAME="igloo-demo-smoke-$$"
 RELAY_PORT="${RELAY_PORT:-8394}"
 RECIPIENT="${RECIPIENT:-bob}"
-ARTIFACT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/igloo-demo-artifacts.XXXXXX")"
+# The artifact dir is bind-mounted into the demo container, so it must live under
+# a host path the Docker backend shares. The repo's ./.tmp is shared by every
+# backend (Docker Desktop, colima/Lima, native Linux, WSL); a host /tmp dir is
+# NOT shared by colima/Lima, so files written in-container never reach the host.
+ARTIFACT_DIR="$(mkdir -p "${ROOT_DIR}/.tmp" && mktemp -d "${ROOT_DIR}/.tmp/igloo-demo-artifacts.XXXXXX")"
 CONTAINER_ARTIFACT_DIR="${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness/${PROJECT_NAME}}"
+# Host-only XDG state for the host-side igloo-shell run (not bind-mounted), so a
+# plain temp dir is fine here.
 XDG_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/igloo-demo-shell.XXXXXX")"
 IGLOO_SHELL_BIN="${ROOT_DIR}/repos/igloo-shell/target/debug/igloo-shell"
 PROFILE_ID=""

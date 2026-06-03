@@ -2,21 +2,14 @@
 
 set -euo pipefail
 
-ROOT_DIR="/workspace"
-DEVTOOLS_DIR="${ROOT_DIR}/repos/bifrost-rs"
+# The bifrost-devtools binary is compiled into the image (see services/demo/Dockerfile)
+# and installed on PATH; no host bind-mount or source tree is required.
+BIFROST_DEVTOOLS_BIN="${BIFROST_DEVTOOLS_BIN:-bifrost-devtools}"
 DEV_RELAY_PORT="${DEV_RELAY_PORT:-8194}"
 DEV_RELAY_BIND_HOST="${DEV_RELAY_BIND_HOST:-0.0.0.0}"
-BIFROST_DEVTOOLS_BIN="${DEVTOOLS_DIR}/target/debug/bifrost-devtools"
 
-if [ ! -f "${DEVTOOLS_DIR}/Cargo.toml" ]; then
-  echo "bifrost-rs source is not available at ${DEVTOOLS_DIR} (missing Cargo.toml)"
-  exit 1
-fi
-
-if [ ! -x "${BIFROST_DEVTOOLS_BIN}" ]; then
-  echo "missing required binary: ${BIFROST_DEVTOOLS_BIN}"
-  echo "build it first with:"
-  echo "  cargo build --locked -p bifrost-devtools --bin bifrost-devtools"
+if ! command -v "${BIFROST_DEVTOOLS_BIN}" >/dev/null 2>&1; then
+  echo "missing required binary: ${BIFROST_DEVTOOLS_BIN} (expected on PATH; rebuild the image)"
   exit 1
 fi
 

@@ -1,9 +1,8 @@
-import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import net from 'node:net';
-import { lstat, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 
 import { logE2E, withLoggedStep } from '../../../shared/observability';
 import { REPO_ROOT_DIR } from '../../../shared/repo-paths';
@@ -242,7 +241,14 @@ async function cleanupArtifactDir(dir: string) {
 
 export async function startDemoHarnessFixture(): Promise<DemoHarnessFixture> {
   const projectName = `igloo-chrome-${process.pid}-${randomBytes(4).toString('hex')}`;
-  const hostArtifactDir = await mkdtemp(path.join(os.tmpdir(), 'igloo-chrome-demo-'));
+  // The artifact dir is bind-mounted into the demo containers, so it must live
+  // under a host path the Docker backend shares. The repo's ./.tmp is shared by
+  // every backend (Docker Desktop, colima/Lima, native Linux, WSL); os.tmpdir()
+  // (/tmp, /var/folders) is NOT shared by colima/Lima, so container-written files
+  // never reach the host.
+  const scratchRoot = path.join(REPO_ROOT_DIR, '.tmp');
+  await mkdir(scratchRoot, { recursive: true });
+  const hostArtifactDir = await mkdtemp(path.join(scratchRoot, 'igloo-chrome-demo-'));
   const demoMember = process.env.IGLOO_SHELL_DEMO_MEMBER ?? 'alice';
   const inviteMembers = process.env.IGLOO_SHELL_DEMO_INVITE_MEMBERS ?? 'bob,carol';
   const containerArtifactDir = `/workspace/.tmp/test-harness/${projectName}`;
@@ -251,8 +257,13 @@ export async function startDemoHarnessFixture(): Promise<DemoHarnessFixture> {
   const relayPort = String(relayPortNumber);
   const relayUrl = `ws://${relayHost}:${relayPort}`;
   const recipient = process.env.IGLOO_SHELL_DEMO_E2E_MEMBER ?? 'bob';
+  // Build/run the demo containers for the host arch by default so the in-image
+  // Rust build is native-speed (override with DOCKER_PLATFORM).
+  const dockerPlatform =
+    process.env.DOCKER_PLATFORM ?? (process.arch === 'arm64' ? 'linux/arm64' : 'linux/amd64');
   const composeEnv = {
     ...process.env,
+    DOCKER_PLATFORM: dockerPlatform,
     DEV_RELAY_PORT: relayPort,
     DEV_RELAY_EXTERNAL_HOST: relayHost,
     FROSTR_TEST_HARNESS_DIR: hostArtifactDir,
