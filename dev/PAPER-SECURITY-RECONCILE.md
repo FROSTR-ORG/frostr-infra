@@ -39,7 +39,7 @@ untouched.**
 | bifrost-rs | 7a41c3b | d0bf343 | +1 / -48 | **DONE** |
 | igloo-shell | a6eece3 | 7bf3ff4 | +2 / -6 | **DONE** |
 | igloo-shared | e617db1 | 303514d | +4 | **DONE** |
-| igloo-chrome | ee45a64 | 5410f1d | +7 | wasm binaries (regen); needs igloo-ui reconciled for full e2e |
+| igloo-chrome | ee45a64 | 5410f1d | +7 | **DONE** (typecheck only; full unit+e2e after igloo-ui) |
 | igloo-pwa | 007754e | 1044edc | +30 | HARD: Paper flows vs App/store/types; Paper-wins |
 | igloo-ui | 66f144a | 24e3b81 | +33 | HARDEST: Paper design hard-cut; Paper-wins re-layer |
 | igloo-home | eed7b7a | d99c987 | 0 | already current |
@@ -81,6 +81,27 @@ untouched.**
   141/141; `browser-wasm-exports` guard ok.** NOTE: amended once — a late edit
   (drop `saveRecoveredBrowserProfileAndMaybeActivate`) post-dated the `git add`,
   so re-stage before commit when a typecheck fix lands after staging.
+- **igloo-chrome** — reconciled on local branch `reconcile/paper+security`
+  (`e43a115`). **Text merge fully automatic** (Paper's igloo-ui API migration,
+  MV3 static-glue WASM loader, recover-from-share removal, audit fixes did not
+  line-collide with security's runtime-type dedup / test renames). Only the 2
+  vendored wasm binaries conflicted → took Paper's (HEAD/ours), matching the
+  merged loader .mjs + the igloo-shared decision. **Validation:** chrome resolves
+  `igloo-shared` → `../igloo-shared/src/index.ts` (tsconfig path) and `igloo-ui`
+  → sibling `dist/index.d.ts` (node_modules symlink). To get a faithful signal I
+  temporarily set igloo-shared→reconcile (b966139) and igloo-ui→Paper tip
+  (66f144a, `npm run build` to emit dist), then `bunx tsc --noEmit` → **clean**;
+  restored both siblings after. Unit tests (`vitest run`) cannot load their
+  config standalone (config imports igloo-shared's raw `.ts` testing subpath by
+  package name → ERR_UNKNOWN_FILE_EXTENSION); this **reproduces identically on
+  the pristine Paper tip**, so it's a pre-existing harness-invocation matter, not
+  a reconcile regression. Full unit + e2e deferred to the workspace harness after
+  igloo-ui is reconciled. CAUTION LEARNED: do **not** `git checkout` other commits
+  while a merge is mid-resolve — it silently drops `MERGE_HEAD` and the next
+  commit loses the second parent. I hit this, `git reset --hard <paper-tip>` +
+  re-merged cleanly; final commit has parents `[ee45a64 5410f1d]`. Side effect:
+  igloo-ui's gitignored `dist/` is currently a Paper-tip build over
+  security-hardening source — harmless (rebuilt at igloo-ui reconcile).
 
 ## The pattern that works
 
@@ -94,7 +115,7 @@ untouched.**
 
 ## Remaining order
 
-~~igloo-shared~~ (done) → igloo-chrome (regen wasm; full e2e after igloo-ui) → **igloo-ui**
+~~igloo-shared~~ → ~~igloo-chrome~~ (both done) → **igloo-ui**
 (Paper-wins re-layer — the real work) → **igloo-pwa** → parent (reconcile
 submodule pointers to the reconciled tips + `test/igloo-pwa/specs/app-shell.spec.ts`
 our v2-seed fix vs Paper's PWA test wiring + CI/scripts/`AGENTS.md`). Then ff each
