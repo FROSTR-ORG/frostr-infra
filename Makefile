@@ -80,7 +80,7 @@ help:
 		'  scripts/, dev/scripts/, and test/scripts/ remain private implementation detail.' \
 		'  demo-start launches the demo stack in the background.' \
 		'  demo-foreground stays attached to the terminal.' \
-		'  igloo-pwa-dev RELAY=1 also starts the test relay (dev-relay) and points the app at it; stop it with make demo-stop.' \
+		'  igloo-pwa-dev RELAY=1 starts a native local relay, points the app at it, and stops it when the dev server exits (the Docker dev-relay is for the demo/CI lanes via make demo-start).' \
 		'  igloo-paper-sync and igloo-paper-verify are manual; excluded from default test/CI lanes (require Paper desktop and Paper MCP).' \
 		'  igloo-ui-paper-token-sync is a parent-owned handoff; igloo-ui does not depend on Paper tooling.'
 

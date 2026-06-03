@@ -8,6 +8,8 @@ KILL_BIN="${IGLOO_PWA_DEV_KILL_BIN:-kill}"
 SLEEP_BIN="${IGLOO_PWA_DEV_SLEEP_BIN:-sleep}"
 RELAY="${RELAY:-0}"
 RELAY_PORT="${RELAY_PORT:-8194}"
+RELAY_BIN="${ROOT_DIR}/repos/bifrost-rs/target/debug/bifrost-devtools"
+RELAY_PID=""
 
 cd "${ROOT_DIR}"
 
@@ -90,16 +92,57 @@ wait_for_port_clear() {
   return 1
 }
 
+build_relay_if_needed() {
+  if [[ -x "${RELAY_BIN}" ]]; then
+    return 0
+  fi
+  printf 'Building bifrost-devtools relay binary (first run, this can take a minute)...\n' >&2
+  cargo build --manifest-path "${ROOT_DIR}/repos/bifrost-rs/Cargo.toml" \
+    --locked -p bifrost-devtools --bin bifrost-devtools >&2
+}
+
+stop_relay() {
+  if [[ -n "${RELAY_PID}" ]] && kill -0 "${RELAY_PID}" 2>/dev/null; then
+    "${KILL_BIN}" -TERM "${RELAY_PID}" 2>/dev/null || true
+  fi
+}
+
+# Start the dev relay natively (not via the Docker demo lane). The relay binary
+# from test-prebuild is always built for the host (`cargo build` with no
+# --target), so it's a host-native binary — a macOS Mach-O on Apple Silicon. The
+# Docker dev-relay runs linux/x86_64 and bind-mounts the same binary, so it can
+# never exec a macOS build ("Exec format error", crash-loop). Running natively
+# matches the host on macOS and Linux alike and ties the relay to this dev
+# session. The Docker relay remains for the demo/CI lanes (make demo-start).
 maybe_start_relay() {
   [[ "${RELAY}" == "1" ]] || return 0
-  local resolved_port
-  resolved_port="$("${ROOT_DIR}/scripts/demo.sh" relay-up "${RELAY_PORT}")"
-  export VITE_DEFAULT_RELAYS="ws://localhost:${resolved_port}"
-  printf 'Test relay ready at %s (stop with: make demo-stop)\n' "${VITE_DEFAULT_RELAYS}" >&2
+
+  # If a relay is already listening on the port, reuse it rather than starting
+  # (or killing) a second one we don't own.
+  if [[ -n "$(find_port_pids "${RELAY_PORT}" || true)" ]]; then
+    export VITE_DEFAULT_RELAYS="ws://127.0.0.1:${RELAY_PORT}"
+    printf 'Relay already running at %s — reusing it.\n' "${VITE_DEFAULT_RELAYS}" >&2
+    return 0
+  fi
+
+  build_relay_if_needed
+  "${RELAY_BIN}" relay --host 0.0.0.0 --port "${RELAY_PORT}" >&2 &
+  RELAY_PID="$!"
+  export VITE_DEFAULT_RELAYS="ws://127.0.0.1:${RELAY_PORT}"
+  printf 'Local relay started (PID %s) at %s — stops with this dev server.\n' \
+    "${RELAY_PID}" "${VITE_DEFAULT_RELAYS}" >&2
 }
 
 start_dev() {
   maybe_start_relay
+  # When we own a relay process, keep it tied to the dev server's lifetime: run
+  # npm in the foreground (not exec) so the EXIT trap can tear the relay down.
+  if [[ -n "${RELAY_PID}" ]]; then
+    trap stop_relay EXIT INT TERM
+    local rc=0
+    npm --prefix "${ROOT_DIR}/repos/igloo-pwa" run dev || rc=$?
+    exit "${rc}"
+  fi
   exec npm --prefix "${ROOT_DIR}/repos/igloo-pwa" run dev
 }
 
