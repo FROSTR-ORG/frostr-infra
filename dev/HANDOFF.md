@@ -216,6 +216,41 @@ reviewed and ff-merged (submodules) — `master` untouched throughout. A
 `.claude/settings.local.json` allow-list was added (Write/Edit/git/cargo/npm,
 **excluding** push/merge) but did not restore background-agent writes.
 
+## R3 validation + pre-existing fixes (2026-06-03)
+
+`make test-release` was run end-to-end to validate R3 before the L2 cutover.
+**R3 itself is clean** — it changes no runtime (additive tests + comment-only
+JSDoc + docs), and everything R3 added passes: the bifrost-rs workspace tests
+(incl. the new FROST/nonce/codec/router tests) went green in the matrix, and the
+igloo-shared/home/chrome unit suites + all doc/markdown/constant guards are
+green. **No R3 regressions** — structurally impossible and confirmed.
+
+The matrix surfaced several **pre-existing** issues (all in repos R3 did not
+touch). Three were root-caused and fixed (each verified):
+
+- **igloo-pwa `1044edc`** — Vite `server.fs.allow` now serves the Bucket H
+  vendored igloo-ui font (was 403 → now 200). Cosmetic but real.
+- **igloo-shell `7bf3ff4`** — `test-node-e2e.sh`'s five `export` calls were
+  missing `--passphrase-env` (an R1 Bucket C migration miss), so they failed
+  "passphrase not provided". Fixed → `node e2e passed` end-to-end.
+- **parent `9c06baa`** — `app-shell.spec.ts` (`:52`/`:143`) seeded the
+  pre-Bucket-D `v1`/`stored_password` localStorage model the app hard-cut and
+  deletes on boot; rewrote the seeds to the `v2` schema + waited out the store's
+  debounced persistor. `app-shell.spec.ts` now 3/3 (was 1/3).
+  Parent `9e77811` bumps the igloo-pwa + igloo-shell pointers for the above.
+
+Two transient/known items, not fixed (not regressions): a `bifrost-devtools`
+`ETXTBSY` exec race (flake; green on clean re-run) and the non-fatal
+auto-backup-publish passphrase warning.
+
+**Remaining red e2e is environmental, not a code defect:** the bulk of the
+`@live` / pairing / rotation / onboarding browser specs need a live multi-node
+signer (a second responder/inviter) + a desktop display, which this single-node
+local env cannot provide. A fully-green e2e gate requires the CI infra; re-run
+`make test-release` there before/at cutover. Updated tips: parent `9e77811`,
+igloo-pwa `1044edc`, igloo-shell `7bf3ff4` (others unchanged from the R3 table
+below).
+
 ## Repo HEAD snapshot (2026-06-02)
 
 Every repo now has two branches: `master` (pristine, equal to
