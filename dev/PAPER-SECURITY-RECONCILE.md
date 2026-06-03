@@ -3,8 +3,10 @@
 R1+R2+R3 are complete and pushed to `origin/security-hardening` (all repos).
 While we worked, a parallel **Paper UI** track advanced on `origin/master` +
 `origin/paper-create-flow-update`. This note tracks reconciling the two before
-the L2 cutover. **Nothing here is pushed; `master` and the Paper branch are
-untouched.**
+the L2 cutover. **`master` and the Paper branch remain untouched** (no cutover
+yet). The per-repo `reconcile/paper+security` branches ARE now pushed to their
+`origin` as **backup only** (2026-06-03) — a safety net for the local merge work,
+not a cutover. Resume from `origin/reconcile/paper+security` if local state is lost.
 
 ## Topology (forked ~2026-04-13 from a common base)
 
@@ -103,6 +105,48 @@ untouched.**
   igloo-ui's gitignored `dist/` is currently a Paper-tip build over
   security-hardening source — harmless (rebuilt at igloo-ui reconcile).
 
+## igloo-ui pre-scout (read-only, 2026-06-03 — for the fresh session)
+
+Paper tip `66f144a`, sec tip `24e3b81`, merge-base `32b6188d`. **Paper = +33
+commits** (hard-cut design system: token bridge, `design-tokens.{ts,css}`,
+`view-models.ts`, semantic UI primitives, full create/onboard/welcome flow
+redesign, `styles.css` +2163). **Security = only +5 commits**, and they map
+almost 1:1 to the three behaviors to re-layer:
+- `c5387fd` PR34 — neutral entry tokens, vendored font, named exports, NonceBar capacity
+- `0626ed1` PR35 — **SensitiveField/SensitiveTextarea** + mask in-library secret renders
+- `ad61597` PR36 — **Dialog/a11y primitives (replace Modal)** + **LogEntry hardening**
+- `24e3b81` PR38 — vitest-axe + primitive unit/keyboard tests
+- `87f2ac5` — live onboarding status in distribution cards
+
+**Re-layer targets (where the security behavior lives in `24e3b81`):**
+- `SensitiveField` → `src/components/ui/sensitive-field.tsx`, `sensitive-textarea.tsx`
+  — **ABSENT at Paper tip ⇒ clean re-add.** No git conflict; the work is *wiring*
+  them into Paper's redesigned components wherever a secret renders (create/import/
+  export flows), plus the `src/index.ts` export.
+- `Dialog` focus-trap/scroll-lock/Escape → `src/components/ui/dialog.tsx`,
+  `src/lib/use-focus-trap.ts` — **ABSENT at Paper tip ⇒ clean re-add.** BUT Paper
+  kept & redesigned `modal.tsx` and built `ExportPackageModal` on it. Security
+  *replaced* Modal with Dialog. Decision needed: graft Dialog's a11y behavior onto
+  Paper's `modal.tsx`, or migrate Paper's modal usages to security's `dialog.tsx`.
+  This + `styles.css` is the crux of the hard part.
+- `LogEntry` bounds → `src/components/ui/log-entry.tsx`, `event-log.tsx` —
+  **PRESENT at Paper tip ⇒ real conflict.** Paper redesigned event-log (domain
+  filter, indexed row ids, readiness counts in `3782c2c`/`424b707`); re-layer
+  security's entry-bounds onto Paper's event-log.
+
+**Git-level conflict surface (12 files, from `git merge-tree 66f144a 24e3b81`):**
+`package.json`, `package-lock.json`, `scripts/build.mjs`, `src/index.ts`
+(barrel — both add exports, merge both), `src/styles.css` (**Paper-wins**, huge),
+`src/components/ui/modal.tsx` (the Dialog-vs-Modal crux), `src/test/setup.ts`,
+and four flow files Paper redesigned + security touched:
+`components/flows/{CreateFlow,CreateImportPanel,HostShell,OperatorSignerPanel}.tsx`
++ `test/CreateFlow.test.tsx`. The Sensitive*/dialog/use-focus-trap files are NOT
+in this list (clean adds). Suggested order: merge → take Paper for `styles.css`/
+tokens/flow layout → re-add the 4 clean security primitives → wire SensitiveField
+into secret renders → reconcile Dialog-vs-Modal a11y → re-layer LogEntry bounds
+onto Paper's event-log → reconcile `index.ts` barrel (both export sets) → build
+igloo-ui dist → `tsc`/vitest.
+
 ## The pattern that works
 
 1. `git checkout -b reconcile/paper+security <paper-tip>` in the submodule.
@@ -123,9 +167,49 @@ our v2-seed fix vs Paper's PWA test wiring + CI/scripts/`AGENTS.md`). Then ff ea
 
 ## State to restore on resume
 
-The reconcile branches persist in each submodule. bifrost-rs + igloo-shell are
-left checked out on `security-hardening` (clean parent tree); their reconcile
-branches hold the work (`git -C repos/bifrost-rs branch` → `reconcile/paper+security`).
-Pre-existing env notes: `rg` is a shell-function shim (real binary at
-`/usr/share/codium/.../@vscode/ripgrep/bin/rg`); background subagents are
-read-only here (do mutations in the main thread).
+**Done (4):** each holds its work on local branch `reconcile/paper+security`,
+also pushed to `origin/reconcile/paper+security` (backup):
+
+| repo | reconcile tip | validation |
+|---|---|---|
+| bifrost-rs  | `dab2b94` | `cargo test --workspace` pass |
+| igloo-shell | `479bfbd` | `cargo check` clean, lib tests pass |
+| igloo-shared| `b966139` | typecheck clean, vitest 141/141, wasm-exports ok |
+| igloo-chrome| `e43a115` | typecheck clean (vs reconciled deps); unit+e2e deferred |
+
+**All submodules are parked on `security-hardening`** so the parent tree is clean
+(parent stays on `security-hardening`, no pointer changes committed). The reconcile
+work is only on the `reconcile/paper+security` branches. To resume a repo:
+`git -C repos/<x> checkout reconcile/paper+security`.
+
+**Next:** igloo-ui (see pre-scout above) → igloo-pwa → igloo-home (Δ0, just adopt
+Paper tip `eed7b7a`) / igloo-paper (take Paper tip `38d734f`) → parent.
+
+### Gotchas / env (consolidated)
+
+- **Never `git checkout` another commit while a merge is mid-resolve** — it
+  silently drops `MERGE_HEAD`, and the next commit becomes single-parent (loses
+  the merge). Recovery: `git reset --hard <paper-tip>` then re-merge. (Hit on
+  igloo-chrome; final commit verified 2-parent.)
+- **Re-stage after a late fix** — if a typecheck/lint fix edits a file *after*
+  you `git add`ed it, `git commit` uses the stale staged blob. Re-`git add` then
+  commit (or `commit -a`). (Hit on igloo-shared `index.ts`; amended.)
+- **Cross-repo TS deps resolve from the sibling checkout.** igloo-chrome (and
+  igloo-pwa) typecheck against `../igloo-shared/src` and `../igloo-ui/dist`. For a
+  faithful typecheck, temporarily point igloo-shared→`reconcile` and
+  igloo-ui→Paper-tip (`npm run build` to emit `dist`), check, then restore. `dist/`
+  is gitignored so it won't dirty git. igloo-ui's `dist/` is currently a Paper-tip
+  build over security-hardening source — harmless, rebuilt at igloo-ui reconcile.
+- **vitest config `.ts` loader**: chrome/pwa `vitest.config.ts` import
+  igloo-shared's raw `.ts` testing subpath (`igloo-shared/testing/vitest-base`) by
+  package name; running `vitest run` standalone fails with
+  `ERR_UNKNOWN_FILE_EXTENSION`. This is pre-existing (reproduces on pristine Paper
+  tips), not a reconcile bug. Run unit/e2e via the **workspace harness** (`make`),
+  not bare `vitest`.
+- **wasm binaries**: at every browser repo, took Paper's refreshed `*_bg.wasm`
+  (HEAD/ours) to match the merged loader glue. Authoritative regen from reconciled
+  bifrost-rs happens later via `make browser-wasm-sync` / `test-prep`.
+- **env**: `rg` is a shell-function shim (real binary at
+  `/usr/share/codium/.../@vscode/ripgrep/bin/rg`); `bun`/`bunx` at `~/.bun/bin`
+  (needed for `tsc`/`vitest` — no local `node_modules/.bin/tsc`); background
+  subagents are read-only here (do mutations in the main thread).
