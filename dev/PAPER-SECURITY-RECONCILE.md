@@ -30,7 +30,8 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
   design system / `styles.css` / primitives are canonical; re-apply only the
   security *behavior* on top where Paper doesn't cover it: `SensitiveField`
   mask-by-default, `Dialog` focus-trap/scroll-lock/Escape-stack, `LogEntry`
-  bounds.
+  bounds. (igloo-ui specifics + the locked **Dialog-vs-Modal decision** are in the
+  "igloo-ui pre-scout" section below.)
 - **Backend conflicts: both-keep.** Preserve our hardening AND Paper's feature,
   reconciled per hunk.
 
@@ -124,11 +125,8 @@ almost 1:1 to the three behaviors to re-layer:
   them into Paper's redesigned components wherever a secret renders (create/import/
   export flows), plus the `src/index.ts` export.
 - `Dialog` focus-trap/scroll-lock/Escape → `src/components/ui/dialog.tsx`,
-  `src/lib/use-focus-trap.ts` — **ABSENT at Paper tip ⇒ clean re-add.** BUT Paper
-  kept & redesigned `modal.tsx` and built `ExportPackageModal` on it. Security
-  *replaced* Modal with Dialog. Decision needed: graft Dialog's a11y behavior onto
-  Paper's `modal.tsx`, or migrate Paper's modal usages to security's `dialog.tsx`.
-  This + `styles.css` is the crux of the hard part.
+  `src/lib/use-focus-trap.ts` — **ABSENT at Paper tip ⇒ clean re-add.** See the
+  locked **Dialog-vs-Modal decision** below; this + `styles.css` is the crux.
 - `LogEntry` bounds → `src/components/ui/log-entry.tsx`, `event-log.tsx` —
   **PRESENT at Paper tip ⇒ real conflict.** Paper redesigned event-log (domain
   filter, indexed row ids, readiness counts in `3782c2c`/`424b707`); re-layer
@@ -146,6 +144,36 @@ tokens/flow layout → re-add the 4 clean security primitives → wire Sensitive
 into secret renders → reconcile Dialog-vs-Modal a11y → re-layer LogEntry bounds
 onto Paper's event-log → reconcile `index.ts` barrel (both export sets) → build
 igloo-ui dist → `tsc`/vitest.
+
+### Dialog-vs-Modal decision (LOCKED 2026-06-03)
+
+The two are **visually near-identical** (centered `max-w-2xl` panel + dismiss
+backdrop). The difference is almost entirely **behavior/a11y** — Paper's `Modal`
+is a thin shell; security's `Dialog` adds focus-trap, initial-focus + restore,
+ref-counted body scroll-lock, a module-level LIFO **Escape stack** (only the
+topmost closes; Modal's per-instance `window` listener closes ALL open modals at
+once), full ARIA (`role=dialog`/`aria-modal`/labelledby/describedby), and
+`preventDismissOnBackdrop|Escape` opt-outs. Security also ships `ConfirmDialog`.
+Visually, Dialog's only distinct content is hard-coded `slate-*` colors that
+Paper-wins overwrites anyway.
+
+**Decision: keep security's hardened `Dialog`/`ConfirmDialog` as the single
+engine; restyle it to Paper's `igloo-*` tokens (Paper-wins on look); and back
+Paper's `Modal` API with it** (a thin `Modal` shim over `Dialog`, or migrate the
+call sites). Rationale: behavior is the thing we must not lose, and it's the part
+Paper lacks entirely.
+
+**Scope is small** (checked at the tips):
+- Paper `Modal` consumers = **4 usages / 3 files**: `flows/ExportPackageModal.tsx`
+  (1), `flows/HostShell.tsx` (2), `flows/QrPayloadModal.tsx` (1).
+- Security `Dialog`/`ConfirmDialog` consumers = only `flows/QrPayloadModal.tsx`.
+  Paper tip has **no** Dialog/ConfirmDialog at all.
+- `flows/QrPayloadModal.tsx` exists on BOTH (security→Dialog, Paper→Modal) ⇒ it
+  will conflict; resolve Paper-wins layout but land it on the hardened engine.
+- Net: re-add `dialog.tsx` + `use-focus-trap.ts` (clean), restyle to igloo tokens,
+  delete/shrink `modal.tsx` to a `Dialog`-backed shim (preserve its
+  `open/onClose/title/className` API so `ExportPackageModal`/`HostShell` are
+  untouched), then settle `QrPayloadModal.tsx`.
 
 ## The pattern that works
 
