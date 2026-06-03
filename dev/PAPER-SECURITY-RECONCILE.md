@@ -44,7 +44,7 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
 | igloo-shared | e617db1 | 303514d | +4 | **DONE** |
 | igloo-chrome | ee45a64 | 5410f1d | +7 | **DONE** (typecheck only; full unit+e2e after igloo-ui) |
 | igloo-pwa | 007754e | 1044edc | +30 | HARD: Paper flows vs App/store/types; Paper-wins |
-| igloo-ui | 66f144a | 24e3b81 | +33 | HARDEST: Paper design hard-cut; Paper-wins re-layer |
+| igloo-ui | 66f144a | 24e3b81 | +33 | **DONE** (b68acdd) |
 | igloo-home | eed7b7a | d99c987 | 0 | already current |
 | igloo-paper | 38d734f | (none) | — | reference submodule; take Paper tip |
 
@@ -105,6 +105,42 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
   re-merged cleanly; final commit has parents `[ee45a64 5410f1d]`. Side effect:
   igloo-ui's gitignored `dist/` is currently a Paper-tip build over
   security-hardening source — harmless (rebuilt at igloo-ui reconcile).
+
+- **igloo-ui** — reconciled on local branch `reconcile/paper+security`
+  (`b68acdd`, parents `[66f144a 24e3b81]`). 11 git conflicts + ripples, all
+  resolved. Highlights:
+  (1) **Fonts (re-layer security):** styles.css Paper-wins layout, but dropped
+  the Google Fonts CDN `@import` and vendored BOTH fonts locally — Share Tech
+  Mono (already vendored) + **NEW Inter latin variable woff2** (`src/fonts/
+  Inter-latin.woff2`, weight axis 400–700, `@font-face font-weight: 400 700`).
+  Inter OFL license + README added; build.mjs already ships `src/fonts`→`dist/
+  fonts`. Emitted `dist/styles.css` = 2 `@font-face`, **0 CDN refs**.
+  (2) **vitest:** Paper-wins `vitest ^4`; bumped `vitest-axe`→`^1.0.0-pre.5`
+  (same `./matchers`+`./extend-expect` subpaths; PR38 a11y suite runs under v4).
+  setup.ts merged both (ensureLocalStorage + axe matchers + canvas stub).
+  (3) **Dialog-vs-Modal (per LOCKED decision):** security's `Dialog`/`ConfirmDialog`
+  kept as the single hardened engine, panel chrome restyled to igloo-* tokens;
+  Paper's `Modal` is now a thin `Dialog`-backed shim (`modal.tsx`) preserving the
+  `open/onClose/title/className` API; `confirm-modal.tsx` deleted (→ConfirmDialog);
+  `QrPayloadModal` auto-merged onto Dialog + SensitiveTextarea.
+  (4) **StepProgress:** enhanced the shared `StepIndicator` primitive to render
+  Paper's connectors + completed-step checkmarks on a semantic `<ol>`+`aria-current`
+  (Paper look + security a11y); used in HostShell. Both sides' new HostShell
+  exports kept (Paper Welcome*/Public* + security StepIndicator).
+  (5) **CreateFlow (Paper-wins NOW):** took Paper's onboarding rewrite verbatim
+  (status-lifecycle model). **DEFERRED:** security's host-side live distribution
+  tracking (`kind`+`tracking`, `distributionTrackingPresentation`/`formatTrackingUpdatedAt`,
+  StatusBadge on cards) was DROPPED from igloo-ui; re-layer it at **igloo-pwa**
+  where the runtime status signal flows (backend already keeps `note_onboarding_status`).
+  (6) **index.ts barrel:** re-layered security's explicit named-export surface
+  (PR34), re-derived from each module's actual exports; added Paper-new modules +
+  security primitives; dropped confirm-modal and the **Operator\* permission/runtime
+  types** (Paper moved them into `models/view-models` — pwa consumers must migrate
+  to the view-model names).
+  (7) build.mjs: fixed auto-merge duplicate `cp` import. AppHeader unit test
+  updated to Paper's `mode`-based API (a11y intent preserved).
+  **Validation:** `npm run build` clean; `tsc --noEmit` clean; `vitest run`
+  **120/120 across 19 files**.
 
 ## igloo-ui pre-scout (read-only, 2026-06-03 — for the fresh session)
 
@@ -187,16 +223,16 @@ Paper lacks entirely.
 
 ## Remaining order
 
-~~igloo-shared~~ → ~~igloo-chrome~~ (both done) → **igloo-ui**
-(Paper-wins re-layer — the real work) → **igloo-pwa** → parent (reconcile
+~~igloo-shared~~ → ~~igloo-chrome~~ → ~~igloo-ui~~ (all done) → **igloo-pwa** → parent (reconcile
 submodule pointers to the reconciled tips + `test/igloo-pwa/specs/app-shell.spec.ts`
 our v2-seed fix vs Paper's PWA test wiring + CI/scripts/`AGENTS.md`). Then ff each
 `master` to its reconciled tip, re-run `make test-release` on infra, then push.
 
 ## State to restore on resume
 
-**Done (4):** each holds its work on local branch `reconcile/paper+security`,
-also pushed to `origin/reconcile/paper+security` (backup):
+**Done (5):** each holds its work on local branch `reconcile/paper+security`.
+The first four are also pushed to `origin/reconcile/paper+security` (backup);
+**igloo-ui's backup push is pending** (see resume note below):
 
 | repo | reconcile tip | validation |
 |---|---|---|
@@ -204,14 +240,18 @@ also pushed to `origin/reconcile/paper+security` (backup):
 | igloo-shell | `479bfbd` | `cargo check` clean, lib tests pass |
 | igloo-shared| `b966139` | typecheck clean, vitest 141/141, wasm-exports ok |
 | igloo-chrome| `e43a115` | typecheck clean (vs reconciled deps); unit+e2e deferred |
+| igloo-ui    | `b68acdd` | build + `tsc --noEmit` clean, vitest 120/120 |
 
 **All submodules are parked on `security-hardening`** so the parent tree is clean
 (parent stays on `security-hardening`, no pointer changes committed). The reconcile
 work is only on the `reconcile/paper+security` branches. To resume a repo:
 `git -C repos/<x> checkout reconcile/paper+security`.
 
-**Next:** igloo-ui (see pre-scout above) → igloo-pwa → igloo-home (Δ0, just adopt
-Paper tip `eed7b7a`) / igloo-paper (take Paper tip `38d734f`) → parent.
+**Next:** igloo-pwa (HARD; the `igloo-ui` pre-scout above is now stale — igloo-ui
+is DONE at `b68acdd`; pwa typechecks against `../igloo-ui/dist` built from the
+reconcile tip, and must adopt the renamed Operator\* types from `models/view-models`
+and may re-layer the deferred live distribution-tracking UI) → igloo-home (Δ0, just
+adopt Paper tip `eed7b7a`) / igloo-paper (take Paper tip `38d734f`) → parent.
 
 ### Gotchas / env (consolidated)
 
