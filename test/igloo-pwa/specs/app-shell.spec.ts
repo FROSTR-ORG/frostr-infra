@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const STORAGE_KEY = 'igloo-pwa.state.v1';
+const STORAGE_KEY = 'igloo-pwa.state.v2';
 
 test.describe('igloo-pwa ui-first shell', () => {
   test('creates a generated profile, distributes a share, and lands on the dashboard', async ({ page }) => {
@@ -64,16 +64,17 @@ test.describe('igloo-pwa ui-first shell', () => {
                 relays: ['wss://relay.primal.net'],
                 group_package_json:
                   '{"group_name":"Playwright Group","group_pk":"group-pub-1","threshold":2,"members":[]}',
-                share_package_json: '{"share":"demo"}',
+                // v2 schema (Bucket D): stored_password / share_package_json /
+                // profile_string / share_string are no longer persisted; the
+                // share reconstructs in-memory from encrypted_bfshare_artifact.
+                encrypted_bfshare_artifact: 'bfshare1demo',
+                member_idx: 1,
                 source: 'bfprofile',
                 relay_profile: 'browser',
                 group_ref: 'group-ref',
                 encrypted_profile_ref: 'encrypted-profile-ref',
                 state_path: '/tmp/igloo-pwa/profile-1',
                 created_at: 1700000000000,
-                stored_password: 'pw',
-                profile_string: 'bfprofile1demo',
-                share_string: 'bfshare1demo',
                 signer_settings: {
                   sign_timeout_secs: 30,
                   ping_timeout_secs: 15,
@@ -81,10 +82,9 @@ test.describe('igloo-pwa ui-first shell', () => {
                   state_save_interval_secs: 30,
                   peer_selection_strategy: 'deterministic_sorted',
                 },
-                onboarding_package: null,
               },
             ],
-            peerPolicies: [],
+            peerPermissionStates: [],
             selectedProfileId: 'profile-1',
             activeView: 'dashboard',
             activeDashboardTab: 'settings',
@@ -135,6 +135,17 @@ test.describe('igloo-pwa ui-first shell', () => {
 
     const toggle = page.getByLabel(/Open signer after import/i);
     await toggle.uncheck();
+    // The store persists via a debounced writer (250ms wait / 500ms maxWait),
+    // so wait for the toggle change to actually land in localStorage before
+    // reloading — otherwise the reload races the pending save and reverts.
+    await expect
+      .poll(() =>
+        page.evaluate((key) => {
+          const raw = window.localStorage.getItem(key);
+          return raw ? (JSON.parse(raw).settings?.auto_open_signer ?? null) : null;
+        }, STORAGE_KEY),
+      )
+      .toBe(false);
     await page.reload();
     await expect(page.getByRole('tab', { name: /Settings\s+operator controls/i })).toBeVisible();
     await expect(toggle).not.toBeChecked();
@@ -155,16 +166,17 @@ test.describe('igloo-pwa ui-first shell', () => {
                 relays: ['wss://relay.primal.net'],
                 group_package_json:
                   '{"group_name":"Playwright Group","group_pk":"group-pub-1","threshold":2,"members":[]}',
-                share_package_json: '{"share":"demo"}',
+                // v2 schema (Bucket D): stored_password / share_package_json /
+                // profile_string / share_string are no longer persisted; the
+                // share reconstructs in-memory from encrypted_bfshare_artifact.
+                encrypted_bfshare_artifact: 'bfshare1demo',
+                member_idx: 1,
                 source: 'bfprofile',
                 relay_profile: 'wss://relay.primal.net',
                 group_ref: 'group-ref',
                 encrypted_profile_ref: 'encrypted-profile-ref',
                 state_path: '/tmp/igloo-pwa/profile-1',
                 created_at: 1700000000000,
-                stored_password: 'pw',
-                profile_string: 'bfprofile1demo',
-                share_string: 'bfshare1demo',
                 signer_settings: {
                   sign_timeout_secs: 30,
                   ping_timeout_secs: 15,
@@ -172,10 +184,9 @@ test.describe('igloo-pwa ui-first shell', () => {
                   state_save_interval_secs: 30,
                   peer_selection_strategy: 'deterministic_sorted',
                 },
-                onboarding_package: null,
               },
             ],
-            peerPolicies: [],
+            peerPermissionStates: [],
             selectedProfileId: 'profile-1',
             activeView: 'dashboard',
             activeDashboardTab: 'signer',
