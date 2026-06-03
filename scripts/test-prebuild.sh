@@ -529,7 +529,15 @@ if selected_has demo-binaries; then
 fi
 
 if selected_has demo; then
-  run_step "Build demo-harness images" docker compose -f "${ROOT_DIR}/compose.test.yml" build "${DEMO_HARNESS_SERVICES[@]}"
+  # Optionally layer a compose override (e.g. compose.ci.yml adds the type=gha
+  # BuildKit cache in CI). Resolve a relative override against the repo root.
+  demo_compose_files=(-f "${ROOT_DIR}/compose.test.yml")
+  if [[ -n "${FROSTR_DEMO_COMPOSE_OVERRIDE:-}" ]]; then
+    demo_compose_override="${FROSTR_DEMO_COMPOSE_OVERRIDE}"
+    [[ "${demo_compose_override}" != /* ]] && demo_compose_override="${ROOT_DIR}/${demo_compose_override}"
+    demo_compose_files+=(-f "${demo_compose_override}")
+  fi
+  run_step "Build demo-harness images" docker compose "${demo_compose_files[@]}" build "${DEMO_HARNESS_SERVICES[@]}"
 fi
 
 write_stamp

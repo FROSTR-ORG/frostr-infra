@@ -1,0 +1,24 @@
+# CI-only overlay for the demo-harness images. Layered on top of compose.test.yml
+# (`-f compose.test.yml -f compose.ci.yml`) by the test prebuild when
+# FROSTR_DEMO_COMPOSE_OVERRIDE points here. Adds a GitHub Actions BuildKit layer
+# cache so unchanged bifrost-rs/igloo-shell source restores the compiled Rust
+# layer instead of recompiling it on every CI run.
+#
+# Requires a docker-container buildx builder (docker/setup-buildx-action) and
+# COMPOSE_BAKE=true so `docker compose build` routes through buildx bake and
+# honors cache_from/cache_to. Kept out of compose.test.yml so local/default-driver
+# builds are unaffected (the default `docker` driver can't export type=gha).
+services:
+  dev-relay:
+    build:
+      cache_from:
+        - type=gha,scope=demo-dev-relay
+      cache_to:
+        - type=gha,mode=max,scope=demo-dev-relay
+
+  igloo-demo:
+    build:
+      cache_from:
+        - type=gha,scope=demo-igloo-demo
+      cache_to:
+        - type=gha,mode=max,scope=demo-igloo-demo

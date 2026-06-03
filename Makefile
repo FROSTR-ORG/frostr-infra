@@ -14,7 +14,7 @@ RELAY ?= 0
 .PHONY: \
 	help \
 	repo-init repo-check repo-reset \
-	demo-start demo-foreground demo-stop demo-logs demo-onboard demo-smoke \
+	demo-start demo-foreground demo-stop demo-logs demo-onboard demo-smoke demo-pair-check \
 	compose-start compose-stop compose-restart compose-logs \
 	test-smoke test-fast test-live test-demo test-e2e test-prep test-affected test-release \
 	browser-wasm-refresh browser-wasm-sync browser-wasm-check wasm-toolchain-check \
@@ -36,6 +36,7 @@ help:
 		'  make demo-logs' \
 		'  make demo-onboard' \
 		'  make demo-smoke [PORT=<port>]' \
+		'  make demo-pair-check' \
 		'  make compose-start SERVICES="<service> [service...]"' \
 		'  make compose-stop SERVICES="<service> [service...]"' \
 		'  make compose-restart SERVICES="<service> [service...]"' \
@@ -111,6 +112,15 @@ demo-onboard:
 
 demo-smoke:
 	@RELAY_PORT="$(PORT)" "$(ROOT_DIR)/test/scripts/test-demo-harness-onboard.sh"
+
+# Fast gate that the pinned bifrost-rs + igloo-shell submodule pair compiles
+# together (igloo-shell path-depends on bifrost-rs, so an API change can break it
+# with no version bump). Front-runs the slower in-Docker demo build in CI.
+demo-pair-check:
+	@echo "==> Checking bifrost-devtools compiles (repos/bifrost-rs)"
+	@cargo check --locked --manifest-path "$(ROOT_DIR)/repos/bifrost-rs/Cargo.toml" -p bifrost-devtools --bin bifrost-devtools
+	@echo "==> Checking igloo-shell compiles against the pinned bifrost-rs (repos/igloo-shell)"
+	@cargo check --locked --manifest-path "$(ROOT_DIR)/repos/igloo-shell/Cargo.toml" -p igloo-shell-cli --bin igloo-shell
 
 compose-start:
 	@if [[ -z "$(strip $(SERVICES))" ]]; then echo 'error: compose-start requires SERVICES="<service> [service...]"' >&2; exit 1; fi

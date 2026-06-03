@@ -104,8 +104,21 @@ jobs:
           cargo fetch --manifest-path repos/igloo-shell/Cargo.toml --locked
           cargo fetch --manifest-path repos/igloo-home/src-tauri/Cargo.toml --locked
 
+      # Fast, clear gate: catch bifrost-rs <-> igloo-shell API drift (path deps)
+      # before the slower in-Docker demo build.
+      - name: Check pinned submodule pair compiles
+        run: make demo-pair-check
+
       - name: Install Playwright browsers
         run: npm --prefix test run test:install-browsers
 
+      # docker-container builder enables the type=gha BuildKit cache used by the
+      # demo image build (via compose.ci.yml + COMPOSE_BAKE below).
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Run required demo validation
+        env:
+          COMPOSE_BAKE: "true"
+          FROSTR_DEMO_COMPOSE_OVERRIDE: compose.ci.yml
         run: xvfb-run -a make test-demo

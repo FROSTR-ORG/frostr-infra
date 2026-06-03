@@ -12,19 +12,17 @@
 # Select the runtime target per service with compose `target:`.
 #
 # bifrost-devtools needs a recent stable: edition 2024 (>= 1.85) and `if let`
-# chains / let_chains (stabilized in 1.88). The repo pins a floating `stable`
-# toolchain, so track the latest stable 1.x here; override RUST_IMAGE to pin.
-ARG RUST_IMAGE=rust:1-bookworm
+# chains / let_chains (stabilized in 1.88). Pinned to match the workspace's
+# current stable toolchain (rustc 1.95) for reproducible image builds; override
+# RUST_IMAGE to bump.
+ARG RUST_IMAGE=rust:1.95-bookworm
 
 # ---- builder-relay: compile bifrost-devtools (needs only repos/bifrost-rs) ----
 FROM ${RUST_IMAGE} AS builder-relay
 
-# Defensive native build deps. bifrost-devtools is rustls (no OpenSSL); kept for
-# igloo-shell whose deps are unverified here.
-RUN apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-       pkg-config libssl-dev \
-  && rm -rf /var/lib/apt/lists/*
+# bifrost-devtools and igloo-shell are both pure rustls (tokio-tungstenite
+# rustls-tls-webpki-roots) — no OpenSSL/native-tls in either Cargo.lock — so no
+# system TLS build deps are needed (ring uses the image's bundled C compiler).
 
 WORKDIR /src
 # `**/target` is excluded via .dockerignore, so only source is copied.
@@ -53,10 +51,12 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cp /src/repos/igloo-shell/target/debug/igloo-shell /out/igloo-shell
 
 # ---- runtime base: minimal image to run the compiled binaries ----
+# rustls links no system OpenSSL, so libssl3 is unnecessary; ca-certificates is
+# kept for any outbound TLS (rustls-webpki-roots bundles roots, but it's cheap).
 FROM ubuntu:24.04 AS runtime
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-       bash ca-certificates libssl3 \
+       bash ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /workspace
 

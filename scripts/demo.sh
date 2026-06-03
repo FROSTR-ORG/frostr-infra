@@ -120,7 +120,7 @@ stop_projects() {
   while IFS= read -r project; do
     projects+=("${project}")
   done < <(
-    docker ps \
+    docker ps -a \
       --filter "label=com.docker.compose.project.working_dir=${ROOT_DIR}" \
       --filter "label=com.docker.compose.project.config_files=${ROOT_DIR}/compose.test.yml" \
       --format '{{.Label "com.docker.compose.project"}}	{{.Label "com.docker.compose.service"}}	{{.Ports}}' \
@@ -134,13 +134,19 @@ stop_projects() {
       | awk '!seen[$0]++'
   )
 
-  if [[ "${#projects[@]}" -eq 0 ]]; then
-    return 0
+  # Always sweep the default compose project too. `relay_up` (and any bare
+  # `docker compose -f compose.test.yml up`) run without `-p`, so their
+  # containers land in the dir-named default project and aren't guaranteed to be
+  # in the label scan above (e.g. a crash-looping/exited relay).
+  local default_project
+  default_project="$(basename "${ROOT_DIR}")"
+  if [[ ! " ${projects[*]} " == *" ${default_project} "* ]]; then
+    projects+=("${default_project}")
   fi
 
   for project in "${projects[@]}"; do
     echo "==> Stopping demo compose project ${project}"
-    docker compose -p "${project}" -f "${ROOT_DIR}/compose.test.yml" down --remove-orphans >/dev/null
+    docker compose -p "${project}" -f "${ROOT_DIR}/compose.test.yml" down --remove-orphans >/dev/null 2>&1 || true
   done
 }
 
@@ -219,7 +225,8 @@ start_stack() {
   echo "==> Using demo relay port ${resolved_port}"
   mkdir -p "${HOST_HARNESS_DIR}"
   printf '%s\n' "${resolved_port}" > "${RELAY_PORT_FILE}"
-  build_binaries
+  # No host binary build: the demo images compile bifrost-devtools / igloo-shell
+  # in-Docker (services/demo/Dockerfile), so `up --build` is fully self-contained.
 
   if [[ "${action}" == "foreground" ]]; then
     run_compose_attached "${resolved_port}"

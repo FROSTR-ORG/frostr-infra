@@ -1,5 +1,69 @@
 # Follow-ups
 
+## 2026-06-03 — RESOLVED: Docker follow-up batch (+ igloo-home skew found)
+
+Cleared the loose-ends/issues/adjacent/open-question/future-scope items from the
+section below. igloo-shell first (pushed `paper-create-flow-update`: `16d1a99` +
+`a6eece3`), then parent.
+
+### Resolved
+- [x] ~~Push igloo-shell `16d1a99`~~ — pushed branch `paper-create-flow-update` to
+  origin (`16d1a99` + `a6eece3`); parent pointer now resolves.
+- [x] ~~`signing_key32: None` stopgap / confirm intent~~ — confirmed `None` is
+  correct (the field drives bifrost-rs recovery re-split; igloo-shell has no
+  import-from-key CLI). Hardened: call sites use `CreateKeysetConfig::new(...)`
+  (`a6eece3`) so future optional-field additions don't churn igloo-shell.
+- [x] ~~bifrost-rs↔igloo-shell drift gate~~ — added `make demo-pair-check`
+  (`cargo check` both bins) + a CI step before `make test-demo`.
+- [x] ~~Trim libssl from the Dockerfile~~ — dropped `pkg-config`/`libssl-dev`
+  (builder) + explicit `libssl3` (runtime); both trees confirmed pure rustls.
+  (Note: `libssl3` still ships in the `ubuntu:24.04` base — no longer our explicit
+  dep, binaries don't link it.)
+- [x] ~~Pin `RUST_IMAGE`~~ — `rust:1.95-bookworm` (matches host/CI stable 1.95).
+- [x] ~~`make demo-stop` sweep default-project containers~~ — `stop_projects` now
+  uses `docker ps -a` and always tears down the default (`frostr-infra`) project.
+- [x] ~~Drop redundant host build on `make demo-start`~~ — removed `build_binaries`
+  from `start_stack`; demo-start is now Docker-only (images self-build).
+- [x] ~~BuildKit cache for CI~~ — `compose.ci.yml` (`type=gha` cache) + CI
+  `docker/setup-buildx-action` + `COMPOSE_BAKE=true` + `FROSTR_DEMO_COMPOSE_OVERRIDE`;
+  `test-prebuild.sh` threads the override into the demo image build. (Cross-run
+  cache efficacy is observable only on a GHA runner.)
+
+### Issues discovered, not fixed
+- [ ] **igloo-home is skewed against this branch's igloo-ui** (effort: L) — surfaced
+  while running `make test-demo` (chrome lane prebuilds the `home` target).
+  igloo-home `eed7b7a` still imports removed igloo-ui exports
+  (`OperatorPeerPermissionState`, `OperatorPendingOperation`) and uses the old
+  `AppHeaderProps` (`centered`/`subtitle`), `StoredProfileCardModel`, and
+  `SharedDistributionResult`/`SharedDistributionAction` shapes from before the Phase B
+  igloo-ui changes. **This fails `make test-demo` — a required release-validation
+  gate — on the `paper-create-flow-update` branch, independent of the Docker work.**
+  Needs igloo-home ported to the current igloo-ui operator/create APIs (Tauri app:
+  `src/App.tsx`, `src/pages/CreatePage.tsx`). The chrome `@demo` artifact-dir fix
+  itself is verified by proxy (`make test-smoke` uses the identical repo-relative
+  bind-mount mechanism and passes).
+
+## 2026-06-03 — after cross-platform Docker demo stack (in-Docker builds)
+
+### Loose ends
+- [ ] Push the igloo-shell submodule commit `16d1a99` (branch `paper-create-flow-update`) before/with pushing the parent (effort: S) — parent `bf4679e` bumps the igloo-shell pointer to a local-only commit; until it's pushed, the parent pointer dangles for anyone else (and CI cloning the submodule).
+- [ ] Verify the chrome `@demo` lane (`make test-demo`) end-to-end on colima (effort: S) — only `make test-smoke` was run to completion; `demo-harness.ts` got the same repo-relative artifact-dir fix but wasn't executed this session.
+
+### Issues discovered, not fixed
+- [ ] igloo-shell `signing_key32: None` is a compat stopgap, not a feature (effort: M, unsure) — `crates/igloo-shell-core/src/shell/rotation.rs:134,538` now hardcode `None`. If bifrost-rs added `signing_key32` to support importing a keyset from a known signing key, igloo-shell's keygen/rotation paths may need to actually thread a real value through rather than always `None`. Confirm with the bifrost-rs change intent.
+- [ ] bifrost-rs ↔ igloo-shell submodule pointers drift silently (effort: M) — igloo-shell uses path deps into `../bifrost-rs/crates/*`, so a bifrost-rs API change (like `signing_key32`) breaks igloo-shell with no version gate. Worth a CI check that the pinned submodule pair compiles together, or a documented bump protocol in `dev/docs/RELEASE.md`.
+
+### Adjacent improvements
+- [ ] Trim defensive `libssl-dev`/`libssl3` from `services/demo/Dockerfile` (effort: S, unsure) — both bifrost-devtools and igloo-shell-core use rustls (`tokio-tungstenite` `rustls-tls-webpki-roots`); the OpenSSL libs were kept defensively while igloo-shell was uninspected. Now confirmed rustls, so they're likely removable (verify the full igloo-shell dep tree first).
+- [ ] Pin `RUST_IMAGE` to an exact stable (e.g. `rust:1.89-bookworm`) instead of floating `rust:1-bookworm` (effort: S) — floating mirrors the repo's `stable` toolchain but makes image builds non-reproducible across time; pin if reproducibility matters, override via the existing ARG.
+- [ ] The stale `frostr-infra-dev-relay-1` crash-loop container from the original bug had to be removed by hand this session (effort: S) — consider having `make demo-stop` also sweep the default-project `dev-relay`/`igloo-demo` containers, not just the named demo projects.
+
+### Open questions
+- [ ] Should `make demo-start` stop doing the redundant host `build_binaries` now that containers self-build? (effort: M) — carried/sharpened: host binaries are still needed by host `@live` lanes and the smoke's host `igloo-shell`, but a pure `make demo-start` no longer needs them for the containers. Splitting webapp-asset prep from demo-binary prep would make demo-start Docker-only. Needs care around the smoke/`@live` consumers.
+
+### Future scope
+- [ ] Add a BuildKit/registry cache for the in-Docker Rust build in CI (effort: M) — CI is ephemeral, so each `release-validation` run now pays a cold compile of bifrost-devtools + igloo-shell inside Docker. A `cache-from`/`cache-to` (GHA cache or registry) or `docker buildx` layer cache would cut that. Local dev already benefits from the cache mounts.
+
 ## 2026-06-02 — after the follow-up batch (Event-Log tags/filter, Peers counts, export)
 
 ### Loose ends
