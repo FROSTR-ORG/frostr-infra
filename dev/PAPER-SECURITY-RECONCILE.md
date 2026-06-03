@@ -38,7 +38,7 @@ untouched.**
 |---|---|---|---|---|
 | bifrost-rs | 7a41c3b | d0bf343 | +1 / -48 | **DONE** |
 | igloo-shell | a6eece3 | 7bf3ff4 | +2 / -6 | **DONE** |
-| igloo-shared | e617db1 | 303514d | +4 | wasm/loader, index.ts, rotation.ts |
+| igloo-shared | e617db1 | 303514d | +4 | **DONE** |
 | igloo-chrome | ee45a64 | 5410f1d | +7 | wasm binaries (regen); needs igloo-ui reconciled for full e2e |
 | igloo-pwa | 007754e | 1044edc | +30 | HARD: Paper flows vs App/store/types; Paper-wins |
 | igloo-ui | 66f144a | 24e3b81 | +33 | HARDEST: Paper design hard-cut; Paper-wins re-layer |
@@ -59,6 +59,28 @@ untouched.**
 - **igloo-shell** — reconciled on local branch `reconcile/paper+security`
   (`479bfbd`). **0 git conflicts**; clean `cargo check --workspace`; lib tests
   pass. (Full managed_integration deferred to final validation.)
+- **igloo-shared** — reconciled on local branch `reconcile/paper+security`
+  (`b966139`). 7 conflicts. The big one: Paper's WIP modified the pre-PR29/PR30
+  layout (`browser-runtime-core.ts`, flat `browser-profile-*`) while security
+  restructured into `browser-profile/<sub>/` + extracted `runtime-api.ts`/
+  `runtime-pump.ts`/`runtime-internal.ts`/`onboarding-transport.ts`. Resolutions:
+  (1) **index.ts barrel** — kept security's explicit named barrel; dropped the
+  recovery path Paper deliberately removed (`recover{,AndSave}BrowserProfilePackage`,
+  `saveRecoveredBrowserProfileAndMaybeActivate`, `BrowserRecoveredProfilePackage`);
+  re-layered Paper's NEW public surface onto it (`relay-ping`'s `pingRelay`/
+  `RelayPingResult`; rotation's `recoverSecretKeyFromShares`/`BrowserRecoveredKey`).
+  (2) **recovery.ts** — accepted Paper's deletion (security only *moved* it in
+  PR33, no hardening to keep); fixed `recovery.test.ts` + `save/imports.ts` to drop
+  removed symbols on security's new paths. (3) **wasm-bridge-node.ts** — kept
+  security's PR30 class/extraction; re-layered Paper's **OnboardServed→
+  onboard-complete** seam by adding `parseOnboardServedCompletion` to
+  `runtime-pump.ts` (the dispatch loop git-merged it in but the parser lived only
+  in Paper's deleted inline block). (4) **wasm binaries** — took Paper's refreshed
+  artifacts (match merged loader .js/.d.ts); authoritative regen deferred to the
+  igloo-chrome / `browser-wasm-sync` step. **`test:typecheck` clean; vitest
+  141/141; `browser-wasm-exports` guard ok.** NOTE: amended once — a late edit
+  (drop `saveRecoveredBrowserProfileAndMaybeActivate`) post-dated the `git add`,
+  so re-stage before commit when a typecheck fix lands after staging.
 
 ## The pattern that works
 
@@ -72,7 +94,7 @@ untouched.**
 
 ## Remaining order
 
-igloo-shared → igloo-chrome (regen wasm; full e2e after igloo-ui) → **igloo-ui**
+~~igloo-shared~~ (done) → igloo-chrome (regen wasm; full e2e after igloo-ui) → **igloo-ui**
 (Paper-wins re-layer — the real work) → **igloo-pwa** → parent (reconcile
 submodule pointers to the reconciled tips + `test/igloo-pwa/specs/app-shell.spec.ts`
 our v2-seed fix vs Paper's PWA test wiring + CI/scripts/`AGENTS.md`). Then ff each
