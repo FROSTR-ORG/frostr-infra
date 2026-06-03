@@ -26,6 +26,7 @@ mkdir -p \
   "${TRACE_IGLOO_PAPER_DIR}/scripts"
 : >"${TRACE_IGLOO_PAPER_DIR}/scripts/verify.py"
 : >"${TRACE_IGLOO_PAPER_DIR}/scripts/export_from_paper.py"
+: >"${TRACE_IGLOO_PAPER_DIR}/scripts/update_usage_coverage.py"
 mkdir -p "${TRACE_DIR}/repos/igloo-paper/design/tokens" "${TRACE_DIR}/repos/igloo-ui/src/tokens"
 
 assert_contains() {
@@ -208,6 +209,7 @@ assert_contains "${HELP_OUTPUT}" "make browser-wasm-check"
 assert_contains "${HELP_OUTPUT}" "make wasm-toolchain-check"
 assert_contains "${HELP_OUTPUT}" "make igloo-paper-sync [STRICT=1]"
 assert_contains "${HELP_OUTPUT}" "make igloo-paper-verify [STRICT=1]"
+assert_contains "${HELP_OUTPUT}" "make igloo-paper-usage-coverage-sync"
 assert_contains "${HELP_OUTPUT}" "make igloo-ui-paper-token-sync"
 assert_contains "${HELP_OUTPUT}" "make igloo-ui-paper-token-check"
 assert_contains "${HELP_OUTPUT}" "make compose-logs SERVICES=\"<service> [service...]\""
@@ -303,6 +305,10 @@ assert_trace_contains "python3|cwd=${TRACE_IGLOO_PAPER_DIR}|py_dont=1|args=scrip
 reset_trace
 run_with_trace IGLOO_PAPER_DIR="${TRACE_IGLOO_PAPER_DIR}" igloo-paper-verify STRICT=1
 assert_trace_contains "python3|cwd=${TRACE_IGLOO_PAPER_DIR}|py_dont=1|args=scripts/verify.py --strict-drift"
+
+reset_trace
+run_with_trace IGLOO_PAPER_DIR="${TRACE_IGLOO_PAPER_DIR}" igloo-paper-usage-coverage-sync
+assert_trace_contains "python3|cwd=${TRACE_IGLOO_PAPER_DIR}|py_dont=1|args=scripts/update_usage_coverage.py"
 
 reset_trace
 run_with_trace IGLOO_PAPER_DIR="${TRACE_IGLOO_PAPER_DIR}" igloo-paper-sync
