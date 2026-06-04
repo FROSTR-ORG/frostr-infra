@@ -462,8 +462,19 @@ reconcile's 12 lightweight-guard pass runs `scripts/test-run-sh.sh` or `make rep
   merge → `make repo-check` aborted with exit 127. Restored from `d0dcd1b`.
 
 After these, `test:run-sh` runs clean end-to-end and stops only on `xvfb-run not found`
-(sandbox env gap — all other tools present), so it passes on CI. **Still unverified:** a
-full `make test-release` + `npm --prefix test run test:guards` on real CI with xvfb.
+(sandbox env gap — all other tools present), so it passes on CI.
+
+**Full `test:guards` sweep (2026-06-04) — all green modulo two env deps.** Ran every
+sub-lane individually: `docs workflows shared-setup targets wasm selectors visual chrome
+home pwa` all PASS; trailing `test-igloo-home-run-e2e.sh` and `test-affected.sh` PASS.
+**No further reconcile regressions.** Only two *environment* dependencies block a one-shot
+green locally — both present on CI:
+- **`rg` (ripgrep)** must be on PATH (docs/workflows/targets/selectors guards require it);
+  the sandbox aliases `rg` so it's absent in npm subshells — symlink a real binary into
+  `~/.local/bin` to run locally.
+- **`xvfb-run`** must be installed (`make repo-check`, reached via `test-run-sh.sh`).
+
+**Still unverified only:** a full `make test-release` (Docker/browser matrix) on real CI.
 
 (Historical: during the submodule phase, all submodules were parked on
 `security-hardening` to keep the parent tree clean. Now the parent is reconciled,
