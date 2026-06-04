@@ -45,7 +45,7 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
 | igloo-chrome | ee45a64 | 5410f1d | +7 | **DONE** (typecheck only; full unit+e2e after igloo-ui) |
 | igloo-pwa | 007754e | 1044edc | +30 | **DONE** (a78a2ea) — tsc + vite build clean; vitest 32/33 (1 env-only) |
 | igloo-ui | 66f144a | 24e3b81 | +33 | **DONE** (b68acdd) |
-| igloo-home | eed7b7a | d99c987 | 0 | **NEEDS WORK** — pointer Δ0 (paper ⊂ sec) but code consumes OLD igloo-ui API; needs view-model migration vs reconciled igloo-ui |
+| igloo-home | eed7b7a | d99c987 | 0 | **DONE** (1f41210) — view-model migration vs reconciled igloo-ui; tsc + build clean, vitest 23/23 |
 | igloo-paper | 38d734f | (none) | — | **DONE** (38d734f) reference submodule; took Paper tip |
 
 ## Progress
@@ -232,8 +232,30 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
   ancestor of the Paper tip `38d734f` (0 behind / 17 ahead) → took the Paper tip
   outright. Do NOT import into runtime. Parked back on `b333321`.
 
-- **igloo-home** — **NEEDS WORK** (branch `reconcile/paper+security` created at
-  `d99c987`, NO migration yet). The pointer Δ is 0 (Paper tip `eed7b7a` is an
+- **igloo-home** — **DONE** (`reconcile/paper+security` @ `1f41210`, pushed;
+  single parent `d99c987`, which already contains Paper's `eed7b7a` so a parent
+  ff from `master` is clean). Migrated the consumer to the reconciled igloo-ui API
+  (resolution summary below the error list). **Validation (siblings on reconcile,
+  igloo-ui dist built): `tsc --noEmit` clean; `vite build` + CSS check clean;
+  vitest 23/23** (`NODE_OPTIONS=--experimental-strip-types`). How it was resolved:
+  - New `src/lib/dashboard-view.ts` maps igloo-home's runtime data onto
+    `SignerDashboardViewModel`/`PolicyDashboardViewModel`; the two `OperatorSignerPanel`
+    sites + `OperatorPermissionsPanel` now take `view`. Keyset identity sourced from
+    `runtime_status.metadata` (ProfileManifest lacks group/share keys + member idx).
+  - Dropped igloo-ui exports replaced: `Operator{PeerPermissionState,PendingOperation}`
+    → local `Home*` types; `SharedDistributionTrackingStatus` removed.
+  - `deriveDistributionResults` → `SharedDistributionResult` (Paper status-lifecycle;
+    fine-grained tracking dropped — deferred). `AppHeader` → `mode`; card gains
+    `shortId`/`state`/action labels (+`destructiveActionLabel: 'Delete Profile'`).
+  - `CreatePage` split into `CreateFlowGenerateCard` (new) + `RotateKeysetPanel`
+    (rotate) with a mode toggle; privateKey input ignored. Updated 2 own unit tests
+    (mode-button label "New Keyset"; delete button restored via destructiveActionLabel).
+  - **Follow-up:** igloo-home's distribution renders Paper's status-lifecycle section;
+    the lifecycle-only actions (prepare/mark/cancel/revert) are no-ops here (igloo-home
+    only produces packages via copy/qr/save). Revisit if full lifecycle UX is wanted.
+
+  --- original scoping (for reference) ---
+  The pointer Δ is 0 (Paper tip `eed7b7a` is an
   ANCESTOR of sec tip `d99c987` — sec is +24/-0, a superset), so `git merge
   security-hardening` from the Paper tip just **fast-forwards to `d99c987`** — no
   Paper commits to reconcile. BUT the doc's "Δ0 / already current" was a
@@ -346,16 +368,16 @@ Paper lacks entirely.
 ## Remaining order
 
 ~~igloo-shared~~ → ~~igloo-chrome~~ → ~~igloo-ui~~ → ~~igloo-pwa~~ (all done) →
-~~igloo-paper~~ (done, `38d734f`) → **igloo-home** (NOT Δ0 — view-model migration vs
-reconciled igloo-ui; see the igloo-home progress entry) → **parent** (reconcile
-submodule pointers to the reconciled tips + `test/igloo-pwa/specs/app-shell.spec.ts`
-our v2-seed fix vs Paper's PWA test wiring + CI/scripts/`AGENTS.md`). Then ff each
-`master` to its reconciled tip, re-run `make test-release` on infra, then push.
+~~igloo-paper~~ (done, `38d734f`) → ~~igloo-home~~ (done, `1f41210`) → **parent**
+(reconcile submodule pointers to the reconciled tips +
+`test/igloo-pwa/specs/app-shell.spec.ts` our v2-seed fix vs Paper's PWA test wiring
++ CI/scripts/`AGENTS.md`). Then ff each `master` to its reconciled tip, re-run
+`make test-release` on infra, then push.
 
 ## State to restore on resume
 
-**Done (7):** each holds its work on local branch `reconcile/paper+security`,
-all pushed to `origin/reconcile/paper+security` (backup):
+**Done (8 — ALL submodules):** each holds its work on local branch
+`reconcile/paper+security`, all pushed to `origin/reconcile/paper+security` (backup):
 
 | repo | reconcile tip | validation |
 |---|---|---|
@@ -365,11 +387,10 @@ all pushed to `origin/reconcile/paper+security` (backup):
 | igloo-chrome| `e43a115` | typecheck clean (vs reconciled deps); unit+e2e deferred |
 | igloo-ui    | `b68acdd` | build + `tsc --noEmit` clean, vitest 120/120 |
 | igloo-pwa   | `a78a2ea` | `tsc --noEmit` + `vite build` clean; **vitest 32/33** (1 env-only) |
+| igloo-home  | `1f41210` | `tsc --noEmit` + `vite build` clean; **vitest 23/23** |
 | igloo-paper | `38d734f` | reference submodule (Paper tip); no validation needed |
 
-**NOT done — igloo-home** (`reconcile/paper+security` @ `d99c987`, no migration yet):
-needs a view-model migration vs reconciled igloo-ui (12 tsc errors, 2 files). See
-the igloo-home progress entry. Branch NOT pushed (no work to protect yet).
+**All submodule reconciles are now complete.** Next is the parent.
 
 **All submodules are parked on `security-hardening`** so the parent tree is clean
 (parent stays on `security-hardening`, no pointer changes committed). The reconcile
@@ -403,10 +424,11 @@ runtime is vitest-worker-incompatible; `tsx` isn't installed locally.
 - `onboardSaveForm.relayUrls` is a non-secret Paper UI field that the security
   `finalizeOnboardedDevice` does not consume (relays come from the connection).
 
-**Next:** igloo-home view-model migration vs reconciled igloo-ui (see its progress
-entry — port igloo-pwa's dashboard view-model wiring) → parent (pointers +
-`app-shell.spec.ts` + CI/scripts/`AGENTS.md`) → ff each `master` → `make test-release`
-→ push. (igloo-paper done.)
+**Next:** all 8 submodules reconciled. **Parent** is the only remaining step:
+update submodule pointers to the reconciled tips, reconcile
+`test/igloo-pwa/specs/app-shell.spec.ts` (our v2-seed fix vs Paper's PWA test wiring)
++ CI/scripts/`AGENTS.md`, then ff each `master` to its reconciled tip, re-run
+`make test-release` on infra, then push.
 
 ### Gotchas / env (consolidated)
 
