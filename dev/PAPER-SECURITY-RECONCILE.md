@@ -45,8 +45,8 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
 | igloo-chrome | ee45a64 | 5410f1d | +7 | **DONE** (typecheck only; full unit+e2e after igloo-ui) |
 | igloo-pwa | 007754e | 1044edc | +30 | **DONE** (a78a2ea) — tsc + vite build clean; vitest 32/33 (1 env-only) |
 | igloo-ui | 66f144a | 24e3b81 | +33 | **DONE** (b68acdd) |
-| igloo-home | eed7b7a | d99c987 | 0 | already current |
-| igloo-paper | 38d734f | (none) | — | reference submodule; take Paper tip |
+| igloo-home | eed7b7a | d99c987 | 0 | **NEEDS WORK** — pointer Δ0 (paper ⊂ sec) but code consumes OLD igloo-ui API; needs view-model migration vs reconciled igloo-ui |
+| igloo-paper | 38d734f | (none) | — | **DONE** (38d734f) reference submodule; took Paper tip |
 
 ## Progress
 
@@ -227,6 +227,43 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
     `git commit --amend` to land a clean single merge commit. Cross-repo deps for a
     faithful typecheck: igloo-shared→reconcile, igloo-ui→reconcile (build `dist`).
 
+- **igloo-paper** — **DONE** on local branch `reconcile/paper+security` (`38d734f`,
+  pushed). Reference submodule, no security changes; current base `b333321` is an
+  ancestor of the Paper tip `38d734f` (0 behind / 17 ahead) → took the Paper tip
+  outright. Do NOT import into runtime. Parked back on `b333321`.
+
+- **igloo-home** — **NEEDS WORK** (branch `reconcile/paper+security` created at
+  `d99c987`, NO migration yet). The pointer Δ is 0 (Paper tip `eed7b7a` is an
+  ANCESTOR of sec tip `d99c987` — sec is +24/-0, a superset), so `git merge
+  security-hardening` from the Paper tip just **fast-forwards to `d99c987`** — no
+  Paper commits to reconcile. BUT the doc's "Δ0 / already current" was a
+  pointer-only read: igloo-home **consumes igloo-shared + igloo-ui** (`file:`
+  deps, imports in `App.tsx`/`CreatePage.tsx`/`lib/runtime-status.ts`), and its
+  security-era code (`d99c987`) was written against the OLD igloo-ui API. Against
+  the **reconciled** igloo-ui (`b68acdd`, Paper redesign) it does NOT typecheck —
+  **12 `tsc` errors in `App.tsx` (8) + `CreatePage.tsx` (4)**:
+  - Renamed/moved exports: `OperatorPeerPermissionState`/`OperatorPendingOperation`
+    → `models/view-models` (`PeerPolicyRowModel`/`PolicyDashboardViewModel`/
+    `PendingOperationRowModel`); `SharedDistributionTrackingStatus` →
+    `SharedDistributionStatus`.
+  - **Dashboard panels redesigned to view-models:** `OperatorSignerPanel` now takes
+    `view: SignerDashboardViewModel` (+ callbacks), NOT `profile`; `OperatorPermissionsPanel`
+    takes `view: PolicyDashboardViewModel`, NOT `peerPermissions`/`peerPermissionStates`.
+    Must build them via the `runtimeStatusToSignerDashboardView` /
+    `runtimePeerPermissionStatesToPolicyDashboardView` adapters — the SAME pattern
+    igloo-pwa's `App.tsx` uses (ports cleanly, but needs igloo-home's Tauri runtime
+    state mapped to the adapter inputs).
+  - `AppHeader` is now `mode`-based (no `title`/`centered`/`subtitle`);
+    `StoredProfileCardModel` now requires `shortId`.
+  - `CreatePage`: create-form field union (`mode`/`sourceProfileId` vs `privateKey`)
+    + distribution `SharedDistributionResult` needs `status` + `SharedDistributionAction`
+    includes `revert` (Paper status-lifecycle).
+  This is a real (bounded) dashboard view-model migration — same class as igloo-pwa's
+  App work, scaled down. Reusable: igloo-pwa `App.tsx` is the reference for the
+  view-model panel wiring. **Resume:** siblings→reconcile (igloo-ui build `dist`),
+  igloo-home→`reconcile/paper+security`, migrate the 2 files, `npm run typecheck:raw`
+  with `NODE_OPTIONS='--experimental-strip-types'` for vitest, commit + push backup.
+
 ## igloo-ui pre-scout (read-only, 2026-06-03 — for the fresh session)
 
 Paper tip `66f144a`, sec tip `24e3b81`, merge-base `32b6188d`. **Paper = +33
@@ -309,15 +346,15 @@ Paper lacks entirely.
 ## Remaining order
 
 ~~igloo-shared~~ → ~~igloo-chrome~~ → ~~igloo-ui~~ → ~~igloo-pwa~~ (all done) →
-**igloo-home** (Δ0, adopt Paper tip `eed7b7a`) / **igloo-paper** (take Paper tip
-`38d734f`) → **parent** (reconcile submodule pointers to the reconciled tips +
-`test/igloo-pwa/specs/app-shell.spec.ts` our v2-seed fix vs Paper's PWA test wiring
-+ CI/scripts/`AGENTS.md`). Then ff each `master` to its reconciled tip, re-run
-`make test-release` on infra, then push.
+~~igloo-paper~~ (done, `38d734f`) → **igloo-home** (NOT Δ0 — view-model migration vs
+reconciled igloo-ui; see the igloo-home progress entry) → **parent** (reconcile
+submodule pointers to the reconciled tips + `test/igloo-pwa/specs/app-shell.spec.ts`
+our v2-seed fix vs Paper's PWA test wiring + CI/scripts/`AGENTS.md`). Then ff each
+`master` to its reconciled tip, re-run `make test-release` on infra, then push.
 
 ## State to restore on resume
 
-**Done (6):** each holds its work on local branch `reconcile/paper+security`,
+**Done (7):** each holds its work on local branch `reconcile/paper+security`,
 all pushed to `origin/reconcile/paper+security` (backup):
 
 | repo | reconcile tip | validation |
@@ -328,6 +365,11 @@ all pushed to `origin/reconcile/paper+security` (backup):
 | igloo-chrome| `e43a115` | typecheck clean (vs reconciled deps); unit+e2e deferred |
 | igloo-ui    | `b68acdd` | build + `tsc --noEmit` clean, vitest 120/120 |
 | igloo-pwa   | `a78a2ea` | `tsc --noEmit` + `vite build` clean; **vitest 32/33** (1 env-only) |
+| igloo-paper | `38d734f` | reference submodule (Paper tip); no validation needed |
+
+**NOT done — igloo-home** (`reconcile/paper+security` @ `d99c987`, no migration yet):
+needs a view-model migration vs reconciled igloo-ui (12 tsc errors, 2 files). See
+the igloo-home progress entry. Branch NOT pushed (no work to protect yet).
 
 **All submodules are parked on `security-hardening`** so the parent tree is clean
 (parent stays on `security-hardening`, no pointer changes committed). The reconcile
@@ -361,9 +403,10 @@ runtime is vitest-worker-incompatible; `tsx` isn't installed locally.
 - `onboardSaveForm.relayUrls` is a non-secret Paper UI field that the security
   `finalizeOnboardedDevice` does not consume (relays come from the connection).
 
-**Next:** igloo-home (Δ0, adopt Paper tip `eed7b7a`) / igloo-paper (take Paper tip
-`38d734f`) → parent (pointers + `app-shell.spec.ts` + CI/scripts/`AGENTS.md`) →
-ff each `master` → `make test-release` → push.
+**Next:** igloo-home view-model migration vs reconciled igloo-ui (see its progress
+entry — port igloo-pwa's dashboard view-model wiring) → parent (pointers +
+`app-shell.spec.ts` + CI/scripts/`AGENTS.md`) → ff each `master` → `make test-release`
+→ push. (igloo-paper done.)
 
 ### Gotchas / env (consolidated)
 
