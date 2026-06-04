@@ -9,33 +9,6 @@ import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
 
 const IMPORT_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'import');
 
-function buildPendingLoadConfirmation() {
-  return {
-    kind: 'bfprofile',
-    preview: {
-      label: 'My Signing Key',
-      share_public_key: '33'.repeat(32),
-      group_public_key: '22'.repeat(32),
-      relays: ['wss://relay.primal.net', 'wss://relay.damus.io'],
-      group_package_json: JSON.stringify({
-        group_name: 'My Signing Key',
-        group_pk: '22'.repeat(32),
-        threshold: 2,
-        members: [
-          { idx: 0, pubkey: '02'.repeat(32) },
-          { idx: 1, pubkey: '03'.repeat(32) },
-          { idx: 2, pubkey: '04'.repeat(32) },
-        ],
-      }),
-      share_package_json: JSON.stringify({ idx: 0, seckey: '11'.repeat(32) }),
-      source: 'bfprofile',
-    },
-    stored_password: 'paper-import-pass',
-    profile_string: 'bfprofile1paperdemo',
-    share_string: 'bfshare1paperdemo',
-  };
-}
-
 async function seedState(page: Page, state: unknown) {
   await page.goto('/');
   await page.evaluate(
@@ -71,23 +44,11 @@ test.describe('igloo-pwa Paper Import visual harness @visual', () => {
     await expect(page.getByRole('heading', { name: 'Import Device Profile' })).toBeVisible();
     await capture(page, '01-import-device-profile.png');
 
-    await seedState(
-      page,
-      buildPwaPersistedState({
-        activeView: 'load-confirm',
-        pendingLoadConfirmation: buildPendingLoadConfirmation(),
-        drafts: {
-          importSaveForm: {
-            label: 'My Signing Key',
-            password: 'paper-import-pass',
-            confirmPassword: 'paper-import-pass',
-            relayUrls: 'wss://relay.primal.net',
-          },
-        },
-      }),
-    );
-    await expect(page.getByRole('heading', { name: 'Save Profile' })).toBeVisible();
-    await capture(page, '02-save-profile.png');
+    // NOTE (Paper<->security reconcile): the load-confirm "Save Profile" capture
+    // was dropped. It seeded `pendingLoadConfirmation` + reloaded, but the
+    // reconciled (security) store resets pending confirmations on load — they
+    // carry the passphrase (secret-segregation) — so that screen is not reachable
+    // via seed-and-reload. The save step is exercised functionally by app-shell.spec.
   });
 
   test('captures the import error state', async ({ page }) => {

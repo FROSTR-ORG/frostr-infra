@@ -9,33 +9,6 @@ import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
 
 const ONBOARD_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'onboard');
 
-function buildPendingOnboardConnection() {
-  return {
-    preview: {
-      label: 'Onboarded Device',
-      share_public_key: '33'.repeat(32),
-      group_public_key: '22'.repeat(32),
-      relays: ['wss://relay.primal.net', 'wss://relay.damus.io'],
-      group_package_json: JSON.stringify({
-        group_name: 'My Signing Key',
-        group_pk: '22'.repeat(32),
-        threshold: 2,
-        members: [
-          { idx: 0, pubkey: '02'.repeat(32) },
-          { idx: 1, pubkey: '03'.repeat(32) },
-          { idx: 2, pubkey: '04'.repeat(32) },
-        ],
-      }),
-      share_package_json: JSON.stringify({ idx: 0, seckey: '11'.repeat(32) }),
-      source: 'bfonboard',
-    },
-    stored_password: 'paper-onboard-pass',
-    package_text: `bfonboard1${'q'.repeat(96)}`,
-    profile_string: 'bfprofile1paperdemo',
-    share_string: 'bfshare1paperdemo',
-  };
-}
-
 async function seedState(page: Page, state: unknown) {
   await page.goto('/');
   await page.evaluate(
@@ -92,22 +65,10 @@ test.describe('igloo-pwa Paper Onboard visual harness @visual', () => {
     await expect(page.getByRole('heading', { name: 'Onboarding Failed' })).toBeVisible();
     await capture(page, '03-onboarding-failed.png');
 
-    await seedState(
-      page,
-      buildPwaPersistedState({
-        activeView: 'onboard-save',
-        pendingOnboardConnection: buildPendingOnboardConnection(),
-        drafts: {
-          onboardSaveForm: {
-            label: 'Onboarded Device',
-            password: 'paper-onboard-pass',
-            confirmPassword: 'paper-onboard-pass',
-            relayUrls: 'wss://relay.primal.net\nwss://relay.damus.io',
-          },
-        },
-      }),
-    );
-    await expect(page.getByRole('heading', { name: 'Save Profile' })).toBeVisible();
-    await capture(page, '04-save-profile.png');
+    // NOTE (Paper<->security reconcile): the onboard-save "Save Profile" capture
+    // was dropped. It seeded `pendingOnboardConnection` + reloaded, but the
+    // reconciled (security) store resets pending connections on load — they carry
+    // the passphrase (secret-segregation) — so that screen is not reachable via
+    // seed-and-reload. The save step is exercised functionally by app-shell.spec.
   });
 });
