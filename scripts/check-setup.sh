@@ -10,6 +10,17 @@ print_ok() { echo "OK"; }
 print_warn() { echo "WARNING: $1"; WARNINGS=$((WARNINGS + 1)); }
 print_fail() { echo "FAILED: $1"; ERRORS=$((ERRORS + 1)); }
 
+require_cmd() {
+  local name="$1"
+  local install_hint="$2"
+  print_check "${name}"
+  if command -v "${name}" >/dev/null 2>&1; then
+    print_ok
+  else
+    print_fail "${name} not found (install: ${install_hint})"
+  fi
+}
+
 expected_wasm_pack_version="0.14.0"
 rustup_bin_dir="${HOME}/.cargo/bin"
 
