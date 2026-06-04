@@ -438,6 +438,33 @@ no code lost). Post-cutover: all 9 repos checked out on `master`, `HEAD == origi
 everywhere, parent worktree clean, `git submodule status` all space-prefixed. The
 `reconcile/paper+security` branches remain on `origin` as backups (safe to delete later).
 
+## Post-cutover branch topology + guard-lane fixes (2026-06-04, on `dev`)
+
+After cutover, all 9 repos were given a `dev` branch off `master` (pushed, tracking),
+and the spent branches were pruned: 39 local `remediation/*`, all `security-hardening`
+(local + remote), all `paper-create-flow-update` (remote) — each verified merged into
+master first. `reconcile/paper+security` kept as backup. Foreign branches deleted with
+operator OK (`codex/*`, `cursor/*`, `hard-cut-test-harness-followups`). Parent
+`paper-create-flow-update` carried one unmerged WIP commit `4edee9f` (test assertion for
+the `igloo-paper-usage-coverage-sync` command surface) — **cherry-picked onto `dev`** as
+`ccfb738` before deleting the branch.
+
+**Three reconcile regressions in the `test:guards` command-surface lane** surfaced while
+validating that cherry-pick — they had slipped because neither `make test-release` nor the
+reconcile's 12 lightweight-guard pass runs `scripts/test-run-sh.sh` or `make repo-check`:
+- `3146c40` **fix(demo):** `start_stack()` wrote undefined `$resolved_port` (the port-probe
+  that set it was removed) → `$requested_port`. `make demo-start` was aborting under
+  `set -u` with `resolved_port: unbound variable`.
+- `a353e2e` **test(guards):** `test-run-sh.sh` demo-start asserted 5 host-side builds
+  (3× `npm run build:browser-wasm`, 2× `cargo build`) that Paper's canonical in-Docker
+  demo never invokes → dropped them; kept the `compose up --build` assertion.
+- `acc5bd5` **fix(check-setup):** `require_cmd()` (called 6×) lost its definition in the
+  merge → `make repo-check` aborted with exit 127. Restored from `d0dcd1b`.
+
+After these, `test:run-sh` runs clean end-to-end and stops only on `xvfb-run not found`
+(sandbox env gap — all other tools present), so it passes on CI. **Still unverified:** a
+full `make test-release` + `npm --prefix test run test:guards` on real CI with xvfb.
+
 (Historical: during the submodule phase, all submodules were parked on
 `security-hardening` to keep the parent tree clean. Now the parent is reconciled,
 they sit at their reconcile tips so the parent tree matches `eb2ebfb`.) To resume a repo:
