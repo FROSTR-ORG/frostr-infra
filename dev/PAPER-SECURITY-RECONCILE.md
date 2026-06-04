@@ -43,7 +43,7 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
 | igloo-shell | a6eece3 | 7bf3ff4 | +2 / -6 | **DONE** |
 | igloo-shared | e617db1 | 303514d | +4 | **DONE** |
 | igloo-chrome | ee45a64 | 5410f1d | +7 | **DONE** (typecheck only; full unit+e2e after igloo-ui) |
-| igloo-pwa | 007754e | 1044edc | +30 | HARD: Paper flows vs App/store/types; Paper-wins |
+| igloo-pwa | 007754e | 1044edc | +30 | **WIP** (f012004) — runtime layer done; UI/state/types unfinished |
 | igloo-ui | 66f144a | 24e3b81 | +33 | **DONE** (b68acdd) |
 | igloo-home | eed7b7a | d99c987 | 0 | already current |
 | igloo-paper | 38d734f | (none) | — | reference submodule; take Paper tip |
@@ -142,6 +142,53 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
   **Validation:** `npm run build` clean; `tsc --noEmit` clean; `vitest run`
   **120/120 across 19 files**.
 
+- **igloo-pwa** — **WIP CHECKPOINT** on local branch `reconcile/paper+security`
+  (`f012004`, parents `[007754e 1044edc]`, NOT pushed, NOT buildable). The runtime/
+  security layer is fully reconciled; the UI/state/types layer is unfinished and
+  **5 files still carry git conflict markers**: `src/App.tsx` (15), `src/lib/store.tsx`
+  (20), `src/lib/types.ts` (4 of 7 hunks), `src/lib/local-adapter/profile-packages.ts`
+  (2), `test/frontend/App.test.tsx` (3).
+  - **Locked decisions (operator, 2026-06-03):**
+    1. **Runtime: security-wins.** security's `SessionController`+`SessionEpoch`
+       (per-instance, epoch drift no-op, passphrase on-stack) + `buildStatusSnapshot`
+       (never calls `snapshot_state()` — that export leaks `bootstrap.share.seckey`)
+       + `persist-allowlist`/`toPersistable` + `PwaDraftSecrets` secret-segregation
+       are canonical. **Paper's persisted-session DROPPED** (`startPersistedBrowserRuntimeSession`/
+       `runtimeSnapshotJson`/`runtime_snapshot_json`) — it serialized the seckey via
+       `snapshot_state`, a secret-at-rest regression. Paper's **onboard-complete
+       forwarder RE-LAYERED** onto the controller.
+    2. **UI: App.tsx Paper-wins**, adapted to security's runtime + types.
+    3. **types: security-wins** on runtime/load types (`PwaProfile`,
+       `PwaRuntimeSnapshot`, `PwaLoadConfirmation` = `passphrase`/`BrowserProfilePreview`)
+       and secret-segregation; **Paper-wins** on distribution (status-lifecycle) +
+       non-secret UI fields (`distributionPermissions`).
+    4. **Distribution: Paper status-lifecycle now**; fine-grained live tracking
+       (`kind`+`tracking`, the item deferred from igloo-ui) deferred again — the
+       re-layered onboard-forwarder drives `onboarded` coarsely.
+    5. **Recovery:** DROP security's `recoverProfileFromBfShare` (Paper removed that
+       path; reconciled igloo-shared dropped `recoverBrowserProfilePackage`); keep
+       Paper's shares-based `RecoverPrivateKeyView`.
+  - **Resolved (no markers, in f012004):** `page-runtime-host.ts` (observability
+    events + onboard forwarder kept; **session-snapshot seckey leak removed**;
+    onboarding one-shot snapshot kept — security-allowed); `profile-runtime.ts`
+    (security `SessionController` base + re-layered onboard-forwarder: attach in
+    `startSession`, detach in `stopSession`/`disposeRuntimeSessionForProfile`);
+    `vite.config.ts` (Paper `allow:[../..]` + security COOP/COEP headers + test
+    config); `types.ts` 3/7 (imports merged + dropped broken igloo-ui
+    `SharedDistributionTrackingStatus` import; `PwaLoadConfirmation` security-wins;
+    `PwaDistributionActionResult` Paper status-lifecycle). wasm binaries → Paper's.
+  - **RESUME:** `git -C repos/igloo-pwa checkout reconcile/paper+security` (WIP tip
+    f012004). Resolve the 5 markered files per the locked decisions: finish
+    `types.ts` drafts (distributionForms `{label}` + keep `distributionPermissions`;
+    move inline form secrets → `PwaDraftSecrets`; `importSaveForm` vs
+    `recoverProfileForm`; `pendingLoadError` both-keep); `profile-packages.ts` drop
+    the bfshare recovery + reconcile the `password`/`passphrase` field; `App.tsx`
+    prefer Paper (`--ours`) then adapt to security types via tsc; `store.tsx`
+    hunk-by-hunk (Paper UI state + security controller wiring + `adapter.setOnboardCompleteListener`
+    at ~512/539); `App.test.tsx` align to Paper App. Then build + `tsc` + vitest and
+    `git commit --amend` to land a clean single merge commit. Cross-repo deps for a
+    faithful typecheck: igloo-shared→reconcile, igloo-ui→reconcile (build `dist`).
+
 ## igloo-ui pre-scout (read-only, 2026-06-03 — for the fresh session)
 
 Paper tip `66f144a`, sec tip `24e3b81`, merge-base `32b6188d`. **Paper = +33
@@ -223,7 +270,8 @@ Paper lacks entirely.
 
 ## Remaining order
 
-~~igloo-shared~~ → ~~igloo-chrome~~ → ~~igloo-ui~~ (all done) → **igloo-pwa** → parent (reconcile
+~~igloo-shared~~ → ~~igloo-chrome~~ → ~~igloo-ui~~ (all done) → **igloo-pwa (WIP — runtime
+layer done at f012004; UI/state/types remain)** → parent (reconcile
 submodule pointers to the reconciled tips + `test/igloo-pwa/specs/app-shell.spec.ts`
 our v2-seed fix vs Paper's PWA test wiring + CI/scripts/`AGENTS.md`). Then ff each
 `master` to its reconciled tip, re-run `make test-release` on infra, then push.
@@ -242,16 +290,21 @@ The first four are also pushed to `origin/reconcile/paper+security` (backup);
 | igloo-chrome| `e43a115` | typecheck clean (vs reconciled deps); unit+e2e deferred |
 | igloo-ui    | `b68acdd` | build + `tsc --noEmit` clean, vitest 120/120 |
 
+**WIP (1):** igloo-pwa holds a partial reconcile on local branch
+`reconcile/paper+security` (`f012004`, NOT pushed, NOT buildable — 5 files carry
+conflict markers). Parked back on `security-hardening` so the parent tree is clean.
+See the igloo-pwa progress entry above for the locked decisions + resume procedure.
+
 **All submodules are parked on `security-hardening`** so the parent tree is clean
 (parent stays on `security-hardening`, no pointer changes committed). The reconcile
 work is only on the `reconcile/paper+security` branches. To resume a repo:
 `git -C repos/<x> checkout reconcile/paper+security`.
 
-**Next:** igloo-pwa (HARD; the `igloo-ui` pre-scout above is now stale — igloo-ui
-is DONE at `b68acdd`; pwa typechecks against `../igloo-ui/dist` built from the
-reconcile tip, and must adopt the renamed Operator\* types from `models/view-models`
-and may re-layer the deferred live distribution-tracking UI) → igloo-home (Δ0, just
-adopt Paper tip `eed7b7a`) / igloo-paper (take Paper tip `38d734f`) → parent.
+**Next:** finish igloo-pwa (resume the UI/state/types layer from WIP `f012004` —
+see the igloo-pwa progress entry for the 5 markered files + locked decisions +
+resume procedure; also adopt the renamed Operator\* types from igloo-ui's
+`models/view-models`) → igloo-home (Δ0, just adopt Paper tip `eed7b7a`) /
+igloo-paper (take Paper tip `38d734f`) → parent.
 
 ### Gotchas / env (consolidated)
 
