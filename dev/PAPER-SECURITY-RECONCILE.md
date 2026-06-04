@@ -370,12 +370,10 @@ Paper lacks entirely.
 
 ## Remaining order
 
-~~igloo-shared~~ → ~~igloo-chrome~~ → ~~igloo-ui~~ → ~~igloo-pwa~~ (all done) →
-~~igloo-paper~~ (done, `38d734f`) → ~~igloo-home~~ (done, `270024e`) → **parent**
-(reconcile submodule pointers to the reconciled tips +
-`test/igloo-pwa/specs/app-shell.spec.ts` our v2-seed fix vs Paper's PWA test wiring
-+ CI/scripts/`AGENTS.md`). Then ff each `master` to its reconciled tip, re-run
-`make test-release` on infra, then push.
+~~igloo-shared~~ → ~~igloo-chrome~~ → ~~igloo-ui~~ → ~~igloo-pwa~~ →
+~~igloo-paper~~ → ~~igloo-home~~ → ~~parent~~ — **ALL RECONCILED.** Only the
+**cutover** remains (operator-gated): ff each `master` to its reconciled tip,
+re-run `make test-release`, then push. `master`/Paper branch still untouched.
 
 ## State to restore on resume
 
@@ -393,11 +391,39 @@ Paper lacks entirely.
 | igloo-home  | `270024e` | `tsc --noEmit` + `vite build` clean; **vitest 23/23** |
 | igloo-paper | `38d734f` | reference submodule (Paper tip); no validation needed |
 
-**All submodule reconciles are now complete.** Next is the parent.
+**PARENT reconcile — DONE** (parent branch `reconcile/paper+security` @ `eb2ebfb`,
+parents `[9d157e0 paper, 20c728d security]`, pushed to
+`origin/reconcile/paper+security` as **backup only** — NOT a cutover). 8 submodule
+pointers set to the reconciled tips + 15 parent-infra content conflicts resolved:
+- **Paper infra restructure = canonical base; re-layer security:** in-Docker demo
+  build (services/demo/Dockerfile) wins → dropped per-service dockerfiles +
+  security host-build paths (demo.sh/entrypoint.sh/compose.test.yml volumes);
+  Paper's test-harness superset (test/package.json + global-setup + check-setup,
+  renamed check-makefile-surface→test-run-sh); AGENTS.md Paper.
+- **Operator decisions:** CI workflows **SHA-pin @v5** (checkout 93cb6efe,
+  setup-node a0853c24 — node24 + immutable); `reset.sh` **security** (mandatory
+  --force + demo.sh stop); `.env.example` **kept from security** (Paper deleted it
+  but README still `cp`s it).
+- **app-shell.spec.ts:** Paper page-object wiring + security v2 storage key +
+  debounce poll; re-layered v2-seed (support/state.ts + pwa-home-pairing.spec.ts →
+  `igloo-pwa.state.v2`).
+- **Validation:** 12 lightweight parent guards PASS (docs, command/doc surfaces,
+  test-targets, shared-setup, cross-client, e2e-selectors, wasm-harness,
+  node24-actions, client-scoped-submodules, markdown-links, pwa-visual-manifest).
+  Heavier guards (`make repo-check`, test-affected, e2e) + `make test-release`
+  deferred to the operator's pre-cutover run.
+- **Current workspace state:** parent on `reconcile/paper+security` @ `eb2ebfb`,
+  submodules checked out at their reconcile tips (tree clean). `security-hardening`
+  = `20c728d`, `origin/master` = `ace4930` (both untouched).
 
-**All submodules are parked on `security-hardening`** so the parent tree is clean
-(parent stays on `security-hardening`, no pointer changes committed). The reconcile
-work is only on the `reconcile/paper+security` branches. To resume a repo:
+**Cutover (NOT done — operator-gated):** review → `make test-release` → ff each
+submodule `master` to its reconcile tip + the parent `master` to `eb2ebfb` →
+push. The parent reconcile branch is pushed to `origin/reconcile/paper+security`
+(backup only); `master`/Paper branch remain untouched.
+
+(Historical: during the submodule phase, all submodules were parked on
+`security-hardening` to keep the parent tree clean. Now the parent is reconciled,
+they sit at their reconcile tips so the parent tree matches `eb2ebfb`.) To resume a repo:
 `git -C repos/<x> checkout reconcile/paper+security`.
 
 **igloo-pwa unit harness — RAN (2026-06-03): vitest 32/33.** Bare `vitest` hits the
@@ -427,11 +453,11 @@ runtime is vitest-worker-incompatible; `tsx` isn't installed locally.
 - `onboardSaveForm.relayUrls` is a non-secret Paper UI field that the security
   `finalizeOnboardedDevice` does not consume (relays come from the connection).
 
-**Next:** all 8 submodules reconciled. **Parent** is the only remaining step:
-update submodule pointers to the reconciled tips, reconcile
-`test/igloo-pwa/specs/app-shell.spec.ts` (our v2-seed fix vs Paper's PWA test wiring)
-+ CI/scripts/`AGENTS.md`, then ff each `master` to its reconciled tip, re-run
-`make test-release` on infra, then push.
+**Next:** ALL repos + the parent are reconciled (parent @ `eb2ebfb`, local). Only
+the **operator-gated cutover** remains: review the merges → `make test-release`
+(the full Docker/browser matrix) → ff each submodule `master` to its reconcile tip
+and the parent `master` to `eb2ebfb` → push. Optionally push the parent
+`reconcile/paper+security` branch as a backup first.
 
 ### Gotchas / env (consolidated)
 
