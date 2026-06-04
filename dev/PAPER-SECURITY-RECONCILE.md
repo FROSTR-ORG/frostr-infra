@@ -45,7 +45,7 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
 | igloo-chrome | ee45a64 | 5410f1d | +7 | **DONE** (typecheck only; full unit+e2e after igloo-ui) |
 | igloo-pwa | 007754e | 1044edc | +30 | **DONE** (a78a2ea) — tsc + vite build clean; vitest 32/33 (1 env-only) |
 | igloo-ui | 66f144a | 24e3b81 | +33 | **DONE** (b68acdd) |
-| igloo-home | eed7b7a | d99c987 | 0 | **DONE** (1f41210) — view-model migration vs reconciled igloo-ui; tsc + build clean, vitest 23/23 |
+| igloo-home | eed7b7a | d99c987 | 0 | **DONE** (270024e) — view-model migration vs reconciled igloo-ui; tsc + build clean, vitest 23/23 |
 | igloo-paper | 38d734f | (none) | — | **DONE** (38d734f) reference submodule; took Paper tip |
 
 ## Progress
@@ -232,7 +232,7 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
   ancestor of the Paper tip `38d734f` (0 behind / 17 ahead) → took the Paper tip
   outright. Do NOT import into runtime. Parked back on `b333321`.
 
-- **igloo-home** — **DONE** (`reconcile/paper+security` @ `1f41210`, pushed;
+- **igloo-home** — **DONE** (`reconcile/paper+security` @ `270024e`, pushed;
   single parent `d99c987`, which already contains Paper's `eed7b7a` so a parent
   ff from `master` is clean). Migrated the consumer to the reconciled igloo-ui API
   (resolution summary below the error list). **Validation (siblings on reconcile,
@@ -250,9 +250,12 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
   - `CreatePage` split into `CreateFlowGenerateCard` (new) + `RotateKeysetPanel`
     (rotate) with a mode toggle; privateKey input ignored. Updated 2 own unit tests
     (mode-button label "New Keyset"; delete button restored via destructiveActionLabel).
-  - **Follow-up:** igloo-home's distribution renders Paper's status-lifecycle section;
-    the lifecycle-only actions (prepare/mark/cancel/revert) are no-ops here (igloo-home
-    only produces packages via copy/qr/save). Revisit if full lifecycle UX is wanted.
+  - **Distribution lifecycle now fully wired** (commit `270024e`): `handleDistributeGeneratedShare`
+    takes `SharedDistributionAction` and runs the full Paper lifecycle (ported from
+    igloo-pwa) — `prepare` builds the package once (→ 'packaged'); copy/qr/save operate
+    on it (save → 'saved'); mark → 'delivered'; revert → 'packaged'; cancel discards.
+    `DistributionResult` is status-based; `deriveDistributionResults` promotes to
+    'onboarded' on the live peer signal. tsc + build clean, vitest 23/23.
 
   --- original scoping (for reference) ---
   The pointer Δ is 0 (Paper tip `eed7b7a` is an
@@ -368,7 +371,7 @@ Paper lacks entirely.
 ## Remaining order
 
 ~~igloo-shared~~ → ~~igloo-chrome~~ → ~~igloo-ui~~ → ~~igloo-pwa~~ (all done) →
-~~igloo-paper~~ (done, `38d734f`) → ~~igloo-home~~ (done, `1f41210`) → **parent**
+~~igloo-paper~~ (done, `38d734f`) → ~~igloo-home~~ (done, `270024e`) → **parent**
 (reconcile submodule pointers to the reconciled tips +
 `test/igloo-pwa/specs/app-shell.spec.ts` our v2-seed fix vs Paper's PWA test wiring
 + CI/scripts/`AGENTS.md`). Then ff each `master` to its reconciled tip, re-run
@@ -387,7 +390,7 @@ Paper lacks entirely.
 | igloo-chrome| `e43a115` | typecheck clean (vs reconciled deps); unit+e2e deferred |
 | igloo-ui    | `b68acdd` | build + `tsc --noEmit` clean, vitest 120/120 |
 | igloo-pwa   | `a78a2ea` | `tsc --noEmit` + `vite build` clean; **vitest 32/33** (1 env-only) |
-| igloo-home  | `1f41210` | `tsc --noEmit` + `vite build` clean; **vitest 23/23** |
+| igloo-home  | `270024e` | `tsc --noEmit` + `vite build` clean; **vitest 23/23** |
 | igloo-paper | `38d734f` | reference submodule (Paper tip); no validation needed |
 
 **All submodule reconciles are now complete.** Next is the parent.
