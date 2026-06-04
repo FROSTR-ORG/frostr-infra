@@ -43,7 +43,7 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
 | igloo-shell | a6eece3 | 7bf3ff4 | +2 / -6 | **DONE** |
 | igloo-shared | e617db1 | 303514d | +4 | **DONE** |
 | igloo-chrome | ee45a64 | 5410f1d | +7 | **DONE** (typecheck only; full unit+e2e after igloo-ui) |
-| igloo-pwa | 007754e | 1044edc | +30 | **WIP** (f012004) — runtime layer done; UI/state/types unfinished |
+| igloo-pwa | 007754e | 1044edc | +30 | **DONE** (ec676ea) — tsc + vite build clean; unit/e2e via workspace harness |
 | igloo-ui | 66f144a | 24e3b81 | +33 | **DONE** (b68acdd) |
 | igloo-home | eed7b7a | d99c987 | 0 | already current |
 | igloo-paper | 38d734f | (none) | — | reference submodule; take Paper tip |
@@ -142,12 +142,50 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
   **Validation:** `npm run build` clean; `tsc --noEmit` clean; `vitest run`
   **120/120 across 19 files**.
 
-- **igloo-pwa** — **WIP CHECKPOINT** on local branch `reconcile/paper+security`
-  (`f012004`, parents `[007754e 1044edc]`, NOT pushed, NOT buildable). The runtime/
-  security layer is fully reconciled; the UI/state/types layer is unfinished and
-  **5 files still carry git conflict markers**: `src/App.tsx` (15), `src/lib/store.tsx`
-  (20), `src/lib/types.ts` (4 of 7 hunks), `src/lib/local-adapter/profile-packages.ts`
-  (2), `test/frontend/App.test.tsx` (3).
+- **igloo-pwa** — **DONE** on local branch `reconcile/paper+security`
+  (`ec676ea`, parents `[007754e 1044edc]`, pushed to `origin/reconcile/paper+security`).
+  All 5 markered files resolved (`App.tsx` 15, `store.tsx` 20, `types.ts` 4,
+  `profile-packages.ts` 2, `App.test.tsx` 3) plus a second wave of cross-repo
+  type adaptations. **`tsc --noEmit` clean; `vite build` clean (1751 modules).**
+  Unit/e2e deferred to the workspace harness — bare `vitest` hits the pre-existing
+  `igloo-shared/testing/vitest-base` `.ts` config-loader issue (no local `tsx`;
+  bun runtime is vitest-worker-incompatible), exactly the igloo-chrome precedent.
+  - **How it was resolved (against the locked decisions below):**
+    - **types.ts:** PwaDraftState made fully secret-free (security secret-segregation
+      is the documented invariant — `toPersistable` serializes `drafts` wholesale).
+      Moved EVERY inline form secret to PwaDraftSecrets, incl. two that auto-merged
+      silently: `createForm.privateKey` (nsec → `createFormPrivateKey`) and
+      `recoverKeyForm.sources[].password` (→ `recoverKeySources`); also added
+      `importSaveFormPassword/Confirm`, dropped `recoverProfileFormPassword`.
+      Kept Paper's `distributionPermissions` + `importSaveForm` + `recoverKeyForm`;
+      `onboardSaveForm`/`importSaveForm` keep non-secret `relayUrls` (Paper UI).
+      `pendingLoadError` both-keep.
+    - **store.tsx:** security runtime body is the base; UI methods reconciled to
+      Paper vocabulary — `generatedKeyset`→`pendingKeyset`, `unlockPhrase`→
+      `unlockPassphrase`, Paper view names (`create-select-share`/`create-save-profile`),
+      dropped `runtime_snapshot_json`/`stored_password` (persisted-session leak),
+      `finalizeRotationUpdate()` derives target passphrase from `unlockPassphrase`.
+      Secret setters route to draftSecrets; `recoverProfileFromShare` dropped.
+    - **App.tsx:** Paper JSX (`--ours`), secret inputs re-pointed to draftSecrets
+      setters; `generatedKeyset`→`pendingKeyset`; dropped local PwaRuntime* types
+      re-added.
+    - **profile-packages.ts:** dropped bfshare `recoverProfileFromBfShare`;
+      `localPassword ?? input.passphrase`.
+    - **App.test.tsx:** both typed state literals updated to the reconciled
+      draft/secret shape (now also asserts the new secret fields are non-persisted).
+  - **Second-wave cross-repo adaptations (f012004 runtime layer had never been
+    typechecked against the reconciled siblings):**
+    - `NodeWithEvents` → `BrowserBridgeNode` (igloo-shared restructured
+      browser-runtime-core → runtime-api; the interface was replaced by the class).
+    - `ConfirmModal` → `ConfirmDialog` (igloo-ui deleted confirm-modal).
+    - `share_package_json` removed from PwaProfile → member label derived from the
+      public `member_idx` (`dashboard-view.ts` ExportSummaryProfile, welcome card).
+    - Re-layered `clearSessionLogs` onto the security SessionController adapter
+      (Paper's module-global version was dropped); rewrote `clear-session-logs.test.tsx`
+      to the controller model (return-null contract, no runtimeSnapshotJson).
+  - **Faithful-typecheck dep setup (restore after):** temporarily set
+    igloo-shared→reconcile (b966139) and igloo-ui→reconcile (b68acdd, `npm run build`
+    for dist), ran tsc + vite build, then restored both siblings to security-hardening.
   - **Locked decisions (operator, 2026-06-03):**
     1. **Runtime: security-wins.** security's `SessionController`+`SessionEpoch`
        (per-instance, epoch drift no-op, passphrase on-stack) + `buildStatusSnapshot`
@@ -270,17 +308,17 @@ Paper lacks entirely.
 
 ## Remaining order
 
-~~igloo-shared~~ → ~~igloo-chrome~~ → ~~igloo-ui~~ (all done) → **igloo-pwa (WIP — runtime
-layer done at f012004; UI/state/types remain)** → parent (reconcile
-submodule pointers to the reconciled tips + `test/igloo-pwa/specs/app-shell.spec.ts`
-our v2-seed fix vs Paper's PWA test wiring + CI/scripts/`AGENTS.md`). Then ff each
-`master` to its reconciled tip, re-run `make test-release` on infra, then push.
+~~igloo-shared~~ → ~~igloo-chrome~~ → ~~igloo-ui~~ → ~~igloo-pwa~~ (all done) →
+**igloo-home** (Δ0, adopt Paper tip `eed7b7a`) / **igloo-paper** (take Paper tip
+`38d734f`) → **parent** (reconcile submodule pointers to the reconciled tips +
+`test/igloo-pwa/specs/app-shell.spec.ts` our v2-seed fix vs Paper's PWA test wiring
++ CI/scripts/`AGENTS.md`). Then ff each `master` to its reconciled tip, re-run
+`make test-release` on infra, then push.
 
 ## State to restore on resume
 
-**Done (5):** each holds its work on local branch `reconcile/paper+security`.
-The first four are also pushed to `origin/reconcile/paper+security` (backup);
-**igloo-ui's backup push is pending** (see resume note below):
+**Done (6):** each holds its work on local branch `reconcile/paper+security`,
+all pushed to `origin/reconcile/paper+security` (backup):
 
 | repo | reconcile tip | validation |
 |---|---|---|
@@ -289,22 +327,25 @@ The first four are also pushed to `origin/reconcile/paper+security` (backup);
 | igloo-shared| `b966139` | typecheck clean, vitest 141/141, wasm-exports ok |
 | igloo-chrome| `e43a115` | typecheck clean (vs reconciled deps); unit+e2e deferred |
 | igloo-ui    | `b68acdd` | build + `tsc --noEmit` clean, vitest 120/120 |
-
-**WIP (1):** igloo-pwa holds a partial reconcile on local branch
-`reconcile/paper+security` (`f012004`, NOT pushed, NOT buildable — 5 files carry
-conflict markers). Parked back on `security-hardening` so the parent tree is clean.
-See the igloo-pwa progress entry above for the locked decisions + resume procedure.
+| igloo-pwa   | `ec676ea` | `tsc --noEmit` + `vite build` clean; unit/e2e via harness |
 
 **All submodules are parked on `security-hardening`** so the parent tree is clean
 (parent stays on `security-hardening`, no pointer changes committed). The reconcile
 work is only on the `reconcile/paper+security` branches. To resume a repo:
 `git -C repos/<x> checkout reconcile/paper+security`.
 
-**Next:** finish igloo-pwa (resume the UI/state/types layer from WIP `f012004` —
-see the igloo-pwa progress entry for the 5 markered files + locked decisions +
-resume procedure; also adopt the renamed Operator\* types from igloo-ui's
-`models/view-models`) → igloo-home (Δ0, just adopt Paper tip `eed7b7a`) /
-igloo-paper (take Paper tip `38d734f`) → parent.
+**Open follow-ups for igloo-pwa (carried to the workspace-harness pass):**
+- Run unit + e2e via the parent `make` harness (bare `vitest` blocked by the
+  `igloo-shared/testing/vitest-base` `.ts` config-loader issue — pre-existing).
+- Adopt the renamed Operator\* types from igloo-ui's `models/view-models` if any
+  pwa consumer still references the old names (tsc was clean against reconciled
+  igloo-ui, so none currently do — re-verify after the harness pass).
+- `onboardSaveForm.relayUrls` is a non-secret Paper UI field that the security
+  `finalizeOnboardedDevice` does not consume (relays come from the connection).
+
+**Next:** igloo-home (Δ0, adopt Paper tip `eed7b7a`) / igloo-paper (take Paper tip
+`38d734f`) → parent (pointers + `app-shell.spec.ts` + CI/scripts/`AGENTS.md`) →
+ff each `master` → `make test-release` → push.
 
 ### Gotchas / env (consolidated)
 
