@@ -43,7 +43,7 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
 | igloo-shell | a6eece3 | 7bf3ff4 | +2 / -6 | **DONE** |
 | igloo-shared | e617db1 | 303514d | +4 | **DONE** |
 | igloo-chrome | ee45a64 | 5410f1d | +7 | **DONE** (typecheck only; full unit+e2e after igloo-ui) |
-| igloo-pwa | 007754e | 1044edc | +30 | **DONE** (ec676ea) — tsc + vite build clean; unit/e2e via workspace harness |
+| igloo-pwa | 007754e | 1044edc | +30 | **DONE** (a78a2ea) — tsc + vite build clean; vitest 32/33 (1 env-only) |
 | igloo-ui | 66f144a | 24e3b81 | +33 | **DONE** (b68acdd) |
 | igloo-home | eed7b7a | d99c987 | 0 | already current |
 | igloo-paper | 38d734f | (none) | — | reference submodule; take Paper tip |
@@ -143,7 +143,7 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
   **120/120 across 19 files**.
 
 - **igloo-pwa** — **DONE** on local branch `reconcile/paper+security`
-  (`ec676ea`, parents `[007754e 1044edc]`, pushed to `origin/reconcile/paper+security`).
+  (`a78a2ea`, parents `[007754e 1044edc]`, pushed to `origin/reconcile/paper+security`).
   All 5 markered files resolved (`App.tsx` 15, `store.tsx` 20, `types.ts` 4,
   `profile-packages.ts` 2, `App.test.tsx` 3) plus a second wave of cross-repo
   type adaptations. **`tsc --noEmit` clean; `vite build` clean (1751 modules).**
@@ -327,19 +327,37 @@ all pushed to `origin/reconcile/paper+security` (backup):
 | igloo-shared| `b966139` | typecheck clean, vitest 141/141, wasm-exports ok |
 | igloo-chrome| `e43a115` | typecheck clean (vs reconciled deps); unit+e2e deferred |
 | igloo-ui    | `b68acdd` | build + `tsc --noEmit` clean, vitest 120/120 |
-| igloo-pwa   | `ec676ea` | `tsc --noEmit` + `vite build` clean; unit/e2e via harness |
+| igloo-pwa   | `a78a2ea` | `tsc --noEmit` + `vite build` clean; **vitest 32/33** (1 env-only) |
 
 **All submodules are parked on `security-hardening`** so the parent tree is clean
 (parent stays on `security-hardening`, no pointer changes committed). The reconcile
 work is only on the `reconcile/paper+security` branches. To resume a repo:
 `git -C repos/<x> checkout reconcile/paper+security`.
 
-**Open follow-ups for igloo-pwa (carried to the workspace-harness pass):**
-- Run unit + e2e via the parent `make` harness (bare `vitest` blocked by the
-  `igloo-shared/testing/vitest-base` `.ts` config-loader issue — pre-existing).
+**igloo-pwa unit harness — RAN (2026-06-03): vitest 32/33.** Bare `vitest` hits the
+pre-existing `igloo-shared/testing/vitest-base` `.ts` config-loader issue; the fix
+is the **CI node-env piece** `NODE_OPTIONS='--experimental-strip-types'` (node 22.13).
+Invoke: `NODE_OPTIONS='--experimental-strip-types' ./node_modules/.bin/vitest run`
+with siblings on reconcile (igloo-shared b966139, igloo-ui b68acdd+dist). bun's
+runtime is vitest-worker-incompatible; `tsx` isn't installed locally.
+- Fixed under security behavior: the legacy `onboard-confirm` normalization test
+  now expects package entry (the passphrase-bearing `pendingOnboardConnection` is
+  reset on reload, so the save screen can't resume) — was the only behavior-level
+  test mismatch.
+- **1 env-only failure** (not a reconcile regression): "opens the hard-cut create
+  flow and finishes setup…" (Paper-only test). Security's save path **mandates a
+  successful `publishEncryptedProfileBackup`** (real `SimplePool.publish` to a
+  relay, throws fatally on failure — `igloo-shared/profile-backup-host.ts`). Offline
+  it times out at ~1.1s. Passes with network / the workspace dev-relay. Can't be
+  cheaply mocked from the pwa test — igloo-shared (sibling source) imports
+  `nostr-tools` from its own module graph, so a pwa-side `vi.mock('nostr-tools')`
+  doesn't intercept its `SimplePool`. To green it: run with a reachable relay, or
+  add an igloo-shared-level publish stub.
+- **e2e NOT run** (Playwright + dev-relay + Rust WASM build) — defer to CI / the
+  parent `make` harness.
 - Adopt the renamed Operator\* types from igloo-ui's `models/view-models` if any
   pwa consumer still references the old names (tsc was clean against reconciled
-  igloo-ui, so none currently do — re-verify after the harness pass).
+  igloo-ui, so none currently do).
 - `onboardSaveForm.relayUrls` is a non-secret Paper UI field that the security
   `finalizeOnboardedDevice` does not consume (relays come from the connection).
 
@@ -366,8 +384,12 @@ ff each `master` → `make test-release` → push.
   igloo-shared's raw `.ts` testing subpath (`igloo-shared/testing/vitest-base`) by
   package name; running `vitest run` standalone fails with
   `ERR_UNKNOWN_FILE_EXTENSION`. This is pre-existing (reproduces on pristine Paper
-  tips), not a reconcile bug. Run unit/e2e via the **workspace harness** (`make`),
-  not bare `vitest`.
+  tips), not a reconcile bug. **Workaround (the CI node-env piece): run with
+  `NODE_OPTIONS='--experimental-strip-types'`** on node ≥22.6 — node then loads the
+  `.ts` config directly. Confirmed on igloo-pwa (node 22.13): `NODE_OPTIONS=
+  '--experimental-strip-types' ./node_modules/.bin/vitest run` → 32/33. Do NOT use
+  `bun`'s runtime for vitest (tinypool worker incompatibility); `tsx` is not
+  installed locally.
 - **wasm binaries**: at every browser repo, took Paper's refreshed `*_bg.wasm`
   (HEAD/ours) to match the merged loader glue. Authoritative regen from reconciled
   bifrost-rs happens later via `make browser-wasm-sync` / `test-prep`.
