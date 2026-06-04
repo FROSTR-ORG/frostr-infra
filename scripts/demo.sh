@@ -227,7 +227,7 @@ start_stack() {
   stop_projects "${requested_port}"
   echo "==> Using demo relay port ${requested_port}"
   mkdir -p "${HOST_HARNESS_DIR}"
-  printf '%s\n' "${resolved_port}" > "${RELAY_PORT_FILE}"
+  printf '%s\n' "${requested_port}" > "${RELAY_PORT_FILE}"
   # No host binary build: the demo images compile bifrost-devtools / igloo-shell
   # in-Docker (services/demo/Dockerfile), so `up --build` is fully self-contained.
 
