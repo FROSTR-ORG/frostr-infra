@@ -453,11 +453,55 @@ runtime is vitest-worker-incompatible; `tsx` isn't installed locally.
 - `onboardSaveForm.relayUrls` is a non-secret Paper UI field that the security
   `finalizeOnboardedDevice` does not consume (relays come from the connection).
 
-**Next:** ALL repos + the parent are reconciled (parent @ `eb2ebfb`, local). Only
-the **operator-gated cutover** remains: review the merges → `make test-release`
-(the full Docker/browser matrix) → ff each submodule `master` to its reconcile tip
-and the parent `master` to `eb2ebfb` → push. Optionally push the parent
-`reconcile/paper+security` branch as a backup first.
+**Next:** ALL repos + the parent are reconciled (parent @ `c1d1a89`, local). Only
+the **operator-gated cutover** remains: review the merges → re-run `make test-release`
+(the full Docker/browser matrix on real CI infra) → ff each submodule `master` to its
+reconcile tip and the parent `master` to `c1d1a89` → push. The parent
+`reconcile/paper+security` branch is pushed to `origin` as a backup.
+
+## test-release validation (RAN 2026-06-03/04) — lanes run individually
+
+Strategy chosen by operator: drop the 2 pwa save-profile visual captures, run each
+lane individually, push through everything locally. Parent advanced `eb2ebfb` →
+`f72fa1e` → **`c1d1a89`** as reconcile regressions surfaced and were fixed.
+
+**GREEN — every functional / Rust / typecheck / non-live lane passed:**
+
+| lane | result |
+|---|---|
+| prebuild (Rust bins, browser artifacts, demo images) | ok |
+| bifrost-rs `cargo test --workspace` | pass (bifrost-devtools ETXTBSY = transient flake, 3/3 isolated) |
+| igloo-shell CLI / devnet / node-E2E | pass |
+| igloo-shared typecheck | clean |
+| igloo-pwa fast (non-live browser) | **20/20** |
+| igloo-chrome fast (non-live browser) | **17/17** |
+
+**4 real reconcile regressions found & fixed during the run:**
+1. **igloo-home src-tauri** — Paper `CreateKeysetConfig` struct literals vs security's
+   `signing_key32` newtype → `CreateKeysetConfig::new(group_name, threshold, count)`.
+2. **services/igloo-demo/entrypoint.sh** — corrupted merge dropped `lib-wait.sh`; took
+   Paper's complete self-contained 438-line entrypoint, `git rm`'d `lib-wait.sh`.
+3. **igloo-chrome PermissionsPanel** — Paper view-model migration dropped the section
+   titles → re-added `siteTitle="Site Policies"` / `peerTitle="Peer Policies"`; test
+   updated to Paper's `Device Profile` settings heading.
+4. **igloo-chrome live fixture** (`ensureResponder`) — security-hardened `daemon start`
+   requires a passphrase; first wrongly used `--passphrase-env` (import/profile-only),
+   re-fixed to pipe via **stdin** (commit `c1d1a89`). Confirmed: 0 `--passphrase-env`
+   errors, live fixtures bootstrap cleanly (`prepare-stable-live-signer:ok`).
+
+**Env/infra walls — NOT reconcile regressions (need CI infra to green):**
+- **Live relay round-trip timing** (pwa live, chrome live `dashboard.spec.ts:67`): the
+  signer dashboard assertions (`Share/Group Public Key`, formatted peer pubkey, `sign-ready`)
+  need a completed live signing round-trip; times out in this slow sandbox.
+- **Multi-process demo-harness orchestration** (chrome demo, home live): `Timed out
+  waiting for harness artifact onboard-bob.txt` (300s) — the alice/bob/relay multi-proc
+  fan-out doesn't settle here.
+- **Rootless-Docker `/w` symlink** (home live, chrome demo): `ln: failed to create
+  symbolic link '/w': Permission denied` (uid 1000) — pure env, not reconcile.
+
+**Verdict:** the reconcile is functionally sound. Every deterministic lane is green;
+all 4 regressions the run exposed are fixed and committed; the only red lanes are
+live/Docker round-trips blocked by sandbox env, to be re-run on CI before cutover.
 
 ### Gotchas / env (consolidated)
 
