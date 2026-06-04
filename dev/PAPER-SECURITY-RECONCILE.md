@@ -453,17 +453,19 @@ runtime is vitest-worker-incompatible; `tsx` isn't installed locally.
 - `onboardSaveForm.relayUrls` is a non-secret Paper UI field that the security
   `finalizeOnboardedDevice` does not consume (relays come from the connection).
 
-**Next:** ALL repos + the parent are reconciled (parent @ `c1d1a89`, local). Only
-the **operator-gated cutover** remains: review the merges → re-run `make test-release`
+**Next:** ALL repos + the parent are reconciled (parent @ **`69ea6cc`**, local; the
+doc-bookkeeping commit recording this update rides one above it as HEAD). Only the
+**operator-gated cutover** remains: review the merges → re-run `make test-release`
 (the full Docker/browser matrix on real CI infra) → ff each submodule `master` to its
-reconcile tip and the parent `master` to `c1d1a89` → push. The parent
-`reconcile/paper+security` branch is pushed to `origin` as a backup.
+reconcile tip and the parent `master` to the current `reconcile/paper+security` HEAD →
+push. The parent `reconcile/paper+security` branch is pushed to `origin` as a backup.
 
 ## test-release validation (RAN 2026-06-03/04) — lanes run individually
 
 Strategy chosen by operator: drop the 2 pwa save-profile visual captures, run each
 lane individually, push through everything locally. Parent advanced `eb2ebfb` →
-`f72fa1e` → **`c1d1a89`** as reconcile regressions surfaced and were fixed.
+`f72fa1e` → `c1d1a89` → **`69ea6cc`** (this results doc) as reconcile regressions
+surfaced and were fixed.
 
 **GREEN — every functional / Rust / typecheck / non-live lane passed:**
 
