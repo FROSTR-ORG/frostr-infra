@@ -430,11 +430,11 @@ TRACE_FILE="${TRACE_FILE}" \
   FROSTR_TEST_HARNESS_DIR="${TRACE_HARNESS_DIR}" \
   FROSTR_TEST_PREBUILD_DIR="$(mktemp -d "${TRACE_PREBUILD_DIR}/demo.XXXXXX")" \
   make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" demo-start PORT=8394 >/dev/null
-assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-shared run build:browser-wasm"
-assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-pwa run build:browser-wasm"
-assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-chrome run build:browser-wasm"
-assert_trace_contains "cargo|cwd=${ROOT_DIR}/repos/bifrost-rs|args=build --offline --locked -p bifrost-devtools --bin bifrost-devtools"
-assert_trace_contains "cargo|cwd=${ROOT_DIR}/repos/igloo-shell|args=build --offline --locked -p igloo-shell-cli --bin igloo-shell"
+# demo-start builds the demo images in-Docker (services/demo/Dockerfile compiles
+# bifrost-devtools / igloo-shell and the browser WASM), so there are deliberately
+# NO host-side `npm run build:browser-wasm` / `cargo build` steps to trace —
+# `compose up --build` is fully self-contained. Asserting the compose invocation
+# is what proves the in-Docker build path is wired.
 assert_trace_contains "docker|cwd=${ROOT_DIR}|args=compose -f ${ROOT_DIR}/compose.test.yml up -d --build --remove-orphans dev-relay igloo-demo"
 
 TRACE_FILE="${TRACE_FILE}" \
