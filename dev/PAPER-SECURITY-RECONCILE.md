@@ -42,10 +42,10 @@ not a cutover. Resume from `origin/reconcile/paper+security` if local state is l
 | bifrost-rs | 7a41c3b | d0bf343 | +1 / -48 | **DONE** |
 | igloo-shell | a6eece3 | 7bf3ff4 | +2 / -6 | **DONE** |
 | igloo-shared | e617db1 | 303514d | +4 | **DONE** |
-| igloo-chrome | ee45a64 | 5410f1d | +7 | **DONE** (typecheck only; full unit+e2e after igloo-ui) |
+| igloo-chrome | ee45a64 | 5410f1d | +7 | **DONE** (e43a115 → **6aa9936** after test-release Permissions-titles fix); fast e2e 17/17 |
 | igloo-pwa | 007754e | 1044edc | +30 | **DONE** (a78a2ea) — tsc + vite build clean; vitest 32/33 (1 env-only) |
 | igloo-ui | 66f144a | 24e3b81 | +33 | **DONE** (b68acdd) |
-| igloo-home | eed7b7a | d99c987 | 0 | **DONE** (270024e) — view-model migration vs reconciled igloo-ui; tsc + build clean, vitest 23/23 |
+| igloo-home | eed7b7a | d99c987 | 0 | **DONE** (270024e → **12d9c2d** after test-release src-tauri signing_key32 fix); view-model migration vs reconciled igloo-ui; tsc + build clean, vitest 23/23 |
 | igloo-paper | 38d734f | (none) | — | **DONE** (38d734f) reference submodule; took Paper tip |
 
 ## Progress
@@ -385,10 +385,10 @@ re-run `make test-release`, then push. `master`/Paper branch still untouched.
 | bifrost-rs  | `dab2b94` | `cargo test --workspace` pass |
 | igloo-shell | `479bfbd` | `cargo check` clean, lib tests pass |
 | igloo-shared| `b966139` | typecheck clean, vitest 141/141, wasm-exports ok |
-| igloo-chrome| `e43a115` | typecheck clean (vs reconciled deps); unit+e2e deferred |
+| igloo-chrome| `6aa9936` | typecheck clean; fast e2e **17/17**; +`6aa9936` Permissions titles fix |
 | igloo-ui    | `b68acdd` | build + `tsc --noEmit` clean, vitest 120/120 |
-| igloo-pwa   | `a78a2ea` | `tsc --noEmit` + `vite build` clean; **vitest 32/33** (1 env-only) |
-| igloo-home  | `270024e` | `tsc --noEmit` + `vite build` clean; **vitest 23/23** |
+| igloo-pwa   | `a78a2ea` | `tsc --noEmit` + `vite build` clean; **vitest 32/33** (1 env-only); fast e2e 20/20 |
+| igloo-home  | `12d9c2d` | `tsc --noEmit` + `vite build` clean; vitest 23/23; +`12d9c2d` src-tauri signing_key32 fix |
 | igloo-paper | `38d734f` | reference submodule (Paper tip); no validation needed |
 
 **PARENT reconcile — DONE** (parent branch `reconcile/paper+security` @ `eb2ebfb`,
