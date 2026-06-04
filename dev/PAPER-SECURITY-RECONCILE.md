@@ -371,9 +371,8 @@ Paper lacks entirely.
 ## Remaining order
 
 ~~igloo-shared~~ → ~~igloo-chrome~~ → ~~igloo-ui~~ → ~~igloo-pwa~~ →
-~~igloo-paper~~ → ~~igloo-home~~ → ~~parent~~ — **ALL RECONCILED.** Only the
-**cutover** remains (operator-gated): ff each `master` to its reconciled tip,
-re-run `make test-release`, then push. `master`/Paper branch still untouched.
+~~igloo-paper~~ → ~~igloo-home~~ → ~~parent~~ — **ALL RECONCILED.**
+**CUTOVER DONE** (2026-06-04) — see "Cutover (DONE)" below.
 
 ## State to restore on resume
 
@@ -416,10 +415,28 @@ pointers set to the reconciled tips + 15 parent-infra content conflicts resolved
   submodules checked out at their reconcile tips (tree clean). `security-hardening`
   = `20c728d`, `origin/master` = `ace4930` (both untouched).
 
-**Cutover (NOT done — operator-gated):** review → `make test-release` → ff each
-submodule `master` to its reconcile tip + the parent `master` to `eb2ebfb` →
-push. The parent reconcile branch is pushed to `origin/reconcile/paper+security`
-(backup only); `master`/Paper branch remain untouched.
+**Cutover (DONE — 2026-06-04):** all 9 `master` branches advanced to the reconcile
+tips and pushed. Final masters on `origin`:
+
+| repo | master after cutover | how |
+|---|---|---|
+| bifrost-rs  | `fe379c9` | **merge** of `origin/master` (435e7f6) into reconcile dab2b94 — origin carried a net-zero add+revert pair, so a pure ff would have rewritten published history; merge tree == dab2b94 |
+| igloo-shell | `479bfbd` | ff |
+| igloo-shared| `b966139` | ff |
+| igloo-chrome| `6aa9936` | ff |
+| igloo-ui    | `b68acdd` | ff |
+| igloo-pwa   | `a78a2ea` | ff |
+| igloo-home  | `12d9c2d` | ff |
+| igloo-paper | `38d734f` | ff |
+| **parent**  | **`3e18a9d`** | ff to 12e5f89, then +1 to repin bifrost gitlink dab2b94→fe379c9 |
+
+Pre-cutover safety: fetched fresh, verified `origin/master` was an ancestor of every
+reconcile tip (7 clean ff). Only bifrost-rs was non-ff — investigated and found the 2
+extra origin commits were `fc6bf1a` ("Add responder sign activity events") + its own
+revert `435e7f6` (identical tree to the merge-base), resolved by merge (no force-push,
+no code lost). Post-cutover: all 9 repos checked out on `master`, `HEAD == origin/master`
+everywhere, parent worktree clean, `git submodule status` all space-prefixed. The
+`reconcile/paper+security` branches remain on `origin` as backups (safe to delete later).
 
 (Historical: during the submodule phase, all submodules were parked on
 `security-hardening` to keep the parent tree clean. Now the parent is reconciled,
