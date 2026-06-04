@@ -29,6 +29,7 @@ services:
       target: dev-relay
     image: bifrost-infra-dev-relay:dev
     hostname: dev-relay
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     working_dir: /workspace
     environment:
       DEV_RELAY_PORT: ${DEV_RELAY_PORT:-8194}
@@ -53,6 +54,7 @@ services:
       target: igloo-demo
     image: bifrost-infra-igloo-demo:dev
     hostname: igloo-demo
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     working_dir: /workspace
     depends_on:
       dev-relay:

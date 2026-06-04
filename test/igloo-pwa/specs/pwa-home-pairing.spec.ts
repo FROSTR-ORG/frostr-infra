@@ -68,7 +68,7 @@ function assertHomeRuntimeHydrated(snapshot: HomeRuntimeSnapshot, expectedPeers:
 
 async function readPwaRuntimeState(page: import('@playwright/test').Page) {
   return await page.evaluate(() => {
-    const raw = window.localStorage.getItem('igloo-pwa.state.v1');
+    const raw = window.localStorage.getItem('igloo-pwa.state.v2');
     return raw ? JSON.parse(raw) : null;
   });
 }

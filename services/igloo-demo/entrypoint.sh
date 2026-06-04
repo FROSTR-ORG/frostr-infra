@@ -26,18 +26,46 @@ IGLOO_SHELL_DEMO_ARTIFACT_DIR="${IGLOO_SHELL_DEMO_ARTIFACT_DIR:-${FROSTR_TEST_HA
 IGLOO_SHELL_DEMO_PASSWORD_BYTES="${IGLOO_SHELL_DEMO_PASSWORD_BYTES:-16}"
 IGLOO_SHELL_DEMO_PASSPHRASE="${IGLOO_SHELL_DEMO_PASSPHRASE:-dev-harness-passphrase}"
 IGLOO_SHELL_DEMO_XDG_ROOT="${IGLOO_SHELL_DEMO_XDG_ROOT:-${IGLOO_SHELL_DEMO_ARTIFACT_DIR}/igloo-shell-home}"
-IGLOO_SHELL_DEMO_STATE_LINK="${IGLOO_SHELL_DEMO_STATE_LINK:-/w}"
+# Short alias for the (long, bind-mounted) XDG_STATE_HOME. Lives under
+# world-writable /tmp because `/` is not writable by the non-root `igloo`
+# container user (so the historical `/w` at the filesystem root cannot be
+# created).
+IGLOO_SHELL_DEMO_STATE_LINK="${IGLOO_SHELL_DEMO_STATE_LINK:-/tmp/w}"
+# Short, writable XDG_RUNTIME_DIR for the daemon's AF_UNIX control socket.
+# igloo-shell shortens the socket to `<XDG_RUNTIME_DIR>/igloo-shell-<hash>.sock`
+# when the state-dir path would exceed the 100-byte sun_path budget; the
+# default `/run/user/$UID` does not exist for the non-root demo user, so the
+# fallback would otherwise fail with SocketPathTooLong.
+IGLOO_SHELL_DEMO_RUNTIME_DIR="${IGLOO_SHELL_DEMO_RUNTIME_DIR:-/tmp/r}"
 IGLOO_SHELL_DEMO_TMPDIR="${IGLOO_SHELL_DEMO_TMPDIR:-${IGLOO_SHELL_DEMO_ARTIFACT_DIR}/tmp}"
+
+export IGLOO_SHELL_BIN
+export DEV_RELAY_HOST
+export DEV_RELAY_PORT
 
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/data}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-${IGLOO_SHELL_DEMO_STATE_LINK}}"
-export IGLOO_SHELL_PROFILE_PASSPHRASE="${IGLOO_SHELL_DEMO_PASSPHRASE}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-${IGLOO_SHELL_DEMO_RUNTIME_DIR}}"
+export IGLOO_SHELL_TEST_PASSPHRASE="${IGLOO_SHELL_DEMO_PASSPHRASE}"
 export TMPDIR="${TMPDIR:-${IGLOO_SHELL_DEMO_TMPDIR}}"
 
 declare -a ONBOARD_MEMBERS=()
 DEMO_PROFILE_ID=""
 DEMO_DAEMON_LOG=""
+
+# Source shared polling helpers from the services bind-mount.
+# shellcheck disable=SC1091
+source "${ROOT_DIR}/services/igloo-demo/lib-wait.sh"
+
+cleanup() {
+  if [ -n "${DEMO_PROFILE_ID}" ]; then
+    "${IGLOO_SHELL_BIN}" daemon stop --profile "${DEMO_PROFILE_ID}" >/dev/null 2>&1 || true
+  fi
+}
+
+# Register cleanup trap before any side effects (file writes, daemon spawns).
+trap cleanup EXIT INT TERM
 
 need_file() {
   if [ ! -f "$1" ]; then
@@ -98,63 +126,6 @@ password_file() {
   printf '%s/onboard-%s.password.txt' "${IGLOO_SHELL_DEMO_ARTIFACT_DIR}" "$1"
 }
 
-wait_for_relay() {
-  local host="$1"
-  local port="$2"
-  local timeout_secs="${3:-60}"
-  local attempt=0
-
-  while [ "${attempt}" -lt "$((timeout_secs * 10))" ]; do
-    if bash -lc "exec 3<>/dev/tcp/${host}/${port}" >/dev/null 2>&1; then
-      return 0
-    fi
-    sleep 0.1
-    attempt=$((attempt + 1))
-  done
-
-  echo "timed out waiting for relay at ${host}:${port}"
-  return 1
-}
-
-wait_for_socket() {
-  local path="$1"
-  local timeout_secs="${2:-60}"
-  local attempt=0
-
-  while [ "${attempt}" -lt "$((timeout_secs * 10))" ]; do
-    if [ -S "${path}" ]; then
-      return 0
-    fi
-    sleep 0.1
-    attempt=$((attempt + 1))
-  done
-
-  echo "timed out waiting for control socket at ${path}"
-  return 1
-}
-
-wait_for_onboard_ready() {
-  local profile_id="$1"
-  local timeout_secs="${2:-60}"
-  local attempt=0
-  local check_json=""
-
-  while [ "${attempt}" -lt "${timeout_secs}" ]; do
-    check_json="$("${IGLOO_SHELL_BIN}" check onboard --profile "${profile_id}" 2>/dev/null || true)"
-    if printf '%s' "${check_json}" | grep -q '"ready"[[:space:]]*:[[:space:]]*true'; then
-      return 0
-    fi
-    sleep 1
-    attempt=$((attempt + 1))
-  done
-
-  echo "timed out waiting for onboarding readiness for profile ${profile_id}" >&2
-  if [ -n "${check_json}" ]; then
-    printf '%s\n' "${check_json}" >&2
-  fi
-  return 1
-}
-
 cleanup_demo_dir() {
   mkdir -p "${IGLOO_SHELL_DEMO_DIR}"
   rm -f \
@@ -178,16 +149,15 @@ cleanup_shell_home() {
 prepare_shell_home() {
   mkdir -p \
     "${TMPDIR}" \
+    "${XDG_RUNTIME_DIR}" \
     "${IGLOO_SHELL_DEMO_XDG_ROOT}/config" \
     "${IGLOO_SHELL_DEMO_XDG_ROOT}/data" \
     "${IGLOO_SHELL_DEMO_XDG_ROOT}/state"
+  # XDG_RUNTIME_DIR must be private (0700) per spec; the control socket lives here.
+  chmod 0700 "${XDG_RUNTIME_DIR}" 2>/dev/null || true
   if [ "${XDG_STATE_HOME}" = "${IGLOO_SHELL_DEMO_STATE_LINK}" ]; then
     ln -sfn "${IGLOO_SHELL_DEMO_XDG_ROOT}/state" "${IGLOO_SHELL_DEMO_STATE_LINK}"
   fi
-}
-
-relax_artifact_permissions() {
-  chmod -R a+rwX "${IGLOO_SHELL_DEMO_ARTIFACT_DIR}" >/dev/null 2>&1 || true
 }
 
 has_demo_material() {
@@ -214,31 +184,6 @@ generate_demo_material_if_needed() {
     --relay "${DEV_RELAY_INTERNAL_URL}"
 }
 
-json_string_field() {
-  local key="$1"
-  awk -F'"' -v key="${key}" '$2 == key { print $4; exit }'
-}
-
-json_number_field() {
-  local key="$1"
-  sed -n "s/^[[:space:]]*\"${key}\":[[:space:]]*\\([0-9][0-9]*\\).*/\\1/p" | head -n 1
-}
-
-imported_profile_id() {
-  awk '
-    /"import"[[:space:]]*:[[:space:]]*{/ { in_import=1 }
-    in_import && /"profile"[[:space:]]*:[[:space:]]*{/ { in_profile=1; next }
-    in_profile && /"id"[[:space:]]*:[[:space:]]*"/ {
-      line = $0
-      sub(/.*"id"[[:space:]]*:[[:space:]]*"/, "", line)
-      sub(/".*/, "", line)
-      print line
-      exit
-    }
-    in_profile && /^[[:space:]]*}/ { in_profile=0 }
-  '
-}
-
 configure_relay_profile() {
   "${IGLOO_SHELL_BIN}" relays set "${IGLOO_SHELL_DEMO_RELAY_PROFILE}" "${DEV_RELAY_INTERNAL_URL}" >/dev/null
   "${IGLOO_SHELL_BIN}" relays default "${IGLOO_SHELL_DEMO_RELAY_PROFILE}" >/dev/null
@@ -253,10 +198,10 @@ import_demo_profile() {
       --share "${IGLOO_SHELL_DEMO_DIR}/share-${IGLOO_SHELL_DEMO_MEMBER}.json" \
       --label "${IGLOO_SHELL_DEMO_MEMBER}" \
       --relay-profile "${IGLOO_SHELL_DEMO_RELAY_PROFILE}" \
-      --passphrase "${IGLOO_SHELL_PROFILE_PASSPHRASE}" \
+      --passphrase "${IGLOO_SHELL_TEST_PASSPHRASE}" \
       --json
   )"
-  DEMO_PROFILE_ID="$(printf '%s\n' "${import_json}" | imported_profile_id)"
+  DEMO_PROFILE_ID="$(printf '%s' "${import_json}" | jq -r '.import.profile.id // empty')"
   if [ -z "${DEMO_PROFILE_ID}" ]; then
     echo "failed to determine imported profile id"
     printf '%s\n' "${import_json}"
@@ -280,7 +225,7 @@ generate_password_file_if_needed() {
   local old_umask
 
   if [ -s "${path}" ]; then
-    chmod 0644 "${path}" >/dev/null 2>&1 || true
+    chmod 0600 "${path}" >/dev/null 2>&1 || true
     return 0
   fi
 
@@ -288,7 +233,7 @@ generate_password_file_if_needed() {
   umask 077
   od -An -tx1 -N"${IGLOO_SHELL_DEMO_PASSWORD_BYTES}" /dev/urandom | tr -d ' \n' > "${path}"
   umask "${old_umask}"
-  chmod 0644 "${path}"
+  chmod 0600 "${path}"
 }
 
 export_onboarding_package() {
@@ -308,8 +253,8 @@ export_onboarding_package() {
       --recipient-share "${IGLOO_SHELL_DEMO_DIR}/share-${member}.json" \
       --relay-url "${DEV_RELAY_EXTERNAL_URL}" \
       --package-password-env IGLOO_SHELL_PACKAGE_PASSWORD \
+      --passphrase-env IGLOO_SHELL_TEST_PASSPHRASE \
       >/dev/null
-  chmod 0644 "${onboard_path}" >/dev/null 2>&1 || true
 }
 
 start_demo_daemon() {
@@ -318,10 +263,15 @@ start_demo_daemon() {
   local daemon_socket_bind
   local daemon_socket_link_name
   local daemon_socket_link_target
+  local daemon_socket_dir
 
-  daemon_json="$("${IGLOO_SHELL_BIN}" daemon start --profile "${DEMO_PROFILE_ID}")"
-  daemon_token="$(printf '%s\n' "${daemon_json}" | json_string_field "token")"
-  daemon_socket_bind="$(printf '%s\n' "${daemon_json}" | json_string_field "socket_path")"
+  # Bucket C removed the implicit profile-passphrase env fallback, so the
+  # daemon must be handed the passphrase explicitly. Pipe it on stdin (the CLI
+  # reads the passphrase from a stdin pipe) rather than putting it on argv.
+  daemon_json="$(printf '%s\n' "${IGLOO_SHELL_TEST_PASSPHRASE}" \
+    | "${IGLOO_SHELL_BIN}" daemon start --profile "${DEMO_PROFILE_ID}")"
+  daemon_token="$(printf '%s' "${daemon_json}" | jq -r '.token // empty')"
+  daemon_socket_bind="$(printf '%s' "${daemon_json}" | jq -r '.socket_path // empty')"
   daemon_socket_link_name="$(basename "${IGLOO_SHELL_DEMO_CONTROL_SOCKET}")"
   DEMO_DAEMON_LOG="${IGLOO_SHELL_DEMO_XDG_ROOT}/state/igloo-shell/profiles/${DEMO_PROFILE_ID}/daemon.log"
   if [ -z "${daemon_token}" ] || [ -z "${daemon_socket_bind}" ]; then
@@ -341,8 +291,19 @@ start_demo_daemon() {
     cd "${IGLOO_SHELL_DEMO_ARTIFACT_DIR}"
     ln -sfn "${daemon_socket_link_target}" "${daemon_socket_link_name}"
   )
-  printf '%s\n' "${daemon_token}" > "${IGLOO_SHELL_DEMO_CONTROL_TOKEN_FILE}"
-  chmod 0777 "$(dirname "${daemon_socket_bind}")" "${daemon_socket_bind}" >/dev/null 2>&1 || true
+
+  # Token file must stay private to the running user.
+  (
+    umask 077
+    printf '%s\n' "${daemon_token}" > "${IGLOO_SHELL_DEMO_CONTROL_TOKEN_FILE}"
+  )
+  chmod 0600 "${IGLOO_SHELL_DEMO_CONTROL_TOKEN_FILE}" >/dev/null 2>&1 || true
+
+  # Ensure the socket directory exists with tight perms; no world-writable fallback.
+  daemon_socket_dir="$(dirname "${daemon_socket_bind}")"
+  if [ -d "${daemon_socket_dir}" ]; then
+    chmod 0700 "${daemon_socket_dir}" >/dev/null 2>&1 || true
+  fi
 }
 
 export_onboarding_packages() {
@@ -412,7 +373,7 @@ cleanup_shell_home
 prepare_shell_home
 
 echo "==> Waiting for relay ${DEV_RELAY_INTERNAL_URL}"
-wait_for_relay "${DEV_RELAY_HOST}" "${DEV_RELAY_PORT}" 60
+wait_for_relay "${DEV_RELAY_HOST}" "${DEV_RELAY_PORT}"
 
 # Run from a stable, always-present directory. igloo-shell uses explicit XDG_*
 # dirs (set above), so its state/config don't depend on the working directory.
@@ -423,12 +384,9 @@ ensure_onboard_members_exist
 configure_relay_profile
 import_demo_profile
 start_demo_daemon
-wait_for_socket "${IGLOO_SHELL_DEMO_CONTROL_SOCKET}" 60
-wait_for_onboard_ready "${DEMO_PROFILE_ID}" 60
+wait_for_socket "${IGLOO_SHELL_DEMO_CONTROL_SOCKET}"
+wait_for_onboard_ready "${DEMO_PROFILE_ID}"
 export_onboarding_packages
-relax_artifact_permissions
-
-trap cleanup EXIT INT TERM
 
 print_onboarding_packages
 if [ -n "${DEMO_DAEMON_LOG}" ]; then

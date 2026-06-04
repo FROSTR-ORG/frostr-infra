@@ -155,9 +155,27 @@ At the encrypted content layer, implementations must validate:
 ### Envelope Layer
 
 At the peer-envelope layer, implementations must validate:
-- `request_id` is present, non-empty, and bounded
+- `request_id` is present, non-empty, and bounded (≤ 256 bytes)
 - `sent_at` is present and acceptable for freshness checks
 - `payload` exists and has a recognized variant
+
+#### Size Bounds
+
+The raw JSON of a bridge envelope is bounded **before** any parsing or
+allocation, so an oversized input cannot force work proportional to its size.
+The canonical constants live in `bifrost-codec` and the decoder rejects
+anything over the limit with a typed error:
+
+- `MAX_BRIDGE_ENVELOPE_BYTES = 65536` (64 KiB) — whole-envelope ceiling,
+  enforced before `serde_json` runs.
+- `MAX_IDENTIFIER_FIELD_BYTES = 1024` (1 KiB) — per-field cap on identifier /
+  label strings (`kind`, `group_name`, `code`, `message`).
+- `MAX_CONTENT_FIELD_BYTES = 32768` (32 KiB) — cap on the hex `content` field
+  carried in sign sessions.
+
+These bounds make oversized payloads a non-issue for any authenticated peer:
+the budget is generous for legitimate traffic (a full batched sign request sits
+well under the ceiling) while cutting off authenticated-DoS amplification.
 
 ### Payload Layer
 

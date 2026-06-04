@@ -47,7 +47,9 @@ test.describe('extension dashboard smoke', () => {
 
     await expect(page.getByText('Share Public Key')).toBeVisible();
     await expect(page.getByText('Group Public Key')).toBeVisible();
-    await expect(page.getByText('Pending Operations')).toBeVisible();
+    // Heading by role: the OperatorSignerPanel help tooltip (HelpHint, igloo-ui
+    // H.8) also contains "pending operations", so a loose getByText() matches two.
+    await expect(page.getByRole('heading', { name: 'Pending Operations' })).toBeVisible();
 
     await page.getByRole('tab', { name: /Permissions/i }).first().click();
     await expect(page.getByRole('heading', { name: 'Site Policies' })).toBeVisible();

@@ -235,6 +235,38 @@ That means:
 
 If the group public key changes, the system has created a new keyset rather than rotated the existing one.
 
+## Envelope Encryption (v2)
+
+The FROST cryptography above protects *signing*. A separate layer protects
+*persistent and portable secret material at rest* — the host-local device
+profile envelope and the portable `bfprofile` / `bfshare` / `bfonboard`
+packages. Both use the same v2 KDF/AEAD contract, introduced in the 2026-04-22
+remediation (Bucket B), replacing the retired v1 scheme (PBKDF2-SHA256 +
+AES-256-GCM).
+
+Canonical contract (a single KDF/AEAD shape across the codebase; the
+`bifrost-profile` and `frostr-utils` `Argon2Params` types are kept in
+lockstep):
+
+- **KDF: Argon2id**, version `0x13`. Default parameters:
+  `m_cost = 262144` KiB (256 MiB), `t_cost = 4`, `p_cost = 1`. The enforced
+  floor (`minimum_secure`) is `m_cost = 65536` KiB (64 MiB), `t_cost = 3`,
+  `p_cost = 1`; release builds can never derive below the floor.
+- **AEAD: XChaCha20-Poly1305**, with a 24-byte nonce.
+- **Salt:** 16 random bytes. **Derived key:** 32 bytes.
+- **Associated data** is domain-separated and length-prefixed, binding the
+  envelope version (and salt) into the AEAD so a ciphertext cannot be replayed
+  under a different envelope shape.
+
+Versioning:
+
+- Host-local device profile envelope: `ENCRYPTED_PROFILE_VERSION = 2`.
+- Portable package envelope: `BF_PACKAGE_VERSION = 2`.
+
+Portable packages are bech32m-encoded with distinct HRPs (`bfprofile`,
+`bfshare`, `bfonboard`). The wire layout and per-artifact validation rules live
+in [BACKUP.md](./BACKUP.md); `frostr-utils` owns the package codecs.
+
 ## Cryptographic Invariants
 
 These rules should hold across the cryptographic layer:

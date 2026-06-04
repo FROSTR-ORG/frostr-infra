@@ -34,7 +34,7 @@ cleanup() {
       XDG_CONFIG_HOME="${XDG_ROOT}/config" \
       XDG_DATA_HOME="${XDG_ROOT}/data" \
       XDG_STATE_HOME="${XDG_ROOT}/state" \
-      IGLOO_SHELL_PROFILE_PASSPHRASE="demo-harness-smoke-pass" \
+      IGLOO_SHELL_TEST_PASSPHRASE="demo-harness-smoke-pass" \
       "${IGLOO_SHELL_BIN}" daemon stop --profile "${PROFILE_ID}" >/dev/null 2>&1 || true
   fi
   env DEV_RELAY_PORT="${RELAY_PORT}" docker compose -p "${PROJECT_NAME}" -f "${ROOT_DIR}/compose.test.yml" down -v >/dev/null 2>&1 || true
@@ -87,7 +87,7 @@ printf '%s\n' "demo-harness-smoke-pass" >"${PASSPHRASE_FILE}"
 export XDG_CONFIG_HOME="${XDG_ROOT}/config"
 export XDG_DATA_HOME="${XDG_ROOT}/data"
 export XDG_STATE_HOME="${XDG_ROOT}/state"
-export IGLOO_SHELL_PROFILE_PASSPHRASE="demo-harness-smoke-pass"
+export IGLOO_SHELL_TEST_PASSPHRASE="demo-harness-smoke-pass"
 
 ONBOARD_JSON="$(
   "${IGLOO_SHELL_BIN}" onboard "${PACKAGE_FILE}" \
@@ -116,7 +116,10 @@ if [[ -z "${PROFILE_ID}" ]]; then
   exit 1
 fi
 
-"${IGLOO_SHELL_BIN}" daemon start --profile "${PROFILE_ID}" >/dev/null
+# Bucket C removed the implicit passphrase env fallback, so the daemon must be
+# handed the passphrase explicitly to unlock the onboarded profile.
+"${IGLOO_SHELL_BIN}" daemon start --profile "${PROFILE_ID}" \
+  --passphrase-file "${PASSPHRASE_FILE}" >/dev/null
 "${IGLOO_SHELL_BIN}" runtime status --profile "${PROFILE_ID}" >/dev/null
 PEER_LIST="$("${IGLOO_SHELL_BIN}" peer list --profile "${PROFILE_ID}")"
 if ! printf '%s\n' "${PEER_LIST}" | grep -q '"pubkey"'; then

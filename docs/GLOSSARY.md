@@ -8,6 +8,16 @@ Use it to resolve terminology quickly before diving into the deeper architecture
 
 ## Terms
 
+### Argon2Params
+
+The canonical Argon2id key-derivation parameters used by the v2 envelope
+encryption (host-local profile state and the portable `bfprofile` / `bfshare` /
+`bfonboard` packages). Default `m_cost = 262144` KiB (256 MiB), `t_cost = 4`,
+`p_cost = 1`, with an enforced floor that release builds cannot derive below.
+The `bifrost-profile` and `frostr-utils` copies are kept in lockstep.
+
+See [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md#envelope-encryption-v2).
+
 ### backup
 
 The durable encrypted profile material published to relays for later recovery.
@@ -194,6 +204,29 @@ The per-device secret material representing one participant in a threshold keyse
 ### share public key
 
 The device/member public identity used for peer routing, peer policy references, and deriving `profile_id`.
+
+### Secret\<T\>
+
+The browser-runtime (TypeScript) wrapper that holds a sensitive value behind an
+explicit accessor, keeps it out of logs and serialized state, and pairs with the
+observability allow-list redactor. `SecretBytes` is its raw-buffer companion.
+
+### SecretBytes
+
+The byte-oriented companion to `Secret<T>` for raw secret buffers in the browser
+runtime, with the same no-logging / no-persistence discipline.
+
+### Passphrase
+
+An operator-supplied UTF-8 secret used to derive envelope encryption keys
+(profile encryption, recovery). Held in a zeroizing newtype that redacts in
+`Debug` and is never compared for equality directly.
+
+### DaemonToken
+
+A 32-byte random authentication token gating access to the local control-socket
+daemon from co-located clients. Compared in constant time, zeroized on drop, and
+never rendered in `Debug` output.
 
 ### share secret
 

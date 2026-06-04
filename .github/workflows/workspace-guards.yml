@@ -26,29 +26,39 @@ on:
       - "scripts/**"
       - ".gitmodules"
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   guards:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
         with:
           submodules: true
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444  # v5
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: test/package-lock.json
 
+      # dtolnay/rust-toolchain has no semver tag for `stable`; pin to the
+      # current HEAD of the `stable` branch. Refresh periodically (dependabot
+      # or manual bump) to pick up new toolchain releases.
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable @ 2026-03-27
         with:
           targets: wasm32-unknown-unknown
 
       - name: Cache Rust build artifacts
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2 (v2.9.1)
 
       - name: Install Linux system dependencies
         run: |
@@ -56,14 +66,16 @@ jobs:
           sudo apt-get install -y \
             build-essential \
             clang \
-            ripgrep
+            jq \
+            ripgrep \
+            xvfb
 
       - name: Install wasm-pack
         run: cargo install --locked --version 0.14.0 wasm-pack
 
       - name: Install test dependencies
         working-directory: test
-        run: npm install
+        run: npm ci
 
       - name: Run workspace guards
         working-directory: test

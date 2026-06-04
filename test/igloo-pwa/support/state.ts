@@ -1,6 +1,6 @@
 import type { PwaStoredProfileSeed } from '../../shared/browser-artifacts';
 
-export const PWA_STORAGE_KEY = 'igloo-pwa.state.v1';
+export const PWA_STORAGE_KEY = 'igloo-pwa.state.v2';
 
 export function buildPwaPersistedState(input?: {
   profiles?: PwaStoredProfileSeed[];

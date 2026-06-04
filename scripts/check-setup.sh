@@ -39,11 +39,28 @@ find_wasm_clang() {
 
 echo "=== FROSTR Workspace Setup Check ==="
 
-print_check "Docker"
-if command -v docker >/dev/null 2>&1; then print_ok; else print_fail "docker not found"; fi
+require_cmd docker "https://docs.docker.com/get-docker/"
 
+# docker compose is a separate check because docker can exist without the
+# compose plugin (e.g. older docker-ce installs where compose is the
+# standalone docker-compose binary).
 print_check "Docker Compose"
-if docker compose version >/dev/null 2>&1; then print_ok; else print_fail "docker compose not found"; fi
+if docker compose version >/dev/null 2>&1; then
+  print_ok
+else
+  print_fail "docker compose plugin not found (install: https://docs.docker.com/compose/install/)"
+fi
+
+require_cmd cargo "https://rustup.rs/"
+require_cmd npm "https://nodejs.org/"
+require_cmd wasm-pack "cargo install --locked --version 0.14.0 wasm-pack"
+require_cmd jq "apt-get install jq (or brew install jq)"
+
+# xvfb-run is only required on Linux where headless Playwright / Tauri
+# tests rely on a virtual display.
+if [ "$(uname -s)" = "Linux" ]; then
+  require_cmd xvfb-run "apt-get install xvfb"
+fi
 
 print_check "rustup"
 if command -v rustup >/dev/null 2>&1; then
@@ -108,7 +125,7 @@ if [ -f ".gitmodules" ]; then
   if git submodule status >/dev/null 2>&1; then
     print_ok
   else
-    print_warn "submodules configured but not initialized"
+    print_warn "submodules configured but not initialized (run make repo-init)"
   fi
 else
   print_warn ".gitmodules missing"

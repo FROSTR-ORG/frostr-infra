@@ -2,14 +2,15 @@
 .env.local
 compose.override.yml
 .tmp*/
+# `data/` is intentionally NOT ignored. The scratch-dir guard in
+# scripts/lib-scratch.sh forbids scratch from resolving anywhere but .tmp/,
+# so a stray data/ should stay visible (untracked) and get noticed, never
+# silently committed or hidden behind an ignore rule.
 node_modules/
 **/node_modules/
 logs/*
 !logs/.gitkeep
 !logs/*/.gitkeep
-data/*
-!data/.gitkeep
-!data/*/.gitkeep
 build/*
 !build/.gitkeep
 !build/README.md

@@ -4,7 +4,9 @@ import { gotoCreateDistribute } from '../support/flows';
 import { pages } from '../support/pages';
 import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
 
-const STORAGE_KEY = 'igloo-pwa.state.v1';
+// Paper's page-object wiring (support/*) with security's v2 storage key: the
+// reconciled igloo-pwa persists to `igloo-pwa.state.v2`.
+const STORAGE_KEY = 'igloo-pwa.state.v2';
 
 function seededDashboardProfile() {
   return {
@@ -67,7 +69,8 @@ test.describe('igloo-pwa ui-first shell', () => {
 
     // Finish Setup persists the profile, stops the runtime, purges setup secrets,
     // and returns to the locked returning Welcome (all shares delivered, so no
-    // undelivered-shares confirmation fires).
+    // undelivered-shares confirmation fires) — matching the reconciled pwa
+    // finishSetup, which navigates back to the landing/welcome surface.
     await p.distribute.finish();
     await p.welcome.expectReturning();
     await expect(p.welcome.row().getByText('Primary Browser Device')).toBeVisible();
@@ -89,16 +92,17 @@ test.describe('igloo-pwa ui-first shell', () => {
                 relays: ['wss://relay.primal.net'],
                 group_package_json:
                   '{"group_name":"Playwright Group","group_pk":"group-pub-1","threshold":2,"members":[]}',
-                share_package_json: '{"share":"demo"}',
+                // v2 schema (Bucket D): stored_password / share_package_json /
+                // profile_string / share_string are no longer persisted; the
+                // share reconstructs in-memory from encrypted_bfshare_artifact.
+                encrypted_bfshare_artifact: 'bfshare1demo',
+                member_idx: 1,
                 source: 'bfprofile',
                 relay_profile: 'browser',
                 group_ref: 'group-ref',
                 encrypted_profile_ref: 'encrypted-profile-ref',
                 state_path: '/tmp/igloo-pwa/profile-1',
                 created_at: 1700000000000,
-                stored_password: 'pw',
-                profile_string: 'bfprofile1demo',
-                share_string: 'bfshare1demo',
                 signer_settings: {
                   sign_timeout_secs: 30,
                   ping_timeout_secs: 15,
@@ -106,10 +110,9 @@ test.describe('igloo-pwa ui-first shell', () => {
                   state_save_interval_secs: 30,
                   peer_selection_strategy: 'deterministic_sorted',
                 },
-                onboarding_package: null,
               },
             ],
-            peerPolicies: [],
+            peerPermissionStates: [],
             selectedProfileId: 'profile-1',
             activeView: 'dashboard',
             activeDashboardTab: 'settings',
@@ -159,6 +162,17 @@ test.describe('igloo-pwa ui-first shell', () => {
     await expect(page.getByRole('heading', { name: 'Browser Settings', exact: true })).toBeVisible();
 
     await dashboard.autoOpenToggle.uncheck();
+    // The reconciled store persists via a debounced writer (250ms/500ms), so wait
+    // for the toggle change to land in localStorage before reloading — otherwise
+    // the reload races the pending save and reverts.
+    await expect
+      .poll(() =>
+        page.evaluate((key) => {
+          const raw = window.localStorage.getItem(key);
+          return raw ? (JSON.parse(raw).settings?.auto_open_signer ?? null) : null;
+        }, STORAGE_KEY),
+      )
+      .toBe(false);
     await page.reload();
     await dashboard.expectDashboard();
     await expect(dashboard.autoOpenToggle).not.toBeChecked();
@@ -179,16 +193,17 @@ test.describe('igloo-pwa ui-first shell', () => {
                 relays: ['wss://relay.primal.net'],
                 group_package_json:
                   '{"group_name":"Playwright Group","group_pk":"group-pub-1","threshold":2,"members":[]}',
-                share_package_json: '{"share":"demo"}',
+                // v2 schema (Bucket D): stored_password / share_package_json /
+                // profile_string / share_string are no longer persisted; the
+                // share reconstructs in-memory from encrypted_bfshare_artifact.
+                encrypted_bfshare_artifact: 'bfshare1demo',
+                member_idx: 1,
                 source: 'bfprofile',
                 relay_profile: 'wss://relay.primal.net',
                 group_ref: 'group-ref',
                 encrypted_profile_ref: 'encrypted-profile-ref',
                 state_path: '/tmp/igloo-pwa/profile-1',
                 created_at: 1700000000000,
-                stored_password: 'pw',
-                profile_string: 'bfprofile1demo',
-                share_string: 'bfshare1demo',
                 signer_settings: {
                   sign_timeout_secs: 30,
                   ping_timeout_secs: 15,
@@ -196,10 +211,9 @@ test.describe('igloo-pwa ui-first shell', () => {
                   state_save_interval_secs: 30,
                   peer_selection_strategy: 'deterministic_sorted',
                 },
-                onboarding_package: null,
               },
             ],
-            peerPolicies: [],
+            peerPermissionStates: [],
             selectedProfileId: 'profile-1',
             activeView: 'dashboard',
             activeDashboardTab: 'signer',
