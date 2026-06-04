@@ -56,7 +56,9 @@ test.describe('extension dashboard smoke', () => {
     await expect(page.getByRole('heading', { name: 'Peer Policies' })).toBeVisible();
 
     await page.getByRole('tab', { name: /Settings/i }).first().click();
-    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+    // Paper's OperatorSettingsPanel has no top-level "Settings" heading; it leads
+    // with the "Device Profile" card and includes a "Maintenance" section.
+    await expect(page.getByRole('heading', { name: 'Device Profile' })).toBeVisible();
     await expect(page.getByText('Maintenance')).toBeVisible();
 
     await page.close();
