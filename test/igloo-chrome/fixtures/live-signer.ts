@@ -728,13 +728,18 @@ class SharedLiveSignerController implements LiveSignerController {
         'daemon-start',
         { profileId: this.responderProfileId },
         async () => {
+          // Security-hardened igloo-shell requires a passphrase for daemon start.
+          // `daemon start` takes --passphrase/--passphrase-file or reads stdin when
+          // it's a pipe (NOT --passphrase-env, which is import/profile only). Pipe
+          // it via stdin (matches igloo-shell's own node-E2E) so it never hits argv.
           execFileSync(
             this.binaryPath,
             ['daemon', 'start', '--profile', this.responderProfileId],
             {
               cwd: IGLOO_SHELL_DIR,
               encoding: 'utf8',
-              env: this.shellEnv!
+              env: this.shellEnv!,
+              input: `${this.shellEnv!.IGLOO_SHELL_TEST_PASSPHRASE ?? ''}\n`
             }
           );
         },
