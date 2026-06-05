@@ -10,7 +10,7 @@ import {
   getRuntimeStatus,
   refreshAllPeersOnNode,
   stopSignerNode,
-  type NodeWithEvents,
+  type BrowserBridgeNode,
   type RuntimeMetadata,
   type RuntimePeerPermissionState,
   type RuntimeReadiness,
@@ -78,7 +78,7 @@ function formatLogLine(level: 'info' | 'error', payload: unknown) {
   return `[${level}] ${text}`;
 }
 
-function attachLogBuffer(node: NodeWithEvents) {
+function attachLogBuffer(node: BrowserBridgeNode) {
   const lines: string[] = [];
 
   const onMessage = (payload: unknown) => {
@@ -105,7 +105,7 @@ function attachLogBuffer(node: NodeWithEvents) {
   };
 }
 
-function buildSessionSnapshot(node: NodeWithEvents): BrowserRuntimeSessionSnapshot {
+function buildSessionSnapshot(node: BrowserBridgeNode): BrowserRuntimeSessionSnapshot {
   return {
     runtimeStatus: getRuntimeStatus(node),
     metadata: getRuntimeMetadata(node),
@@ -116,7 +116,7 @@ function buildSessionSnapshot(node: NodeWithEvents): BrowserRuntimeSessionSnapsh
   };
 }
 
-function createSession(node: NodeWithEvents, logs: ReturnType<typeof attachLogBuffer>): BrowserRuntimeSession {
+function createSession(node: BrowserBridgeNode, logs: ReturnType<typeof attachLogBuffer>): BrowserRuntimeSession {
   let stopped = false;
 
   return {
