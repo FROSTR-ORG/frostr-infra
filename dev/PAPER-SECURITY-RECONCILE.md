@@ -476,6 +476,39 @@ green locally — both present on CI:
 
 **Still unverified only:** a full `make test-release` (Docker/browser matrix) on real CI.
 
+## CI stabilization after dev→master merge (2026-06-05)
+
+Created `dev` off `master` in all 9 repos, then merged `dev`→`master` (skip-PR). The
+GitHub Actions push triggers (`workspace-guards` + `client-scoped-validation`, both
+`master`-gated) ran for the first time on the reconciled tree and exposed **5 layers of
+reconcile-integration regressions** that neither the piecemeal submodule validation nor
+`make test-release` had covered. All fixed (parent fixes on `dev`/`master`; submodule
+fixes pushed to each submodule `master`+`dev`, parent gitlinks bumped):
+
+1. **Guard scripts (parent).** `demo.sh` wrote undefined `$resolved_port`→`$requested_port`;
+   `check-setup.sh` lost its `require_cmd()` (restored); `test-run-sh.sh` demo-start
+   asserted host builds the in-Docker demo dropped; `check-browser-wasm-harness-contracts.sh`
+   + `check-pwa-visual-manifest-negative.sh` `mktemp`'d into `.tmp` without `mkdir -p`
+   (fails on clean CI checkout). → `workspace-guards` GREEN.
+2. **Lock heal (igloo-ui, igloo-pwa).** The reconcile git-merged `package-lock.json` into an
+   esbuild-inconsistent state npm 11 tolerated but CI's **npm 10** `npm ci` rejected
+   (`Missing: esbuild@0.28.0`). Regenerated with npm 10. → "Install dependencies" GREEN.
+3. **Typecheck (parent).** `test/shared/browser-runtime-host.ts` still imported the renamed
+   `NodeWithEvents` (now `BrowserBridgeNode` in igloo-shared) → home/pwa/chrome scoped
+   typechecks GREEN.
+4. **vitest security bump (igloo-chrome/pwa/ui/shared).** Reconcile landed vitest 4.0.18
+   (critical GHSA-5xrq-8626-4rwp, `<4.1.0`); igloo-chrome's job runs `npm audit
+   --audit-level=moderate`. Bumped to 4.1.8 (within `^4.0.18`). → `client-scoped-validation`
+   chrome job GREEN. (igloo-home stays on vitest 2.x — a major bump, deferred; not
+   audit-gated. Residual non-vitest advisories — pwa esbuild-via-vite moderate, ui picomatch
+   high — are pre-existing, out of scope, and not CI-gated.)
+5. **release-validation — deferred (operator choice).** The heavy Docker/browser matrix is
+   PR/`main`-gated, so it does NOT run on the skip-PR `master` pushes. Run it later via a PR
+   (or temporary `main`); it is the one CI lane still unexercised on the reconciled tree.
+
+**State:** parent `master == dev`, all 9 gitlinks consistent. `workspace-guards` +
+`client-scoped-validation` both GREEN on `master`. Only `release-validation` remains.
+
 (Historical: during the submodule phase, all submodules were parked on
 `security-hardening` to keep the parent tree clean. Now the parent is reconciled,
 they sit at their reconcile tips so the parent tree matches `eb2ebfb`.) To resume a repo:
