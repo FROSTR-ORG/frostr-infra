@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+mkdir -p "${ROOT_DIR}/.tmp"
 TMP_DIR="$(mktemp -d "${ROOT_DIR}/.tmp/browser-wasm-harness-contracts.XXXXXX")"
 FAKE_BIN="${TMP_DIR}/bin"
 FAKE_RUST_TARGET="${TMP_DIR}/rust-target"
