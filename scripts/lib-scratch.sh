@@ -2,6 +2,26 @@
 
 set -euo pipefail
 
+# Portable stand-in for `realpath -m`: emit an absolute, normalized path
+# without requiring the target to exist. GNU coreutils supports `realpath -m`,
+# but BSD/macOS `realpath` does not (it errors with "illegal option -- m"),
+# which would otherwise break the scratch-dir guard on macOS. Prefer GNU
+# realpath when available, fall back to python3 (ships with macOS), and finally
+# to a lexical absolutize as a last resort.
+resolve_lexical_abs() {
+  local target="$1"
+  if realpath -m / >/dev/null 2>&1; then
+    realpath -m "${target}"
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${target}"
+  else
+    case "${target}" in
+      /*) printf '%s\n' "${target}" ;;
+      *) printf '%s\n' "$(pwd)/${target}" ;;
+    esac
+  fi
+}
+
 resolve_workspace_scratch_dir() {
   local env_name="$1"
   local default_leaf="$2"
@@ -17,9 +37,9 @@ resolve_workspace_scratch_dir() {
     # retired `data/` scratch path. Use `realpath -m` so the check works before
     # the directory exists; relative overrides resolve against the current dir.
     local root_abs override_abs tmp_abs
-    root_abs="$(realpath -m "${ROOT_DIR}")"
+    root_abs="$(resolve_lexical_abs "${ROOT_DIR}")"
     tmp_abs="${root_abs}/.tmp"
-    override_abs="$(realpath -m "${override}")"
+    override_abs="$(resolve_lexical_abs "${override}")"
     if [[ "${override_abs}/" == "${root_abs}/"* && "${override_abs}/" != "${tmp_abs}/"* ]]; then
       echo "error: scratch directory '${override}' from ${env_name} resolves inside the repo" >&2
       echo "       working tree but outside '${tmp_abs}'. Scratch artifacts must live under" >&2
