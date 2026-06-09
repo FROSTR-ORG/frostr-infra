@@ -2,8 +2,6 @@ import { test, expect, TEST_PEER_PUBLIC_KEY, TEST_PUBLIC_KEY } from '../fixtures
 
 import { loadSelectedChromeStoredProfile, unlockChromeStoredProfile } from '../support/ui';
 
-const formatPeerPubkey = (value: string) => `${value.slice(0, 14)}...${value.slice(-8)}`;
-
 test.describe('extension dashboard smoke', () => {
   test('renders onboarding flow on a fresh profile', async ({
     openExtensionPage,
@@ -79,7 +77,9 @@ test.describe('extension dashboard smoke', () => {
     await expect(page.getByRole('heading', { name: 'Pending Operations' })).toBeVisible();
     await expect(page.getByText('Share Public Key')).toBeVisible();
     await expect(page.getByText('Group Public Key')).toBeVisible();
-    await expect(page.getByText(formatPeerPubkey(stableLiveSigner.profile.peerPubkey))).toBeVisible();
+    // The Peers diagnostics panel renders the peer's full hex pubkey (not a
+    // truncated/npub form), so assert the value verbatim.
+    await expect(page.getByText(stableLiveSigner.profile.peerPubkey)).toBeVisible();
     await expect(page.getByText('sign-ready').first()).toBeVisible();
 
     await page.close();
