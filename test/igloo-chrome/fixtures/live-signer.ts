@@ -150,6 +150,14 @@ function managedShellEnv(root: string): NodeJS.ProcessEnv {
     XDG_CONFIG_HOME: path.join(xdgRoot, 'config'),
     XDG_DATA_HOME: path.join(xdgRoot, 'data'),
     XDG_STATE_HOME: path.join(xdgRoot, 'state'),
+    // The XDG_STATE_HOME daemon socket path (…/igloo-shell/profiles/<64-hex>/
+    // daemon.sock) blows past the 104-byte sun_path limit on macOS. The daemon
+    // falls back to `$XDG_RUNTIME_DIR/igloo-shell-<hash>.sock` only when
+    // XDG_RUNTIME_DIR is set and exists (igloo-shell SECURITY.md / shared.rs).
+    // `root` is the mkdtemp temp dir (exists, short), keeping the fallback
+    // socket well under the limit. Without this, chrome @live can't start the
+    // native signer daemon on macOS.
+    XDG_RUNTIME_DIR: root,
     IGLOO_SHELL_TEST_PASSPHRASE: 'playwright-live-passphrase'
   };
 }
