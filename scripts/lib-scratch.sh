@@ -5,21 +5,28 @@ set -euo pipefail
 # Portable stand-in for `realpath -m`: emit an absolute, normalized path
 # without requiring the target to exist. GNU coreutils supports `realpath -m`,
 # but BSD/macOS `realpath` does not (it errors with "illegal option -- m"),
-# which would otherwise break the scratch-dir guard on macOS. Prefer GNU
-# realpath when available, fall back to python3 (ships with macOS), and finally
-# to a lexical absolutize as a last resort.
+# which would otherwise break the scratch-dir guard on macOS. Try GNU realpath,
+# then python3 (ships with macOS), then a lexical absolutize. Each method is
+# only accepted if it yields a non-empty result, then falls through — the
+# test-prebuild trace harness stubs `python3` with a no-op that prints nothing,
+# so a naive `command -v python3` branch would otherwise return empty and make
+# the guard compare against an empty root. A single call uses one method for
+# every path it resolves, so prefix comparisons stay symlink-consistent.
 resolve_lexical_abs() {
-  local target="$1"
+  local target="$1" out=""
   if realpath -m / >/dev/null 2>&1; then
-    realpath -m "${target}"
-  elif command -v python3 >/dev/null 2>&1; then
-    python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${target}"
-  else
+    out="$(realpath -m "${target}" 2>/dev/null || true)"
+  fi
+  if [[ -z "${out}" ]] && command -v python3 >/dev/null 2>&1; then
+    out="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${target}" 2>/dev/null || true)"
+  fi
+  if [[ -z "${out}" ]]; then
     case "${target}" in
-      /*) printf '%s\n' "${target}" ;;
-      *) printf '%s\n' "$(pwd)/${target}" ;;
+      /*) out="${target}" ;;
+      *) out="$(pwd)/${target}" ;;
     esac
   fi
+  printf '%s\n' "${out}"
 }
 
 resolve_workspace_scratch_dir() {
