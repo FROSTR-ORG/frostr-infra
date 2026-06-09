@@ -57,6 +57,12 @@ export type PwaStoredProfileSeed = {
   stored_password: string;
   profile_string: string;
   share_string: string;
+  // Password-sealed bfshare1 artifact the app decrypts at session start to
+  // rebuild the in-memory share (PwaProfile.encrypted_bfshare_artifact). The
+  // v2 unlock path requires this; without it startSession rejects the profile
+  // as legacy-v1 and the UI surfaces a generic "Incorrect password".
+  encrypted_bfshare_artifact: string;
+  member_idx: number;
   signer_settings: {
     sign_timeout_secs: number;
     ping_timeout_secs: number;
@@ -388,6 +394,11 @@ export function createPwaStoredProfileSeed(input: {
     stored_password: password,
     profile_string: input.artifact.bfprofile,
     share_string: input.artifact.bfshare,
+    // Mirror the app's save shape (local-adapter/common.ts): the bfshare1
+    // artifact doubles as the encrypted_bfshare_artifact the v2 session-start
+    // flow decrypts with the unlock passphrase.
+    encrypted_bfshare_artifact: input.artifact.bfshare,
+    member_idx: input.artifact.memberIdx,
     signer_settings: {
       sign_timeout_secs: 30,
       ping_timeout_secs: 15,
