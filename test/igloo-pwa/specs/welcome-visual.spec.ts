@@ -42,6 +42,8 @@ function buildPaperProfile(index: number, label: string, threshold: number, memb
       idx: memberIdx,
       seckey: fixedHex(index, '12'),
     }),
+    encrypted_bfshare_artifact: `bfshare1${id}`,
+    member_idx: memberIdx,
     source: 'generated',
     relay_profile: 'local',
     group_ref: `browser-profile:${id}:group`,

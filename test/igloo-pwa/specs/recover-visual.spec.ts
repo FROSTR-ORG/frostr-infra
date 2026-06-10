@@ -29,6 +29,8 @@ function buildRecoverProfile(): PwaStoredProfileSeed {
       ],
     }),
     share_package_json: JSON.stringify({ idx: 0, seckey: '11'.repeat(32) }),
+    encrypted_bfshare_artifact: `bfshare1${id}`,
+    member_idx: 0,
     source: 'generated',
     relay_profile: 'local',
     group_ref: `browser-profile:${id}:group`,

@@ -24,6 +24,8 @@ function seededDashboardProfile() {
     relays: ['wss://relay.primal.net'],
     group_package_json: '{"group_name":"Guard Group","group_pk":"22","threshold":2,"members":[]}',
     share_package_json: '{"idx":1,"seckey":"11"}',
+    encrypted_bfshare_artifact: 'bfshare1seed',
+    member_idx: 1,
     source: 'bfprofile' as const,
     relay_profile: 'wss://relay.primal.net',
     group_ref: 'g',

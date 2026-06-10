@@ -35,6 +35,8 @@ function buildDashboardProfile() {
     relays: ['wss://relay.primal.net', 'wss://relay.damus.io'],
     group_package_json: groupPackageJson,
     share_package_json: JSON.stringify({ idx: 1, seckey: DETERMINISTIC_SHARE_KEY.secretHex }),
+    encrypted_bfshare_artifact: 'bfshare1seed',
+    member_idx: 1,
     source: 'generated' as const,
     relay_profile: 'wss://relay.primal.net',
     group_ref: 'group-ref',
