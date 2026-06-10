@@ -147,6 +147,11 @@ Return a short ranked list:
 - `Next hard-cut`: bounded, high-value follow-up work
 - `Backlog`: useful work that is not urgent
 
+Record `Backlog` (and any deferred `Next hard-cut`) items in
+[`../BACKLOG.md`](../BACKLOG.md) — the canonical follow-up sink. When work is
+finished, move a one-line summary to [`../HISTORY.md`](../HISTORY.md) and delete
+the backlog entry.
+
 If the user asks for a plan, save it under
 `dev/plans/*follow-up-hard-cut-plan-YYYY-MM-DD.md`.
 

@@ -58,6 +58,14 @@ Task-oriented entry sequences. Read top to bottom for the goal you have.
 - `done/`
   - completed plans and archived implementation notes
   - retained for history, not as the current source of truth
+- [`BACKLOG.md`](./BACKLOG.md)
+  - curated, forward-looking follow-up work for the workspace
+  - the canonical sink for the follow-up harvest (see
+    [`docs/WORKFLOWS.md`](./docs/WORKFLOWS.md)); replaced the former root
+    `FOLLOWUPS.md`
+- [`HISTORY.md`](./HISTORY.md)
+  - completed-work log (newest first) plus the verbatim archive of the former
+    root `FOLLOWUPS.md`
 
 ## Canonical Sources
 
