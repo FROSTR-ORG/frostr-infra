@@ -2,7 +2,7 @@ import { expect, type Browser, type BrowserContext, type Locator, type Page } fr
 import { CRITICAL_E2E_TEST_IDS, type CriticalE2ETestId } from '../../../repos/igloo-ui/src/lib/e2e-test-ids';
 import { DEFAULT_BROWSER_PASSWORD } from '../../shared/browser-artifacts';
 
-import { PWA_STORAGE_KEY } from './state';
+import { applyPwaSeed, pwaSeedPayload } from './state';
 
 // The e2e test-id registry must be imported only here (enforced by
 // check-e2e-selector-contracts.sh). Page objects consume it via this re-export.
@@ -14,12 +14,7 @@ export function byTestId(scope: Page | Locator, id: CriticalE2ETestId): Locator 
 }
 
 export async function seedPwaState(page: Page, state: unknown) {
-  await page.addInitScript(
-    ({ storageKey, payload }: { storageKey: string; payload: unknown }) => {
-      window.localStorage.setItem(storageKey, JSON.stringify(payload));
-    },
-    { storageKey: PWA_STORAGE_KEY, payload: state },
-  );
+  await page.addInitScript(applyPwaSeed, pwaSeedPayload(state));
 }
 
 export async function openPwaImportProfile(page: Page) {

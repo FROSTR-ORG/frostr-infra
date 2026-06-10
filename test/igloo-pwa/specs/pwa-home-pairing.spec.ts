@@ -4,7 +4,7 @@ import { createGeneratedBrowserArtifacts, createPwaStoredProfileSeed } from '../
 import { startLocalRelay } from '../../shared/local-relay';
 import { runTestPrebuild } from '../../shared/test-prebuild';
 import { launchIglooHome } from '../../igloo-home/fixtures/app';
-import { buildPwaPersistedState } from '../support/state';
+import { buildPwaPersistedState, pwaPartitionKey } from '../support/state';
 import { expectPwaDashboard, loadStoredPwaProfile, seedPwaState } from '../support/ui';
 
 type HomeRuntimeSnapshot = {
@@ -67,10 +67,10 @@ function assertHomeRuntimeHydrated(snapshot: HomeRuntimeSnapshot, expectedPeers:
 }
 
 async function readPwaRuntimeState(page: import('@playwright/test').Page) {
-  return await page.evaluate(() => {
-    const raw = window.localStorage.getItem('igloo-pwa.state.v2');
+  return await page.evaluate((key) => {
+    const raw = window.localStorage.getItem(key);
     return raw ? JSON.parse(raw) : null;
-  });
+  }, pwaPartitionKey());
 }
 
 test.describe('pwa <-> home pairing @cross-client', () => {

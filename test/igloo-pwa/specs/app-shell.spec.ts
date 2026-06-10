@@ -2,11 +2,18 @@ import { expect, test } from '@playwright/test';
 
 import { gotoCreateDistribute } from '../support/flows';
 import { pages } from '../support/pages';
-import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
+import {
+  applyPwaSeed,
+  buildPwaPersistedState,
+  PWA_INSTANCE_ID_KEY,
+  PWA_TEST_INSTANCE_ID,
+  pwaPartitionKey,
+  pwaSeedPayload,
+} from '../support/state';
 
-// Paper's page-object wiring (support/*) with security's v2 storage key: the
-// reconciled igloo-pwa persists to `igloo-pwa.state.v2`.
-const STORAGE_KEY = 'igloo-pwa.state.v2';
+// igloo-pwa partitions persisted state per tab; tests pin the `e2e` instance id
+// and read/write its partition (`igloo-pwa.state.v2::e2e`).
+const STORAGE_KEY = pwaPartitionKey();
 
 function seededDashboardProfile() {
   return {
@@ -78,7 +85,8 @@ test.describe('igloo-pwa ui-first shell', () => {
   });
 
   test('persists settings across reloads', async ({ page }) => {
-    await page.addInitScript(([storageKey]) => {
+    await page.addInitScript(({ storageKey, instanceIdKey, instanceId }) => {
+      window.sessionStorage.setItem(instanceIdKey, instanceId);
       if (!window.localStorage.getItem(storageKey)) {
         window.localStorage.setItem(
           storageKey,
@@ -152,7 +160,7 @@ test.describe('igloo-pwa ui-first shell', () => {
           }),
         );
       }
-    }, [STORAGE_KEY]);
+    }, { storageKey: STORAGE_KEY, instanceIdKey: PWA_INSTANCE_ID_KEY, instanceId: PWA_TEST_INSTANCE_ID });
 
     await page.goto('/');
     const dashboard = pages(page).dashboard;
@@ -179,7 +187,8 @@ test.describe('igloo-pwa ui-first shell', () => {
   });
 
   test('settings expose the unified actions and logout returns to landing while preserving saved profiles', async ({ page }) => {
-    await page.addInitScript(([storageKey]) => {
+    await page.addInitScript(({ storageKey, instanceIdKey, instanceId }) => {
+      window.sessionStorage.setItem(instanceIdKey, instanceId);
       if (!window.localStorage.getItem(storageKey)) {
         window.localStorage.setItem(
           storageKey,
@@ -253,7 +262,7 @@ test.describe('igloo-pwa ui-first shell', () => {
           }),
         );
       }
-    }, [STORAGE_KEY]);
+    }, { storageKey: STORAGE_KEY, instanceIdKey: PWA_INSTANCE_ID_KEY, instanceId: PWA_TEST_INSTANCE_ID });
 
     await page.goto('/');
     const p = pages(page);
@@ -272,20 +281,15 @@ test.describe('igloo-pwa ui-first shell', () => {
   test('guards unsaved Settings edits when navigating away', async ({ page }) => {
     const profile = seededDashboardProfile();
     await page.addInitScript(
-      ([storageKey, payload]) => {
-        window.localStorage.setItem(storageKey, payload as string);
-      },
-      [
-        PWA_STORAGE_KEY,
-        JSON.stringify(
-          buildPwaPersistedState({
-            profiles: [profile],
-            selectedProfileId: profile.id,
-            activeView: 'dashboard',
-            activeDashboardTab: 'settings',
-          }),
-        ),
-      ] as const,
+      applyPwaSeed,
+      pwaSeedPayload(
+        buildPwaPersistedState({
+          profiles: [profile],
+          selectedProfileId: profile.id,
+          activeView: 'dashboard',
+          activeDashboardTab: 'settings',
+        }),
+      ),
     );
 
     await page.goto('/');

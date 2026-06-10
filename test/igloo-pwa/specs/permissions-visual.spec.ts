@@ -5,7 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { REPO_ROOT_DIR } from '../../shared/repo-paths';
 import { pages } from '../support/pages';
-import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
+import { applyPwaSeed, buildPwaPersistedState, pwaSeedPayload } from '../support/state';
 import { DETERMINISTIC_GROUP_KEY, DETERMINISTIC_SHARE_KEY } from '../support/deterministic-keys';
 
 const PERMISSIONS_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'dashboard');
@@ -69,12 +69,7 @@ function peerState(pubkey: string) {
 
 async function seedState(page: Page, state: unknown) {
   await page.goto('/');
-  await page.evaluate(
-    ([storageKey, payload]) => {
-      window.localStorage.setItem(storageKey, JSON.stringify(payload));
-    },
-    [PWA_STORAGE_KEY, state] as const,
-  );
+  await page.evaluate(applyPwaSeed, pwaSeedPayload(state));
   await page.reload();
 }
 
