@@ -159,14 +159,18 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: M) Promote the manual multi-PWA-tab signature to an automated spec
   (two browser contexts + igloo-shell initiator) once the manual flow is stable —
   Test harness · see the `pwa-multisig-demo` scaffolding.
-- [ ] (effort: M) Make the shell-initiated signature round-trip to a headless
-  igloo-pwa tab reliable. `sign-shell.spec.ts` proves the PWA + igloo-shell reach
-  mutual sign-readiness, but the actual `runtime sign` stalls with `locked peer
-  timeout` — the headless browser tab doesn't return its partial sign (likely
-  background-tab throttling of the runtime pump). Investigation hints: keep the tab
-  foregrounded / add a runtime keep-alive, and bump `sign_timeout_secs` /
-  `request_ttl_secs` on the shell profile. Once reliable, make the schnorr signature
-  verification a hard assertion — Test harness/CI.
+- [ ] (effort: L) **igloo-pwa browser signer does not respond to a relay-delivered
+  sign request.** `sign-shell.spec.ts` proves the PWA + igloo-shell reach mutual
+  sign-readiness, but `runtime sign` times out. A relay-recorder trace
+  (`SIGN WIRE: shell->pwa request=true pwa->shell response=false`) confirms the
+  shell publishes the sign request and the PWA receives it (it was publishing nonce
+  events moments earlier) but **never publishes its partial signature** — NOT
+  throttling (anti-throttle Chromium flags didn't help) and not delivery. This is a
+  browser-runtime responder gap, not a test issue. Investigate the incoming-sign
+  path in `igloo-shared` (`runtime-pump` → `wasm-bridge-node.ts` sign dispatch
+  ~1342; note `runtime-api.ts:85` tracks `sign_responder_ready` separately from
+  requestor sign-readiness). Once the PWA responds, flip the `sign-shell` signature
+  from opportunistic to a hard schnorr-verify assertion — igloo-shared + Test harness.
 
 ## Open questions
 

@@ -9,6 +9,7 @@ import {
 import { startLocalRelay } from '../../shared/local-relay';
 import { LIVE_TEST_TIMEOUT_MS } from '../../shared/playwright-config';
 import { runTestPrebuild } from '../../shared/test-prebuild';
+import { startRelayEventRecorder } from '../support/onboard-diagnostics';
 import { startShellSigner, type ShellSigner } from '../support/shell-signer';
 import { expectPwaDashboard, expectPwaSignerSignReady, onboardPwaDevice } from '../support/ui';
 
@@ -43,6 +44,7 @@ test.describe('igloo-pwa + igloo-shell threshold signer @live', () => {
     // a no-op when `make test-prep` already prepared it in CI.
     runTestPrebuild(['shared']);
     const relay = await startLocalRelay();
+    const recorder = startRelayEventRecorder(relay.url);
     let shell: ShellSigner | null = null;
     try {
       // A 2-of-2 group: share #1 → igloo-shell (inviter + initiator), share #2 →
@@ -102,6 +104,10 @@ test.describe('igloo-pwa + igloo-shell threshold signer @live', () => {
       // key. A timeout (the headless-tab locked-sign gap, see BACKLOG) is logged,
       // not failed.
       const messageHex = 'ab'.repeat(32);
+      const shellX =
+        shellShare.sharePublicKey.length === 66 ? shellShare.sharePublicKey.slice(2) : shellShare.sharePublicKey;
+      const pwaX = pwaShare.sharePublicKey.length === 66 ? pwaShare.sharePublicKey.slice(2) : pwaShare.sharePublicKey;
+      const signStartMs = Date.now();
       let signatures: string[] = [];
       try {
         signatures = await shell.requestSign(messageHex, 2);
@@ -110,6 +116,13 @@ test.describe('igloo-pwa + igloo-shell threshold signer @live', () => {
           `shell-initiated signature did not complete (known headless round-trip gap): ${error instanceof Error ? error.message : String(error)}`,
         );
       }
+      // Breadcrumb for the known round-trip gap (dev/BACKLOG.md): the shell
+      // publishes the sign request, but the headless browser signer never
+      // publishes its partial back. Logs request=true / response=false so the gap
+      // is visible in CI output without failing the test.
+      const shellRequested = Boolean(recorder.firstFromTo(shellX, pwaX, signStartMs));
+      const pwaResponded = Boolean(recorder.firstFromTo(pwaX, shellX, signStartMs));
+      console.log(`SIGN WIRE: shell->pwa request=${shellRequested} pwa->shell response=${pwaResponded}`);
       if (signatures.length > 0) {
         const groupXOnly =
           generated.groupPublicKey.length === 66 ? generated.groupPublicKey.slice(2) : generated.groupPublicKey;
@@ -128,6 +141,7 @@ test.describe('igloo-pwa + igloo-shell threshold signer @live', () => {
         ).toBe(true);
       }
     } finally {
+      recorder.stop();
       await shell?.close();
       await relay.close();
     }
