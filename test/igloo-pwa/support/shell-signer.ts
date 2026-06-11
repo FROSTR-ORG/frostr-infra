@@ -1,7 +1,10 @@
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
+import { promisify } from 'node:util';
 import { mkdtemp, rm } from 'node:fs/promises';
+
+const execFileAsync = promisify(execFile);
 
 import { IGLOO_SHELL_DIR } from '../../shared/repo-paths';
 import { IGLOO_SHELL_TARGET_DIR, ensureIglooShellBinary } from '../../shared/igloo-shell-binaries';
@@ -58,6 +61,16 @@ function shellEnv(root: string): NodeJS.ProcessEnv {
 
 function runShellJson(binary: string, args: string[], env: NodeJS.ProcessEnv): unknown {
   const raw = execFileSync(binary, args, { cwd: IGLOO_SHELL_DIR, encoding: 'utf8', env }).trim();
+  return raw ? JSON.parse(raw) : null;
+}
+
+// Async variant — used for `runtime sign`, which blocks for the full sign
+// timeout. Keeping Node's event loop free lets Playwright keep draining the
+// browser's console/CDP events (so the PWA's runtime logs aren't dropped) while
+// the sign is in flight.
+async function runShellJsonAsync(binary: string, args: string[], env: NodeJS.ProcessEnv): Promise<unknown> {
+  const { stdout } = await execFileAsync(binary, args, { cwd: IGLOO_SHELL_DIR, encoding: 'utf8', env });
+  const raw = stdout.trim();
   return raw ? JSON.parse(raw) : null;
 }
 
@@ -161,7 +174,7 @@ export async function startShellSigner(input: {
       let lastError: unknown = null;
       for (let attempt = 0; attempt < attempts; attempt += 1) {
         try {
-          const result = runShellJson(binary, ['runtime', 'sign', '--profile', profileId, messageHex32], env) as {
+          const result = (await runShellJsonAsync(binary, ['runtime', 'sign', '--profile', profileId, messageHex32], env)) as {
             signatures_hex?: string[];
           } | null;
           const signatures = result?.signatures_hex ?? [];

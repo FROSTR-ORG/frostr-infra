@@ -159,28 +159,20 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: M) Promote the manual multi-PWA-tab signature to an automated spec
   (two browser contexts + igloo-shell initiator) once the manual flow is stable —
   Test harness · see the `pwa-multisig-demo` scaffolding.
-- [ ] (effort: L) **bifrost-rs browser signer does not emit a partial for a
-  relay-delivered sign request.** `sign-shell.spec.ts` proves the PWA + igloo-shell
-  reach mutual sign-readiness, but `runtime sign` times out. Conclusively localized:
-  the relay-recorder trace shows `shell->pwa request=true pwa->shell response=false`
-  (shell publishes the request, PWA receives it — it published nonce events moments
-  earlier), and a tick probe showed the PWA tab **ticked 62× over 62s (unthrottled)**,
-  so the 1s runtime-pump runs the whole time. Ruled OUT: throttling, delivery, and the
-  `igloo-shared` plumbing (`wasm-bridge-node.ts` ingests inbound :1250, ticks + drains
-  + publishes :1273-1315 every second, and published nonces fine via that same path).
-  The gap is in the **Rust signing core**. Captured PWA runtime logs
-  (`VITE_IGLOO_DEBUG=1` → console) show the PWA *accepts* the inbound sign request
-  (`status_event kind=inbound_accepted pending_ops:1`) then fails with
-  `failure op_type="ping" message="nonce unavailable"` — i.e. `bifrost-signer`'s
-  `SignerError::NonceUnavailable` (`bifrost-signer/src/error.rs:21`, thrown at
-  `lib.rs:1326/1349/1780/2043/2071`). The `op_type=ping` is the nonce-refresh step
-  the responder runs before it can sign. So the PWA's **outgoing nonce pool for the
-  shell peer is depleted/not replenished** by sign time — it has no nonce to respond
-  with. Investigate the responder nonce lifecycle / replenishment in `bifrost-signer`
-  (and whether the browser host needs a periodic peer/nonce refresh like the startup
-  `refreshAllPeers()` at `wasm-bridge-node.ts:511`). Once the PWA responds, flip the
-  `sign-shell` signature from opportunistic to a hard schnorr-verify assertion —
-  bifrost-rs + Test harness.
+- [ ] (effort: M) **An onboarded igloo-pwa device can't sign until something resets
+  its nonce state.** The core threshold sign now works end to end and is hard-asserted
+  in `sign-shell.spec.ts` — but only when the PWA loads its share from a *seeded*
+  stored profile. When the PWA instead **onboards** (handshake → save → relaunch), the
+  relaunched signer can't serve a partial: it accepts the inbound sign request then
+  fails `SignerError::NonceUnavailable` (`bifrost-signer/src/error.rs:21`; sign-request
+  path `lib.rs:2043/2071` `take_outgoing_signing_nonces_many`). PWA debug logs show the
+  first ping completes, then subsequent requests fail — the onboard→relaunch resets the
+  PWA's nonce pool while the shell still references the pre-relaunch nonces, and the
+  replenish/sync (`advertised_nonces_for_peer` `lib.rs:2491`, which skips generating when
+  the peer *believes* the PWA still holds nonces, `:2498`) doesn't recover. Fix the
+  onboard→relaunch nonce-pool continuity (persist/restore the pool across the relaunch,
+  or force a nonce re-sync on relaunch) — bifrost-rs + igloo-shared. Then add an `@live`
+  spec that signs via the *onboard* path (not just the seeded path).
 
 ## Open questions
 
