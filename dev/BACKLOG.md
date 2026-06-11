@@ -142,8 +142,20 @@ Group by area. When an item is finished, move a one-line summary to
   reconstruct the nsec from threshold shares; `recover-visual` injects a fake key
   via `window.__IGLOO_TEST_RECOVERED_KEY__` and only screenshots the success
   screen — Test harness.
-- [ ] (effort: S) `@cross-client` runs in NO CI lane (`pwa-home-pairing` is
-  ungated) — decide whether to gate it in `release-validation` — Test harness/CI.
+- [ ] (effort: M) **`pwa-home-pairing` is effectively dead** — it's `@cross-client`
+  (runs in NO CI lane), DISPLAY-gated, and until 2026-06-11 read the runtime
+  snapshot from localStorage where it is never persisted. It now uses the corrected
+  DOM-based `expectPwaSignerSignReady`, but is still unverified + ungated, and it's
+  the only PWA↔native nonce-hydration coverage. Run it (xvfb), confirm it passes,
+  then gate `@cross-client` in `release-validation` — or retire it — Test harness/CI.
+- [ ] (effort: S) Track down the recurring `failed to publish encrypted profile
+  backup: passphrase not provided` warning seen throughout the `@live` runs — likely
+  benign test-path noise, but confirm it isn't masking a real backup-publish bug —
+  Test harness.
+- [ ] (effort: S) Close the loop on the local pre-push gate: `make test-fast` is
+  render-only (seeded `@visual` specs), so a green fast run can hide a broken demo.
+  Either add a minimal `@live` smoke (load profile → running dashboard) to a gate
+  contributors actually run, or document plainly that fast ≠ behavioral — Test harness/CI.
 - [ ] (effort: M) Promote the manual multi-PWA-tab signature to an automated spec
   (two browser contexts + igloo-shell initiator) once the manual flow is stable —
   Test harness · see the `pwa-multisig-demo` scaffolding.
@@ -151,8 +163,10 @@ Group by area. When an item is finished, move a one-line summary to
   igloo-pwa tab reliable. `sign-shell.spec.ts` proves the PWA + igloo-shell reach
   mutual sign-readiness, but the actual `runtime sign` stalls with `locked peer
   timeout` — the headless browser tab doesn't return its partial sign (likely
-  background-tab throttling of the runtime pump). Once reliable, make the schnorr
-  signature verification a hard assertion — Test harness/CI.
+  background-tab throttling of the runtime pump). Investigation hints: keep the tab
+  foregrounded / add a runtime keep-alive, and bump `sign_timeout_secs` /
+  `request_ttl_secs` on the shell profile. Once reliable, make the schnorr signature
+  verification a hard assertion — Test harness/CI.
 
 ## Open questions
 
