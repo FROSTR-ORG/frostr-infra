@@ -4,8 +4,8 @@ import { createGeneratedBrowserArtifacts, createPwaStoredProfileSeed } from '../
 import { startLocalRelay } from '../../shared/local-relay';
 import { runTestPrebuild } from '../../shared/test-prebuild';
 import { launchIglooHome } from '../../igloo-home/fixtures/app';
-import { buildPwaPersistedState, pwaPartitionKey } from '../support/state';
-import { expectPwaDashboard, loadStoredPwaProfile, seedPwaState } from '../support/ui';
+import { buildPwaPersistedState } from '../support/state';
+import { expectPwaDashboard, expectPwaSignerSignReady, loadStoredPwaProfile, seedPwaState } from '../support/ui';
 
 type HomeRuntimeSnapshot = {
   active: boolean;
@@ -26,33 +26,6 @@ type HomeRuntimeSnapshot = {
   } | null;
 };
 
-function assertPwaRuntimeHydrated(state: unknown, expectedPeers: number) {
-  const runtime = (state as {
-    runtimeSnapshot?: {
-      active?: boolean;
-      readiness?: { sign_ready?: boolean; restore_complete?: boolean };
-      runtime_status?: {
-        peers?: Array<{
-          pubkey: string;
-          incoming_available: number;
-          outgoing_available: number;
-          can_sign: boolean;
-        }>;
-      };
-    } | null;
-  } | null)?.runtimeSnapshot;
-  if (!runtime?.active || !runtime.readiness?.restore_complete || !runtime.readiness?.sign_ready) {
-    throw new Error(`pwa runtime is not sign-ready\n${JSON.stringify(state, null, 2)}`);
-  }
-  const peers = runtime.runtime_status?.peers ?? [];
-  if (peers.length !== expectedPeers) {
-    throw new Error(`expected ${expectedPeers} pwa peers, got ${peers.length}\n${JSON.stringify(peers, null, 2)}`);
-  }
-  if (!peers.some((peer) => peer.can_sign || peer.incoming_available > 0 || peer.outgoing_available > 0)) {
-    throw new Error(`pwa nonce pool never hydrated\n${JSON.stringify(peers, null, 2)}`);
-  }
-}
-
 function assertHomeRuntimeHydrated(snapshot: HomeRuntimeSnapshot, expectedPeers: number) {
   if (!snapshot.active || !snapshot.readiness?.restore_complete || !snapshot.readiness?.sign_ready) {
     throw new Error(`home runtime is not sign-ready\n${JSON.stringify(snapshot, null, 2)}`);
@@ -64,13 +37,6 @@ function assertHomeRuntimeHydrated(snapshot: HomeRuntimeSnapshot, expectedPeers:
   if (!peers.some((peer) => peer.can_sign || (peer.incoming_available ?? 0) > 0 || (peer.outgoing_available ?? 0) > 0)) {
     throw new Error(`home nonce pool never hydrated\n${JSON.stringify(peers, null, 2)}`);
   }
-}
-
-async function readPwaRuntimeState(page: import('@playwright/test').Page) {
-  return await page.evaluate((key) => {
-    const raw = window.localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  }, pwaPartitionKey());
 }
 
 test.describe('pwa <-> home pairing @cross-client', () => {
@@ -124,24 +90,7 @@ test.describe('pwa <-> home pairing @cross-client', () => {
       });
       expect(started.active).toBe(true);
 
-      let lastPwaState: unknown = null;
-      await expect
-        .poll(async () => {
-          lastPwaState = await readPwaRuntimeState(page);
-          try {
-            assertPwaRuntimeHydrated(lastPwaState, 1);
-            return 'hydrated';
-          } catch {
-            return 'waiting';
-          }
-        }, {
-          timeout: 20_000,
-          intervals: [250, 500, 1_000],
-        })
-        .toBe('hydrated')
-        .catch(() => {
-          throw new Error(`PWA runtime never became sign-ready: ${JSON.stringify(lastPwaState, null, 2)}`);
-        });
+      await expectPwaSignerSignReady(page, 1);
 
       let lastHomeSnapshot: HomeRuntimeSnapshot | null = null;
       await expect

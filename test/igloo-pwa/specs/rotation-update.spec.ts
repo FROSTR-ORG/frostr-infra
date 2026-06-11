@@ -76,6 +76,9 @@ test.describe('igloo-pwa rotate key @live', () => {
       await expectPwaDashboard(page, 'Rotation Device 1');
       await expect(page.getByText(shareKeyDisplay(rotated.shares[0].sharePublicKey))).toBeVisible();
       await expect(page.getByText(shareKeyDisplay(current.shares[0].sharePublicKey))).toHaveCount(0);
+      // The share-key swap above (new key shown, old key gone) is the behavioral
+      // proof the rotation persisted. (The replaced device's runtime does not
+      // re-establish a live relay connection in this flow, so we don't gate on it.)
     } finally {
       await inviterContext?.close().catch(() => undefined);
       await relay.close();

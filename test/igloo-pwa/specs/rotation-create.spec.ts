@@ -9,7 +9,13 @@ import { startLocalRelay } from '../../shared/local-relay';
 import { LIVE_TEST_TIMEOUT_MS } from '../../shared/playwright-config';
 import { pages } from '../support/pages';
 import { buildPwaPersistedState } from '../support/state';
-import { expectPwaDashboard, onboardPwaDevice, openFreshPwaPage, seedPwaState } from '../support/ui';
+import {
+  expectPwaDashboard,
+  expectPwaRuntimeConnected,
+  onboardPwaDevice,
+  openFreshPwaPage,
+  seedPwaState,
+} from '../support/ui';
 
 // @live — two-device flow over a real relay (rotate → distribute → remote
 // onboard). Runs in the live lane (CI), excluded from the deterministic fast
@@ -75,6 +81,10 @@ test.describe('igloo-pwa rotation operator flow @live', () => {
       // it serves the remote onboarding handshake from the dashboard.
       await p.welcome.unlock('playwright-passphrase');
       await p.dashboard.expectDashboard('Rotated Treasury Device');
+      // The rotated signer must actually boot its runtime before it can serve the
+      // remote onboarding handshake below — gate on the live connection so a
+      // never-started runtime can't masquerade as a passing rotation.
+      await expectPwaRuntimeConnected(page);
 
       // Onboard a remote device against the running rotated signer.
       const secondary = await openFreshPwaPage(browser);

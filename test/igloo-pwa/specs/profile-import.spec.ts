@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { createGeneratedBrowserArtifacts } from '../../shared/browser-artifacts';
 import { startLocalRelay } from '../../shared/local-relay';
 import { pages } from '../support/pages';
-import { expectPwaDashboard, importPwaProfile } from '../support/ui';
+import { expectPwaDashboard, expectPwaRuntimeConnected, importPwaProfile } from '../support/ui';
 
 test.describe('igloo-pwa bfprofile import @live', () => {
   test('imports a bfprofile package and lands on the dashboard', async ({ page }) => {
@@ -17,6 +17,9 @@ test.describe('igloo-pwa bfprofile import @live', () => {
 
       await importPwaProfile(page, generated.shares[0].bfprofile, 'playwright-passphrase');
       await expectPwaDashboard(page, 'Imported Browser Device 1');
+      // Prove the imported share actually boots a live signer runtime, not just
+      // that the dashboard rendered.
+      await expectPwaRuntimeConnected(page);
     } finally {
       await relay.close();
     }

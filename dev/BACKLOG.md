@@ -129,6 +129,30 @@ Group by area. When an item is finished, move a one-line summary to
   still prints.
 - [ ] (effort: S) Add a small regression test for
   `repos/igloo-paper/scripts/update_usage_coverage.py`.
+- [ ] (effort: M) **P1** Add `@live` behavioral spec: welcome **Unlock → running,
+  sign-ready** signer — unlock is only screenshotted today (`welcome-visual`) —
+  Test harness · needs a cooperating peer online to reach `sign_ready`.
+- [ ] (effort: M) **P1** Add `@live` behavioral spec: **Permissions** toggle
+  round-trip — toggle a peer send/receive policy and assert it persists and is
+  reflected in runtime peer state (`permissions-visual` only screenshots) — Test harness.
+- [ ] (effort: M) **P1** Add `@live` behavioral spec: **Settings save** round-trip
+  — edit signer name/relays/settings, save, reload, assert persistence through the
+  real store (`settings-visual` only screenshots) — Test harness.
+- [ ] (effort: M) **P2** Add `@live` behavioral spec: **Recover execution** —
+  reconstruct the nsec from threshold shares; `recover-visual` injects a fake key
+  via `window.__IGLOO_TEST_RECOVERED_KEY__` and only screenshots the success
+  screen — Test harness.
+- [ ] (effort: S) `@cross-client` runs in NO CI lane (`pwa-home-pairing` is
+  ungated) — decide whether to gate it in `release-validation` — Test harness/CI.
+- [ ] (effort: M) Promote the manual multi-PWA-tab signature to an automated spec
+  (two browser contexts + igloo-shell initiator) once the manual flow is stable —
+  Test harness · see the `pwa-multisig-demo` scaffolding.
+- [ ] (effort: M) Make the shell-initiated signature round-trip to a headless
+  igloo-pwa tab reliable. `sign-shell.spec.ts` proves the PWA + igloo-shell reach
+  mutual sign-readiness, but the actual `runtime sign` stalls with `locked peer
+  timeout` — the headless browser tab doesn't return its partial sign (likely
+  background-tab throttling of the runtime pump). Once reliable, make the schnorr
+  signature verification a hard assertion — Test harness/CI.
 
 ## Open questions
 
