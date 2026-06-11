@@ -159,18 +159,22 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: M) Promote the manual multi-PWA-tab signature to an automated spec
   (two browser contexts + igloo-shell initiator) once the manual flow is stable —
   Test harness · see the `pwa-multisig-demo` scaffolding.
-- [ ] (effort: L) **igloo-pwa browser signer does not respond to a relay-delivered
-  sign request.** `sign-shell.spec.ts` proves the PWA + igloo-shell reach mutual
-  sign-readiness, but `runtime sign` times out. A relay-recorder trace
-  (`SIGN WIRE: shell->pwa request=true pwa->shell response=false`) confirms the
-  shell publishes the sign request and the PWA receives it (it was publishing nonce
-  events moments earlier) but **never publishes its partial signature** — NOT
-  throttling (anti-throttle Chromium flags didn't help) and not delivery. This is a
-  browser-runtime responder gap, not a test issue. Investigate the incoming-sign
-  path in `igloo-shared` (`runtime-pump` → `wasm-bridge-node.ts` sign dispatch
-  ~1342; note `runtime-api.ts:85` tracks `sign_responder_ready` separately from
-  requestor sign-readiness). Once the PWA responds, flip the `sign-shell` signature
-  from opportunistic to a hard schnorr-verify assertion — igloo-shared + Test harness.
+- [ ] (effort: L) **bifrost-rs browser signer does not emit a partial for a
+  relay-delivered sign request.** `sign-shell.spec.ts` proves the PWA + igloo-shell
+  reach mutual sign-readiness, but `runtime sign` times out. Conclusively localized:
+  the relay-recorder trace shows `shell->pwa request=true pwa->shell response=false`
+  (shell publishes the request, PWA receives it — it published nonce events moments
+  earlier), and a tick probe showed the PWA tab **ticked 62× over 62s (unthrottled)**,
+  so the 1s runtime-pump runs the whole time. Ruled OUT: throttling, delivery, and the
+  `igloo-shared` plumbing (`wasm-bridge-node.ts` ingests inbound :1250, ticks + drains
+  + publishes :1273-1315 every second, and published nonces fine via that same path).
+  The gap is in the **Rust signing core** — the `bifrost-signer`/`bifrost-router`
+  responder in `bifrost-bridge-wasm` does not produce an outbound partial for the
+  incoming sign request (candidate: responder needs `outgoing_available > 0` /
+  unconsumed secret nonces; see `runtime-api.ts:68` responder-peer definition).
+  Investigate the WASM responder path in `repos/bifrost-rs`; once it responds, flip the
+  `sign-shell` signature from opportunistic to a hard schnorr-verify assertion —
+  bifrost-rs + Test harness.
 
 ## Open questions
 
