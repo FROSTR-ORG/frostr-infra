@@ -168,11 +168,17 @@ Group by area. When an item is finished, move a one-line summary to
   so the 1s runtime-pump runs the whole time. Ruled OUT: throttling, delivery, and the
   `igloo-shared` plumbing (`wasm-bridge-node.ts` ingests inbound :1250, ticks + drains
   + publishes :1273-1315 every second, and published nonces fine via that same path).
-  The gap is in the **Rust signing core** — the `bifrost-signer`/`bifrost-router`
-  responder in `bifrost-bridge-wasm` does not produce an outbound partial for the
-  incoming sign request (candidate: responder needs `outgoing_available > 0` /
-  unconsumed secret nonces; see `runtime-api.ts:68` responder-peer definition).
-  Investigate the WASM responder path in `repos/bifrost-rs`; once it responds, flip the
+  The gap is in the **Rust signing core**. Captured PWA runtime logs
+  (`VITE_IGLOO_DEBUG=1` → console) show the PWA *accepts* the inbound sign request
+  (`status_event kind=inbound_accepted pending_ops:1`) then fails with
+  `failure op_type="ping" message="nonce unavailable"` — i.e. `bifrost-signer`'s
+  `SignerError::NonceUnavailable` (`bifrost-signer/src/error.rs:21`, thrown at
+  `lib.rs:1326/1349/1780/2043/2071`). The `op_type=ping` is the nonce-refresh step
+  the responder runs before it can sign. So the PWA's **outgoing nonce pool for the
+  shell peer is depleted/not replenished** by sign time — it has no nonce to respond
+  with. Investigate the responder nonce lifecycle / replenishment in `bifrost-signer`
+  (and whether the browser host needs a periodic peer/nonce refresh like the startup
+  `refreshAllPeers()` at `wasm-bridge-node.ts:511`). Once the PWA responds, flip the
   `sign-shell` signature from opportunistic to a hard schnorr-verify assertion —
   bifrost-rs + Test harness.
 
