@@ -32,7 +32,12 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## bifrost-rs / igloo-shared runtime
 
-- [ ] (effort: L) **Remove the relay profile-backup feature from the native hosts**
+- [x] (effort: L) **Remove the relay profile-backup feature from the native hosts** —
+  **DONE 2026-06-12** (igloo-shell `f1b6c73`, igloo-home `12119f8`, bifrost-rs `1ad615c`;
+  parent bumps `528be2a`/`67ca114`/`32dbcd7`/`5bc0ec6`). Native hosts reworked to the
+  relay-free model (shell `recover-key`; home `recover_group_key` + recover-key UI; both
+  rotate from a local profile's group package) and the dead `bifrost-profile` +
+  `frostr-utils` backup code deleted. See `dev/HANDOFF.md` status banner.
   (the remaining, larger half of Phase 6; the dead *browser* WASM bindings were removed
   2026-06-12). The relay backup-publish + relay recovery are still **live** in
   `igloo-shell` (`igloo-shell-cli` imports/rotation/profile commands + `igloo-shell-core`
