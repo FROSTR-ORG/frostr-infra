@@ -73,4 +73,16 @@ COPY --from=builder-demo /out/bifrost-devtools /usr/local/bin/bifrost-devtools
 COPY --from=builder-demo /out/igloo-shell /usr/local/bin/igloo-shell
 COPY services/igloo-demo/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+# Pre-create the short `/w` state link as root. The container runs as a non-root
+# host uid (compose `user:`), which cannot create a symlink at `/`; the link
+# must stay 2 chars so the daemon's XDG_STATE_HOME socket path fits the Unix
+# sun_path limit. It points into world-writable /tmp, which the entrypoint then
+# repoints at the real (bind-mounted) XDG state dir at runtime.
+RUN ln -sfn /tmp/igloo-shell-state /w
+# Short, container-local XDG_RUNTIME_DIR for the daemon's control socket. The
+# socket must live on a socket-capable filesystem: macOS Docker bind mounts
+# (virtiofs/gRPC-FUSE) reject AF_UNIX bind() with EINVAL, so it cannot sit under
+# the bind-mounted artifact dir. `/r` is on the container's own overlay fs and
+# stays short enough for sun_path. World-writable+sticky for the non-root uid.
+RUN mkdir -p /r && chmod 1777 /r
 ENTRYPOINT ["/entrypoint.sh"]

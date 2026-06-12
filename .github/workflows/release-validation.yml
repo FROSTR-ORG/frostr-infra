@@ -132,3 +132,14 @@ jobs:
           COMPOSE_BAKE: "true"
           FROSTR_DEMO_COMPOSE_OVERRIDE: compose.ci.yml
         run: xvfb-run -a make test-demo
+
+      # Gate the @live lane (igloo-pwa:live + igloo-chrome:live). It previously
+      # ran nowhere in CI, which let several post-merge regressions land
+      # undetected (WASM integrity loaders, the security profile-unlock
+      # contract, and Paper-redesign UI drift). Runs after the demo gate so it
+      # reuses the same toolchain, Docker Buildx, and browser setup.
+      - name: Run live e2e lane
+        env:
+          COMPOSE_BAKE: "true"
+          FROSTR_DEMO_COMPOSE_OVERRIDE: compose.ci.yml
+        run: xvfb-run -a make test-live

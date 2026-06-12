@@ -17,6 +17,7 @@ RELAY ?= 0
 	demo-start demo-foreground demo-stop demo-logs demo-onboard demo-smoke demo-pair-check \
 	compose-start compose-stop compose-restart compose-logs \
 	test-smoke test-fast test-live test-demo test-e2e test-prep test-affected test-release \
+	pwa-multisig-demo \
 	browser-wasm-refresh browser-wasm-sync browser-wasm-check wasm-toolchain-check \
 	igloo-paper-sync igloo-paper-verify igloo-paper-usage-coverage-sync igloo-ui-paper-token-sync igloo-ui-paper-token-check \
 	igloo-chrome-dev igloo-chrome-build igloo-chrome-test-unit igloo-chrome-test-e2e \
@@ -152,6 +153,9 @@ test-demo:
 
 test-e2e:
 	@npm --prefix "$(TEST_DIR)" run test:e2e
+
+pwa-multisig-demo:
+	@"$(TEST_DIR)/scripts/pwa-multisig-demo.sh"
 
 test-prep:
 	@"$(ROOT_DIR)/scripts/test-prebuild.sh" release

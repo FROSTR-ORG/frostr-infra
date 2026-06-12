@@ -12,6 +12,7 @@ import { startRelayEventRecorder } from '../support/onboard-diagnostics';
 import {
   expectPwaDashboard,
   expectPwaRuntimeConnected,
+  expectPwaSignerSignReady,
   loadStoredPwaProfile,
   onboardPwaDevice,
   openFreshPwaPage,
@@ -68,6 +69,12 @@ test.describe('igloo-pwa bfonboard onboarding @live', () => {
         localPassword: 'playwright-passphrase',
       });
       await expectPwaDashboard(secondary.page, 'Onboarded Browser Device');
+
+      // Both devices now hold a share of the same 2-of-3 group and are online —
+      // confirm each reaches a genuine sign-ready state (nonce pools hydrated with
+      // the other as a can-sign peer), not just a rendered dashboard.
+      await expectPwaSignerSignReady(secondary.page, 1);
+      await expectPwaSignerSignReady(page, 1);
 
       // Prove the handshake genuinely happened over the wire: the recipient published
       // an onboard request, and the inviter published a response back to it.

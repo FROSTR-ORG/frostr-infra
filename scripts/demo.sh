@@ -145,7 +145,10 @@ stop_projects() {
   # in the label scan above (e.g. a crash-looping/exited relay).
   local default_project
   default_project="$(basename "${ROOT_DIR}")"
-  if [[ ! " ${projects[*]} " == *" ${default_project} "* ]]; then
+  # bash 3.2 (macOS) treats an empty array as unset under `set -u`, so guard the
+  # expansion with `:-` — `projects` is empty whenever the label scan matched no
+  # containers.
+  if [[ ! " ${projects[*]:-} " == *" ${default_project} "* ]]; then
     projects+=("${default_project}")
   fi
 

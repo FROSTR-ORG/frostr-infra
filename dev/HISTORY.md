@@ -1,4 +1,34 @@
-# Follow-ups
+# History
+
+Completed-work log for the `frostr-infra` workspace, newest first. Open work
+lives in [`BACKLOG.md`](./BACKLOG.md); full plan docs live in [`done/`](./done)
+and [`plans/`](./plans).
+
+Each curated entry is `## YYYY-MM-DD — <title>` with a one-paragraph summary and
+links to commits/plans. Below the curated entries is the verbatim archive of the
+former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
+items were triaged into [`BACKLOG.md`](./BACKLOG.md).
+
+## 2026-06-09 — Paper↔runtime design-sync reconciliation
+
+Re-ran the PWA visual loop after the dashboard/settings/export work landed and
+reconciled the tracking: promoted `dashboard-permissions`, `dashboard-settings`,
+and `dashboard-export-profile` from `needs-work` → `aligned` in
+`test/igloo-pwa/visual-manifest.json` (with notes recording the intentional,
+plan-decided deviations), and expanded the `dashboard-signer` note to cover its
+structural divergence (it stays `needs-work`, gated on bifrost-rs telemetry —
+see [`BACKLOG.md`](./BACKLOG.md)). Repaired the strict design-sync gate by
+repointing the `Modal` design-contract entry from the deleted `confirm-modal.tsx`
+to `dialog.tsx`. Commits: `igloo-paper 31e343c`, parent `9e0f7a9`. Plan:
+[`plans/dashboard-settings-export-paper-redesign-2026-06-01.md`](./plans/dashboard-settings-export-paper-redesign-2026-06-01.md).
+
+---
+
+# Archived follow-up log (migrated from root `FOLLOWUPS.md`, 2026-06-10)
+
+The entries below are the verbatim historical follow-up log. Still-open items
+have been triaged into [`BACKLOG.md`](./BACKLOG.md); this section is retained for
+provenance and is not actively maintained.
 
 ## 2026-06-03 — RESOLVED: Docker follow-up batch (+ igloo-home skew found)
 

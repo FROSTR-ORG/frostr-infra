@@ -162,7 +162,17 @@ export class DistributePage extends BasePage {
     return this.cards().filter({ hasText: name }).first();
   }
   async readQrPackage(): Promise<string> {
-    return (await this.page.locator('pre.igloo-code-block').textContent())?.trim() ?? '';
+    // The redesigned QR modal (QrPayloadModal) renders the package in a masked
+    // SensitiveTextarea instead of a <pre class="igloo-code-block">. Reveal it,
+    // then read the underlying textarea value (inputValue, not textContent).
+    const dialog = this.page.getByRole('dialog');
+    const reveal = dialog.getByRole('button', { name: 'Reveal' });
+    if (await reveal.isVisible().catch(() => false)) {
+      await reveal.click();
+    }
+    const textarea = dialog.locator('textarea');
+    await textarea.waitFor({ state: 'visible' });
+    return (await textarea.inputValue()).trim();
   }
   async closeQr(): Promise<void> {
     await this.page.keyboard.press('Escape');

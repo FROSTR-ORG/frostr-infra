@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { createGeneratedBrowserArtifacts, createPwaStoredProfileSeed } from '../../shared/browser-artifacts';
 import { startLocalRelay } from '../../shared/local-relay';
 import { buildPwaPersistedState } from '../support/state';
-import { expectPwaDashboard, loadStoredPwaProfile, seedPwaState } from '../support/ui';
+import { expectPwaDashboard, expectPwaRuntimeConnected, loadStoredPwaProfile, seedPwaState } from '../support/ui';
 
 test.describe('igloo-pwa stored profiles @live', () => {
   test('lists stored profiles on the landing page and loads the selected profile', async ({ page }) => {
@@ -23,6 +23,8 @@ test.describe('igloo-pwa stored profiles @live', () => {
       await seedPwaState(page, buildPwaPersistedState({ profiles: [seededProfile] }));
       await loadStoredPwaProfile(page, 'Stored Browser Device');
       await expectPwaDashboard(page, 'Stored Browser Device');
+      // The loaded share must bring up a live signer runtime, not just render.
+      await expectPwaRuntimeConnected(page);
     } finally {
       await relay.close();
     }

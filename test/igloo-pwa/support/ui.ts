@@ -2,7 +2,7 @@ import { expect, type Browser, type BrowserContext, type Locator, type Page } fr
 import { CRITICAL_E2E_TEST_IDS, type CriticalE2ETestId } from '../../../repos/igloo-ui/src/lib/e2e-test-ids';
 import { DEFAULT_BROWSER_PASSWORD } from '../../shared/browser-artifacts';
 
-import { PWA_STORAGE_KEY } from './state';
+import { applyPwaSeed, pwaSeedPayload } from './state';
 
 // The e2e test-id registry must be imported only here (enforced by
 // check-e2e-selector-contracts.sh). Page objects consume it via this re-export.
@@ -14,12 +14,7 @@ export function byTestId(scope: Page | Locator, id: CriticalE2ETestId): Locator 
 }
 
 export async function seedPwaState(page: Page, state: unknown) {
-  await page.addInitScript(
-    ({ storageKey, payload }: { storageKey: string; payload: unknown }) => {
-      window.localStorage.setItem(storageKey, JSON.stringify(payload));
-    },
-    { storageKey: PWA_STORAGE_KEY, payload: state },
-  );
+  await page.addInitScript(applyPwaSeed, pwaSeedPayload(state));
 }
 
 export async function openPwaImportProfile(page: Page) {
@@ -177,4 +172,16 @@ export async function openFreshPwaPage(browser: Browser): Promise<{ context: Bro
   const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
   return { context, page };
+}
+
+// Tier-2 readiness gate, observed via the LIVE dashboard. The runtime snapshot is
+// intentionally never persisted to localStorage (see igloo-pwa persist-allowlist),
+// so readiness has to be read from the rendered signer panel: each peer row shows
+// a status label, and `sign-ready` means that peer's nonce pool has hydrated and
+// the signer can actually participate in a signature. Use this where a cooperating
+// signer is online; for a single device with no peers use the lighter
+// expectPwaRuntimeConnected. (The `expectedPeers` arg is advisory — at least one
+// sign-ready peer is the meaningful, race-free signal.)
+export async function expectPwaSignerSignReady(page: Page, _expectedPeers = 1): Promise<void> {
+  await expect(page.getByText('sign-ready').first()).toBeVisible({ timeout: 45_000 });
 }

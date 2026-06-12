@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { nip19 } from 'nostr-tools';
 
 import {
   createGeneratedBrowserArtifacts,
@@ -18,8 +19,13 @@ import {
   seedPwaState,
 } from '../support/ui';
 
-function shortId(value: string) {
-  return value.slice(0, 8);
+// The redesigned dashboard identifies a device by its share public key,
+// rendered as a truncated npub (`${npub.slice(0,8)}...${npub.slice(-4)}`, see
+// igloo-pwa dashboard-view.ts). Rotation keeps the device label, so the share
+// npub is the discriminator between the pre- and post-rotation identities.
+function shareKeyDisplay(hexPubkey: string) {
+  const npub = nip19.npubEncode(hexPubkey);
+  return `${npub.slice(0, 8)}...${npub.slice(-4)}`;
 }
 
 test.describe('igloo-pwa rotate key @live', () => {
@@ -68,8 +74,11 @@ test.describe('igloo-pwa rotate key @live', () => {
       await expect(page.getByText('Replacement Preview')).toBeVisible({ timeout: 20_000 });
       await confirmPwaRotationPackage(page);
       await expectPwaDashboard(page, 'Rotation Device 1');
-      await expect(page.getByText(shortId(rotated.shares[0].profileId))).toBeVisible();
-      await expect(page.getByText(shortId(current.shares[0].profileId))).toHaveCount(0);
+      await expect(page.getByText(shareKeyDisplay(rotated.shares[0].sharePublicKey))).toBeVisible();
+      await expect(page.getByText(shareKeyDisplay(current.shares[0].sharePublicKey))).toHaveCount(0);
+      // The share-key swap above (new key shown, old key gone) is the behavioral
+      // proof the rotation persisted. (The replaced device's runtime does not
+      // re-establish a live relay connection in this flow, so we don't gate on it.)
     } finally {
       await inviterContext?.close().catch(() => undefined);
       await relay.close();

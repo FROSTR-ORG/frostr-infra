@@ -72,6 +72,8 @@ Use this file for routing; follow these for depth.
 | `dev/docs/GOTCHAS.md` | Full list of workspace gotchas and environment footguns |
 | `dev/docs/STYLES.md` | Workspace shell, documentation, and commit style (per-language naming is submodule-owned) |
 | `dev/adrs/INDEX.md` | Architecture decision records (historical; current behavior lives in `docs/`) |
+| `dev/BACKLOG.md` | Curated open follow-up work (the follow-up-harvest sink) |
+| `dev/HISTORY.md` | Completed-work log + archived historical follow-up log |
 | `dev/policies/` | Contributor-facing engineering guidance and review prompts |
 | `test/README.md` | Cross-repo demo and E2E harness commands |
 | `test/docs/WORKFLOWS.md` | Test-lane selection, client-scoped validation, visual loops, WASM test guidance |

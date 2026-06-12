@@ -312,6 +312,35 @@ The onboarded PWA profile will connect to the relay URL printed by
 `make demo-start`, for example `ws://localhost:8194`, and can then interact
 with the live signer running inside `igloo-demo`.
 
+### Demo: multiple `igloo-pwa` tabs coordinating a signature
+
+The PWA is a responder-only signer — it answers sign requests but cannot start
+one. To watch two PWA tabs coordinate a real threshold signature, a headless
+`igloo-shell` co-signer initiates it. One command scaffolds everything:
+
+```bash
+make pwa-multisig-demo
+```
+
+That builds `bifrost-devtools` + `igloo-shell`, starts a local relay, generates a
+**3-of-3** keyset (so every participant is required), imports the coordinator
+share into a throwaway `igloo-shell` store, starts its daemon, and prints two
+`bfonboard` packages — one per browser tab — plus the onboarding password.
+
+Then:
+
+1. In another terminal: `make igloo-pwa-dev`.
+2. Open **two** tabs at the dev URL. In each, choose **Onboard New Device**, paste
+   the matching package, use the printed onboarding password, set a profile
+   password, and launch the signer.
+3. Wait until both dashboards show the signer running with peers connected.
+4. Press **ENTER** in the demo terminal. `igloo-shell` initiates the signature;
+   both tabs' event logs show the request and their partial responses, and the
+   command prints the completed `signatures_hex`.
+
+This is the manual counterpart to the automated `sign-shell.spec.ts` (`@live`),
+which proves the same PWA-co-signs-a-real-signature path in CI with a single tab.
+
 ### Demo `igloo-shell`
 
 Use a different onboarding package than the one consumed by the PWA if you are

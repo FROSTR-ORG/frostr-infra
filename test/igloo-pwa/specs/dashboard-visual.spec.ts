@@ -5,7 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { REPO_ROOT_DIR } from '../../shared/repo-paths';
 import { pages } from '../support/pages';
-import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
+import { applyPwaSeed, buildPwaPersistedState, pwaSeedPayload } from '../support/state';
 import {
   DETERMINISTIC_GROUP_KEY,
   DETERMINISTIC_SHARE_KEY,
@@ -35,6 +35,8 @@ function buildDashboardProfile() {
     relays: ['wss://relay.primal.net', 'wss://relay.damus.io'],
     group_package_json: groupPackageJson,
     share_package_json: JSON.stringify({ idx: 1, seckey: DETERMINISTIC_SHARE_KEY.secretHex }),
+    encrypted_bfshare_artifact: 'bfshare1seed',
+    member_idx: 1,
     source: 'generated' as const,
     relay_profile: 'wss://relay.primal.net',
     group_ref: 'group-ref',
@@ -76,12 +78,7 @@ function buildRunningSnapshot() {
 
 async function seedState(page: Page, state: unknown) {
   await page.goto('/');
-  await page.evaluate(
-    ([storageKey, payload]) => {
-      window.localStorage.setItem(storageKey, JSON.stringify(payload));
-    },
-    [PWA_STORAGE_KEY, state] as const,
-  );
+  await page.evaluate(applyPwaSeed, pwaSeedPayload(state));
   await page.reload();
 }
 

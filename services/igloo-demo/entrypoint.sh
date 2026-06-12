@@ -32,6 +32,16 @@ IGLOO_SHELL_DEMO_TMPDIR="${IGLOO_SHELL_DEMO_TMPDIR:-${IGLOO_SHELL_DEMO_ARTIFACT_
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/data}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-${IGLOO_SHELL_DEMO_STATE_LINK}}"
+# The daemon's XDG_STATE_HOME socket path (.../profiles/<64-hex>/daemon.sock)
+# is exactly 100 bytes even via the short `/w` link, which the C.4 daemon
+# hardening rejects (sun_path budget is <100), so the daemon uses its
+# `$XDG_RUNTIME_DIR/igloo-shell-<hash>.sock` fallback. That socket must NOT live
+# on the bind mount: macOS Docker bind mounts reject AF_UNIX bind() with EINVAL.
+# Point XDG_RUNTIME_DIR at the short, container-local `/r` (image-provided, on
+# the overlay fs). The host never connects to this socket — the fixture only
+# lstat()s the artifact-dir symlink the entrypoint creates to it as a readiness
+# gate — so it does not need to be host-visible.
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/r}"
 export IGLOO_SHELL_PROFILE_PASSPHRASE="${IGLOO_SHELL_DEMO_PASSPHRASE}"
 export TMPDIR="${TMPDIR:-${IGLOO_SHELL_DEMO_TMPDIR}}"
 
@@ -171,7 +181,14 @@ cleanup_shell_home() {
     "${XDG_DATA_HOME}/igloo-shell" \
     "${IGLOO_SHELL_DEMO_XDG_ROOT}/state/igloo-shell"
   if [ "${XDG_STATE_HOME}" = "${IGLOO_SHELL_DEMO_STATE_LINK}" ]; then
-    rm -f "${IGLOO_SHELL_DEMO_STATE_LINK}"
+    # Non-root containers cannot remove the image-provided link at `/`; clear
+    # the writable `/tmp` indirection it points at instead (see
+    # prepare_shell_home). Root containers remove the link directly.
+    if [ -L "${IGLOO_SHELL_DEMO_STATE_LINK}" ]; then
+      rm -f "$(readlink "${IGLOO_SHELL_DEMO_STATE_LINK}")"
+    else
+      rm -f "${IGLOO_SHELL_DEMO_STATE_LINK}"
+    fi
   fi
 }
 
@@ -182,7 +199,17 @@ prepare_shell_home() {
     "${IGLOO_SHELL_DEMO_XDG_ROOT}/data" \
     "${IGLOO_SHELL_DEMO_XDG_ROOT}/state"
   if [ "${XDG_STATE_HOME}" = "${IGLOO_SHELL_DEMO_STATE_LINK}" ]; then
-    ln -sfn "${IGLOO_SHELL_DEMO_XDG_ROOT}/state" "${IGLOO_SHELL_DEMO_STATE_LINK}"
+    # The short state link keeps the daemon's XDG_STATE_HOME socket path within
+    # the Unix sun_path limit. Non-root containers (compose `user:`) cannot
+    # create a symlink at `/`, so the image pre-creates `${STATE_LINK}` (e.g.
+    # `/w`) as a symlink into a writable location (`/tmp/...`). Repoint that
+    # writable indirection at the real XDG state dir; root containers, where the
+    # link is absent, create it directly.
+    if [ -L "${IGLOO_SHELL_DEMO_STATE_LINK}" ]; then
+      ln -sfn "${IGLOO_SHELL_DEMO_XDG_ROOT}/state" "$(readlink "${IGLOO_SHELL_DEMO_STATE_LINK}")"
+    else
+      ln -sfn "${IGLOO_SHELL_DEMO_XDG_ROOT}/state" "${IGLOO_SHELL_DEMO_STATE_LINK}"
+    fi
   fi
 }
 
@@ -301,12 +328,17 @@ export_onboarding_package() {
   generate_password_file_if_needed "${password_path}"
 
   echo "==> Creating onboarding package for ${member}"
+  # `--passphrase-env` names the env var holding the source profile passphrase
+  # (the retired IGLOO_SHELL_PROFILE_PASSPHRASE auto-fallback no longer applies;
+  # the var is still exported above and read explicitly here);
+  # `--package-password-env` seals the resulting onboard package.
   IGLOO_SHELL_PACKAGE_PASSWORD="$(tr -d '\r\n' < "${password_path}")" \
     "${IGLOO_SHELL_BIN}" export "${DEMO_PROFILE_ID}" \
       --format bfonboard \
       --out "${onboard_path}" \
       --recipient-share "${IGLOO_SHELL_DEMO_DIR}/share-${member}.json" \
       --relay-url "${DEV_RELAY_EXTERNAL_URL}" \
+      --passphrase-env IGLOO_SHELL_PROFILE_PASSPHRASE \
       --package-password-env IGLOO_SHELL_PACKAGE_PASSWORD \
       >/dev/null
   chmod 0644 "${onboard_path}" >/dev/null 2>&1 || true
@@ -319,7 +351,10 @@ start_demo_daemon() {
   local daemon_socket_link_name
   local daemon_socket_link_target
 
-  daemon_json="$("${IGLOO_SHELL_BIN}" daemon start --profile "${DEMO_PROFILE_ID}")"
+  # `daemon start` requires explicit passphrase input (the IGLOO_SHELL_PROFILE_
+  # PASSPHRASE env fallback was retired in the C.5 hardening); pass it the same
+  # way import_demo_profile does. Without it the command blocks reading stdin.
+  daemon_json="$("${IGLOO_SHELL_BIN}" daemon start --profile "${DEMO_PROFILE_ID}" --passphrase "${IGLOO_SHELL_PROFILE_PASSPHRASE}")"
   daemon_token="$(printf '%s\n' "${daemon_json}" | json_string_field "token")"
   daemon_socket_bind="$(printf '%s\n' "${daemon_json}" | json_string_field "socket_path")"
   daemon_socket_link_name="$(basename "${IGLOO_SHELL_DEMO_CONTROL_SOCKET}")"

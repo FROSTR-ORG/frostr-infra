@@ -7,28 +7,31 @@
       "output": ".tmp/visual/igloo-pwa/dashboard/01-signer-dashboard.png",
       "paperReference": "repos/igloo-paper/screens/dashboard/1-signer-dashboard/screenshot.png",
       "status": "needs-work",
-      "notes": "Peer online/ready counts, per-row last-seen, and a domain-tagged + filterable Event Log are implemented. Stays needs-work until the remaining Paper elements that the PWA runtime cannot yet supply are available: per-peer latency, 'Avg' latency, the nonce sparkline, and per-method SIGN/ECDH/PING capability badges (require bifrost-rs/igloo-shared runtime instrumentation). Promote once those land."
+      "notes": "Peer online/ready counts, per-row last-seen, and a domain-tagged + filterable Event Log are implemented. Stays needs-work for two reasons. (1) Runtime data the PWA cannot yet supply: per-peer latency, 'Avg' latency, the nonce sparkline, and per-method SIGN/ECDH/PING capability badges (require bifrost-rs/igloo-shared runtime instrumentation). (2) Structural divergence from the Paper artboard pending a product decision: a PWA-only intro banner, the merged identity/runtime card styling, and two PWA-only cards (Pending Operations, Diagnostics) where Paper's third card is the Event Log. See dev/plans/dashboard-settings-export-paper-redesign-2026-06-01.md. Promote once the runtime data lands and the card-set divergence is resolved."
     },
     {
       "name": "dashboard-permissions",
       "viewport": "1440x1080",
       "output": ".tmp/visual/igloo-pwa/dashboard/02-permissions.png",
       "paperReference": "repos/igloo-paper/screens/dashboard/1c-permissions/screenshot.png",
-      "status": "needs-work"
+      "status": "aligned",
+      "notes": "Aligned to the decided peer-only scope: the PWA signer is standalone, so Paper's site/origin 'Signer Permissions' section (a NIP-07 website-bridge concept owned by igloo-chrome) is intentionally absent and the default-policy selector is deferred. The capture shows the empty 'start the signer' state. Open product question, not a defect: whether the routed page should carry Paper's shared signer/identity card header (dev/plans/dashboard-settings-export-paper-redesign-2026-06-01.md)."
     },
     {
       "name": "dashboard-settings",
       "viewport": "1440x1080",
       "output": ".tmp/visual/igloo-pwa/dashboard/03-settings.png",
       "paperReference": "repos/igloo-paper/screens/dashboard/3-settings-lock-profile/screenshot.png",
-      "status": "needs-work"
+      "status": "aligned",
+      "notes": "Aligned to the plan-revised design: a routed page (Paper's slide-over is a prototype affordance, not adopted), the Advanced numeric section expanded by default, 'Logout' instead of 'Lock Profile', and the Replace Share / Export Profile / Export Share sections; the Group Profile read-only card and the 'Onboard a Device' entry are intentionally dropped from PWA scope. Open product question, not a defect: the PWA-only 'Browser Settings' toggles (Remember browser state / Open signer after import / Prefer install prompt) have no Paper counterpart (dev/plans/dashboard-settings-export-paper-redesign-2026-06-01.md)."
     },
     {
       "name": "dashboard-export-profile",
       "viewport": "1440x1080",
       "output": ".tmp/visual/igloo-pwa/dashboard/04-export-profile-modal.png",
       "paperReference": "repos/igloo-paper/screens/dashboard/4-export-profile/screenshot.png",
-      "status": "needs-work"
+      "status": "aligned",
+      "notes": "The Export Profile password modal matches Paper: title, the 'Share #N (Index N) · Keyset · N relays · N peers' summary line, Export Password + Confirm Password with strength meter, and Cancel/Export. The only difference is the backdrop (the Settings routed page vs Paper's slide-over), which is an intentional surface decision."
     },
     {
       "name": "welcome-first-launch",

@@ -5,7 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { PwaStoredProfileSeed } from '../../shared/browser-artifacts';
 import { REPO_ROOT_DIR } from '../../shared/repo-paths';
-import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../support/state';
+import { applyPwaSeed, buildPwaPersistedState, pwaSeedPayload } from '../support/state';
 
 const RECOVER_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'recover');
 
@@ -29,6 +29,8 @@ function buildRecoverProfile(): PwaStoredProfileSeed {
       ],
     }),
     share_package_json: JSON.stringify({ idx: 0, seckey: '11'.repeat(32) }),
+    encrypted_bfshare_artifact: `bfshare1${id}`,
+    member_idx: 0,
     source: 'generated',
     relay_profile: 'local',
     group_ref: `browser-profile:${id}:group`,
@@ -54,12 +56,7 @@ function buildRecoverProfile(): PwaStoredProfileSeed {
 
 async function seedState(page: Page, state: unknown) {
   await page.goto('/');
-  await page.evaluate(
-    ([storageKey, payload]) => {
-      window.localStorage.setItem(storageKey, JSON.stringify(payload));
-    },
-    [PWA_STORAGE_KEY, state] as const,
-  );
+  await page.evaluate(applyPwaSeed, pwaSeedPayload(state));
   await page.reload();
 }
 
