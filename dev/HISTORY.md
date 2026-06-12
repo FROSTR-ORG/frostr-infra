@@ -9,6 +9,36 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
+## 2026-06-11 — igloo-pwa `@live` permissions + settings persistence specs (+ override-restore fix)
+
+Closed the two **P1** behavioral-coverage gaps for igloo-pwa: the Permissions
+and Settings dashboards previously had only seed-and-screenshot `@visual` specs,
+which prove rendering, not behavior. Added `test/igloo-pwa/specs/settings.spec.ts`
+(create a keyset → edit signer name/relay/timeout → Save against a live runtime →
+reload → assert the form rehydrates from the persisted store) and
+`permissions.spec.ts` (onboard against a headless `igloo-shell` co-signer → toggle
+a live peer policy → reload → re-boot → assert the manual override persisted). To
+drive them through page objects, added stable e2e test-ids on the peer-policy
+toggles (`data-peer-pubkey`/`direction`/`method` + `data-allowed`/`data-override`)
+and the Settings Device Profile form, plus matching `support/pages.ts` methods.
+
+The permissions spec surfaced a real product bug exactly as this effort intends:
+**manual peer-policy overrides persisted on the profile (and inside export
+packages) but were never re-applied to the signer runtime on restart** —
+`startSession` threaded keys/relays/settings/onboard-snapshot but not
+`manual_peer_policy_overrides`, so a reload silently dropped every operator
+override. Fixed at the host-adapter layer (`startSession` now re-applies them
+after the runtime boots; no `bifrost-rs`/WASM change). The Tier-1
+"unlock → running" gap from the original P1 list is already covered by
+`profile-inventory.spec.ts` (running dashboard) + `sign-shell.spec.ts`
+(`sign_ready` with a cooperating peer), so it was dropped rather than duplicated.
+Validated: full igloo-pwa `@live` lane 10/10 green; igloo-ui 120 + igloo-pwa 42
+unit tests green; selector/cross-client guards pass. Commits: `igloo-ui 8ee3f38`
+(test-ids), `igloo-pwa 7339d53` (override-restore fix), parent `d9c9243` (specs +
+pointer bumps).
+
+---
+
 ## 2026-06-09 — Paper↔runtime design-sync reconciliation
 
 Re-ran the PWA visual loop after the dashboard/settings/export work landed and

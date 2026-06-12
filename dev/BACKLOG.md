@@ -144,15 +144,6 @@ Group by area. When an item is finished, move a one-line summary to
   still prints.
 - [ ] (effort: S) Add a small regression test for
   `repos/igloo-paper/scripts/update_usage_coverage.py`.
-- [ ] (effort: M) **P1** Add `@live` behavioral spec: welcome **Unlock → running,
-  sign-ready** signer — unlock is only screenshotted today (`welcome-visual`) —
-  Test harness · needs a cooperating peer online to reach `sign_ready`.
-- [ ] (effort: M) **P1** Add `@live` behavioral spec: **Permissions** toggle
-  round-trip — toggle a peer send/receive policy and assert it persists and is
-  reflected in runtime peer state (`permissions-visual` only screenshots) — Test harness.
-- [ ] (effort: M) **P1** Add `@live` behavioral spec: **Settings save** round-trip
-  — edit signer name/relays/settings, save, reload, assert persistence through the
-  real store (`settings-visual` only screenshots) — Test harness.
 - [ ] (effort: M) **P2** Add `@live` behavioral spec: **Recover execution** —
   reconstruct the nsec from threshold shares; `recover-visual` injects a fake key
   via `window.__IGLOO_TEST_RECOVERED_KEY__` and only screenshots the success
