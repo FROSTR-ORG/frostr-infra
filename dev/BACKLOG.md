@@ -47,6 +47,21 @@ Group by area. When an item is finished, move a one-line summary to
   fallback (catch the restore throw and re-bootstrap from the profile packages)
   across the browser hosts (igloo-shared + page-runtime-host + the chrome
   controller). Surfaced 2026-06-10 (per-tab isolation work, C.6).
+- [ ] (effort: M) **Refactor the onboard→signer handoff to remove the
+  capture-then-reinit seam.** Onboarding runs a *separate* transient runtime, then
+  `connectOnboardingPackageAndCaptureProfile` snapshots it and the signer relaunches.
+  The 2026-06-11 fix preserves the pool by restoring from that ephemeral snapshot, but
+  the cleaner architecture is for the onboard runtime to *be* the durable signer (no
+  capture/relaunch seam to lose state). Would also simplify the snapshot plumbing
+  threaded through store → finalize → startSession. — igloo-shared + igloo-pwa.
+- [ ] (effort: S) **Sign-miss op is mislabeled `ping` in runtime failures.** A failed
+  inbound *sign* request surfaces as `failure op_type="ping" message="nonce unavailable"`
+  in the runtime log (cost us real diagnosis time). Fix the host-side op-type classification
+  so sign/ecdh misses aren't reported as pings — bifrost-rs (host).
+- [ ] (effort: S) Pre-existing clippy nits surfaced near the nonce code: "very complex
+  type" on `NoncePool`'s `HashMap<u16, HashMap<..>>` fields (factor a type alias),
+  `sort_by` → `sort_by_key` in `outgoing_public_nonces`, and `&[x.clone()]` →
+  `slice::from_ref` in the onboard handler — bifrost-core / bifrost-signer.
 
 ## igloo-pwa
 
