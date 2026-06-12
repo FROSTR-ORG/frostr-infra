@@ -18,7 +18,7 @@ Use these companion docs for adjacent domains:
 - [PROTOCOL.md](./PROTOCOL.md)
 - [WIRE.md](./WIRE.md)
 - [PROFILE.md](./PROFILE.md)
-- [BACKUP.md](./BACKUP.md)
+- [RECOVERY.md](./RECOVERY.md)
 - [ROTATION.md](./ROTATION.md)
 - [INTERFACES.md](./INTERFACES.md)
 - [GLOSSARY.md](./GLOSSARY.md)
@@ -65,7 +65,7 @@ It carries:
 - the member list
 - the member verifying pubkeys
 
-This is the lossless structured group representation used across profiles and backups.
+This is the lossless structured group representation used across profiles.
 `group_name` helps humans identify the group, but it does not affect cryptographic identity.
 
 ### Share
@@ -265,7 +265,7 @@ Versioning:
 
 Portable packages are bech32m-encoded with distinct HRPs (`bfprofile`,
 `bfshare`, `bfonboard`). The wire layout and per-artifact validation rules live
-in [BACKUP.md](./BACKUP.md); `frostr-utils` owns the package codecs.
+in [RECOVERY.md](./RECOVERY.md); `frostr-utils` owns the package codecs.
 
 ## Cryptographic Invariants
 

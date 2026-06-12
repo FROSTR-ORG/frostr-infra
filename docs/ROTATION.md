@@ -16,7 +16,7 @@ Use this document for the conceptual and operational model of rotation.
 
 Use these companion docs for adjacent domains:
 - [PROFILE.md](./PROFILE.md)
-- [BACKUP.md](./BACKUP.md)
+- [RECOVERY.md](./RECOVERY.md)
 - [ONBOARD.md](./ONBOARD.md)
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
 - [GLOSSARY.md](./GLOSSARY.md)

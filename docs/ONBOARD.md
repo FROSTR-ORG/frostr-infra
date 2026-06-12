@@ -15,7 +15,7 @@ Use this document for the onboarding and bootstrap model.
 
 Use these companion docs for adjacent domains:
 - [PROFILE.md](./PROFILE.md)
-- [BACKUP.md](./BACKUP.md)
+- [RECOVERY.md](./RECOVERY.md)
 - [ROTATION.md](./ROTATION.md)
 - [PROTOCOL.md](./PROTOCOL.md)
 - [GLOSSARY.md](./GLOSSARY.md)
@@ -207,11 +207,8 @@ Onboarding can fail in a few main places:
 - provisioning signer is unavailable
 - onboarding request is rejected or times out
 - local profile materialization fails
-- backup publication fails
 
 If onboarding fails before local materialization completes, the device should not treat itself as fully onboarded.
-
-If onboarding completes locally but backup publication fails, the host may have a usable local device but degraded recovery posture until the backup is published successfully.
 
 ## Invariants
 

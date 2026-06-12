@@ -213,12 +213,12 @@ Rules:
 This document does not define:
 - how hosts store device profiles
 - how onboarding packages are imported
-- how backups are published or recovered
+- how key recovery reconstructs the group secret from a threshold of shares
 - how a host decides which peers to select
 
 Those responsibilities live in:
 - [PROFILE.md](./PROFILE.md)
-- [BACKUP.md](./BACKUP.md)
+- [RECOVERY.md](./RECOVERY.md)
 - [ONBOARD.md](./ONBOARD.md)
 - [PROTOCOL.md](./PROTOCOL.md)
 

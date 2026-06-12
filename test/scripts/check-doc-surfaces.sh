@@ -119,10 +119,10 @@ assert_doc_matches_code "Argon2id KDF (frostr-utils)" \
   docs/CRYPTOGRAPHY.md 'Argon2id'
 assert_doc_matches_code "BF_PACKAGE_VERSION" \
   "${PKG}" 'BF_PACKAGE_VERSION: u8 = 2' \
-  docs/BACKUP.md 'BF_PACKAGE_VERSION = 2'
+  docs/RECOVERY.md 'BF_PACKAGE_VERSION = 2'
 assert_doc_matches_code "bfshare HRP" \
   "${PKG}" 'PREFIX_BFSHARE: &str = "bfshare"' \
-  docs/BACKUP.md 'bfshare'
+  docs/RECOVERY.md 'bfshare'
 
 echo "ok: doc-vs-code constant fences match"
 

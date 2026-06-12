@@ -14,7 +14,7 @@ It covers:
 Use this document for the conceptual model of the local device profile itself.
 
 Use these companion docs for adjacent domains:
-- [BACKUP.md](./BACKUP.md)
+- [RECOVERY.md](./RECOVERY.md)
 - [ONBOARD.md](./ONBOARD.md)
 - [ROTATION.md](./ROTATION.md)
 - [PROTOCOL.md](./PROTOCOL.md)
@@ -98,7 +98,7 @@ device-profile envelope), it is sealed with the v2 host-local encryption
 contract (`ENCRYPTED_PROFILE_VERSION = 2`): Argon2id key derivation over
 XChaCha20-Poly1305. See
 [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md#envelope-encryption-v2) for parameters and
-[BACKUP.md](./BACKUP.md) for the portable-package layout.
+[RECOVERY.md](./RECOVERY.md) for the portable-package layout.
 
 ### 3. Operational Runtime State
 
@@ -139,7 +139,7 @@ Effective peer policy is not part of the durable profile contract. It is always 
 - local manual overrides
 - remote observed peer policy
 
-`group_name` remains part of the durable profile contract because issued profiles, backups, and onboarding material need to carry the same shared group identifier.
+`group_name` remains part of the durable profile contract because issued profiles and onboarding material need to carry the same shared group identifier.
 Hosts may rename local device labels freely, but changing `group_name` is not a local-label edit.
 Once artifacts are issued, `group_name` is effectively immutable unless a future product flow explicitly reissues group-bearing artifacts with a new value.
 
@@ -172,7 +172,7 @@ The canonical serialized shape stores:
 
 `group_package` is structured `GroupPackage` data with full compressed member pubkeys. Hosts must preserve it losslessly rather than reconstructing group members from x-only share public keys.
 
-Low-level wire and payload details for `bfprofile` live in [BACKUP.md](./BACKUP.md), because profile export/import sits alongside backup and recovery formats.
+Low-level wire and payload details for `bfprofile` live in [RECOVERY.md](./RECOVERY.md), because profile export/import sits alongside the recovery formats.
 
 ## Host Expectations
 

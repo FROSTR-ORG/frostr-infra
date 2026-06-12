@@ -9,7 +9,7 @@ It explains:
 - how keysets, shares, and devices relate
 - how durable artifacts and live runtimes fit together
 - how devices communicate over relays
-- how onboarding, backup, recovery, rotation, and keyset replacement fit together
+- how onboarding, recovery, rotation, and keyset replacement fit together
 - how host surfaces relate to the runtime
 
 Use this document for the system-level picture.
@@ -21,7 +21,7 @@ Use these companion docs for lower-level detail:
 - [PROTOCOL.md](./PROTOCOL.md)
 - [WIRE.md](./WIRE.md)
 - [PROFILE.md](./PROFILE.md)
-- [BACKUP.md](./BACKUP.md)
+- [RECOVERY.md](./RECOVERY.md)
 - [ONBOARD.md](./ONBOARD.md)
 - [ROTATION.md](./ROTATION.md)
 
@@ -137,7 +137,8 @@ device
 This split matters because:
 - onboarding/bootstrap creates the durable profile
 - runtime can be restarted or recreated from that durable profile
-- backup/recovery reconstructs durable profile state, not a live process
+- importing a `bfprofile` reconstructs durable profile state, not a live process
+- key recovery reconstructs the group secret key from a threshold of shares
 - host-local state may survive runtime restarts, but it is not the portable profile contract
 
 ## Artifact Architecture

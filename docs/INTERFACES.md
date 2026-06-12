@@ -19,13 +19,13 @@ For each boundary, it answers:
 | `profile_id` | host profile layer | host profile layer | durable profile id | [PROFILE.md](./PROFILE.md) |
 | share public key | keyset / runtime | runtime / peer protocol | peer-routing identity | [PROTOCOL.md](./PROTOCOL.md) |
 | group public key / `group_pk` | keyset layer | hosts and runtime | keyset identity | [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md) |
-| `bfprofile` | host export path | host import path | full portable profile | [BACKUP.md](./BACKUP.md) |
-| `bfshare` | host export path | recovery and rotation input flow | compact recovery / rotation-input package | [BACKUP.md](./BACKUP.md) |
+| `bfprofile` | host export path | host import path | full portable profile | [RECOVERY.md](./RECOVERY.md) |
+| `bfshare` | host export path | recovery and rotation input flow | compact recovery / rotation-input package | [RECOVERY.md](./RECOVERY.md) |
 | `bfonboard` | onboarding or rotation distribution path | onboarding or rotate-key adoption path | bootstrap / rotated-share adoption package | [ONBOARD.md](./ONBOARD.md) |
 | host ↔ runtime | host | signer/runtime | durable profile state plus runtime read models | [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | device ↔ device | initiator device | responder devices | request/response operation rounds | [PROTOCOL.md](./PROTOCOL.md) |
 | device ↔ relay | device | relays and subscribing devices | Nostr event + encrypted content | [WIRE.md](./WIRE.md) |
-| key recovery | local recovery flow | recovered `nsec` (in-memory) | threshold of share secrets + local group package | [BACKUP.md](./BACKUP.md) |
+| key recovery | local recovery flow | recovered `nsec` (in-memory) | threshold of share secrets + local group package | [RECOVERY.md](./RECOVERY.md) |
 | rotation | operator flow | new or existing device host | threshold `bfshare` input + `bfonboard` adoption | [ROTATION.md](./ROTATION.md) |
 
 ## Identity Interfaces
@@ -159,7 +159,7 @@ Failure conditions:
 - host reconstructs group members lossy
 
 Primary docs:
-- [BACKUP.md](./BACKUP.md)
+- [RECOVERY.md](./RECOVERY.md)
 - [PROFILE.md](./PROFILE.md)
 
 ### `bfshare`
@@ -188,7 +188,7 @@ Failure conditions:
 - relay set omitted or invalid
 
 Primary docs:
-- [BACKUP.md](./BACKUP.md)
+- [RECOVERY.md](./RECOVERY.md)
 - [ROTATION.md](./ROTATION.md)
 
 ### `bfonboard`
@@ -222,7 +222,7 @@ Primary docs:
 - [ONBOARD.md](./ONBOARD.md)
 - [ROTATION.md](./ROTATION.md)
 
-## Profile And Backup Interfaces
+## Profile And Recovery Interfaces
 
 ### Durable Profile State
 
@@ -276,11 +276,11 @@ Invariants:
 - group data must remain lossless
 
 Failure conditions:
-- backup published without enough durable profile information
-- host reconstructs group members from lossy fields
+- a pasted share does not belong to the keyset
+- fewer than `threshold` distinct shares are provided
 
 Primary doc:
-- [BACKUP.md](./BACKUP.md)
+- [RECOVERY.md](./RECOVERY.md)
 
 ## Host And Runtime Interface
 

@@ -22,7 +22,7 @@ It does not define:
 
 Those live in:
 - [WIRE.md](./WIRE.md)
-- [BACKUP.md](./BACKUP.md)
+- [RECOVERY.md](./RECOVERY.md)
 - [ONBOARD.md](./ONBOARD.md)
 - [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md)
 

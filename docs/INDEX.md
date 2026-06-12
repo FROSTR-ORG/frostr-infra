@@ -7,7 +7,7 @@ They are the canonical source for:
 - cross-host interfaces
 - peer protocol semantics
 - cryptographic model
-- profile, backup, onboarding, rotation, and wire contracts
+- profile, recovery, onboarding, rotation, and wire contracts
 - shared terminology
 
 Submodule docs should explain only the project they belong to. They should not redefine the shared FROSTR system model.
@@ -25,7 +25,7 @@ Recommended reading order for most engineers:
 
 Then read the artifact and flow specs you need:
 - [PROFILE.md](./PROFILE.md)
-- [BACKUP.md](./BACKUP.md)
+- [RECOVERY.md](./RECOVERY.md)
 - [ONBOARD.md](./ONBOARD.md)
 - [ROTATION.md](./ROTATION.md)
 - [WIRE.md](./WIRE.md)
@@ -62,7 +62,7 @@ release guidance lives under `dev/`:
 
 - [PROFILE.md](./PROFILE.md)
   - durable device-profile model
-- [BACKUP.md](./BACKUP.md)
+- [RECOVERY.md](./RECOVERY.md)
   - `bfprofile`, `bfshare`, and threshold key recovery
 - [ONBOARD.md](./ONBOARD.md)
   - onboarding model and `bfonboard`

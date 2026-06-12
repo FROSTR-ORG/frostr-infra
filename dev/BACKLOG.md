@@ -75,6 +75,21 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## igloo-pwa
 
+- [ ] (effort: M) **Investigate: an onboarded profile may not persist until a later
+  profile-mutating action.** Surfaced writing `sign-reload.spec.ts` (2026-06-12): after the
+  onboard save the dashboard renders the profile in-memory, but the persisted partition
+  stays at `activeView: 'onboard-save'` with `pendingOnboardConnection` set and `profiles: []`
+  — i.e. `persistProfileToDashboard`'s final state isn't reaching localStorage. The
+  permissions spec only survived a reload because its policy toggle separately wrote the
+  profile. If real, an onboarded device is lost on an immediate reload/close. Confirm against
+  the real UI onboard-save path (`finalizeOnboardedDevice` / the `saveProfile*` CreateFlow
+  setup) and fix the persist gap — igloo-pwa.
+- [ ] (effort: S) **Recover-collect UX polish** (from the 2026-06-12 recovery rework).
+  The "Share #1 (this device) — Validated" meter counts the device share toward the
+  threshold before the device passphrase is entered or verified; gate the validated
+  state on a successful unlock. Also consider a lost-device path: allow recovery from a
+  full threshold of pasted `bfshare`s with no device passphrase (today the device share
+  is always required) — product call — igloo-pwa / igloo-ui.
 - [ ] (effort: L) Adopt a real router for the dashboard pages — header nav still
   drives `store.activeDashboardTab`; URL deep-linking / back-button is a separate
   refactor with route-guard considerations for sensitive unlocked states.
@@ -141,6 +156,12 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## Test harness / CI
 
+- [ ] (effort: S) **Flaky export test**: `profile-import.spec.ts` › "exports an encrypted
+  profile package from settings" intermittently times out under load — the Export modal's
+  Confirm Password fill does not land before the (disabled) Export button is clicked, so it
+  waits out the timeout. Passes in isolation. Harden the `exportProfileWithPassword` page
+  object (refill/verify confirm, or wait for the button to enable) or fix the
+  `ExportPackageModal` controlled-input race — Test harness.
 - [ ] (effort: M) Extract the repeated Create-flow Playwright setup shared across
   `app-shell`, `rotation-create`, and `welcome-visual` specs.
 - [ ] (effort: S) Give distribution cards a stable `data-test-id` so create/rotation
@@ -175,13 +196,6 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: M) Promote the manual multi-PWA-tab signature to an automated spec
   (two browser contexts + igloo-shell initiator) once the manual flow is stable —
   Test harness · see the `pwa-multisig-demo` scaffolding.
-- [ ] (effort: M) **Add a browser-*reload* `@live` sign test (validate the generation
-  self-heal).** The onboard-handoff fix (preserve the nonce pool into the signer) and the
-  bifrost-rs per-pool-generation self-heal both landed 2026-06-11; the onboard sign path is
-  now hard-asserted by `sign-shell.spec.ts`. The generation resync (for a genuine reset —
-  a browser reload that drops the in-memory pool) is unit-tested in bifrost-signer but not
-  yet exercised end-to-end. Add an `@live` spec that signs, reloads the PWA tab (fresh
-  generation), and signs again to prove the peer discards stale nonces and re-syncs — Test harness.
 - [ ] (effort: S) **Optional race-safety: enrich the sign-miss response.** Today a stale-nonce
   sign converges once the resetting peer's next ping conveys its new generation. For the
   narrow window where an initiator signs *before* receiving that ping, have the responder

@@ -26,7 +26,7 @@ The current living design for this workflow is:
 
 - `docs/ROTATION.md`
 - `docs/PROFILE.md`
-- `docs/BACKUP.md`
+- `docs/RECOVERY.md`
 - `docs/ONBOARD.md`
 
 ## Decision

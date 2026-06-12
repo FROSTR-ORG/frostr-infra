@@ -16,7 +16,7 @@ Current architecture details live in:
 
 - `docs/ARCHITECTURE.md`
 - `docs/PROFILE.md`
-- `docs/BACKUP.md`
+- `docs/RECOVERY.md`
 
 ## Decision
 

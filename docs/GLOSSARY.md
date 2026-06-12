@@ -4,7 +4,7 @@
 
 This document defines the common vocabulary used across the shared FROSTR specs.
 
-Use it to resolve terminology quickly before diving into the deeper architecture, protocol, profile, backup, onboarding, and rotation docs.
+Use it to resolve terminology quickly before diving into the deeper architecture, protocol, profile, recovery, onboarding, and rotation docs.
 
 ## Terms
 
@@ -17,12 +17,6 @@ encryption (host-local profile state and the portable `bfprofile` / `bfshare` /
 The `bifrost-profile` and `frostr-utils` copies are kept in lockstep.
 
 See [CRYPTOGRAPHY.md](./CRYPTOGRAPHY.md#envelope-encryption-v2).
-
-### backup
-
-The durable encrypted profile material published to relays for later recovery.
-
-See [BACKUP.md](./BACKUP.md).
 
 ### `bfprofile`
 
@@ -66,7 +60,7 @@ The threshold-signing scheme underlying FROSTR.
 
 ### FROSTR
 
-The full system built around FROST threshold signing, device profiles, relay transport, onboarding, backup, and rotation.
+The full system built around FROST threshold signing, device profiles, relay transport, onboarding, recovery, and rotation.
 
 ### `group_id`
 
@@ -76,7 +70,7 @@ It may change when membership or threshold changes, even if the group public key
 
 ### group package / `group_package`
 
-The structured group configuration data carried in profile and backup payloads.
+The structured group configuration data carried in profile payloads.
 
 It includes `groupName`, the group public key, threshold, and member pubkeys and must be preserved losslessly.
 
@@ -84,7 +78,7 @@ It includes `groupName`, the group public key, threshold, and member pubkeys and
 
 The canonical human-readable name carried inside `group_package`.
 
-It helps operators recognize which shares, profiles, and backups belong to the same group.
+It helps operators recognize which shares and profiles belong to the same group.
 It is durable metadata, not cryptographic identity, and not the same thing as a mutable local device label.
 
 ### group public key / `group_pk`

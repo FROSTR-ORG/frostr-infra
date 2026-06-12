@@ -9,7 +9,7 @@ Current behavior and wire/storage details live in the core docs:
 
 - [ARCHITECTURE.md](../../docs/ARCHITECTURE.md)
 - [PROTOCOL.md](../../docs/PROTOCOL.md)
-- [BACKUP.md](../../docs/BACKUP.md)
+- [RECOVERY.md](../../docs/RECOVERY.md)
 - [ROTATION.md](../../docs/ROTATION.md)
 
 | ADR | Status | Topic | Current source of truth |
@@ -21,8 +21,8 @@ Current behavior and wire/storage details live in the core docs:
 | [ADR-005](./ADR-005-shell-daemon-over-bifrost-app.md) | Accepted | Shell daemon over `bifrost-app` | [ARCHITECTURE.md](../../docs/ARCHITECTURE.md) |
 | [ADR-006](./ADR-006-bridge-transport-boundaries.md) | Accepted | Bridge transport boundaries | [ARCHITECTURE.md](../../docs/ARCHITECTURE.md) |
 | [ADR-007](./ADR-007-shell-profile-and-vault-ownership.md) | Accepted | Shell profile and vault ownership | [ARCHITECTURE.md](../../docs/ARCHITECTURE.md) |
-| [ADR-008](./ADR-008-browser-package-and-backup-formats.md) | Accepted | Browser package and backup formats | [BACKUP.md](../../docs/BACKUP.md) |
-| [ADR-009](./ADR-009-peer-permission-model.md) | Accepted | Peer permission model | [PROTOCOL.md](../../docs/PROTOCOL.md), [BACKUP.md](../../docs/BACKUP.md) |
-| [ADR-010](./ADR-010-profile-id-derived-from-share-pubkey.md) | Accepted | Profile id derivation | [BACKUP.md](../../docs/BACKUP.md) |
+| [ADR-008](./ADR-008-browser-package-and-backup-formats.md) | Accepted | Browser package and backup formats | [RECOVERY.md](../../docs/RECOVERY.md) |
+| [ADR-009](./ADR-009-peer-permission-model.md) | Accepted | Peer permission model | [PROTOCOL.md](../../docs/PROTOCOL.md), [RECOVERY.md](../../docs/RECOVERY.md) |
+| [ADR-010](./ADR-010-profile-id-derived-from-share-pubkey.md) | Accepted | Profile id derivation | [RECOVERY.md](../../docs/RECOVERY.md) |
 | [ADR-011](./ADR-011-rotation-preserves-group-public-key.md) | Accepted | Rotation preserves group public key | [ARCHITECTURE.md](../../docs/ARCHITECTURE.md), [ROTATION.md](../../docs/ROTATION.md) |
-| [ADR-012](./ADR-012-trusted-dealer-rotation-and-device-adoption.md) | Accepted | Trusted-dealer rotation and device adoption | [ROTATION.md](../../docs/ROTATION.md), [PROFILE.md](../../docs/PROFILE.md), [BACKUP.md](../../docs/BACKUP.md), [ONBOARD.md](../../docs/ONBOARD.md) |
+| [ADR-012](./ADR-012-trusted-dealer-rotation-and-device-adoption.md) | Accepted | Trusted-dealer rotation and device adoption | [ROTATION.md](../../docs/ROTATION.md), [PROFILE.md](../../docs/PROFILE.md), [RECOVERY.md](../../docs/RECOVERY.md), [ONBOARD.md](../../docs/ONBOARD.md) |
