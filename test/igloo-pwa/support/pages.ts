@@ -331,7 +331,85 @@ export class DashboardPage extends BasePage {
     await expect(result).toBeVisible({ timeout: 30_000 });
     return (await result.textContent()) ?? '';
   }
+
+  // --- Permissions tab: peer policy editor -------------------------------
+  // Each peer row exposes one toggle per direction × method (and per peer when
+  // multiple peers are present). The pubkey filter is optional — omit it when
+  // there is exactly one peer and the (direction, method) pair is unambiguous.
+  peerPolicyToggle(opts: PeerPolicySelector): Locator {
+    const parts = [
+      `[data-testid="${TID.permissionToggle}"]`,
+      `[data-direction="${opts.direction}"]`,
+      `[data-method="${opts.method}"]`,
+    ];
+    if (opts.pubkey) parts.push(`[data-peer-pubkey="${opts.pubkey}"]`);
+    return this.page.locator(parts.join(''));
+  }
+  async expectPeerPolicyVisible(opts: PeerPolicySelector, timeout = 45_000): Promise<void> {
+    await expect(this.peerPolicyToggle(opts)).toBeVisible({ timeout });
+  }
+  async togglePeerPolicy(opts: PeerPolicySelector): Promise<void> {
+    await this.peerPolicyToggle(opts).click();
+  }
+  // Asserts the toggle's live EFFECTIVE value (data-allowed mirrors the negotiated
+  // policy capability).
+  async expectPeerPolicyAllowed(opts: PeerPolicySelector, allowed: boolean): Promise<void> {
+    await expect(this.peerPolicyToggle(opts)).toHaveAttribute('data-allowed', allowed ? 'true' : 'false');
+  }
+  // Asserts the operator's MANUAL override (data-override) — the directly-edited,
+  // persisted tri-state. This is what a toggle click mutates and what survives a
+  // reload, independent of the negotiated effective capability.
+  async expectPeerPolicyOverride(opts: PeerPolicySelector, value: PeerPolicyOverrideValue): Promise<void> {
+    await expect(this.peerPolicyToggle(opts)).toHaveAttribute('data-override', value);
+  }
+
+  // --- Settings tab: Device Profile form ---------------------------------
+  get settingsSaveButton(): Locator {
+    return this.tid(TID.settingsSave);
+  }
+  async setSignerName(value: string): Promise<void> {
+    await this.tid(TID.settingsSignerName).fill(value);
+  }
+  async expectSignerName(value: string): Promise<void> {
+    await expect(this.tid(TID.settingsSignerName)).toHaveValue(value);
+  }
+  async addSettingsRelay(url: string): Promise<void> {
+    await this.tid(TID.settingsRelayAddInput).fill(url);
+    await this.tid(TID.settingsRelayAddSubmit).click();
+  }
+  settingsRelayRow(url: string): Locator {
+    return this.page.locator(`[data-testid="${TID.settingsRelayRow}"][data-relay-url="${url}"]`);
+  }
+  async expectSettingsRelay(url: string): Promise<void> {
+    await expect(this.settingsRelayRow(url)).toBeVisible();
+  }
+  settingsNumberField(field: SignerNumberField): Locator {
+    return this.page.locator(`[data-testid="${TID.settingsNumberField}"][data-field="${field}"]`);
+  }
+  async setNumberSetting(field: SignerNumberField, value: number): Promise<void> {
+    await this.settingsNumberField(field).fill(String(value));
+  }
+  async expectNumberSetting(field: SignerNumberField, value: number): Promise<void> {
+    await expect(this.settingsNumberField(field)).toHaveValue(String(value));
+  }
+  async saveSettings(): Promise<void> {
+    await this.settingsSaveButton.click();
+  }
 }
+
+export type PeerPolicyDirection = 'request' | 'respond';
+export type PeerPolicyMethod = 'ping' | 'onboard' | 'sign' | 'ecdh';
+export type PeerPolicyOverrideValue = 'allow' | 'deny' | 'unset';
+export interface PeerPolicySelector {
+  pubkey?: string;
+  direction: PeerPolicyDirection;
+  method: PeerPolicyMethod;
+}
+export type SignerNumberField =
+  | 'sign_timeout_secs'
+  | 'ping_timeout_secs'
+  | 'request_ttl_secs'
+  | 'state_save_interval_secs';
 
 export interface PwaPages {
   welcome: WelcomePage;
