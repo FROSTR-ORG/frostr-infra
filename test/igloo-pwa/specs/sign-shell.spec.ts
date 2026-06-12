@@ -4,14 +4,13 @@ import { schnorr } from '@noble/curves/secp256k1.js';
 import {
   DEFAULT_BROWSER_PASSWORD,
   createGeneratedBrowserArtifacts,
-  createPwaStoredProfileSeed,
+  createOnboardingPackage,
 } from '../../shared/browser-artifacts';
 import { startLocalRelay } from '../../shared/local-relay';
 import { LIVE_TEST_TIMEOUT_MS } from '../../shared/playwright-config';
 import { runTestPrebuild } from '../../shared/test-prebuild';
-import { buildPwaPersistedState } from '../support/state';
 import { startShellSigner, type ShellSigner } from '../support/shell-signer';
-import { expectPwaDashboard, expectPwaSignerSignReady, loadStoredPwaProfile, seedPwaState } from '../support/ui';
+import { expectPwaDashboard, expectPwaSignerSignReady, onboardPwaDevice } from '../support/ui';
 
 function hexToBytes(hex: string): Uint8Array {
   const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
@@ -22,17 +21,14 @@ function hexToBytes(hex: string): Uint8Array {
   return bytes;
 }
 
-// @live — a genuine end-to-end threshold SIGNATURE across two runtimes. A browser
-// PWA signer (share #2, loaded from a stored profile) and a headless native
-// igloo-shell signer (share #1) discover each other over a relay and hydrate their
-// nonce pools; the shell — the PWA is responder-only and can't self-initiate —
-// INITIATES the sign, the PWA contributes its partial, and we schnorr-verify the
-// returned aggregate against the group key. Proof the browser signer really signs.
-//
-// The PWA loads its share from a seeded stored profile rather than onboarding,
-// because the onboard → save → relaunch flow currently resets the nonce pool so the
-// re-launched signer can't serve a partial (tracked separately in dev/BACKLOG.md).
-// Onboarding itself is covered behaviorally by onboarding.spec.ts.
+// @live — a genuine end-to-end threshold SIGNATURE across two runtimes, exercising
+// the full ONBOARD path. A headless native igloo-shell signer (share #1) invites a
+// browser PWA, which onboards (share #2) over a relay; the handshake exchanges nonce
+// pools and the onboard handoff restores them into the launched signer (so the pool
+// is preserved, not re-bootstrapped). The shell — the PWA is responder-only and
+// can't self-initiate — then INITIATES the sign, the PWA contributes its partial,
+// and we schnorr-verify the returned aggregate against the group key. Proof the
+// browser signer really signs immediately after onboarding (no re-sync needed).
 //
 // CI: tagged @live so release-validation (make test-live) runs it; igloo-shell is
 // prebuilt in test-prep. The multi-PWA-tab variant is a documented manual demo
@@ -58,8 +54,8 @@ test.describe('igloo-pwa + igloo-shell threshold signature @live', () => {
       const shellShare = generated.shares[0];
       const pwaShare = generated.shares[1];
 
-      // igloo-shell: import the initiator share and start its daemon (connected to
-      // the relay) so it can exchange nonces with the PWA.
+      // igloo-shell: import the inviter/initiator share and start its daemon so it can
+      // serve the onboard handshake and later initiate the sign.
       shell = await startShellSigner({
         bfprofile: shellShare.bfprofile,
         packageSecret: DEFAULT_BROWSER_PASSWORD,
@@ -68,14 +64,21 @@ test.describe('igloo-pwa + igloo-shell threshold signature @live', () => {
       });
       await shell.waitConnected();
 
-      // PWA: load share #2 from a seeded stored profile and bring up its signer.
-      const pwaSeed = createPwaStoredProfileSeed({
-        artifact: pwaShare,
-        groupPackageJson: generated.groupPackageJson,
-        label: 'PWA Signing Device',
+      // PWA: onboard share #2 against the running shell inviter. The handshake
+      // exchanges nonce pools; the onboard handoff restore preserves them into the
+      // launched signer so it can co-sign immediately.
+      const onboardPackage = await createOnboardingPackage({
+        shareSecret: pwaShare.shareSecret,
+        relays: [relay.url],
+        peerPubkey: shellShare.sharePublicKey,
+        password: 'shell-sign-onboard-pass',
       });
-      await seedPwaState(page, buildPwaPersistedState({ profiles: [pwaSeed] }));
-      await loadStoredPwaProfile(page, 'PWA Signing Device');
+      await onboardPwaDevice(page, {
+        onboardPackage,
+        packagePassword: 'shell-sign-onboard-pass',
+        label: 'PWA Signing Device',
+        localPassword: DEFAULT_BROWSER_PASSWORD,
+      });
       await expectPwaDashboard(page, 'PWA Signing Device');
 
       // Both sides must reach a mutual can-sign state (nonce pools hydrated) before

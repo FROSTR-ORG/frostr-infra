@@ -159,20 +159,18 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: M) Promote the manual multi-PWA-tab signature to an automated spec
   (two browser contexts + igloo-shell initiator) once the manual flow is stable —
   Test harness · see the `pwa-multisig-demo` scaffolding.
-- [ ] (effort: M) **An onboarded igloo-pwa device can't sign until something resets
-  its nonce state.** The core threshold sign now works end to end and is hard-asserted
-  in `sign-shell.spec.ts` — but only when the PWA loads its share from a *seeded*
-  stored profile. When the PWA instead **onboards** (handshake → save → relaunch), the
-  relaunched signer can't serve a partial: it accepts the inbound sign request then
-  fails `SignerError::NonceUnavailable` (`bifrost-signer/src/error.rs:21`; sign-request
-  path `lib.rs:2043/2071` `take_outgoing_signing_nonces_many`). PWA debug logs show the
-  first ping completes, then subsequent requests fail — the onboard→relaunch resets the
-  PWA's nonce pool while the shell still references the pre-relaunch nonces, and the
-  replenish/sync (`advertised_nonces_for_peer` `lib.rs:2491`, which skips generating when
-  the peer *believes* the PWA still holds nonces, `:2498`) doesn't recover. Fix the
-  onboard→relaunch nonce-pool continuity (persist/restore the pool across the relaunch,
-  or force a nonce re-sync on relaunch) — bifrost-rs + igloo-shared. Then add an `@live`
-  spec that signs via the *onboard* path (not just the seeded path).
+- [ ] (effort: M) **Add a browser-*reload* `@live` sign test (validate the generation
+  self-heal).** The onboard-handoff fix (preserve the nonce pool into the signer) and the
+  bifrost-rs per-pool-generation self-heal both landed 2026-06-11; the onboard sign path is
+  now hard-asserted by `sign-shell.spec.ts`. The generation resync (for a genuine reset —
+  a browser reload that drops the in-memory pool) is unit-tested in bifrost-signer but not
+  yet exercised end-to-end. Add an `@live` spec that signs, reloads the PWA tab (fresh
+  generation), and signs again to prove the peer discards stale nonces and re-syncs — Test harness.
+- [ ] (effort: S) **Optional race-safety: enrich the sign-miss response.** Today a stale-nonce
+  sign converges once the resetting peer's next ping conveys its new generation. For the
+  narrow window where an initiator signs *before* receiving that ping, have the responder
+  return its current generation + fresh nonces on a `NonceUnavailable` miss so the initiator
+  prunes-and-retries immediately instead of waiting for the ping — bifrost-rs.
 
 ## Open questions
 
