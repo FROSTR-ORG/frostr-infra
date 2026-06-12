@@ -32,16 +32,22 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## bifrost-rs / igloo-shared runtime
 
-- [ ] (effort: M) **Remove the Rust/WASM remnants of the relay profile-backup feature**
-  (Phase 6 follow-up to the 2026-06-12 hard-cut). The TS layer no longer references
-  them, but the dead code still ships: `frostr-utils` `profile_packages.rs` backup
-  functions + the `PROFILE_BACKUP_EVENT_KIND` (10000) / `PROFILE_BACKUP_KEY_DOMAIN`
-  (`frostr-profile-backup/v1`) constants; the `bifrost-profile` `flows/backup.rs` +
-  `flows/recovery.rs` flows; the `bifrost-profile-wasm` + `bifrost-bridge-wasm`
-  backup bindings; their Rust tests; and the now-unused `profile_backup_*` props in
-  the igloo-shared/chrome WASM mock shims. Removing them eliminates the lingering
-  `failed to publish encrypted profile backup` warning from `igloo-shell`/native
-  hosts. Requires `make browser-wasm-refresh` and committing the re-vendored blobs — bifrost-rs.
+- [ ] (effort: L) **Remove the relay profile-backup feature from the native hosts**
+  (the remaining, larger half of Phase 6; the dead *browser* WASM bindings were removed
+  2026-06-12). The relay backup-publish + relay recovery are still **live** in
+  `igloo-shell` (`igloo-shell-cli` imports/rotation/profile commands + `igloo-shell-core`
+  `shell/rotation.rs` call `publish_profile_backup` / `recover_profile_from_bfshare_value`
+  / `preview_bfshare_recovery`) and `igloo-home` (a `publish_profile_backup_command` Tauri
+  command + `preview_bfshare_recovery` / `recover_profile_from_bfshare_value` in
+  `src-tauri/src/{profiles,session,commands}.rs`, the `ProfileBackupPublishResult` model,
+  and the frontend type). Removing it means **reworking those hosts' import/rotation/
+  recovery flows** (drop relay-assisted recovery + backup-publish, like the browser
+  rework) and only then deleting `bifrost-profile` `flows/backup.rs`+`recovery.rs` (and the
+  `native-relay` feature / `tokio-tungstenite` dep), the `frostr-utils` `profile_packages.rs`
+  backup fns + `PROFILE_BACKUP_EVENT_KIND` (10000) / `PROFILE_BACKUP_KEY_DOMAIN`
+  (`frostr-profile-backup/v1`) constants, and their Rust tests/KAT vectors. This is the
+  change that finally silences the `failed to publish encrypted profile backup` warning —
+  bifrost-rs + igloo-shell + igloo-home. Behavior-changing; scope as its own pass.
 - [ ] (effort: L) **Peer telemetry**: per-peer latency, "Avg" latency, nonce
   sparkline, and per-method SIGN/ECDH/PING capability badges — requires
   bifrost-rs + igloo-shared instrumentation; the trigger to promote the
