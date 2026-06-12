@@ -153,10 +153,8 @@ FROSTR has three major portable artifact classes:
 
 These artifacts are intentionally distinct:
 - `bfprofile` moves complete durable device state
-- `bfshare` enables recovery and operator rotation input
+- `bfshare` supplies threshold input for operator rotation and key recovery
 - `bfonboard` enables onboarding and rotated-share adoption
-
-Encrypted relay backups complement those artifacts by publishing durable backup state derived from a device profile.
 
 ## Host And Runtime Architecture
 
@@ -289,18 +287,21 @@ Onboarding has two layers:
 Successful onboarding should leave the recipient with:
 - a local durable profile
 - a local `bfshare`
-- an encrypted relay backup
 - initialized runtime state
 
-## Backup And Recovery Architecture
+## Key Recovery Architecture
 
-Recovery reconstructs a device profile from:
-- one `bfshare`
-- the latest encrypted profile backup event addressed by the share-derived backup author identity
+Key recovery reconstructs the group secret key (`nsec`) locally from a threshold
+of shares:
+- the recovering device's own share (unlocked with its passphrase)
+- additional shares pasted as `bfshare` packages
+- the local profile's group package, which supplies member indices
 
-The recovered result is durable device state, not runtime state.
+The recovered key is held in memory for display/export only and is never
+persisted. There is no relay-assisted recovery.
 
-`bfprofile` is the full portable export/import artifact for that same durable profile state.
+`bfprofile` is the full portable export/import artifact and the only
+self-contained device-restore path.
 
 ## Rotation Architecture
 

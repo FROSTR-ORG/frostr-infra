@@ -90,7 +90,6 @@ Successful rotation produces:
 - one rotated share public key per target device
 - one rotated durable profile state bundle per target device
 - one `bfonboard` package per target device
-- one encrypted relay backup per rotated device
 
 The rotated group public key is the same as the old one.
 
@@ -190,7 +189,6 @@ Result:
 - rotated `profile_id`
 - local `bfprofile`
 - local `bfshare`
-- rotated encrypted relay backup
 
 ### Logged-In In-Place Rotation With `bfonboard`
 

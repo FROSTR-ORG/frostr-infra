@@ -60,10 +60,6 @@ The runtime-derived policy result after combining local manual overrides and rem
 
 It is not the same thing as the durable policy inputs stored in a profile.
 
-### encrypted profile backup
-
-The encrypted relay-published durable backup used together with `bfshare` to recover a full device profile.
-
 ### FROST
 
 The threshold-signing scheme underlying FROSTR.
@@ -167,11 +163,11 @@ It is derived from the share public key, but it is not the peer-routing identity
 
 ### recovery
 
-The process of reconstructing a full device profile from `bfshare` plus an encrypted relay backup.
+The process of reconstructing the group secret key (`nsec`) from a threshold of shares — the recovering device's own share plus pasted `bfshare` packages — using the local profile's group package. It is fully local; there is no relay-assisted recovery.
 
 ### relay
 
-The transport infrastructure used for encrypted peer traffic and encrypted backup events.
+The transport infrastructure used for encrypted peer traffic.
 
 Relays transport and store events, but do not interpret FROSTR protocol content.
 

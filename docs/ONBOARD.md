@@ -26,7 +26,7 @@ Onboarding is the process of bringing a new device into an existing FROSTR keyse
 
 It is not the same as:
 - importing an existing full device profile with `bfprofile`
-- recovering an existing device from relays with `bfshare`
+- recovering the group secret key from a threshold of shares
 
 Onboarding is the bootstrap path for a new local device that has not yet materialized its full durable local profile.
 
@@ -157,8 +157,7 @@ After the handshake succeeds, the recipient device:
 1. constructs the full durable local device profile
 2. materializes a local `bfprofile`
 3. materializes a local `bfshare`
-4. publishes an encrypted profile backup
-5. initializes local signer/runtime state
+4. initializes local signer/runtime state
 
 At this point, onboarding is complete and the device is no longer dependent on the original `bfonboard` package.
 
@@ -166,8 +165,7 @@ At this point, onboarding is complete and the device is no longer dependent on t
 
 Successful onboarding should leave the recipient with:
 - a full local device profile equivalent to `bfprofile`
-- a local recovery credential equivalent to `bfshare`
-- a published encrypted profile backup on relays
+- a local share credential equivalent to `bfshare`
 - initialized signer/runtime state ready for normal operations
 
 That means onboarding is a bootstrap path into the same durable device state that later import/export and recovery flows operate on.
@@ -181,13 +179,13 @@ That means onboarding is a bootstrap path into the same durable device state tha
   - full local device profile package
   - used for full import/export after the device exists
 - `bfshare`
-  - compact recovery credential
-  - used to recover a previously onboarded/imported device from relays
+  - compact share credential
+  - used as threshold input to rotation and to key recovery
 
 In short:
 - onboarding starts from `bfonboard`
-- full import starts from `bfprofile`
-- recovery starts from `bfshare`
+- full device import starts from `bfprofile`
+- key recovery uses a threshold of `bfshare` inputs
 
 ## Security And Persistence Properties
 
@@ -200,7 +198,6 @@ Important onboarding properties:
 The long-term durable artifacts are:
 - local `bfprofile`
 - local `bfshare`
-- encrypted relay backup
 
 ## Failure Model
 

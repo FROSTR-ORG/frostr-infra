@@ -3,7 +3,6 @@ import { expect, test } from '@playwright/test';
 import {
   createGeneratedBrowserArtifacts,
   createPwaStoredProfileSeed,
-  publishBackupForProfile,
 } from '../../shared/browser-artifacts';
 import { startLocalRelay } from '../../shared/local-relay';
 import { LIVE_TEST_TIMEOUT_MS } from '../../shared/playwright-config';
@@ -37,8 +36,6 @@ test.describe('igloo-pwa rotation operator flow @live', () => {
         groupPackageJson: source.groupPackageJson,
         label: 'Source Device 1',
       });
-      await publishBackupForProfile(source.shares[0].profilePayload);
-      await publishBackupForProfile(source.shares[1].profilePayload);
 
       await seedPwaState(page, buildPwaPersistedState({ profiles: [sourceSeed] }));
       const p = pages(page);

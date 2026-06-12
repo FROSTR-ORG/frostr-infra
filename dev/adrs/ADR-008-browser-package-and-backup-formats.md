@@ -2,11 +2,18 @@
 
 ## Status
 
-Accepted
+Accepted (partially superseded 2026-06-12)
+
+> **Superseded:** the relay-published *encrypted profile backup* (`kind: 10000`)
+> and the `bfshare`-plus-relay recovery path described below have been removed.
+> Recovery is now the local reconstruction of the group secret key from a
+> threshold of shares; `bfshare` is a threshold input only. See `docs/BACKUP.md`
+> for current behavior. The package formats (`bfprofile`, `bfshare`, `bfonboard`)
+> are unchanged.
 
 ## Current Source of Truth
 
-Current package, backup, and `profileId` format details live in `docs/BACKUP.md`.
+Current package and `profileId` format details live in `docs/BACKUP.md`.
 
 ## Context
 

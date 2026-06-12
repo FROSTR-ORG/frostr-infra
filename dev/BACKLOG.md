@@ -32,6 +32,16 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## bifrost-rs / igloo-shared runtime
 
+- [ ] (effort: M) **Remove the Rust/WASM remnants of the relay profile-backup feature**
+  (Phase 6 follow-up to the 2026-06-12 hard-cut). The TS layer no longer references
+  them, but the dead code still ships: `frostr-utils` `profile_packages.rs` backup
+  functions + the `PROFILE_BACKUP_EVENT_KIND` (10000) / `PROFILE_BACKUP_KEY_DOMAIN`
+  (`frostr-profile-backup/v1`) constants; the `bifrost-profile` `flows/backup.rs` +
+  `flows/recovery.rs` flows; the `bifrost-profile-wasm` + `bifrost-bridge-wasm`
+  backup bindings; their Rust tests; and the now-unused `profile_backup_*` props in
+  the igloo-shared/chrome WASM mock shims. Removing them eliminates the lingering
+  `failed to publish encrypted profile backup` warning from `igloo-shell`/native
+  hosts. Requires `make browser-wasm-refresh` and committing the re-vendored blobs — bifrost-rs.
 - [ ] (effort: L) **Peer telemetry**: per-peer latency, "Avg" latency, nonce
   sparkline, and per-method SIGN/ECDH/PING capability badges — requires
   bifrost-rs + igloo-shared instrumentation; the trigger to promote the

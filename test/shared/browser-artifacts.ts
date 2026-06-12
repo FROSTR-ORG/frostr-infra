@@ -7,7 +7,6 @@ import {
   setInjectedWasmProfileModuleForTests,
 } from '../../repos/igloo-shared/src/bridge-wasm-runtime';
 import {
-  createEncryptedProfileBackup,
   createProfilePackagePair,
   deriveProfileIdFromShareSecret,
   encodeBfOnboardPackage,
@@ -16,7 +15,6 @@ import {
   type BrowserGroupPackageMember,
   type BrowserProfilePackagePayload,
 } from '../../repos/igloo-shared/src/profile-package';
-import { publishEncryptedProfileBackup } from '../../repos/igloo-shared/src/profile-backup-host';
 
 export const DEFAULT_BROWSER_PASSWORD = 'playwright-passphrase';
 
@@ -354,17 +352,6 @@ export async function createOnboardingPackage(input: {
     } satisfies BrowserOnboardPackagePayload,
     input.password ?? DEFAULT_BROWSER_PASSWORD,
   );
-}
-
-export async function publishBackupForProfile(profile: BrowserProfilePackagePayload) {
-  await ensureInjectedWasmModule();
-  const backup = await createEncryptedProfileBackup(profile);
-  await publishEncryptedProfileBackup({
-    relays: profile.device.relays,
-    shareSecret: profile.device.shareSecret,
-    backup,
-  });
-  return backup;
 }
 
 export function createPwaStoredProfileSeed(input: {

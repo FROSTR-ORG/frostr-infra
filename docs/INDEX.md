@@ -63,7 +63,7 @@ release guidance lives under `dev/`:
 - [PROFILE.md](./PROFILE.md)
   - durable device-profile model
 - [BACKUP.md](./BACKUP.md)
-  - `bfprofile`, `bfshare`, and encrypted relay backups
+  - `bfprofile`, `bfshare`, and threshold key recovery
 - [ONBOARD.md](./ONBOARD.md)
   - onboarding model and `bfonboard`
 - [ROTATION.md](./ROTATION.md)

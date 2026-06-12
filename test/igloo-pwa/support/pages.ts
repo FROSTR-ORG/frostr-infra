@@ -235,6 +235,39 @@ export class ImportPage extends BasePage {
   }
 }
 
+export class RecoverPage extends BasePage {
+  // Collect-shares step. The local device contributes its own share, unlocked with
+  // its passphrase, toward the threshold.
+  async fillDevicePassphrase(passphrase: string): Promise<void> {
+    await this.tid(TID.recoverDevicePassphrase).fill(passphrase);
+  }
+  // Source rows are dynamic; located by placeholder/label within the panel (raw
+  // locators are allowed inside support, not in specs).
+  async fillSource(index: number, opts: { packageText: string; password: string }): Promise<void> {
+    await this.page
+      .getByPlaceholder('Paste a bfshare from another device...')
+      .nth(index)
+      .fill(opts.packageText);
+    await this.page.getByLabel('Package Password').nth(index).fill(opts.password);
+  }
+  async addSource(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Add Source' }).click();
+  }
+  async next(): Promise<void> {
+    await this.tid(TID.recoverNext).click();
+  }
+  // Recover-key success step. The reconstructed nsec is masked until revealed.
+  async expectRecovered(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Recover Private Key' })).toBeVisible({ timeout: 30_000 });
+  }
+  async revealKey(): Promise<void> {
+    await this.tid(TID.recoverRevealKey).click();
+  }
+  async readRecoveredKey(): Promise<string> {
+    return ((await this.tid(TID.recoverKeyValue).textContent()) ?? '').trim();
+  }
+}
+
 export class DashboardPage extends BasePage {
   async expectDashboard(profileLabel?: string): Promise<void> {
     await expect(this.tid(TID.dashboardRoot)).toBeVisible();
@@ -417,6 +450,7 @@ export interface PwaPages {
   distribute: DistributePage;
   onboard: OnboardPage;
   import: ImportPage;
+  recover: RecoverPage;
   dashboard: DashboardPage;
 }
 
@@ -427,6 +461,7 @@ export function pages(page: Page): PwaPages {
     distribute: new DistributePage(page),
     onboard: new OnboardPage(page),
     import: new ImportPage(page),
+    recover: new RecoverPage(page),
     dashboard: new DashboardPage(page),
   };
 }

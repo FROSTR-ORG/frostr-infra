@@ -25,7 +25,7 @@ For each boundary, it answers:
 | host ↔ runtime | host | signer/runtime | durable profile state plus runtime read models | [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | device ↔ device | initiator device | responder devices | request/response operation rounds | [PROTOCOL.md](./PROTOCOL.md) |
 | device ↔ relay | device | relays and subscribing devices | Nostr event + encrypted content | [WIRE.md](./WIRE.md) |
-| profile backup | host backup path | recovery path | encrypted backup event | [BACKUP.md](./BACKUP.md) |
+| key recovery | local recovery flow | recovered `nsec` (in-memory) | threshold of share secrets + local group package | [BACKUP.md](./BACKUP.md) |
 | rotation | operator flow | new or existing device host | threshold `bfshare` input + `bfonboard` adoption | [ROTATION.md](./ROTATION.md) |
 
 ## Identity Interfaces
@@ -255,23 +255,24 @@ Invariants:
 Primary doc:
 - [PROFILE.md](./PROFILE.md)
 
-### Encrypted Relay Backup
+### Key Recovery
 
 Purpose:
-- durable relay-published backup used with `bfshare` recovery
+- reconstruct the group secret key (`nsec`) from a threshold of shares, locally
 
 Producer:
-- host backup publication path
+- local recovery flow on the recovering device
 
 Consumer:
-- host recovery path
+- in-memory display/export only (never persisted)
 
-Canonical artifact:
-- latest encrypted `kind: 10000` event by author pubkey derived from the share secret
+Canonical inputs:
+- the local profile's group package (member indices + group public key)
+- a threshold of share secrets: the device's own share plus pasted `bfshare`s
 
 Invariants:
-- excludes the share secret
-- includes structured `groupPackage`, including `groupName`
+- fully local — no relay involvement
+- a share secret is accepted only if its public key is a group member
 - group data must remain lossless
 
 Failure conditions:
@@ -383,7 +384,7 @@ Primary doc:
 ## Relay And Wire Interface
 
 Purpose:
-- transport encrypted peer traffic and encrypted backups over relays
+- transport encrypted peer traffic over relays
 
 Producer:
 - devices and hosts that publish relay events
