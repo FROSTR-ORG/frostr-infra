@@ -9,6 +9,39 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
+## 2026-06-13 — Phase 3: security / hardening
+
+Landed **Phase 3** of the MED+ backlog program. **Socket-path fallback:**
+refactored `bifrost-app::native_runtime` to extract pure, env-parameterized cores
+(`select_secure_runtime_dir` → `SecureRuntimeDir` enum, `relocate_over_budget`,
+`socket_file_name`) from the impure `secure_runtime_dir`/`shorten_unix_socket_path`,
+then added 13 deterministic tests covering pass-through, per-profile determinism,
+no-secure-dir/unusable-dir fall-through, the XDG → /run/user → HOME precedence, and
+an explicit never-`/tmp` assertion (bifrost-rs `3d8ea23`). **igloo-home clippy
+backlog:** default `clippy --all-targets` is now warning-free (~22 → 0) — auto-fixes
+plus `path_scope` `slice::from_ref` and reading the previously-dead
+`OutsideAllowedRoots::roots` into the Display; the dead-code decision gates
+`test_api`/`test_dispatch`/`EVENT_APP_TEST_NAVIGATE` behind
+`#[cfg(feature = "test-server")]` (matching the gated `test_mode` that consumes
+them) and `#[allow(dead_code)]`s the three contract-only `HomeError` variants
+(stable IPC union, exercised by tests); clean with and without the feature
+(`747f282`). **Recover-key in-transit exposure:** home returns the plaintext nsec
+(crosses the Tauri IPC/webview boundary), unlike igloo-shell's `0o600` file write —
+documented via a threat-model note on `recover_group_key_from_shares` and a
+persistent in-UI "handle with care" banner; a save-to-file affordance is a logged
+follow-up (`c248d99`). **Default peer permissions:** documented the settled
+permissive product call — a rationale comment on the canonical
+`MethodPolicy::default()` (bifrost-rs `32c620a`), a "Default Peer Permissions" note
+in `docs/PROTOCOL.md`, pointer comments at the pwa (`7d9bfe2`) and chrome
+(`ba8c6e9`) mirror sites, and a clarification that chrome's all-false
+`DEFAULT_METHOD_POLICY` is a fail-closed normalization fallback rather than the
+product default. **Chrome multi-context hardening:** reviewed the background
+service-worker recovery path and found it well-guarded (two-layer single-flight;
+both status and session reads await the in-flight bootstrap instead of reporting a
+stale `cold`/`not active`) — locked the two load-bearing invariants in regression
+tests rather than change behavior (`016c951`). Landed via parent pointer bump +
+docs. New follow-up in `BACKLOG.md`: optional home save-to-file affordance.
+
 ## 2026-06-13 — Phase 2: nostr-tools single instance + version align
 
 Landed **Phase 2** of the MED+ backlog program. `nostr-tools` carries

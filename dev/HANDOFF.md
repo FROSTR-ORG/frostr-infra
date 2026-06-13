@@ -1,11 +1,11 @@
-# Hand-off: MED+ backlog program — Phases 1–2 done, Phases 3–6 open
+# Hand-off: MED+ backlog program — Phases 1–3 done, Phases 4–6 open
 
 _Last updated: 2026-06-13_
 
 > **Read this first.** Entry point for a new session in the `frostr-infra`
 > workspace. There is an **approved multi-phase plan** in progress:
 > "Remediate audit findings + complete medium-or-higher backlog (hard-cut)".
-> **Phases 1 and 2 are complete and landed.** Pick up at **Phase 3**.
+> **Phases 1, 2, and 3 are complete and landed.** Pick up at **Phase 4**.
 >
 > NOTE: the plan was never written to disk (`plans/enchanted-leaping-papert.md`
 > does not exist — the only git reference is the commit that mentions it). This
@@ -71,11 +71,44 @@ resolution, cross-app `make test-fast` green (pwa 20, chrome 17). Follow-up
 logged: pre-existing high-sev **esbuild** advisory (dev-tooling, not runtime) in
 `BACKLOG.md`.
 
-## ▶ Next: Phases 3–6 (open)
+## ✅ Phase 3 — COMPLETE (security / hardening)
 
-- **Phase 3** — security/hardening: socket-path-fallback unit test; igloo-home
-  nsec file-save parity; chrome multi-context hardening; document permissive
-  default-permissions; fold-in `cargo clippy --fix` on the home backlog.
+All landed submodule-commit-then-parent-pointer-bump:
+- **Socket-path fallback tests** — extracted pure cores from
+  `bifrost-app::native_runtime` (`select_secure_runtime_dir`,
+  `relocate_over_budget`, `socket_file_name`) so the env/FS-dependent policy is
+  deterministically testable; +13 tests incl. an explicit never-`/tmp` assertion.
+  bifrost-rs `3d8ea23`.
+- **igloo-home clippy backlog cleared** — default `clippy --all-targets` now
+  warning-free (~22 → 0): auto-fixes + `path_scope` `from_ref`/read-the-`roots`
+  field; **decision on the dead-code chain** — gate `test_api`/`test_dispatch`/
+  `EVENT_APP_TEST_NAVIGATE` behind `#[cfg(feature = "test-server")]` (matching
+  `test_mode`); `#[allow(dead_code)]` on the 3 contract-only `HomeError` variants
+  (stable IPC union, exercised by tests). Clean with AND without the feature.
+  igloo-home `747f282`.
+- **Recover-key in-transit exposure documented** — home returns the plaintext
+  nsec (crosses IPC/webview), unlike the shell's `0o600` file write; added a
+  threat-model note + a persistent in-UI "handle with care" banner. A save-to-file
+  affordance is a logged follow-up (convenience, not hardening). igloo-home
+  `c248d99`.
+- **Permissive default peer permissions documented** (no behavior change) — the
+  settled product call. Comment on the canonical `MethodPolicy::default()`
+  (bifrost-rs `32c620a`), a new "Default Peer Permissions" note in
+  `docs/PROTOCOL.md`, and pointer comments at the pwa (`7d9bfe2`) + chrome
+  (`ba8c6e9`) mirror sites. Also clarified chrome's all-false `DEFAULT_METHOD_POLICY`
+  is a fail-closed normalization fallback, NOT the product default.
+- **Chrome multi-context hardening — reviewed, found robust** — the background SW
+  recovery path is well-guarded (two-layer single-flight; status/session reads
+  await the in-flight bootstrap rather than report stale `cold`). Locked the two
+  load-bearing invariants in regression tests rather than change behavior.
+  igloo-chrome `016c951`.
+
+Validation: bifrost-app 46 tests; igloo-home clippy clean + tests green both
+feature configs (45+4 / 53+4) + frontend typecheck/unit (24); chrome tsc + unit
+suite green (97). Follow-up: optional home save-to-file affordance (`BACKLOG.md`).
+
+## ▶ Next: Phases 4–6 (open)
+
 - **Phase 4** — recovery/onboarding UX: recover-collect meter gate + **add the
   lost-device path**; auto-include the device share; onboard→signer seam refactor.
 - **Phase 5** — capability/UX gaps + chrome parity: delete-device/Clear-Credentials;

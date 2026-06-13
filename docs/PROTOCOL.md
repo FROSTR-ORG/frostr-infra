@@ -189,6 +189,25 @@ High-level rule:
 - outbound `sign` and `ecdh` require both local allow and remote observed allow
 - `ping` and `onboard` are not suppressed by remote observed policy in the same way
 
+### Default Peer Permissions
+
+The default method policy is **permissive**: every method (`echo`, `ping`,
+`onboard`, `sign`, `ecdh`) is allowed for group members in both directions. This
+is a deliberate, settled product decision, not an oversight.
+
+Rationale:
+- FROSTR's security boundary is the `t`-of-`n` threshold itself. Peers are
+  already vetted threshold participants admitted at onboarding; per-peer method
+  gating is an optional tightening, not the primary control.
+- A restrictive default would block signing and onboarding out of the box and
+  push operators toward disabling protections wholesale to get a working signer.
+
+Operators tighten this posture per peer via **manual peer-permission overrides**
+(see [Peer Selection Rules](#peer-selection-rules) above and the
+`PeerPolicyOverride` surface). The canonical default lives in
+`bifrost-core::types::MethodPolicy::default()`; every host's UI default mirrors
+it.
+
 ## Nonce Pools In The Protocol
 
 Nonce pools are runtime-owned operational state that affect protocol eligibility for signing.

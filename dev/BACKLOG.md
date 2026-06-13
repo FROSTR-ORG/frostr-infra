@@ -32,12 +32,6 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## bifrost-rs / igloo-shared runtime
 
-- [ ] (effort: S) **Unit-test the secure socket-path fallback** in
-  `bifrost-app::native_runtime::shorten_unix_socket_path` — the over-budget
-  relocation and the `~/.igloo-shell/run` HOME fallback (`XDG_RUNTIME_DIR` and
-  `/run/user/$UID` both absent) have no direct unit test; they were only exercised
-  via the igloo-shell daemon suite with a short `XDG_RUNTIME_DIR` set
-  (`bifrost-app`, surfaced 2026-06-13 during the recovery follow-ups).
 - [ ] (effort: L) **Peer telemetry**: per-peer latency, "Avg" latency, nonce
   sparkline, and per-method SIGN/ECDH/PING capability badges — requires
   bifrost-rs + igloo-shared instrumentation; the trigger to promote the
@@ -96,9 +90,6 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## igloo-chrome
 
-- [ ] (effort: M) Deeper multi-context hardening beyond the bootstrap snapshot fix
-  (see 2026-06-10 plan C.6) — review the shared background service-worker recovery
-  path for stale/partial state.
 - [ ] (effort: M) Adopt the igloo-ui Settings `sections` API + `ExportPackageModal`
   in igloo-chrome (still uses the flat `maintenanceActions` row + its own export).
 - [ ] (effort: M) Convert the remaining igloo-chrome e2e specs to the page-object
@@ -114,16 +105,12 @@ Group by area. When an item is finished, move a one-line summary to
   returns just the threshold; optionally widen it to `{ threshold, member_count }` so the
   `RecoverCollectSharesPanel` meter reads "X of threshold (group of N)" (`src-tauri`
   `app/commands.rs` + `src/App.tsx`; surfaced 2026-06-13).
-- [ ] (effort: S) **nsec display vs. file-save parity** — the shell writes the recovered
-  group `nsec` to a `0o600` file, but the home recover-key view *displays* it (the plaintext
-  necessarily crosses the IPC/webview boundary; Rust-side zeroize only scrubs the struct).
-  Consider offering a "save to file" option in home and/or documenting the in-transit
-  limitation (`src/App.tsx`; surfaced 2026-06-13).
-- [ ] (effort: S) **Clear the home clippy backlog** — `cargo clippy --all-targets` reports
-  ~22 pre-existing style lints (derivable `AppSettings` Default, collapsible `if`,
-  unnecessary `to_vec`, manual `Option::map`, `clone`→`from_ref`) plus the feature-gated
-  `test_dispatch` "never used" chain. A `cargo clippy --fix` pass + a decision on the
-  `test-server` gating warnings (`src-tauri`; surfaced 2026-06-13).
+- [ ] (effort: S) **Optional: a "save recovered nsec to file" affordance in home**
+  for full parity with the shell's `0o600` file write. The in-transit exposure is
+  now documented (the key already crosses into the webview when displayed), so this
+  is a convenience, not a hardening — a scoped `0o600` write via the existing
+  `tauri-plugin-dialog` + `path_scope` export infra (`src/App.tsx` +
+  `src-tauri`; surfaced 2026-06-13).
 
 ## Dependencies & packaging
 
@@ -198,5 +185,3 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: S) Event Log Filter chips key off `badgeLabel` = domain for structured
   events but = level for the string fallback — decide whether the fallback should be
   filterable or the chips hidden when unstructured.
-- [ ] (effort: S) Confirm default peer permissions for new remote shares — the store
-  initializes `sign`/`ecdh`/`ping`/`onboard` all enabled (permissive); product call.
