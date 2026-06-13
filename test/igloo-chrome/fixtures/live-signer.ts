@@ -66,18 +66,10 @@ type ManagedResponderSetup = {
   shellEnv: NodeJS.ProcessEnv;
 };
 
-export type LiveSignerBackupPublishResult = {
-  profileId: string;
-  relays: string[];
-  eventId: string;
-  authorPubkey: string;
-};
-
 export type LiveSignerFixture = {
   relayUrl: string;
   profile: LiveSignerProfile;
   requestOnboardNonceCount: () => Promise<number>;
-  publishBackup: () => Promise<LiveSignerBackupPublishResult>;
   stopRelay: () => Promise<void>;
   stopResponder: () => Promise<void>;
   close: () => Promise<void>;
@@ -632,10 +624,6 @@ class SharedLiveSignerController implements LiveSignerController {
         controller.requireProfile();
         return await requestOnboardNonceCount(controller.relay.url(), controller.demoDir);
       },
-      publishBackup: async () => {
-        controller.requireProfile();
-        return await controller.publishBackup();
-      },
       stopRelay: async () => {
         await controller.relay.stop();
         controller.needsResponderRestart = true;
@@ -661,37 +649,6 @@ class SharedLiveSignerController implements LiveSignerController {
       throw new Error('live signer profile has not been prepared for this test');
     }
     return this.currentProfile;
-  }
-
-  private async publishBackup(): Promise<LiveSignerBackupPublishResult> {
-    if (!this.shellEnv || !this.responderProfileId) {
-      throw new Error('live signer responder profile is not configured');
-    }
-    const result = await withFixtureStep(
-      'profile-publish-backup',
-      { profileId: this.responderProfileId, relayUrl: this.relay.url() },
-      async () =>
-        runIglooShellJson(
-          [
-            'profile',
-            'backup',
-            this.responderProfileId,
-            '--passphrase-env',
-            'IGLOO_SHELL_TEST_PASSPHRASE'
-          ],
-          this.shellEnv!,
-        ),
-      { verboseOnly: true }
-    );
-
-    return {
-      profileId: String(result.profile_id),
-      relays: Array.isArray(result.relays)
-        ? result.relays.filter((value): value is string => typeof value === 'string')
-        : [],
-      eventId: String(result.event_id),
-      authorPubkey: String(result.author_pubkey),
-    };
   }
 
   private async initialize(): Promise<void> {

@@ -23,9 +23,9 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: S) Edit Paper so the merged **identity/runtime card is
   dashboard-only** — drop the repeated header from the Permissions/Settings
   artboards (`1c-permissions`, `502-0`) to match the runtime (decided 2026-06-09).
-- [ ] (effort: M) Add a **Pending Operations** component to the Paper design
-  system, then align the runtime `OperatorSignerPanel` card to it; rename the
-  runtime "Diagnostics" card → **Event Log** to match Paper at the same time —
+- [ ] (effort: S) Add a **Pending Operations** component to the Paper design system
+  to match the runtime `OperatorSignerPanel` card (the runtime card already exists);
+  and rename the runtime "Diagnostics" card → **Event Log** to match Paper —
   `igloo-paper` + `igloo-ui`.
 - [ ] (effort: S) Confirm whether `Export Profile`/`Export Share` should keep a
   quick unencrypted copy-to-clipboard alongside the password modal — product call.
@@ -92,16 +92,8 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: L) Deferred dashboard screens: error/empty states (loading,
   load-failed, all-relays-offline, signing-blocked, signing-failed) + the Clear
   Credentials modal (`3b`, needs a destructive "clear this device" store action).
-- [ ] (effort: M) Tailored Recover "Collect Shares" panel (Paper `49W`) instead of
-  reusing `RotateKeysetPanel` with an inert Source-Profile dropdown; until then
-  `recover-collect-shares` stays `needs-work`.
-- [ ] (effort: M) Wire encrypted export on the Recover Private Key screen — the
-  Encrypt-Key checkbox/password fields render but `RecoverPrivateKeyView` saves
-  plaintext nsec.
 - [ ] (effort: M) Auto-include the unlocked device's own share in recover/rotate
   Collect Shares (both are paste-only today; matches Paper's "Share #1 validated").
-- [ ] (effort: S) Remove or re-entry the now-orphaned `load-recover` view (dropping
-  the import `load-choice` screen removed its only entry point in `App.tsx`).
 - [ ] (effort: S, unsure) Make the Settings dirty-check structural rather than
   `JSON.stringify` of relays/signerSettings, if those shapes grow.
 - [ ] (effort: S) Decide the fate of the redundant `RelayInput`
@@ -121,8 +113,10 @@ Group by area. When an item is finished, move a one-line summary to
   path for stale/partial state.
 - [ ] (effort: M) Adopt the igloo-ui Settings `sections` API + `ExportPackageModal`
   in igloo-chrome (still uses the flat `maintenanceActions` row + its own export).
-- [ ] (effort: M) Convert the igloo-chrome e2e specs to the page-object model and
-  broaden `check-e2e-selector-contracts.sh` to cover chrome.
+- [ ] (effort: M) Convert the remaining igloo-chrome e2e specs to the page-object
+  model — `check-e2e-selector-contracts.sh` already covers chrome, and a few specs
+  (e.g. `dashboard`, `rotation-update`) use `support/ui.ts`, but most still inline
+  locators.
 - [ ] (effort: S) Adopt `PasswordField` (reveal-toggle input) in the chrome
   import/onboard forms (still plain `type="password"`).
 
@@ -142,12 +136,6 @@ Group by area. When an item is finished, move a one-line summary to
   unnecessary `to_vec`, manual `Option::map`, `clone`→`from_ref`) plus the feature-gated
   `test_dispatch` "never used" chain. A `cargo clippy --fix` pass + a decision on the
   `test-server` gating warnings (`src-tauri`; surfaced 2026-06-13).
-- [ ] (effort: L) **igloo-home is skewed against the current igloo-ui** — `eed7b7a`
-  imports removed exports (`OperatorPeerPermissionState`, `OperatorPendingOperation`)
-  and uses pre-Phase-B `AppHeaderProps`/`StoredProfileCardModel`/`SharedDistribution*`
-  shapes; fails `make test-demo` (a required gate). Port to the current
-  operator/create APIs (`src/App.tsx`, `src/pages/CreatePage.tsx`).
-
 ## Dependencies & packaging
 
 - [ ] (effort: M) **Make `nostr-tools` a peerDependency of `igloo-shared` +
@@ -182,10 +170,6 @@ Group by area. When an item is finished, move a one-line summary to
   waits out the timeout. Passes in isolation. Harden the `exportProfileWithPassword` page
   object (refill/verify confirm, or wait for the button to enable) or fix the
   `ExportPackageModal` controlled-input race — Test harness.
-- [ ] (effort: M) Extract the repeated Create-flow Playwright setup shared across
-  `app-shell`, `rotation-create`, and `welcome-visual` specs.
-- [ ] (effort: S) Give distribution cards a stable `data-test-id` so create/rotation
-  specs stop locating positionally.
 - [ ] (effort: S) Verify the chrome `@demo` lane (`make test-demo`) end-to-end on
   colima — only `make test-smoke` was completed previously.
 - [ ] (effort: S) Silence the jsdom `--localstorage-file` Node warning in igloo-pwa
@@ -195,20 +179,12 @@ Group by area. When an item is finished, move a one-line summary to
   still prints.
 - [ ] (effort: S) Add a small regression test for
   `repos/igloo-paper/scripts/update_usage_coverage.py`.
-- [ ] (effort: M) **P2** Add `@live` behavioral spec: **Recover execution** —
-  reconstruct the nsec from threshold shares; `recover-visual` injects a fake key
-  via `window.__IGLOO_TEST_RECOVERED_KEY__` and only screenshots the success
-  screen — Test harness.
 - [ ] (effort: M) **`pwa-home-pairing` is effectively dead** — it's `@cross-client`
   (runs in NO CI lane), DISPLAY-gated, and until 2026-06-11 read the runtime
   snapshot from localStorage where it is never persisted. It now uses the corrected
   DOM-based `expectPwaSignerSignReady`, but is still unverified + ungated, and it's
   the only PWA↔native nonce-hydration coverage. Run it (xvfb), confirm it passes,
   then gate `@cross-client` in `release-validation` — or retire it — Test harness/CI.
-- [ ] (effort: S) Track down the recurring `failed to publish encrypted profile
-  backup: passphrase not provided` warning seen throughout the `@live` runs — likely
-  benign test-path noise, but confirm it isn't masking a real backup-publish bug —
-  Test harness.
 - [ ] (effort: S) Close the loop on the local pre-push gate: `make test-fast` is
   render-only (seeded `@visual` specs), so a green fast run can hide a broken demo.
   Either add a minimal `@live` smoke (load profile → running dashboard) to a gate
