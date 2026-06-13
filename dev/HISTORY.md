@@ -9,6 +9,28 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
+## 2026-06-13 — Phase 6: test/CI hardening (high-value items; remainder CI-gated)
+
+Landed the high-value, locally-validatable Phase-6 items (all parent-repo — no
+submodule changes). **Stale browser-WASM guard:** the committed
+`igloo-shared/public/wasm` blobs once silently lagged bifrost-rs; added
+`check-browser-wasm-stamp.sh`, which stamps a deterministic git-tree hash of just
+the WASM-relevant crates (native-only `bifrost-app`/`bridge-tokio`/`devtools`
+excluded, so a native-only bump doesn't force a rebuild; content-based, so no
+rebuild-nondeterminism false positives) into `test/browser-wasm-source.stamp`,
+wired into `test:guards:wasm`, with `make browser-wasm-refresh` now rebuilding AND
+re-stamping (parent `15a14d1`). **Flaky export e2e:** `exportProfileWithPassword`
+now waits for the confirm value to land + the Export button to enable before
+clicking, fixing the ExportPackageModal controlled-input race that timed out under
+load (parent `626a696`). **fast ≠ behavioral:** documented that the render-only
+`make test-fast` gate can hide a broken demo, in AGENTS + test/README (parent
+`d659fe6`). Deferred (CI/Linux-gated or low-value, tracked in `BACKLOG.md`):
+recover-key desktop smoke, macOS visual/desktop degradation, `pwa-home-pairing`
+gate-or-retire, colima chrome `@demo` verify, multi-PWA-tab automation, and the
+resilient-restore behavioral test (re-scoped to the integration/demo lane — it
+needs a real WASM runtime + relay the unit harness avoids). This substantially
+completes the six-phase MED+ remediation program.
+
 ## 2026-06-13 — Phase 5: capability/UX gaps + chrome parity (2 items deferred)
 
 Landed five of the six Phase-5 items. **Diagnostics → Event Log:** renamed the

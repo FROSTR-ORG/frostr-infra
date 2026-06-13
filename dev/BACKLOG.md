@@ -121,25 +121,14 @@ Group by area. When an item is finished, move a one-line summary to
   add a `test/desktop` step that dispatches `recover_group_key` and screenshots the
   recover-key view; today it's covered by Rust unit + a vitest behavioral test only
   (`igloo-home`; surfaced 2026-06-13).
-- [ ] (effort: M) **Guard against stale committed browser WASM.** The
-  `igloo-shared/public/wasm` blobs had silently lagged `bifrost-rs` — committed at
-  `bf_package_version 1` still exporting the removed relay-backup API, only caught
-  by a manual rebuild (2026-06-13). Add a CI check that the committed blobs match a
-  fresh build from the current `bifrost-rs` pointer (e.g. rebuild + `git diff
-  --exit-code public/wasm`, or hash the bifrost-rs source/pointer into a stamp) so
-  the browser runtime can't drift from the Rust source — Test harness/CI.
-- [ ] (effort: S) **Behavioral test for the resilient-restore fallback.** Phase-1.2
+- [ ] (effort: M) **Behavioral test for the resilient-restore fallback.** Phase-1.2
   added a re-bootstrap-from-packages fallback when a persisted snapshot fails WASM
   restore; only the package-carrying half (`createBrowserRuntimeNodeInit`) is
-  unit-tested. Add an integration test that feeds a structurally-valid but
-  incompatible snapshot and asserts the runtime re-bootstraps (emits
-  `restore_fallback_to_profile` and comes up sign-ready) — Test harness.
-- [ ] (effort: S) **Flaky export test**: `profile-import.spec.ts` › "exports an encrypted
-  profile package from settings" intermittently times out under load — the Export modal's
-  Confirm Password fill does not land before the (disabled) Export button is clicked, so it
-  waits out the timeout. Passes in isolation. Harden the `exportProfileWithPassword` page
-  object (refill/verify confirm, or wait for the button to enable) or fix the
-  `ExportPackageModal` controlled-input race — Test harness.
+  unit-tested. A true behavioral test needs a real WASM runtime + relay, which the
+  igloo-shared unit harness deliberately avoids — so this belongs in the
+  integration/demo lane (feed a structurally-valid but incompatible snapshot, assert
+  it emits `restore_fallback_to_profile` and comes up sign-ready), not a unit test
+  (re-scoped M, 2026-06-13) — Test harness.
 - [ ] (effort: S) Verify the chrome `@demo` lane (`make test-demo`) end-to-end on
   colima — only `make test-smoke` was completed previously.
 - [ ] (effort: S) Silence the jsdom `--localstorage-file` Node warning in igloo-pwa
@@ -155,10 +144,6 @@ Group by area. When an item is finished, move a one-line summary to
   DOM-based `expectPwaSignerSignReady`, but is still unverified + ungated, and it's
   the only PWA↔native nonce-hydration coverage. Run it (xvfb), confirm it passes,
   then gate `@cross-client` in `release-validation` — or retire it — Test harness/CI.
-- [ ] (effort: S) Close the loop on the local pre-push gate: `make test-fast` is
-  render-only (seeded `@visual` specs), so a green fast run can hide a broken demo.
-  Either add a minimal `@live` smoke (load profile → running dashboard) to a gate
-  contributors actually run, or document plainly that fast ≠ behavioral — Test harness/CI.
 - [ ] (effort: M) Promote the manual multi-PWA-tab signature to an automated spec
   (two browser contexts + igloo-shell initiator) once the manual flow is stable —
   Test harness · see the `pwa-multisig-demo` scaffolding.

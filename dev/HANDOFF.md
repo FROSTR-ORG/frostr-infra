@@ -1,14 +1,14 @@
-# Hand-off: MED+ backlog program — Phases 1–5 done (deferrals noted), Phase 6 open
+# Hand-off: MED+ backlog program — Phases 1–6 substantially complete
 
 _Last updated: 2026-06-13_
 
 > **Read this first.** Entry point for a new session in the `frostr-infra`
-> workspace. There is an **approved multi-phase plan** in progress:
-> "Remediate audit findings + complete medium-or-higher backlog (hard-cut)".
-> **Phases 1–5 are complete and landed**, with a few items **deliberately
-> deferred** by product call (onboard→signer seam in Phase 4; chrome e2e
-> page-objects + the L-effort dashboard error/empty-state screens in Phase 5 —
-> all tracked in `BACKLOG.md`). Pick up at **Phase 6**.
+> workspace. The **approved multi-phase plan** — "Remediate audit findings +
+> complete medium-or-higher backlog (hard-cut)" — is **substantially complete
+> across all six phases.** What remains in `BACKLOG.md` is out-of-scope L-effort
+> feature builds, a few deliberately-deferred cleanups (onboard→signer seam;
+> chrome e2e page-objects; dashboard error/empty screens), and CI/Linux-gated test
+> items. See the per-phase sections below for what landed and what was deferred.
 >
 > NOTE: the plan was never written to disk (`plans/enchanted-leaping-papert.md`
 > does not exist — the only git reference is the commit that mentions it). This
@@ -175,11 +175,38 @@ Landed (submodule-then-pointer):
   all-relays-offline, signing-blocked, signing-failed). Brushes the plan's
   "big L-effort feature builds out of scope" boundary; deferred. Tracked in `BACKLOG.md`.
 
-## ▶ Next: Phase 6 (open)
+## ✅ Phase 6 — high-value items done; CI/Linux-gated remainder deferred (test/CI)
 
-- **Phase 6** — test/CI: macOS visual/desktop lanes; recover-key desktop smoke;
-  flaky export test; verify chrome `@demo` on colima; `pwa-home-pairing` gate-or-
-  retire; close the fast≠behavioral gap; automate multi-PWA-tab signature.
+Landed (all parent-repo — no submodule pointer changes this phase):
+- **Stale browser-WASM guard** — `test/scripts/check-browser-wasm-stamp.sh` stamps a
+  deterministic git-tree hash of just the WASM-relevant bifrost-rs crates (native-only
+  crates excluded → no needless rebuilds; content-based → no rebuild-nondeterminism
+  false positives) into `test/browser-wasm-source.stamp`; wired into `test:guards:wasm`,
+  and `make browser-wasm-refresh` now rebuilds **and** re-stamps. Prevents a recurrence
+  of the Phase-1 silent WASM drift. Parent `15a14d1`.
+- **Flaky export e2e fix** — `exportProfileWithPassword` now waits for the confirm value
+  to land + the Export button to enable before clicking (the ExportPackageModal
+  controlled-input race). Parent `626a696`.
+- **fast ≠ behavioral documented** — flagged the render-only `make test-fast` gate in
+  AGENTS + test/README so a green fast run isn't mistaken for behavioral coverage.
+  Parent `d659fe6`.
+- Validation: guard self-validated (write / pass / fail-on-drift / recover); pwa test
+  typecheck + doc guards green (18 guards).
+
+**Deferred (CI/Linux-gated or low-value — tracked in `BACKLOG.md`):**
+- recover-key desktop smoke + macOS visual/desktop graceful degradation (Linux desktop
+  lane / ImageMagick); `pwa-home-pairing` gate-or-retire (xvfb); verify chrome `@demo`
+  on colima; automate multi-PWA-tab signature (M feature); resilient-restore behavioral
+  test (re-scoped to the integration/demo lane — needs real WASM+relay); minor warning
+  cleanups (jsdom `--localstorage-file`, NO_COLOR).
+
+---
+
+**Program status:** the MED+ remediation program (Phases 1–6) is **substantially
+complete**. Everything still open in `BACKLOG.md` is either an explicitly out-of-scope
+L-effort feature build (signing-approval queue, peer telemetry, dashboard router,
+dashboard error/empty screens), a deliberately-deferred cleanup (onboard→signer seam,
+chrome e2e page-objects), or a CI/Linux-gated test item that can't run on macOS dev.
 
 ## Working notes (the WHY)
 
