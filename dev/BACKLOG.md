@@ -40,20 +40,28 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: L) **Interactive signing-approval queue** (Deny / Allow once /
   Always allow) behind the shipped Pending-Approvals shell — per-method allow/deny
   policy already exists; this adds a wait-for-approval queue. Same spec as above.
-- [ ] (effort: M) **Refactor the onboard→signer handoff to remove the
-  capture-then-reinit seam.** Onboarding runs a *separate* transient runtime, then
-  `connectOnboardingPackageAndCaptureProfile` snapshots it and the signer relaunches.
-  The 2026-06-11 fix preserves the pool by restoring from that ephemeral snapshot, but
-  the cleaner architecture is for the onboard runtime to *be* the durable signer (no
-  capture/relaunch seam to lose state). Would also simplify the snapshot plumbing
-  threaded through store → finalize → startSession. — igloo-shared + igloo-pwa.
+- [x] (effort: M) **Refactor the onboard→signer handoff to remove the
+  capture-then-reinit seam — PWA done (2026-06-13).** The PWA onboard flow now keeps
+  the live onboarding node running and *adopts* it as the durable signer (the
+  `keepAlive` path on `connectOnboardingPackageAndCaptureProfile` + the
+  `SessionController` staged-session slot), removing the capture-snapshot-then-relaunch
+  seam and the pwa-local restore plumbing (`startSession` no longer threads a snapshot).
+  Rotation keeps the capture-then-shutdown path (it derives a new keyset). — igloo-pwa.
+- [ ] (effort: M) **Chrome onboard→signer seam — same collapse for igloo-chrome.**
+  `igloo-chrome/.../onboarding-session.ts` still captures a snapshot and shuts the node
+  down, but chrome *persists* `runtimeSnapshotJson` in the profile blob (an MV3 service
+  worker can be killed/restarted, so it genuinely needs restore-from-persistence). Its
+  collapse is a different shape than the PWA's — separate, carefully-reviewed pass. The
+  shared bridge `mode:'persisted'` / `restore_runtime` / resilient-restore stays as long
+  as chrome relies on it (surfaced 2026-06-13).
 - [ ] (effort: S) **Snapshot version tag (fast-path skip on top of the shipped
-  restore fallback).** Resilient restore now re-bootstraps from packages when a
-  snapshot fails to restore, but it still *attempts* the WASM restore first. Stamp
-  a version at snapshot write and skip the restore attempt up front on a known
-  mismatch — purely an optimization now that the fallback guarantees correctness.
-  Must stay back-compatible (treat un-versioned snapshots as restorable) —
-  igloo-shared + the snapshot write sites (surfaced 2026-06-13).
+  restore fallback).** Resilient restore re-bootstraps from packages when a snapshot
+  fails to restore, but it still *attempts* the WASM restore first. Stamp a version at
+  snapshot write and skip the restore attempt up front on a known mismatch — purely an
+  optimization. Now **chrome-only**: the PWA onboard path no longer restores from a
+  snapshot (it adopts the live node), so chrome is the sole remaining producer/consumer
+  of onboard snapshots. Must stay back-compatible (treat un-versioned snapshots as
+  restorable) — igloo-shared + the chrome snapshot write sites (surfaced 2026-06-13).
 - [ ] (effort: S) **Remaining router Ping-sentinels.** The inbound-request failure
   path is now correctly typed, but `BridgeCore::tick`'s expire-tick failure and
   `fail_request_and_dispatch`'s internal failure still hardcode
@@ -74,8 +82,13 @@ Group by area. When an item is finished, move a one-line summary to
   `JSON.stringify` of relays/signerSettings, if those shapes grow.
 - [ ] (effort: S) Decide the fate of the redundant `RelayInput`
   (`igloo-ui/src/components/ui/relay-input.tsx`) vs the newer `RelayList`.
-
-### igloo-pwa per-tab isolation — deferred sub-items (see 2026-06-10 plan)
+- [ ] (effort: S) **Onboard-save relay field is cosmetic.** `renderOnboardSave`
+  renders an editable relay list (`CreateFlowProfileSetup`), but
+  `finalizeOnboardedDevice` ignores `onboardSaveForm.relayUrls` — the profile's
+  relays come from the onboarding package (the e2e helper notes "relays stay
+  locked"). Either lock the field in the UI or honor edits. Relevant now that the
+  onboard flow *adopts* the live node (which is connected to the package relays),
+  so honoring a relay edit at save would require a different path (surfaced 2026-06-13).
 
 - [ ] (effort: S) Rich device labeling/renaming in the instance registry UI
   (initial impl shows the id prefix + null label).
@@ -138,6 +151,13 @@ Group by area. When an item is finished, move a one-line summary to
   still prints.
 - [ ] (effort: S) Add a small regression test for
   `repos/igloo-paper/scripts/update_usage_coverage.py`.
+- [ ] (effort: S) **Harden `.tsx`-only vitest include globs.** igloo-pwa's
+  `vitest.config.ts` matched only `*.test.tsx`, so the non-JSX
+  `test/frontend/session-controller.test.ts` had **never run** (fixed 2026-06-13 →
+  `*.test.{ts,tsx}`). **igloo-ui** has the same `test/**/*.test.tsx`-only glob — no
+  `.ts` test today, but a future one would be silently dropped. Broaden it to
+  `{ts,tsx}` and consider a workspace guard (e.g. `check-shared-test-setup.sh`) that
+  flags a committed `*.test.ts` that no project glob matches (surfaced 2026-06-13).
 - [ ] (effort: M) **`pwa-home-pairing` is effectively dead** — it's `@cross-client`
   (runs in NO CI lane), DISPLAY-gated, and until 2026-06-11 read the runtime
   snapshot from localStorage where it is never persisted. It now uses the corrected

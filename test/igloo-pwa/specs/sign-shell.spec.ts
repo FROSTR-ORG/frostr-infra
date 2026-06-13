@@ -24,8 +24,9 @@ function hexToBytes(hex: string): Uint8Array {
 // @live — a genuine end-to-end threshold SIGNATURE across two runtimes, exercising
 // the full ONBOARD path. A headless native igloo-shell signer (share #1) invites a
 // browser PWA, which onboards (share #2) over a relay; the handshake exchanges nonce
-// pools and the onboard handoff restores them into the launched signer (so the pool
-// is preserved, not re-bootstrapped). The shell — the PWA is responder-only and
+// pools and the live onboarding node is adopted directly as the durable signer (so
+// the exchanged pool is preserved — no capture/relaunch). The shell — the PWA is
+// responder-only and
 // can't self-initiate — then INITIATES the sign, the PWA contributes its partial,
 // and we schnorr-verify the returned aggregate against the group key. Proof the
 // browser signer really signs immediately after onboarding (no re-sync needed).
@@ -65,8 +66,8 @@ test.describe('igloo-pwa + igloo-shell threshold signature @live', () => {
       await shell.waitConnected();
 
       // PWA: onboard share #2 against the running shell inviter. The handshake
-      // exchanges nonce pools; the onboard handoff restore preserves them into the
-      // launched signer so it can co-sign immediately.
+      // exchanges nonce pools; the live onboarding node is adopted as the durable
+      // signer so the pool is preserved and it can co-sign immediately.
       const onboardPackage = await createOnboardingPackage({
         shareSecret: pwaShare.shareSecret,
         relays: [relay.url],
