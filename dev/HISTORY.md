@@ -9,9 +9,9 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
-## 2026-06-13 — Phase 5 (part): capability/UX gaps + chrome parity
+## 2026-06-13 — Phase 5: capability/UX gaps + chrome parity (2 items deferred)
 
-Landed four of the Phase-5 items. **Diagnostics → Event Log:** renamed the
+Landed five of the six Phase-5 items. **Diagnostics → Event Log:** renamed the
 `OperatorSignerPanel` third card (title, empty-state, tooltip) to match Paper's
 name across both consuming apps; internal `diagnostics` API names unchanged
 (igloo-ui `23de9fa`). **PasswordField in chrome onboarding:** the four
@@ -24,10 +24,18 @@ unbounded (igloo-pwa `b5109bc`). **Clear Credentials:** a destructive
 session, erase the persisted partition, reset to a clean landing — surfaced as a
 Settings action behind a danger `ConfirmDialog` (distinct from logout/single-profile
 delete; matches Paper's 3b modal); new `settingsClearCredentials` test id (igloo-ui
-`6afc563`, igloo-pwa `0b88270`). Validation: igloo-ui 120, pwa unit 48, chrome unit
-97, tsc + app builds clean, cross-app `make test-fast` green. Remaining Phase-5
-items (chrome Settings `sections`+`ExportPackageModal`; chrome e2e page-objects;
-the L-effort dashboard error/empty-state screens) are tracked in `BACKLOG.md`.
+`6afc563`, igloo-pwa `0b88270`). **Chrome Settings parity:** migrated chrome's
+SettingsPanel off the flat `maintenanceActions` row + inline export-password card
+onto the igloo-ui `sections` API (Export Profile / Export Share / Logout) + the
+shared `ExportPackageModal` (reveal-toggle password → copy/download), matching the
+PWA; also deduped react/react-dom in chrome's vitest so hook-using igloo-ui dist
+components (e.g. `ExportPackageModal`) work under test, and updated the chrome
+dashboard/rotation e2e specs to the new labels (igloo-chrome `38ed962`). Validation:
+igloo-ui 120, pwa unit 48, chrome unit 97, tsc + app builds clean, cross-app
+`make test-fast` green (pwa 20, chrome 17). **Deferred by product call** and tracked
+in `BACKLOG.md`: the chrome e2e page-object conversion (mechanical, low value) and
+the L-effort dashboard error/empty-state screens (a 5-screen feature build that
+brushes the plan's out-of-scope boundary).
 
 ## 2026-06-13 — Phase 4: recovery/onboarding UX (onboard seam deferred)
 

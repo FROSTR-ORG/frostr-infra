@@ -90,7 +90,7 @@ test.describe('extension rotate key', () => {
       await confirmChromeRotationPackage(page);
       await expect(getChromeRotationConfirmButton(page)).toHaveCount(0);
       await expect(page.getByText(`${shortId(rotated.shares[0].profileId)})`)).toBeVisible();
-      await page.getByRole('button', { name: 'logout' }).click();
+      await page.getByRole('button', { name: 'Logout' }).click();
       const storedProfilesCard = page
         .getByRole('heading', { name: 'Stored Profiles' })
         .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')

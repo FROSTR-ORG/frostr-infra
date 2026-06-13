@@ -1,13 +1,14 @@
-# Hand-off: MED+ backlog program — Phases 1–4 done, Phase 5 in progress
+# Hand-off: MED+ backlog program — Phases 1–5 done (deferrals noted), Phase 6 open
 
 _Last updated: 2026-06-13_
 
 > **Read this first.** Entry point for a new session in the `frostr-infra`
 > workspace. There is an **approved multi-phase plan** in progress:
 > "Remediate audit findings + complete medium-or-higher backlog (hard-cut)".
-> **Phases 1–4 are complete and landed** (the onboard→signer seam refactor was
-> deliberately deferred — see Phase 4). **Phase 5 is partly done** — 4 of 6 items
-> landed; pick up at **Phase 5 (cont.)**.
+> **Phases 1–5 are complete and landed**, with a few items **deliberately
+> deferred** by product call (onboard→signer seam in Phase 4; chrome e2e
+> page-objects + the L-effort dashboard error/empty-state screens in Phase 5 —
+> all tracked in `BACKLOG.md`). Pick up at **Phase 6**.
 >
 > NOTE: the plan was never written to disk (`plans/enchanted-leaping-papert.md`
 > does not exist — the only git reference is the commit that mentions it). This
@@ -142,7 +143,7 @@ Landed (submodule-then-pointer):
   the seam means restructuring the connect→preview→name→finalize→start ordering).
   Tracked in `BACKLOG.md`; take it as a dedicated, carefully-reviewed pass.
 
-## ◐ Phase 5 — IN PROGRESS (capability/UX gaps + chrome parity)
+## ✅ Phase 5 — COMPLETE except deferred items (capability/UX gaps + chrome parity)
 
 Landed (submodule-then-pointer):
 - **Diagnostics card → Event Log** — renamed the `OperatorSignerPanel` third card
@@ -157,18 +158,22 @@ Landed (submodule-then-pointer):
   store action (stop signer, tear down sessions, erase the partition, reset to
   landing) behind a danger `ConfirmDialog`; new `settingsClearCredentials` test id.
   igloo-ui `6afc563`, igloo-pwa `0b88270`.
+- **Chrome Settings `sections` + `ExportPackageModal`** — migrated chrome's
+  SettingsPanel off the flat `maintenanceActions` row + inline export-password card
+  onto the igloo-ui `sections` API (Export Profile / Export Share / Logout) + the
+  shared `ExportPackageModal` (reveal-toggle password → copy/download), matching the
+  PWA. Also deduped react/react-dom in chrome's vitest so hook-using igloo-ui dist
+  components work under test. igloo-chrome `38ed962` (+ e2e label updates).
 - Validation: igloo-ui 120, pwa unit 48, chrome unit 97, tsc + app builds clean,
   cross-app `make test-fast` green (pwa 20, chrome 17).
 
-**Remaining in Phase 5:**
-- **Chrome Settings `sections` + `ExportPackageModal`** (M) — chrome still uses the
-  flat `maintenanceActions` row + its own export; adopt the igloo-ui Settings
-  `sections` API + `ExportPackageModal` (the pwa already uses both).
+**Remaining in Phase 5 — deferred by product call (2026-06-13):**
 - **Chrome e2e page-object conversion** (M) — most chrome specs still inline
-  locators; convert to the page-object model. Mechanical, low user-facing value.
+  locators; convert to the page-object model. Mechanical, low user-facing value;
+  deferred. Tracked in `BACKLOG.md`.
 - **Dashboard error/empty states** (L) — a 5-screen UI build (loading, load-failed,
   all-relays-offline, signing-blocked, signing-failed). Brushes the plan's
-  "big L-effort feature builds out of scope" boundary; candidate to keep deferred.
+  "big L-effort feature builds out of scope" boundary; deferred. Tracked in `BACKLOG.md`.
 
 ## ▶ Next: Phase 6 (open)
 

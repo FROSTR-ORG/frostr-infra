@@ -82,8 +82,6 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## igloo-chrome
 
-- [ ] (effort: M) Adopt the igloo-ui Settings `sections` API + `ExportPackageModal`
-  in igloo-chrome (still uses the flat `maintenanceActions` row + its own export).
 - [ ] (effort: M) Convert the remaining igloo-chrome e2e specs to the page-object
   model — `check-e2e-selector-contracts.sh` already covers chrome, and a few specs
   (e.g. `dashboard`, `rotation-update`) use `support/ui.ts`, but most still inline

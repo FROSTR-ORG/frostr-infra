@@ -55,9 +55,10 @@ test.describe('extension dashboard smoke', () => {
 
     await page.getByRole('tab', { name: /Settings/i }).first().click();
     // Paper's OperatorSettingsPanel has no top-level "Settings" heading; it leads
-    // with the "Device Profile" card and includes a "Maintenance" section.
+    // with the "Device Profile" card and renders the maintenance actions as
+    // labeled section cards (Export Profile / Export Share / Logout).
     await expect(page.getByRole('heading', { name: 'Device Profile' })).toBeVisible();
-    await expect(page.getByText('Maintenance')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export Profile' })).toBeVisible();
 
     await page.close();
   });
@@ -137,10 +138,10 @@ test.describe('extension dashboard smoke', () => {
     await expect(page.getByText('Start the signer to inspect and edit live peer policy state.')).toBeVisible();
 
     await page.getByRole('tab', { name: /Settings/i }).first().click();
-    await expect(page.getByRole('button', { name: 'copy profile' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'copy share' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export Profile' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export Share' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'rotate share' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'logout' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Logout' })).toBeVisible();
     await expect(page.getByRole('button', { name: /wipe all data/i })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /reset/i })).toHaveCount(0);
 
@@ -189,7 +190,7 @@ test.describe('extension dashboard smoke', () => {
 
     await expect(page.getByRole('tab', { name: /Settings/i }).first()).toBeVisible();
     await page.getByRole('tab', { name: /Settings/i }).first().click();
-    await page.getByRole('button', { name: 'logout' }).click();
+    await page.getByRole('button', { name: 'Logout' }).click();
 
     await expect(storedProfilesCard).toBeVisible();
     await expect(storedProfilesCard.getByRole('button', { name: /Playwright Smoke/ })).toBeVisible();
