@@ -1,14 +1,54 @@
-# Hand-off: MED+ backlog program — Phases 1–6 substantially complete
+# Hand-off: MED+ program complete → next, the L-task program (onboard seam first)
 
 _Last updated: 2026-06-13_
 
 > **Read this first.** Entry point for a new session in the `frostr-infra`
-> workspace. The **approved multi-phase plan** — "Remediate audit findings +
-> complete medium-or-higher backlog (hard-cut)" — is **substantially complete
-> across all six phases.** What remains in `BACKLOG.md` is out-of-scope L-effort
-> feature builds, a few deliberately-deferred cleanups (onboard→signer seam;
-> chrome e2e page-objects; dashboard error/empty screens), and CI/Linux-gated test
-> items. See the per-phase sections below for what landed and what was deferred.
+> workspace. The **MED+ remediation program (Phases 1–6) is complete and pushed**
+> (all repos on `dev`, parent + 6 submodules pushed to their `dev` remotes). The
+> per-phase sections below record what landed and what was deferred.
+>
+> **▶ NEXT: the L-task program.** We are now taking on the larger deferred items,
+> **starting with the onboard→signer seam refactor** — see
+> [§ Next work](#-next-work-l-task-program) immediately below. After that, the
+> other L items in `BACKLOG.md` (signing-approval queue, peer telemetry, dashboard
+> router, dashboard error/empty screens, chrome e2e page-objects).
+
+## ▶ Next work: L-task program
+
+### 1. Onboard→signer seam refactor (start here)
+
+**Goal:** make the onboard runtime *be* the durable signer, removing the
+capture-snapshot-then-relaunch seam. Correctness is already preserved (the
+2026-06-11 snapshot-restore fix), so this is an architecture cleanup — but it
+touches the **critical onboarding flow**, so go carefully (tests + the e2e gate).
+
+**How it works today (the seam to collapse):**
+1. `connectOnboardingPackageAndCaptureProfile` (`igloo-pwa/src/lib/page-runtime-host.ts`
+   ~273–328) spins up a **separate transient** signer node in `mode:'onboarding'`,
+   connects it, does a one-shot `waitForNonceSnapshot()` → `snapshot_state()` to
+   capture the exchanged nonce pool, then **shuts the node down** (~line 326).
+2. The captured `runtimeSnapshotJson` derives the profile payload
+   (`igloo-shared/src/browser-onboarding/connect.ts` → `runtimePayloadFromSnapshot`)
+   and is carried as an in-memory handoff through `connectOnboardingPackage` /
+   `finalizeOnboardedDevice` (`igloo-pwa/src/lib/local-adapter/profile-packages.ts`
+   ~110–165) → `finalizeConnectedBrowserProfile`
+   (`igloo-shared/src/browser-onboarding/finalize.ts`).
+3. The **durable signer relaunches** and restores from that snapshot:
+   `persistProfileToDashboard` → `startSession` (`profile-runtime.ts` ~135–185) passes
+   `runtimeSnapshotJson` into a fresh node so it re-hydrates the pool instead of
+   bootstrapping empty.
+
+**The hard part:** the live onboard node exists *before* the profile is finalized
+and saved (the connect → preview → name → finalize → start ordering). Collapsing
+the seam means keeping that node alive across the "review + name the device" step
+and adopting it as the durable session — restructuring that ordering and the
+snapshot plumbing threaded through store → finalize → startSession.
+
+**Suggested approach:** start with a Plan-mode design pass (the ordering change is
+the crux); consider a worktree given the breadth; lean on the existing onboard
+tests (`igloo-pwa/test/frontend/onboard-persist.test.tsx`,
+`igloo-shared/src/browser-onboarding.test.ts`) + `make test-demo` (onboard→sign)
+as the behavioral gate. **No new PRs** — submodule-commit-then-pointer-bump.
 >
 > NOTE: the plan was never written to disk (`plans/enchanted-leaping-papert.md`
 > does not exist — the only git reference is the commit that mentions it). This
