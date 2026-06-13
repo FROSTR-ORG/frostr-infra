@@ -358,8 +358,16 @@ export class DashboardPage extends BasePage {
     await this.openExportProfile();
     await this.expectExportModalEntry();
     await this.tid(TID.exportPassword).fill(password);
-    await this.tid(TID.exportConfirm).fill(password);
-    await this.tid(TID.exportSubmit).click();
+    const confirm = this.tid(TID.exportConfirm);
+    await confirm.fill(password);
+    // The Export button enables only once both fields match. Under load the
+    // ExportPackageModal's controlled-input onChange can lag the click, leaving a
+    // click on the still-disabled button that then waits out the result timeout.
+    // Wait for the confirm value to land AND the button to enable before clicking.
+    await expect(confirm).toHaveValue(password);
+    const submit = this.tid(TID.exportSubmit);
+    await expect(submit).toBeEnabled();
+    await submit.click();
     const result = this.tid(TID.exportResult);
     await expect(result).toBeVisible({ timeout: 30_000 });
     return (await result.textContent()) ?? '';
