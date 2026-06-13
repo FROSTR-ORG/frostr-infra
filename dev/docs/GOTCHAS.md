@@ -17,6 +17,14 @@ there.
   WASM build fails with opaque compiler errors.
 - **Verify before building:** `make wasm-toolchain-check` confirms the toolchain
   is set up before you spend time on a failing WASM build.
+- **Committed browser WASM must not drift from `bifrost-rs`.** The blobs in
+  `repos/igloo-shared/public/wasm` are compiled from the bifrost-rs WASM crates;
+  once they silently lagged the Rust core (still exporting a removed relay-backup
+  API). A guard (`test:guards:wasm`) stamps a hash of the WASM-relevant crates
+  (native-only crates excluded) into `test/browser-wasm-source.stamp` and fails if
+  the committed blobs are stale. `make browser-wasm-refresh` rebuilds **and**
+  re-stamps; after a bifrost-rs bump that touches WASM crates, rebuild + re-stamp,
+  commit `public/wasm` in igloo-shared, bump its pointer, and commit the stamp.
 - **JavaScript/TypeScript uses npm, not Bun.** Run JS workflows through `make`
   or `npm --prefix test ...`; do not assume a Bun runtime.
 

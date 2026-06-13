@@ -168,6 +168,7 @@ test-release:
 
 browser-wasm-refresh:
 	@"$(ROOT_DIR)/scripts/prepare-browser-wasm.sh" sync all
+	@"$(ROOT_DIR)/test/scripts/check-browser-wasm-stamp.sh" --write
 
 browser-wasm-sync: browser-wasm-refresh
 

@@ -9,7 +9,7 @@
     "test:guards:workflows": "bash ./scripts/check-workflow-node24-actions.sh && bash ./scripts/check-client-scoped-submodules.sh",
     "test:guards:shared-setup": "bash ./scripts/check-shared-test-setup.sh",
     "test:guards:targets": "bash ./scripts/check-test-targets.sh",
-    "test:guards:wasm": "bash ./scripts/check-browser-wasm-harness-contracts.sh",
+    "test:guards:wasm": "bash ./scripts/check-browser-wasm-harness-contracts.sh && bash ./scripts/check-browser-wasm-stamp.sh",
     "test:guards:wasm:strict": "bash ./scripts/check-test-prebuild-nonmutating.sh",
     "test:guards:selectors": "bash ./scripts/check-cross-client-imports.sh && bash ./scripts/check-e2e-selector-contracts.sh",
     "test:guards:visual": "node ./scripts/check-pwa-visual-manifest.mjs && bash ./scripts/check-pwa-visual-manifest-negative.sh",
