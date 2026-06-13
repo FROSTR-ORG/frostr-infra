@@ -9,6 +9,46 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
+## 2026-06-13 — Recovery follow-ups (tests, threshold meter, nsec hardening, secure socket path)
+
+Five clean-up tasks on top of the relay-free recovery transition. **Tests:**
+igloo-home gained Rust unit coverage for `recover_group_key_from_shares` (happy +
+non-member/insufficient/duplicate failures) and `make_rotated_keyset` (happy,
+preserves the group public key; non-member source fails), plus a frontend
+`RecoverKey.test.tsx`. **Threshold meter:** a passphrase-free `get_profile_threshold`
+command (reads the plaintext group package) drives an accurate recover-key meter.
+**nsec hardening:** `RecoveredGroupKey` now zeroizes its secret fields on drop +
+redacts `Debug` in both hosts, and the home recover-key view clears the key +
+inputs on navigation. **SUN_LEN:** the daemon socket-path shortener was consolidated
+into a single secure `bifrost-app` helper (`XDG_RUNTIME_DIR` → `/run/user/$UID` →
+`0o700 ~/.igloo-shell/run`; never `/tmp`), igloo-shell-core delegates to it, and the
+shell test harness pins a short `XDG_RUNTIME_DIR` (proven by 23/23 daemon integration
+tests with the env unset). Commits: bifrost-rs `483a74d`, igloo-shell `cf2aedb`,
+igloo-home `f0238e6`, parent bump `9d6d12d`. Plan:
+`dev/plans/great-suggestions-let-s-draft-kind-canyon.md`. Remaining nits captured in
+`BACKLOG.md` (socket-fallback unit test, lane macOS support, home clippy backlog,
+meter member-count, nsec file-save parity).
+
+## 2026-06-12 — Relay profile-backup feature removed across the workspace
+
+Completed the relay-published "encrypted profile backup" → local-recovery transition
+for the **native hosts** and deleted the now-dead core code (the browser clients +
+shared core were done earlier). **igloo-shell** (`f1b6c73`): dropped every
+`publish_profile_backup` call + the `profile backup` subcommand; replaced relay
+`recover` with a local `recover-key` command (reconstructs the group `nsec` from a
+threshold of shares, written `0o600`); rotation sources its group package from the
+local profile. **igloo-home** (`12119f8`): removed backup-publish + the bfshare
+device-restore; added a `recover_group_key` command + recover-key UI (reusing
+igloo-ui `RecoverCollectSharesPanel`); restore = `bfprofile` import; rotation sources
+its group from the local profile's plaintext `group_ref`. **bifrost-rs** (`1ad615c`):
+deleted `bifrost-profile` `flows/{backup,recovery}.rs`, the `native-relay` feature +
+deps, `ProfileBackupPublishResult`; deleted the `frostr-utils` backup helpers,
+kind-10000 constants, `EncryptedProfileBackup*`, and the backup-only NIP-44 wrappers
+(canonical cipher + KATs remain in `bifrost_core::nip44`). Silences the lingering
+"failed to publish encrypted profile backup" warning at its source. Parent bumps
+`528be2a`/`67ca114`/`32dbcd7`/`5bc0ec6`. (Was the open BACKLOG item "Remove the relay
+profile-backup feature from the native hosts".)
+
 ## 2026-06-11 — igloo-pwa `@live` permissions + settings persistence specs (+ override-restore fix)
 
 Closed the two **P1** behavioral-coverage gaps for igloo-pwa: the Permissions

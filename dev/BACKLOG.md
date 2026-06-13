@@ -32,27 +32,12 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## bifrost-rs / igloo-shared runtime
 
-- [x] (effort: L) **Remove the relay profile-backup feature from the native hosts** —
-  **DONE 2026-06-12** (igloo-shell `f1b6c73`, igloo-home `12119f8`, bifrost-rs `1ad615c`;
-  parent bumps `528be2a`/`67ca114`/`32dbcd7`/`5bc0ec6`). Native hosts reworked to the
-  relay-free model (shell `recover-key`; home `recover_group_key` + recover-key UI; both
-  rotate from a local profile's group package) and the dead `bifrost-profile` +
-  `frostr-utils` backup code deleted. See `dev/HANDOFF.md` status banner.
-  (the remaining, larger half of Phase 6; the dead *browser* WASM bindings were removed
-  2026-06-12). The relay backup-publish + relay recovery are still **live** in
-  `igloo-shell` (`igloo-shell-cli` imports/rotation/profile commands + `igloo-shell-core`
-  `shell/rotation.rs` call `publish_profile_backup` / `recover_profile_from_bfshare_value`
-  / `preview_bfshare_recovery`) and `igloo-home` (a `publish_profile_backup_command` Tauri
-  command + `preview_bfshare_recovery` / `recover_profile_from_bfshare_value` in
-  `src-tauri/src/{profiles,session,commands}.rs`, the `ProfileBackupPublishResult` model,
-  and the frontend type). Removing it means **reworking those hosts' import/rotation/
-  recovery flows** (drop relay-assisted recovery + backup-publish, like the browser
-  rework) and only then deleting `bifrost-profile` `flows/backup.rs`+`recovery.rs` (and the
-  `native-relay` feature / `tokio-tungstenite` dep), the `frostr-utils` `profile_packages.rs`
-  backup fns + `PROFILE_BACKUP_EVENT_KIND` (10000) / `PROFILE_BACKUP_KEY_DOMAIN`
-  (`frostr-profile-backup/v1`) constants, and their Rust tests/KAT vectors. This is the
-  change that finally silences the `failed to publish encrypted profile backup` warning —
-  bifrost-rs + igloo-shell + igloo-home. Behavior-changing; scope as its own pass.
+- [ ] (effort: S) **Unit-test the secure socket-path fallback** in
+  `bifrost-app::native_runtime::shorten_unix_socket_path` — the over-budget
+  relocation and the `~/.igloo-shell/run` HOME fallback (`XDG_RUNTIME_DIR` and
+  `/run/user/$UID` both absent) have no direct unit test; they were only exercised
+  via the igloo-shell daemon suite with a short `XDG_RUNTIME_DIR` set
+  (`bifrost-app`, surfaced 2026-06-13 during the recovery follow-ups).
 - [ ] (effort: L) **Peer telemetry**: per-peer latency, "Avg" latency, nonce
   sparkline, and per-method SIGN/ECDH/PING capability badges — requires
   bifrost-rs + igloo-shared instrumentation; the trigger to promote the
@@ -143,6 +128,20 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## igloo-home
 
+- [ ] (effort: S) **Recover-key meter could show member count** — `get_profile_threshold`
+  returns just the threshold; optionally widen it to `{ threshold, member_count }` so the
+  `RecoverCollectSharesPanel` meter reads "X of threshold (group of N)" (`src-tauri`
+  `app/commands.rs` + `src/App.tsx`; surfaced 2026-06-13).
+- [ ] (effort: S) **nsec display vs. file-save parity** — the shell writes the recovered
+  group `nsec` to a `0o600` file, but the home recover-key view *displays* it (the plaintext
+  necessarily crosses the IPC/webview boundary; Rust-side zeroize only scrubs the struct).
+  Consider offering a "save to file" option in home and/or documenting the in-transit
+  limitation (`src/App.tsx`; surfaced 2026-06-13).
+- [ ] (effort: S) **Clear the home clippy backlog** — `cargo clippy --all-targets` reports
+  ~22 pre-existing style lints (derivable `AppSettings` Default, collapsible `if`,
+  unnecessary `to_vec`, manual `Option::map`, `clone`→`from_ref`) plus the feature-gated
+  `test_dispatch` "never used" chain. A `cargo clippy --fix` pass + a decision on the
+  `test-server` gating warnings (`src-tauri`; surfaced 2026-06-13).
 - [ ] (effort: L) **igloo-home is skewed against the current igloo-ui** — `eed7b7a`
   imports removed exports (`OperatorPeerPermissionState`, `OperatorPendingOperation`)
   and uses pre-Phase-B `AppHeaderProps`/`StoredProfileCardModel`/`SharedDistribution*`
@@ -167,6 +166,16 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## Test harness / CI
 
+- [ ] (effort: S) **igloo-home visual/desktop lanes are Linux-only** — `test/visual/run.mjs`
+  hardcodes `/usr/bin`/`/snap` chromium paths and the desktop lane needs `xvfb-run` +
+  ImageMagick `identify` + X11 `xwininfo`, so neither runs on macOS (homebrew chromium at
+  `/opt/homebrew/bin`, no ImageMagick). Probe the homebrew path and degrade gracefully when
+  `identify` is absent so local macOS dev can at least capture screenshots (surfaced
+  2026-06-13; the `recover-key` visual scenario is registered and CI/Linux will screenshot it).
+- [ ] (effort: S) **Desktop smoke for recover-key** — once the desktop lane runs (CI/Linux),
+  add a `test/desktop` step that dispatches `recover_group_key` and screenshots the
+  recover-key view; today it's covered by Rust unit + a vitest behavioral test only
+  (`igloo-home`; surfaced 2026-06-13).
 - [ ] (effort: S) **Flaky export test**: `profile-import.spec.ts` › "exports an encrypted
   profile package from settings" intermittently times out under load — the Export modal's
   Confirm Password fill does not land before the (disabled) Export button is clicked, so it
