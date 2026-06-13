@@ -68,11 +68,6 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: L) Deferred dashboard screens: error/empty states (loading,
   load-failed, all-relays-offline, signing-blocked, signing-failed) + the Clear
   Credentials modal (`3b`, needs a destructive "clear this device" store action).
-- [ ] (effort: M) Auto-include the unlocked device's own share in the **rotate**
-  Collect Shares flow (paste-only today; matches Paper's "Share #1 validated").
-  Recover already auto-includes the device share via passphrase; mirror that in
-  `RotateKeysetPanel` + `createRotatedKeyset` (add a device-passphrase unlock that
-  decodes the device's own share into the rotation source set) — igloo-pwa / igloo-ui.
 - [ ] (effort: S, unsure) Make the Settings dirty-check structural rather than
   `JSON.stringify` of relays/signerSettings, if those shapes grow.
 - [ ] (effort: S) Decide the fate of the redundant `RelayInput`

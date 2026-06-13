@@ -9,6 +9,26 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
+## 2026-06-13 — Phase 4: recovery/onboarding UX (onboard seam deferred)
+
+Completed Phase 4 except the deliberately-deferred onboard→signer seam refactor.
+Beyond the recover meter-gate + lost-device path (next entry), **rotate now
+auto-includes the device's own share**: `createRotatedKeyset` takes the device
+artifact/passphrase optionally and unshifts the decoded device share into the
+reconstruction set (mirroring recover), the store adds an in-memory
+`rotateDevicePassphrase` + `rotateDeviceUnlockVerified` with a
+`verifyRotateDeviceUnlock()` probe, `generateKeyset`'s rotate branch forwards the
+source profile's artifact + passphrase (cleared after a successful rotate), and
+the shared `RotateKeysetPanel` gains an optional unlock-gated device-share card so
+the operator pastes only the other members' bfshares. All new igloo-ui props stay
+optional → igloo-home unchanged. igloo-ui `cbd7f22`, igloo-pwa `f7edf25`. The
+**onboard→signer seam refactor was deferred by product call** (2026-06-13): the
+2026-06-11 snapshot-restore fix already preserves correctness, so collapsing the
+capture-then-relaunch seam is cleanup with real destabilization risk to the
+critical onboarding flow — it stays in `BACKLOG.md` for a dedicated pass.
+Validation: igloo-ui 120, pwa unit 46, tsc + app builds clean, cross-app
+`make test-fast` green.
+
 ## 2026-06-13 — Phase 4 (part): lost-device recovery + recover meter gate
 
 Landed the first two items of **Phase 4** (recovery/onboarding UX). **Meter gate:**
