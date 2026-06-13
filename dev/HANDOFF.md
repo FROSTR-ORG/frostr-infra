@@ -1,11 +1,13 @@
-# Hand-off: MED+ backlog program — Phases 1–3 done, Phases 4–6 open
+# Hand-off: MED+ backlog program — Phases 1–3 done, Phase 4 in progress
 
 _Last updated: 2026-06-13_
 
 > **Read this first.** Entry point for a new session in the `frostr-infra`
 > workspace. There is an **approved multi-phase plan** in progress:
 > "Remediate audit findings + complete medium-or-higher backlog (hard-cut)".
-> **Phases 1, 2, and 3 are complete and landed.** Pick up at **Phase 4**.
+> **Phases 1–3 are complete and landed. Phase 4 is partly done** — the
+> lost-device recovery path + recover meter-gate landed; two items remain (rotate
+> device-share auto-include, onboard→signer seam). Pick up at **Phase 4 (cont.)**.
 >
 > NOTE: the plan was never written to disk (`plans/enchanted-leaping-papert.md`
 > does not exist — the only git reference is the commit that mentions it). This
@@ -107,10 +109,36 @@ Validation: bifrost-app 46 tests; igloo-home clippy clean + tests green both
 feature configs (45+4 / 53+4) + frontend typecheck/unit (24); chrome tsc + unit
 suite green (97). Follow-up: optional home save-to-file affordance (`BACKLOG.md`).
 
-## ▶ Next: Phases 4–6 (open)
+## ◐ Phase 4 — IN PROGRESS (recovery / onboarding UX)
 
-- **Phase 4** — recovery/onboarding UX: recover-collect meter gate + **add the
-  lost-device path**; auto-include the device share; onboard→signer seam refactor.
+Landed (submodule-then-pointer, parent pointer bump pending in this commit):
+- **Recover meter gate** — the "Share #1 (this device) — Validated" state now
+  counts toward the threshold only after the device passphrase actually unlocks
+  the share. Added `verifyDeviceShareUnlock()` (unlock probe), a store
+  `verifyRecoverDeviceUnlock()` + in-memory `recoverDeviceUnlockVerified` flag
+  (resets on passphrase change), unlock-on-blur in the panel + a validated badge.
+- **Lost-device recovery path** (the plan's settled new capability) — a
+  no-passphrase route: `recoverNsecFromShares` takes the device artifact/passphrase
+  optionally; in lost-device mode the store omits them and the key reconstructs
+  from a full threshold of pasted bfshares (the existing `recoverSecretKeyFromShares`
+  threshold check gates sufficiency). Panel gains an optional lost-device toggle.
+- igloo-ui `affc786` (panel + CSS, all new props optional → igloo-home unchanged),
+  igloo-pwa `0a0b674` (adapter/store/App + tests). Validation: igloo-ui 120, pwa
+  unit 45 (incl. lost-device + meter-gate regression tests), tsc + app build clean,
+  cross-app `make test-fast` green (pwa 20, chrome 17; recover-visual ran).
+
+**Remaining in Phase 4:**
+- **Rotate device-share auto-include** (M) — mirror the recover auto-include in the
+  rotate flow (`RotateKeysetPanel` + `createRotatedKeyset`); recover already does it.
+- **Onboard→signer seam refactor** (M, recommend a dedicated pass) — make the
+  onboard runtime *be* the durable signer instead of capture-snapshot-then-relaunch.
+  Correctness is already preserved by the 2026-06-11 snapshot-restore fix, so this
+  is cleanup with real destabilization risk to the critical onboarding flow; the
+  live onboard node exists *before* the profile is finalized/saved, so collapsing
+  the seam means restructuring the connect→preview→name→finalize→start ordering.
+
+## ▶ Next: Phases 5–6 (open)
+
 - **Phase 5** — capability/UX gaps + chrome parity: delete-device/Clear-Credentials;
   dashboard error/empty states; chrome Settings `sections`+`ExportPackageModal`+
   `PasswordField`; chrome e2e page-object conversion; quarantine-copy prune;

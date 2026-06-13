@@ -62,20 +62,17 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## igloo-pwa
 
-- [ ] (effort: S) **Recover-collect UX polish** (from the 2026-06-12 recovery rework).
-  The "Share #1 (this device) — Validated" meter counts the device share toward the
-  threshold before the device passphrase is entered or verified; gate the validated
-  state on a successful unlock. Also consider a lost-device path: allow recovery from a
-  full threshold of pasted `bfshare`s with no device passphrase (today the device share
-  is always required) — product call — igloo-pwa / igloo-ui.
 - [ ] (effort: L) Adopt a real router for the dashboard pages — header nav still
   drives `store.activeDashboardTab`; URL deep-linking / back-button is a separate
   refactor with route-guard considerations for sensitive unlocked states.
 - [ ] (effort: L) Deferred dashboard screens: error/empty states (loading,
   load-failed, all-relays-offline, signing-blocked, signing-failed) + the Clear
   Credentials modal (`3b`, needs a destructive "clear this device" store action).
-- [ ] (effort: M) Auto-include the unlocked device's own share in recover/rotate
-  Collect Shares (both are paste-only today; matches Paper's "Share #1 validated").
+- [ ] (effort: M) Auto-include the unlocked device's own share in the **rotate**
+  Collect Shares flow (paste-only today; matches Paper's "Share #1 validated").
+  Recover already auto-includes the device share via passphrase; mirror that in
+  `RotateKeysetPanel` + `createRotatedKeyset` (add a device-passphrase unlock that
+  decodes the device's own share into the rotation source set) — igloo-pwa / igloo-ui.
 - [ ] (effort: S, unsure) Make the Settings dirty-check structural rather than
   `JSON.stringify` of relays/signerSettings, if those shapes grow.
 - [ ] (effort: S) Decide the fate of the redundant `RelayInput`

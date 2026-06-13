@@ -9,6 +9,29 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
+## 2026-06-13 — Phase 4 (part): lost-device recovery + recover meter gate
+
+Landed the first two items of **Phase 4** (recovery/onboarding UX). **Meter gate:**
+the recover "Share #1 (this device) — Validated" state previously counted the
+device share toward the threshold the moment the passphrase field was touched;
+it now counts only after a real unlock. Added `verifyDeviceShareUnlock()` (a
+no-recovery unlock probe), a store `verifyRecoverDeviceUnlock()` action + an
+in-memory `recoverDeviceUnlockVerified` flag that resets whenever the passphrase
+changes, an on-blur verify + a "Validated/Locked" badge in the panel, and
+App-side `collectedCount` computed from the verified state instead of an
+unconditional +1. **Lost-device path** (the plan's settled new capability): a
+no-passphrase reconstruction route — `recoverNsecFromShares` now takes the device
+artifact/passphrase optionally, and in lost-device mode the store omits them so
+the key reconstructs from a full threshold of pasted bfshares alone (the existing
+threshold check in `recoverSecretKeyFromShares` enforces sufficiency); the shared
+`RecoverCollectSharesPanel` gains an optional lost-device toggle. All new igloo-ui
+props are optional and default to today's behavior, so igloo-home's single-path
+usage is untouched. igloo-ui `affc786`, igloo-pwa `0a0b674`, parent pointer bump.
+Validation: igloo-ui 120, pwa unit 45 (incl. lost-device + meter-gate regression
+tests), tsc + app build clean, cross-app `make test-fast` green (pwa 20, chrome
+17; recover-visual ran). Remaining Phase-4 items (rotate device-share
+auto-include; onboard→signer seam refactor) are tracked in `BACKLOG.md`/HANDOFF.
+
 ## 2026-06-13 — Phase 3: security / hardening
 
 Landed **Phase 3** of the MED+ backlog program. **Socket-path fallback:**
