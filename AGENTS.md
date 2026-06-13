@@ -107,7 +107,7 @@ change, run `npm --prefix test run test:guards`.
 | Tier | Command | Use when |
 |------|---------|----------|
 | Smoke | `make test-smoke` | Quick demo-harness onboard sanity check |
-| Fast | `make test-fast` | PWA + Chrome suites excluding `@live`; pre-push gate |
+| Fast | `make test-fast` | PWA + Chrome suites excluding `@live`; **render-only** pre-push gate (no live signer/relay, so green can still hide a broken demo — use Live/Demo for behavior) |
 | Live | `make test-live` | `@live` integration flows |
 | Demo | `make test-demo` | Docker-backed Chrome/Home demo lane (CI release gate) |
 | Affected | `make test-affected` | Minimal branch-dependent surface for the current change |

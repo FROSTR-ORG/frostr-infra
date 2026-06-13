@@ -79,6 +79,11 @@ make test-release
 - `fast`
   - non-live browser tests
   - command: `npm --prefix test run test:e2e:fast`
+  - **Fast ≠ behavioral.** This lane is render-only: it drives seeded `@visual`
+    specs and never starts a live signer/relay, so a green `fast` run can pass
+    while real onboarding/signing is broken. It is a quick pre-push render gate,
+    not a behavioral one — run `make test-live` (local relay + live runtime) or
+    `make test-demo` (Docker onboarding→sign) to actually exercise behavior.
 - `live`
   - local relay plus live signer/runtime browser tests
   - command: `npm --prefix test run test:e2e:live`
