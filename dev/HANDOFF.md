@@ -1,58 +1,70 @@
-# Hand-off: MED+ program complete → next, the L-task program (onboard seam first)
+# Hand-off: L-task program — onboard→signer seam DONE; pick the next L item
 
 _Last updated: 2026-06-13_
 
 > **Read this first.** Entry point for a new session in the `frostr-infra`
-> workspace. The **MED+ remediation program (Phases 1–6) is complete and pushed**
-> (all repos on `dev`, parent + 6 submodules pushed to their `dev` remotes). The
-> per-phase sections below record what landed and what was deferred.
+> workspace. The **MED+ remediation program (Phases 1–6) is complete and pushed**.
+> We then opened the **L-task program** and completed its first item — the
+> **onboard→signer seam refactor** (see [§ Done](#-done-onboardsigner-seam-refactor)).
+> The per-phase MED+ sections further below record what landed and what was deferred.
 >
-> **▶ NEXT: the L-task program.** We are now taking on the larger deferred items,
-> **starting with the onboard→signer seam refactor** — see
-> [§ Next work](#-next-work-l-task-program) immediately below. After that, the
-> other L items in `BACKLOG.md` (signing-approval queue, peer telemetry, dashboard
-> router, dashboard error/empty screens, chrome e2e page-objects).
+> **▶ NEXT: pick the next L item** from `BACKLOG.md` — see
+> [§ Next work](#-next-work-remaining-l-items). Recommendation + the candidate
+> shortlist are there.
 
-## ▶ Next work: L-task program
+## ✅ Done: onboard→signer seam refactor (L-task #1)
 
-### 1. Onboard→signer seam refactor (start here)
+**Landed (submodule-then-pointer):** igloo-pwa **`e6ea0b2`** → parent **`093c187`**.
+Plan file: `plans/twinkling-seeking-bunny.md`.
 
-**Goal:** make the onboard runtime *be* the durable signer, removing the
-capture-snapshot-then-relaunch seam. Correctness is already preserved (the
-2026-06-11 snapshot-restore fix), so this is an architecture cleanup — but it
-touches the **critical onboarding flow**, so go carefully (tests + the e2e gate).
+The PWA onboard flow now **keeps the live onboarding node running and adopts it as
+the durable signer** — no second node, no snapshot capture/restore round-trip. The
+key realization: in `wasm-bridge-node.ts` `connect()`, a `mode:'onboarding'` node
+already `restore_runtime(...)`s, subscribes to relay ingress, and pumps — it is a
+fully-running signer *after connect()*, and the `mode` field is never read again.
+The old code threw that live signer away and rebuilt an identical one from a
+snapshot; we now stage the live node in the `SessionController` and promote it at
+finalize (`adoptStagedAsActive`).
 
-**How it works today (the seam to collapse):**
-1. `connectOnboardingPackageAndCaptureProfile` (`igloo-pwa/src/lib/page-runtime-host.ts`
-   ~273–328) spins up a **separate transient** signer node in `mode:'onboarding'`,
-   connects it, does a one-shot `waitForNonceSnapshot()` → `snapshot_state()` to
-   capture the exchanged nonce pool, then **shuts the node down** (~line 326).
-2. The captured `runtimeSnapshotJson` derives the profile payload
-   (`igloo-shared/src/browser-onboarding/connect.ts` → `runtimePayloadFromSnapshot`)
-   and is carried as an in-memory handoff through `connectOnboardingPackage` /
-   `finalizeOnboardedDevice` (`igloo-pwa/src/lib/local-adapter/profile-packages.ts`
-   ~110–165) → `finalizeConnectedBrowserProfile`
-   (`igloo-shared/src/browser-onboarding/finalize.ts`).
-3. The **durable signer relaunches** and restores from that snapshot:
-   `persistProfileToDashboard` → `startSession` (`profile-runtime.ts` ~135–185) passes
-   `runtimeSnapshotJson` into a fresh node so it re-hydrates the pool instead of
-   bootstrapping empty.
+**Two boundaries that shaped the change:**
+- **Rotation shares the connect helper** (`store.connectRotationPackage`) but
+  derives a *new* keyset, so it keeps the old capture-then-shutdown path
+  (`keepAlive` is off; nothing to adopt).
+- **The shared bridge restore path is NOT dead** — igloo-chrome still uses
+  `mode:'persisted'` + resilient-restore and *persists* the snapshot (MV3 SW
+  restarts need it). So removal was scoped to pwa-local plumbing; **igloo-shared /
+  chrome were left untouched.** Chrome's analogous seam is a logged follow-up.
 
-**The hard part:** the live onboard node exists *before* the profile is finalized
-and saved (the connect → preview → name → finalize → start ordering). Collapsing
-the seam means keeping that node alive across the "review + name the device" step
-and adopting it as the durable session — restructuring that ordering and the
-snapshot plumbing threaded through store → finalize → startSession.
+**Disposal:** a live staged signer now exists before its profile is saved, so it is
+torn down on every flow-exit — `setActiveView` (universal choke point), a
+`cancelOnboarding` action, re-connect (restage discards prior), and
+`SessionController.start()/stop()`. The auto-open-off / activation-error cases fall
+through to a `finally`-discard in `finalizeOnboardedDevice`.
 
-**Suggested approach:** start with a Plan-mode design pass (the ordering change is
-the crux); consider a worktree given the breadth; lean on the existing onboard
-tests (`igloo-pwa/test/frontend/onboard-persist.test.tsx`,
-`igloo-shared/src/browser-onboarding.test.ts`) + `make test-demo` (onboard→sign)
-as the behavioral gate. **No new PRs** — submodule-commit-then-pointer-bump.
->
-> NOTE: the plan was never written to disk (`plans/enchanted-leaping-papert.md`
-> does not exist — the only git reference is the commit that mentions it). This
-> hand-off's phase breakdown below is the sole surviving record of the plan.
+**Verified green:** pwa unit 64 (incl. new staged-adoption tests + the previously
+**dark** `session-controller.test.ts` — a `.ts` file a `.tsx`-only vitest glob had
+silently excluded; now `{ts,tsx}`), `make test-fast` (pwa 20 + chrome 17 — chrome
+green proves the shared restore path is intact), and `make test-live`
+(**`sign-shell.spec.ts`** schnorr-verifies a real 2-of-2 signature via the adopted
+node — the load-bearing proof; onboarding + sign-reload also pass).
+
+## ▶ Next work: remaining L items
+
+Candidates in `BACKLOG.md` (the original L-task shortlist, minus the seam):
+- **Peer telemetry** (L, bifrost-rs + igloo-shared) — per-peer latency / nonce
+  sparkline / SIGN·ECDH·PING capability badges; the trigger to promote the
+  `dashboard-signer` visual entry to `aligned`. Spec:
+  `plans/bifrost-rs-peer-telemetry-and-approval-spec-2026-06-10.md`.
+- **Interactive signing-approval queue** (L) — Deny / Allow once / Always behind
+  the shipped Pending-Approvals shell; per-method policy already exists. Same spec.
+- **Dashboard router** (L, igloo-pwa) — URL deep-linking / back-button; route-guard
+  considerations for sensitive unlocked states.
+- **Dashboard error/empty states** (L, igloo-pwa) — a 5-screen UI build.
+- **Chrome e2e page-objects** (M) and the **chrome onboard→signer seam** (M, the
+  sibling of the seam we just collapsed) are smaller deferred items.
+
+**No plan committed yet for the next item** — start with a Plan-mode design pass on
+whichever is chosen. **No new PRs** — submodule-commit-then-pointer-bump.
 
 ## The plan (what we're executing)
 
