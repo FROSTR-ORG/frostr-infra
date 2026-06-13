@@ -46,13 +46,6 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: L) **Interactive signing-approval queue** (Deny / Allow once /
   Always allow) behind the shipped Pending-Approvals shell — per-method allow/deny
   policy already exists; this adds a wait-for-approval queue. Same spec as above.
-- [ ] (effort: M) **Resilient runtime-snapshot restore**: the bootstrap now
-  discards structurally-corrupt snapshots (`createBrowserRuntimeNodeInit`), but a
-  snapshot that parses yet is semantically incompatible with the current runtime
-  still fails at WASM restore. Add a snapshot version tag + a restore-failure
-  fallback (catch the restore throw and re-bootstrap from the profile packages)
-  across the browser hosts (igloo-shared + page-runtime-host + the chrome
-  controller). Surfaced 2026-06-10 (per-tab isolation work, C.6).
 - [ ] (effort: M) **Refactor the onboard→signer handoff to remove the
   capture-then-reinit seam.** Onboarding runs a *separate* transient runtime, then
   `connectOnboardingPackageAndCaptureProfile` snapshots it and the signer relaunches.
@@ -60,26 +53,21 @@ Group by area. When an item is finished, move a one-line summary to
   the cleaner architecture is for the onboard runtime to *be* the durable signer (no
   capture/relaunch seam to lose state). Would also simplify the snapshot plumbing
   threaded through store → finalize → startSession. — igloo-shared + igloo-pwa.
-- [ ] (effort: S) **Sign-miss op is mislabeled `ping` in runtime failures.** A failed
-  inbound *sign* request surfaces as `failure op_type="ping" message="nonce unavailable"`
-  in the runtime log (cost us real diagnosis time). Fix the host-side op-type classification
-  so sign/ecdh misses aren't reported as pings — bifrost-rs (host).
-- [ ] (effort: S) Pre-existing clippy nits surfaced near the nonce code: "very complex
-  type" on `NoncePool`'s `HashMap<u16, HashMap<..>>` fields (factor a type alias),
-  `sort_by` → `sort_by_key` in `outgoing_public_nonces`, and `&[x.clone()]` →
-  `slice::from_ref` in the onboard handler — bifrost-core / bifrost-signer.
+- [ ] (effort: S) **Snapshot version tag (fast-path skip on top of the shipped
+  restore fallback).** Resilient restore now re-bootstraps from packages when a
+  snapshot fails to restore, but it still *attempts* the WASM restore first. Stamp
+  a version at snapshot write and skip the restore attempt up front on a known
+  mismatch — purely an optimization now that the fallback guarantees correctness.
+  Must stay back-compatible (treat un-versioned snapshots as restorable) —
+  igloo-shared + the snapshot write sites (surfaced 2026-06-13).
+- [ ] (effort: S) **Remaining router Ping-sentinels.** The inbound-request failure
+  path is now correctly typed, but `BridgeCore::tick`'s expire-tick failure and
+  `fail_request_and_dispatch`'s internal failure still hardcode
+  `PendingOpType::Ping` (`bifrost-router` ~257, ~519). Type them where the op is
+  known; expire is a background tick so Ping may stay (surfaced 2026-06-13).
 
 ## igloo-pwa
 
-- [ ] (effort: M) **Investigate: an onboarded profile may not persist until a later
-  profile-mutating action.** Surfaced writing `sign-reload.spec.ts` (2026-06-12): after the
-  onboard save the dashboard renders the profile in-memory, but the persisted partition
-  stays at `activeView: 'onboard-save'` with `pendingOnboardConnection` set and `profiles: []`
-  — i.e. `persistProfileToDashboard`'s final state isn't reaching localStorage. The
-  permissions spec only survived a reload because its policy toggle separately wrote the
-  profile. If real, an onboarded device is lost on an immediate reload/close. Confirm against
-  the real UI onboard-save path (`finalizeOnboardedDevice` / the `saveProfile*` CreateFlow
-  setup) and fix the persist gap — igloo-pwa.
 - [ ] (effort: S) **Recover-collect UX polish** (from the 2026-06-12 recovery rework).
   The "Share #1 (this device) — Validated" meter counts the device share toward the
   threshold before the device passphrase is entered or verified; gate the validated
@@ -136,6 +124,7 @@ Group by area. When an item is finished, move a one-line summary to
   unnecessary `to_vec`, manual `Option::map`, `clone`→`from_ref`) plus the feature-gated
   `test_dispatch` "never used" chain. A `cargo clippy --fix` pass + a decision on the
   `test-server` gating warnings (`src-tauri`; surfaced 2026-06-13).
+
 ## Dependencies & packaging
 
 - [ ] (effort: M) **Make `nostr-tools` a peerDependency of `igloo-shared` +
@@ -164,6 +153,19 @@ Group by area. When an item is finished, move a one-line summary to
   add a `test/desktop` step that dispatches `recover_group_key` and screenshots the
   recover-key view; today it's covered by Rust unit + a vitest behavioral test only
   (`igloo-home`; surfaced 2026-06-13).
+- [ ] (effort: M) **Guard against stale committed browser WASM.** The
+  `igloo-shared/public/wasm` blobs had silently lagged `bifrost-rs` — committed at
+  `bf_package_version 1` still exporting the removed relay-backup API, only caught
+  by a manual rebuild (2026-06-13). Add a CI check that the committed blobs match a
+  fresh build from the current `bifrost-rs` pointer (e.g. rebuild + `git diff
+  --exit-code public/wasm`, or hash the bifrost-rs source/pointer into a stamp) so
+  the browser runtime can't drift from the Rust source — Test harness/CI.
+- [ ] (effort: S) **Behavioral test for the resilient-restore fallback.** Phase-1.2
+  added a re-bootstrap-from-packages fallback when a persisted snapshot fails WASM
+  restore; only the package-carrying half (`createBrowserRuntimeNodeInit`) is
+  unit-tested. Add an integration test that feeds a structurally-valid but
+  incompatible snapshot and asserts the runtime re-bootstraps (emits
+  `restore_fallback_to_profile` and comes up sign-ready) — Test harness.
 - [ ] (effort: S) **Flaky export test**: `profile-import.spec.ts` › "exports an encrypted
   profile package from settings" intermittently times out under load — the Export modal's
   Confirm Password fill does not land before the (disabled) Export button is clicked, so it

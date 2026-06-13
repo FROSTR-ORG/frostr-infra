@@ -9,6 +9,30 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
+## 2026-06-13 — Phase 1 correctness/data-loss fixes + backlog audit
+
+Backlog audit (50 → 42): pruned stale relay-backup-removal residue — two
+obsolete items, a dead chrome `backup-live` spec + `publishBackup` fixture, and
+the `check-bridge-wasm-exports` allowlist (still requiring the deleted
+`profile_backup_*` exports + `bf_package_version 1`). Then landed all of
+**Phase 1** of `plans/enchanted-leaping-papert.md`. **1.1 — onboard data-loss:**
+`persistProfileToDashboard` now `flushSync`-commits and writes synchronously, so
+a just-onboarded/created device survives an immediate reload (was lost inside the
+250/500 ms debounce); igloo-pwa `0bd1132`, parent `93d87fa`. **1.3 — typed
+inbound failures:** `process_event` records inbound sign/ecdh/onboard failures
+under their true op type instead of letting the router blind-label them `ping`,
+plus three same-area clippy fixes; bifrost-rs `2a3e702`, parent `6c0a55e`.
+**1.2 — resilient restore:** the bridge falls back to a clean package bootstrap
+when a persisted snapshot fails WASM restore (instead of bricking the session);
+`createBrowserRuntimeNodeInit` carries the packages centrally so both browser
+hosts are covered with no per-host change; igloo-shared `ad12f67`. Also
+**refreshed the browser WASM** (`a3953cc`) — the committed blobs had silently
+lagged to package v1 with the removed backup API — bringing browser clients to v2
+and carrying the op-type fix; parent `ca9bc5a`. H4 (igloo-home vs igloo-ui skew)
+verified resolved via typecheck + build. Remaining Phase-2..6 work and new
+follow-ups (snapshot version-tag fast path, restore-fallback behavioral test,
+stale-WASM CI guard, remaining router ping-sentinels) are in `BACKLOG.md`.
+
 ## 2026-06-13 — Recovery follow-ups (tests, threshold meter, nsec hardening, secure socket path)
 
 Five clean-up tasks on top of the relay-free recovery transition. **Tests:**

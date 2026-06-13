@@ -1,61 +1,80 @@
-# Hand-off: FROSTR recovery transition + follow-ups (COMPLETE)
+# Hand-off: MED+ backlog program — Phase 1 done, Phases 2–6 open
 
 _Last updated: 2026-06-13_
 
-> **Read this first.** This is the entry point for a new session in the
-> `frostr-infra` workspace. The recovery-feature transition that this doc used to
-> track is **finished** — there is **no active in-progress thread**. Pick the
-> next piece of work from [`dev/BACKLOG.md`](./BACKLOG.md).
+> **Read this first.** Entry point for a new session in the `frostr-infra`
+> workspace. There is an **approved multi-phase plan** in progress:
+> [`plans/enchanted-leaping-papert.md`](./plans/enchanted-leaping-papert.md) —
+> "Remediate audit findings + complete medium-or-higher backlog (hard-cut)".
+> **Phase 1 is complete and landed.** Pick up at **Phase 2**.
 
-## ✅ Status: COMPLETE
+## The plan (what we're executing)
 
-The relay-published "encrypted profile backup" feature is **fully removed across
-the whole workspace**, and the follow-up clean-ups are done. Nothing is
-half-finished; all trees are clean and submodule pointers are in sync.
+Complete every **medium-importance-or-above** backlog item as a hard-cut program
+(no compat shims). Three product calls were settled up front:
+- **Scope:** remediation + MED+ fixes only. The big L-effort *feature builds*
+  (interactive signing-approval queue, peer telemetry, dashboard router) are
+  **out of scope** — they stay in `BACKLOG.md`.
+- **Lost-device recovery:** **add** a no-passphrase full-threshold reconstruction
+  path (Phase 4), on top of the meter-gating fix.
+- **Default peer permissions:** **keep permissive**, document the decision
+  (Phase 3) — no behavior change.
 
-**The recovery model now** (canonical spec: [`docs/RECOVERY.md`](../docs/RECOVERY.md)):
-- **Restore a lost device** = import its self-contained **`bfprofile`**. A bare
-  `bfshare` (`{ shareSecret, relays }`) can't rebuild a device.
-- **Recover the key** = reconstruct the group **nsec** locally from a threshold
-  of shares (`frostr_utils::recover_key`). No relay.
-- **Keyset rotation** sources its group package from a **local profile**, not a relay.
+Full phase breakdown + critical-file anchors live in the plan file.
 
-## What shipped (with commit refs)
+## ✅ Phase 1 — COMPLETE (correctness / data-loss)
 
-- **2026-06-12 — relay-backup removal** (HISTORY entry): igloo-shell `f1b6c73`
-  (`recover-key` CLI command), igloo-home `12119f8` (`recover_group_key` command +
-  recover-key UI), bifrost-rs `1ad615c` (deleted `bifrost-profile`
-  `flows/{backup,recovery}.rs`, the `native-relay` feature, `frostr-utils` backup
-  helpers/constants/structs). Parent bumps `528be2a`/`67ca114`/`32dbcd7`/`5bc0ec6`.
-- **2026-06-13 — recovery follow-ups** (HISTORY entry): bifrost-rs `483a74d`,
-  igloo-shell `cf2aedb`, igloo-home `f0238e6`, parent bump `9d6d12d`. Added
-  home recover/rotate Rust + frontend tests; a `get_profile_threshold` command for
-  an accurate recover-key meter; nsec hardening (zeroize-on-drop + redacted Debug +
-  clear-on-navigate); the secure no-`/tmp` daemon socket-path shortener
-  (`bifrost-app::native_runtime`); a `recover-key` visual scenario. Plan:
-  [`plans/great-suggestions-let-s-draft-kind-canyon.md`](./plans/great-suggestions-let-s-draft-kind-canyon.md).
+All landed submodule-commit-then-parent-pointer-bump:
+- **1.1 onboard data-loss** — `persistProfileToDashboard` flushSync-commits +
+  persists synchronously; a just-onboarded device survives an immediate reload
+  (was lost in the 250/500 ms debounce). igloo-pwa `0bd1132` → parent `93d87fa`.
+- **1.3 typed inbound failures** — inbound sign/ecdh/onboard failures report their
+  true op type (not `ping`) + 3 clippy nits. bifrost-rs `2a3e702` → `6c0a55e`.
+- **1.2 resilient restore** — bridge re-bootstraps from packages when a snapshot
+  fails WASM restore. igloo-shared `ad12f67`. Plus **browser WASM refresh**
+  `a3953cc` (blobs were stale at package v1 w/ removed backup API). Parent
+  `ca9bc5a`.
+- **Backlog audit + cleanup** (50 → 42) and dead relay-backup test removal
+  `12162cb`; H4 verified resolved (typecheck + build).
 
-Full detail: [`dev/HISTORY.md`](./HISTORY.md) (2026-06-12 and 2026-06-13 entries).
+Per-repo checks were green at commit time (igloo-pwa 43/43, bifrost-rs full
+suite + clippy/fmt, igloo-shared 142/142 + WASM exports, both apps typecheck).
+**Still owed:** behavioral `make test-demo` over the refreshed WASM — run it as
+the holistic Phase-1 gate before/while starting Phase 2.
 
-## Open follow-ups
+## ▶ Next: Phases 2–6 (open)
 
-Curated in [`dev/BACKLOG.md`](./BACKLOG.md). The ones that fell out of this work:
-unit-test the `~/.igloo-shell/run` socket fallback (`bifrost-app`); make the
-igloo-home visual/desktop lanes runnable on macOS (Linux-only today); clear the
-home clippy backlog; recover-key meter member-count; nsec display-vs-file-save parity.
+- **Phase 2** — `nostr-tools` → peerDependency of igloo-shared + dedupe/version-
+  align across apps (`resolve.dedupe`); install + build + cross-app e2e. HIGH.
+- **Phase 3** — security/hardening: socket-path-fallback unit test; igloo-home
+  nsec file-save parity; chrome multi-context hardening; document permissive
+  default-permissions; fold-in `cargo clippy --fix` on the home backlog.
+- **Phase 4** — recovery/onboarding UX: recover-collect meter gate + **add the
+  lost-device path**; auto-include the device share; onboard→signer seam refactor.
+- **Phase 5** — capability/UX gaps + chrome parity: delete-device/Clear-Credentials;
+  dashboard error/empty states; chrome Settings `sections`+`ExportPackageModal`+
+  `PasswordField`; chrome e2e page-object conversion; quarantine-copy prune;
+  Diagnostics→Event Log rename.
+- **Phase 6** — test/CI: macOS visual/desktop lanes; recover-key desktop smoke;
+  flaky export test; verify chrome `@demo` on colima; `pwa-home-pairing` gate-or-
+  retire; close the fast≠behavioral gap; automate multi-PWA-tab signature.
 
 ## Working notes (the WHY)
 
-- **Who / how:** the maintainer is **cmdruid** — moves fast, **no new PRs**;
-  commit inside the submodule (`dev`) first, then bump the pointer in the parent;
-  proper fixes over patches; capture follow-ups in `dev/BACKLOG.md`.
-- **Validation per repo:** Rust `cargo check/clippy/fmt` + `cargo test` (offline);
-  igloo-home also `npx tsc --noEmit` + `npx vitest run` + `make igloo-home-test-*`.
-  The igloo-shell daemon integration suite needs a short `XDG_RUNTIME_DIR` on hosts
-  without `/run/user` (the harness now sets one); the `test-server` feature gates
-  igloo-home's `test_dispatch`.
-- **Obsolete context warning:** older docs/ADRs/comments still mention the relay
-  backup model (kind-10000, `publish_profile_backup`, `bfshare`-from-relay
-  recovery) — that is **gone**; do not reintroduce it.
-- **Pre-existing:** `dev/PAPER-SECURITY-RECONCILE.md` shows as a ` D` in parent git
+- **Who / how:** maintainer **cmdruid** — moves fast, **no new PRs**; commit
+  inside the submodule first, then bump the pointer in the parent; proper fixes
+  over patches; capture follow-ups in `BACKLOG.md`.
+- **WASM on macOS:** Apple `clang` can't target `wasm32`. Build browser WASM with
+  Homebrew LLVM: `CC_wasm32_unknown_unknown=/opt/homebrew/opt/llvm/bin/clang
+  AR_wasm32_unknown_unknown=/opt/homebrew/opt/llvm/bin/llvm-ar
+  PATH=/opt/homebrew/opt/llvm/bin:$PATH npm --prefix repos/igloo-shared run
+  build:browser-wasm`. The committed blobs had drifted from the Rust source —
+  a stale-WASM CI guard is now a `BACKLOG.md` item.
+- **Obsolete context warning:** relay-backup is **gone**; recurring leftovers keep
+  surfacing (dead specs, WASM export allowlist). Do not reintroduce kind-10000 /
+  `publish_profile_backup` / `bfshare`-from-relay recovery.
+- **Resilient restore is fallback-centric:** correctness comes from re-bootstrap-
+  on-restore-failure; the version tag is only a deferred fast-path optimization
+  (see `BACKLOG.md`), not required.
+- **Pre-existing:** `dev/PAPER-SECURITY-RECONCILE.md` shows as ` D` in parent git
   status — predates this work; leave it untouched.
