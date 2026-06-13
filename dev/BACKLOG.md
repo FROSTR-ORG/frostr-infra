@@ -16,6 +16,11 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## Design (Paper ↔ runtime)
 
+- [ ] (effort: S) **Promote the `dashboard-signer` visual entry to `aligned`.** Its
+  blocking telemetry (per-peer latency, nonce sparkline, SIGN/ECDH/PING capability
+  badges) shipped 2026-06-13 and now renders in `OperatorSignerPanel`. Re-shoot /
+  re-diff the visual against Paper's `1-signer-dashboard` and update the entry's
+  status — `igloo-paper` + the visual lane.
 - [ ] (effort: M) Add a **Browser Settings** group to the Paper `502-0` Settings
   artboard so the PWA-only toggles (Remember browser state / Open signer after
   import / Prefer install prompt) are reflected in the design — `igloo-paper` ·
@@ -43,6 +48,18 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: L) **Interactive signing-approval queue** (Deny / Allow once /
   Always allow) behind the shipped Pending-Approvals shell — per-method allow/deny
   policy already exists; this adds a wait-for-approval queue. Same spec as above.
+- [ ] (effort: S) **Dedupe the runtime wire types redeclared in igloo-ui.**
+  `igloo-ui/src/adapters/runtime-view-models.ts` hand-redeclares `RuntimePeerStatusInput`
+  / `RuntimeStatusSummaryInput` (kept decoupled from `igloo-shared` on purpose), so the
+  telemetry pass had to add the same fields in **two** repos — a real drift risk. Decide:
+  import the wire types from `igloo-shared` (or a types-only shared module), or add a
+  contract test that fails when the shapes diverge. The pwa-local `PwaRuntimePeerStatus`/
+  `PwaRuntimeStatus` minimal mirrors are part of the same smell (surfaced 2026-06-13).
+- [ ] (effort: S) **Remove or repurpose the dead `runtimeStatusToSignerDashboardView`.**
+  After the peer→row consolidation it is exported + test-only (no client consumes it; all
+  three dashboards build rows via `buildPeerReadinessRows`). Either delete it (+ its
+  DesignAdapters test) or fold it onto the shared builder so it stops being a second,
+  live-only peer-mapping path — igloo-ui (surfaced 2026-06-13).
 - [x] (effort: M) **Refactor the onboard→signer handoff to remove the
   capture-then-reinit seam — PWA done (2026-06-13).** The PWA onboard flow now keeps
   the live onboarding node running and *adopts* it as the durable signer (the

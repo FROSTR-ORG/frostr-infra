@@ -1,16 +1,21 @@
-# Hand-off: L-task program — onboard→signer seam DONE; pick the next L item
+# Hand-off: L-task program — seam + telemetry + consolidation DONE; pick the next L item
 
 _Last updated: 2026-06-13_
 
 > **Read this first.** Entry point for a new session in the `frostr-infra`
 > workspace. The **MED+ remediation program (Phases 1–6) is complete and pushed**.
-> We then opened the **L-task program** and completed its first item — the
-> **onboard→signer seam refactor** (see [§ Done](#-done-onboardsigner-seam-refactor)).
-> The per-phase MED+ sections further below record what landed and what was deferred.
+> We then opened the **L-task program** and have completed, in order:
+> **(1)** the onboard→signer seam refactor, **(2)** the peer-telemetry pass, and
+> **(3)** a consolidation cleanup the telemetry pass exposed. See the three `✅ Done`
+> sections below. The per-phase MED+ sections further down record the earlier work.
+>
+> **All commits are local on `dev`** across the repos (not pushed). The parent repo
+> also carries **pre-existing, unrelated staged WIP** (`dev/audit/*` + `.gitignore`)
+> that is NOT ours — leave it; commit only explicit paths (like the `PAPER-SECURITY-
+> RECONCILE.md ` D` of old).
 >
 > **▶ NEXT: pick the next L item** from `BACKLOG.md` — see
-> [§ Next work](#-next-work-remaining-l-items). Recommendation + the candidate
-> shortlist are there.
+> [§ Next work](#-next-work-remaining-l-items).
 
 ## ✅ Done: onboard→signer seam refactor (L-task #1)
 
@@ -48,23 +53,51 @@ green proves the shared restore path is intact), and `make test-live`
 (**`sign-shell.spec.ts`** schnorr-verifies a real 2-of-2 signature via the adopted
 node — the load-bearing proof; onboarding + sign-reload also pass).
 
+## ✅ Done: peer-telemetry pass (L-task #2)
+
+**Landed (submodule-then-pointer):** bifrost-rs `8416de1`, igloo-shared `d103949`,
+igloo-ui `c03577d`, igloo-pwa `8c53ce6`, igloo-chrome `f9a81c6`, igloo-home `2ca2567`
+→ parent `fae4ad3`. Spec items (c)→(a)→(b) of
+`plans/bifrost-rs-peer-telemetry-and-approval-spec-2026-06-10.md`.
+
+Per-peer **SIGN/ECDH/PING capability badges + last/avg latency (ms) + nonce sparkline**,
+end to end: `bifrost-signer` `PeerStatus` gains the fields; latency uses a new
+`now_unix_millis()` (the protocol clock is seconds-granularity) with **runtime-only**
+RTT + nonce-history rings on `DeviceState` (excluded from `DeviceStatePersisted` — no
+schema change); → `runtime_status()` → igloo-shared wire → igloo-ui adapter +
+`OperatorSignerPanel` (new inline-SVG `Sparkline`) → all three dashboards.
+**WASM coupling note:** the bridge blob had to be rebuilt + re-stamped and ships in
+igloo-shared **+ pwa + chrome** — see [[wasm-build-macos]] (memory corrected this session).
+
+## ✅ Done: peer→row consolidation (cleanup the telemetry pass exposed)
+
+**Landed:** igloo-ui `b9fdd3f`, igloo-pwa `7f92e35`, igloo-chrome `ff560f3`,
+igloo-home `250d235` → parent `5d408b0`.
+
+The three clients each hand-rolled the same "merge live peers + roster + policy → rows"
+projection (and had drifted — chrome/home rendered a sign-ready peer as `'warning'`).
+Now there is **one** `buildPeerReadinessRows` in igloo-ui; clients pass pubkey lists.
+**~270 lines of duplication removed**; the state-mapping bug fixed. Pure TS, no WASM.
+See [[runtime-status-type-flow]] (memory) — don't re-add a per-client merge.
+
 ## ▶ Next work: remaining L items
 
-Candidates in `BACKLOG.md` (the original L-task shortlist, minus the seam):
-- **Peer telemetry** (L, bifrost-rs + igloo-shared) — per-peer latency / nonce
-  sparkline / SIGN·ECDH·PING capability badges; the trigger to promote the
-  `dashboard-signer` visual entry to `aligned`. Spec:
-  `plans/bifrost-rs-peer-telemetry-and-approval-spec-2026-06-10.md`.
-- **Interactive signing-approval queue** (L) — Deny / Allow once / Always behind
-  the shipped Pending-Approvals shell; per-method policy already exists. Same spec.
+Candidates in `BACKLOG.md` (telemetry now done):
+- **Interactive signing-approval queue** (L) — Deny / Allow once / Always behind the
+  shipped Pending-Approvals shell (`pendingApprovalRows` model field already stubbed);
+  per-method policy already exists. The natural pair to telemetry — **same spec**, item
+  (d). Biggest lift (bifrost-signer queue + `SignerInput::ApproveRequest`, bifrost-core
+  policy value, bifrost-bridge-wasm `approve_request`, igloo-shared, igloo-ui).
 - **Dashboard router** (L, igloo-pwa) — URL deep-linking / back-button; route-guard
-  considerations for sensitive unlocked states.
+  considerations for sensitive unlocked states. Self-contained, no Rust.
 - **Dashboard error/empty states** (L, igloo-pwa) — a 5-screen UI build.
-- **Chrome e2e page-objects** (M) and the **chrome onboard→signer seam** (M, the
-  sibling of the seam we just collapsed) are smaller deferred items.
+- Smaller: **chrome e2e page-objects** (M), **chrome onboard→signer seam** (M, sibling
+  of L-task #1 — but chrome *persists* the snapshot, so a different shape), and the two
+  cleanup follow-ups logged this session (dedupe igloo-ui's redeclared wire types;
+  remove the dead `runtimeStatusToSignerDashboardView`).
 
-**No plan committed yet for the next item** — start with a Plan-mode design pass on
-whichever is chosen. **No new PRs** — submodule-commit-then-pointer-bump.
+**Start with a Plan-mode design pass** on whichever is chosen. **No new PRs** —
+submodule-commit-then-pointer-bump.
 
 ## The plan (what we're executing)
 
