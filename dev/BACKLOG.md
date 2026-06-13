@@ -24,9 +24,9 @@ Group by area. When an item is finished, move a one-line summary to
   dashboard-only** — drop the repeated header from the Permissions/Settings
   artboards (`1c-permissions`, `502-0`) to match the runtime (decided 2026-06-09).
 - [ ] (effort: S) Add a **Pending Operations** component to the Paper design system
-  to match the runtime `OperatorSignerPanel` card (the runtime card already exists);
-  and rename the runtime "Diagnostics" card → **Event Log** to match Paper —
-  `igloo-paper` + `igloo-ui`.
+  to match the runtime `OperatorSignerPanel` card (the runtime card already exists)
+  — `igloo-paper`. (The runtime "Diagnostics" card was renamed → **Event Log** to
+  match Paper on 2026-06-13.)
 - [ ] (effort: S) Confirm whether `Export Profile`/`Export Share` should keep a
   quick unencrypted copy-to-clipboard alongside the password modal — product call.
 
@@ -66,8 +66,10 @@ Group by area. When an item is finished, move a one-line summary to
   drives `store.activeDashboardTab`; URL deep-linking / back-button is a separate
   refactor with route-guard considerations for sensitive unlocked states.
 - [ ] (effort: L) Deferred dashboard screens: error/empty states (loading,
-  load-failed, all-relays-offline, signing-blocked, signing-failed) + the Clear
-  Credentials modal (`3b`, needs a destructive "clear this device" store action).
+  load-failed, all-relays-offline, signing-blocked, signing-failed). A multi-screen
+  UI build; brushes the plan's "big L-effort feature builds out of scope" boundary.
+  (The Clear Credentials modal `3b` + its destructive "clear this device" store
+  action shipped 2026-06-13.)
 - [ ] (effort: S, unsure) Make the Settings dirty-check structural rather than
   `JSON.stringify` of relays/signerSettings, if those shapes grow.
 - [ ] (effort: S) Decide the fate of the redundant `RelayInput`
@@ -77,8 +79,6 @@ Group by area. When an item is finished, move a one-line summary to
 
 - [ ] (effort: S) Rich device labeling/renaming in the instance registry UI
   (initial impl shows the id prefix + null label).
-- [ ] (effort: S) Prune/cap `*.corrupt.*` quarantine copies beyond keep-newest-N.
-- [ ] (effort: M) A Settings-screen affordance to delete a stored device/partition.
 
 ## igloo-chrome
 
@@ -88,8 +88,6 @@ Group by area. When an item is finished, move a one-line summary to
   model — `check-e2e-selector-contracts.sh` already covers chrome, and a few specs
   (e.g. `dashboard`, `rotation-update`) use `support/ui.ts`, but most still inline
   locators.
-- [ ] (effort: S) Adopt `PasswordField` (reveal-toggle input) in the chrome
-  import/onboard forms (still plain `type="password"`).
 
 ## igloo-home
 

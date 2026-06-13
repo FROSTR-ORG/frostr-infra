@@ -1,13 +1,13 @@
-# Hand-off: MED+ backlog program — Phases 1–4 done (1 item deferred), 5–6 open
+# Hand-off: MED+ backlog program — Phases 1–4 done, Phase 5 in progress
 
 _Last updated: 2026-06-13_
 
 > **Read this first.** Entry point for a new session in the `frostr-infra`
 > workspace. There is an **approved multi-phase plan** in progress:
 > "Remediate audit findings + complete medium-or-higher backlog (hard-cut)".
-> **Phases 1–4 are complete and landed**, except the onboard→signer seam refactor
-> which was **deliberately deferred** (risky cleanup; correctness already
-> preserved — see Phase 4 below). Pick up at **Phase 5**.
+> **Phases 1–4 are complete and landed** (the onboard→signer seam refactor was
+> deliberately deferred — see Phase 4). **Phase 5 is partly done** — 4 of 6 items
+> landed; pick up at **Phase 5 (cont.)**.
 >
 > NOTE: the plan was never written to disk (`plans/enchanted-leaping-papert.md`
 > does not exist — the only git reference is the commit that mentions it). This
@@ -142,12 +142,36 @@ Landed (submodule-then-pointer):
   the seam means restructuring the connect→preview→name→finalize→start ordering).
   Tracked in `BACKLOG.md`; take it as a dedicated, carefully-reviewed pass.
 
-## ▶ Next: Phases 5–6 (open)
+## ◐ Phase 5 — IN PROGRESS (capability/UX gaps + chrome parity)
 
-- **Phase 5** — capability/UX gaps + chrome parity: delete-device/Clear-Credentials;
-  dashboard error/empty states; chrome Settings `sections`+`ExportPackageModal`+
-  `PasswordField`; chrome e2e page-object conversion; quarantine-copy prune;
-  Diagnostics→Event Log rename.
+Landed (submodule-then-pointer):
+- **Diagnostics card → Event Log** — renamed the `OperatorSignerPanel` third card
+  (title + empty-state + tooltip) to match Paper; internal `diagnostics` API names
+  unchanged. Covers pwa + chrome. igloo-ui `23de9fa`.
+- **PasswordField in chrome onboarding** — the four import/onboard password inputs
+  now use the reveal-toggle field; placeholders preserved (e2e locators intact).
+  igloo-chrome `7661a78`.
+- **Quarantine-copy cap** — `quarantineCorruptState` keeps only the newest 3
+  `.corrupt.<ts>` copies. igloo-pwa `b5109bc`.
+- **Clear Credentials** (delete-device) — destructive `clearDeviceCredentials()`
+  store action (stop signer, tear down sessions, erase the partition, reset to
+  landing) behind a danger `ConfirmDialog`; new `settingsClearCredentials` test id.
+  igloo-ui `6afc563`, igloo-pwa `0b88270`.
+- Validation: igloo-ui 120, pwa unit 48, chrome unit 97, tsc + app builds clean,
+  cross-app `make test-fast` green (pwa 20, chrome 17).
+
+**Remaining in Phase 5:**
+- **Chrome Settings `sections` + `ExportPackageModal`** (M) — chrome still uses the
+  flat `maintenanceActions` row + its own export; adopt the igloo-ui Settings
+  `sections` API + `ExportPackageModal` (the pwa already uses both).
+- **Chrome e2e page-object conversion** (M) — most chrome specs still inline
+  locators; convert to the page-object model. Mechanical, low user-facing value.
+- **Dashboard error/empty states** (L) — a 5-screen UI build (loading, load-failed,
+  all-relays-offline, signing-blocked, signing-failed). Brushes the plan's
+  "big L-effort feature builds out of scope" boundary; candidate to keep deferred.
+
+## ▶ Next: Phase 6 (open)
+
 - **Phase 6** — test/CI: macOS visual/desktop lanes; recover-key desktop smoke;
   flaky export test; verify chrome `@demo` on colima; `pwa-home-pairing` gate-or-
   retire; close the fast≠behavioral gap; automate multi-PWA-tab signature.

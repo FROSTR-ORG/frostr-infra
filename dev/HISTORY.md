@@ -9,6 +9,26 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
+## 2026-06-13 — Phase 5 (part): capability/UX gaps + chrome parity
+
+Landed four of the Phase-5 items. **Diagnostics → Event Log:** renamed the
+`OperatorSignerPanel` third card (title, empty-state, tooltip) to match Paper's
+name across both consuming apps; internal `diagnostics` API names unchanged
+(igloo-ui `23de9fa`). **PasswordField in chrome onboarding:** the four
+import/onboard password inputs now use igloo-ui's reveal-toggle field, placeholders
+preserved so the e2e onboarding locators are intact (igloo-chrome `7661a78`).
+**Quarantine cap:** `quarantineCorruptState` now keeps only the newest three
+`.corrupt.<ts>` copies so a repeatedly-corrupted partition can't grow localStorage
+unbounded (igloo-pwa `b5109bc`). **Clear Credentials:** a destructive
+`clearDeviceCredentials()` store action — stop the signer, tear down every runtime
+session, erase the persisted partition, reset to a clean landing — surfaced as a
+Settings action behind a danger `ConfirmDialog` (distinct from logout/single-profile
+delete; matches Paper's 3b modal); new `settingsClearCredentials` test id (igloo-ui
+`6afc563`, igloo-pwa `0b88270`). Validation: igloo-ui 120, pwa unit 48, chrome unit
+97, tsc + app builds clean, cross-app `make test-fast` green. Remaining Phase-5
+items (chrome Settings `sections`+`ExportPackageModal`; chrome e2e page-objects;
+the L-effort dashboard error/empty-state screens) are tracked in `BACKLOG.md`.
+
 ## 2026-06-13 — Phase 4: recovery/onboarding UX (onboard seam deferred)
 
 Completed Phase 4 except the deliberately-deferred onboard→signer seam refactor.
