@@ -127,19 +127,12 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## Dependencies & packaging
 
-- [ ] (effort: M) **Make `nostr-tools` a peerDependency of `igloo-shared` +
-  dedupe/version-align across the igloo-\* apps.** Today it's a plain `dependency`
-  of `igloo-shared` (consumed from source), and with the no-hoist submodule layout
-  + `preserveSymlinks`, igloo-shared resolves its *own* copy while each app resolves
-  another → two instances of a library with module-level singleton state
-  (`useWebSocketImplementation`, relay pools). Consequences: split singletons (the
-  WebSocket-impl injection can't reach igloo-shared's `SimplePool` — surfaced
-  2026-06-10 while isolating unit-test relay I/O), likely two copies in the prod
-  bundle (`vite.config.ts` only dedupes react/react-dom), and version skew
-  (igloo-chrome on 2.17.2 vs igloo-pwa/shared on 2.23.3). Fix: declare it `peer` in
-  igloo-shared (keep a dev/local install for its own tests), align the version in
-  each consuming app, and add `resolve.dedupe: ['nostr-tools']` to app + test
-  configs. Needs an install + build + e2e validation pass across all apps.
+- [ ] (effort: S) **High-severity `esbuild` advisory** surfaced in
+  `igloo-chrome` (and igloo-pwa) `npm audit` — "Missing binary integrity
+  verification in Deno module enables RCE via `NPM_CONFIG_REGISTRY`". Dev-only
+  tooling (esbuild bundler / vitest); not a runtime exposure. Bump esbuild past
+  the patched version across the affected repos once a non-breaking release is
+  available — surfaced 2026-06-13 during the nostr-tools dedupe pass.
 
 ## Test harness / CI
 

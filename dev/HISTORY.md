@@ -9,6 +9,28 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
+## 2026-06-13 — Phase 2: nostr-tools single instance + version align
+
+Landed **Phase 2** of the MED+ backlog program. `nostr-tools` carries
+module-level singletons (`useWebSocketImplementation`, `SimplePool` relay pools),
+but the no-hoist submodule layout + `preserveSymlinks` made igloo-shared (bundled
+from source) resolve its own nested copy while each app resolved another — two
+instances, split singletons (the WebSocket-impl injection couldn't reach
+igloo-shared's `SimplePool`). Fix: declared `nostr-tools` a **peerDependency** of
+igloo-shared (+ devDep for its own vitest), aligned all repos to **2.23.5**
+(igloo-chrome was the 2.17.2 laggard), and deduped per app — igloo-pwa via Vite
+`resolve.dedupe` (the genuine 2-copy case: it imports `nostr-tools/nip49`/`nip19`
+directly *and* through igloo-shared), igloo-chrome via an esbuild `onResolve`
+plugin that re-runs the resolver anchored at the package root (deferring to
+`build.resolve` to preserve browser export conditions) plus a vitest `dedupe`
+mirror. Chrome had no direct import, so its real fix was the version align; the
+plugin makes its declared dep authoritative. igloo-shared `345e4ac`, igloo-pwa
+`8d875fd`, igloo-chrome `d97ef04`, parent `b7e4a75`. Validation: unit + typecheck
+green (shared 142/142, pwa 43/43, chrome 95/95), clean app builds, a chrome
+esbuild metafile probe confirmed single-copy resolution, cross-app `make
+test-fast` green (pwa 20, chrome 17). New follow-up in `BACKLOG.md`: pre-existing
+high-sev esbuild advisory (dev-tooling only).
+
 ## 2026-06-13 — Phase 1 correctness/data-loss fixes + backlog audit
 
 Backlog audit (50 → 42): pruned stale relay-backup-removal residue — two

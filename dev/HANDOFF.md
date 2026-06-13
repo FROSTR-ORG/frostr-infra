@@ -1,12 +1,15 @@
-# Hand-off: MED+ backlog program — Phase 1 done, Phases 2–6 open
+# Hand-off: MED+ backlog program — Phases 1–2 done, Phases 3–6 open
 
 _Last updated: 2026-06-13_
 
 > **Read this first.** Entry point for a new session in the `frostr-infra`
 > workspace. There is an **approved multi-phase plan** in progress:
-> [`plans/enchanted-leaping-papert.md`](./plans/enchanted-leaping-papert.md) —
 > "Remediate audit findings + complete medium-or-higher backlog (hard-cut)".
-> **Phase 1 is complete and landed.** Pick up at **Phase 2**.
+> **Phases 1 and 2 are complete and landed.** Pick up at **Phase 3**.
+>
+> NOTE: the plan was never written to disk (`plans/enchanted-leaping-papert.md`
+> does not exist — the only git reference is the commit that mentions it). This
+> hand-off's phase breakdown below is the sole surviving record of the plan.
 
 ## The plan (what we're executing)
 
@@ -39,13 +42,37 @@ All landed submodule-commit-then-parent-pointer-bump:
 
 Per-repo checks were green at commit time (igloo-pwa 43/43, bifrost-rs full
 suite + clippy/fmt, igloo-shared 142/142 + WASM exports, both apps typecheck).
-**Still owed:** behavioral `make test-demo` over the refreshed WASM — run it as
-the holistic Phase-1 gate before/while starting Phase 2.
+Phase-1 holistic gate **done**: `make test-demo` green over the refreshed WASM
+(chrome demo-harness signs end-to-end; the chrome↔home pairing spec stays a
+deliberate Linux-only skip).
 
-## ▶ Next: Phases 2–6 (open)
+## ✅ Phase 2 — COMPLETE (nostr-tools single instance)
 
-- **Phase 2** — `nostr-tools` → peerDependency of igloo-shared + dedupe/version-
-  align across apps (`resolve.dedupe`); install + build + cross-app e2e. HIGH.
+Collapsed `nostr-tools` to one instance per app and aligned all repos to 2.23.5,
+fixing the split module-level singletons (`useWebSocketImplementation` /
+`SimplePool`) caused by the no-hoist + `preserveSymlinks` layout. Landed
+submodule-then-pointer:
+- **igloo-shared `345e4ac`** — `nostr-tools` `dependency` → `peerDependency`
+  (+ devDep for its own vitest), floor `^2.23.3`.
+- **igloo-pwa `8d875fd`** — `resolve.dedupe` adds `nostr-tools` (shared by app
+  build + vitest via `vite.resolve.ts`); align `^2.23.3`. pwa is the real 2-copy
+  case (it imports `nostr-tools/nip49`/`nip19` directly *and* via igloo-shared).
+- **igloo-chrome `d97ef04`** — esbuild has no `dedupe`, so an `onResolve` plugin
+  re-runs esbuild's resolver anchored at the package root (defers to
+  `build.resolve`, preserving browser export conditions); vitest `dedupe` mirror;
+  align 2.17.2 → `^2.23.3`. Chrome had no *direct* import (all nostr-tools usage
+  is transitive via igloo-shared), so its real fix was the version align; the
+  plugin makes chrome's declared dep authoritative + forward-proofs.
+- Parent pointer bump **`b7e4a75`**.
+
+Validation: unit + typecheck green (shared 142/142, pwa 43/43, chrome 95/95),
+app builds clean, a chrome esbuild **metafile probe** confirmed single-copy
+resolution, cross-app `make test-fast` green (pwa 20, chrome 17). Follow-up
+logged: pre-existing high-sev **esbuild** advisory (dev-tooling, not runtime) in
+`BACKLOG.md`.
+
+## ▶ Next: Phases 3–6 (open)
+
 - **Phase 3** — security/hardening: socket-path-fallback unit test; igloo-home
   nsec file-save parity; chrome multi-context hardening; document permissive
   default-permissions; fold-in `cargo clippy --fix` on the home backlog.
