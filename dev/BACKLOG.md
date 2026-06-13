@@ -32,10 +32,13 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## bifrost-rs / igloo-shared runtime
 
-- [ ] (effort: L) **Peer telemetry**: per-peer latency, "Avg" latency, nonce
-  sparkline, and per-method SIGN/ECDH/PING capability badges — requires
-  bifrost-rs + igloo-shared instrumentation; the trigger to promote the
-  `dashboard-signer` visual entry to `aligned`. Spec:
+- [x] (effort: L) **Peer telemetry — DONE (2026-06-13).** Per-peer latency (ms,
+  last + avg), nonce sparkline, and per-method SIGN/ECDH/PING capability badges, end
+  to end: `bifrost-signer` PeerStatus (runtime-only RTT + nonce-history rings, ms
+  clock) → `runtime_status()` → igloo-shared wire → igloo-ui adapter +
+  OperatorSignerPanel (badges + latency + new Sparkline primitive), threaded through
+  the pwa / chrome / home dashboards. Spec items (c)→(a)→(b). The `dashboard-signer`
+  visual entry's blocking telemetry has landed — promote it toward `aligned`. Spec:
   [`plans/bifrost-rs-peer-telemetry-and-approval-spec-2026-06-10.md`](./plans/bifrost-rs-peer-telemetry-and-approval-spec-2026-06-10.md).
 - [ ] (effort: L) **Interactive signing-approval queue** (Deny / Allow once /
   Always allow) behind the shipped Pending-Approvals shell — per-method allow/deny
