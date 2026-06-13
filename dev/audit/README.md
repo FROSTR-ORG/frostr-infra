@@ -1,54 +1,68 @@
 # `dev/audit/`
 
-Point-in-time audit artifacts for the FROSTR workspace, generated 2026-04-22.
+The FROSTR workspace's technical-debt and code-quality audit system. It defines
+a stable set of criteria — organized into eight **domains** — and the machinery
+to run a pass against every target, track progress, share notes between the
+agents doing the work, and archive each completed run.
 
-This pass audited the parent workspace plus every active submodule under
-`repos/` except `igloo-paper` (reference-only, uninitialized) and
-`igloo-chrome` (a detailed audit exists from 2026-04-02; see
-`../reports/igloo-chrome-audit-2026-04-02.md`).
+This is the living system. Past, frozen runs live in [`archive/`](./archive/).
 
-## Start Here
+## Layout
 
-- **[workspace-audit-synthesis-2026-04-22.md](./workspace-audit-synthesis-2026-04-22.md)** — cross-cutting executive summary, theme map, per-repo severity rollup, and prioritized remediation buckets. Read this first.
+```
+dev/audit/
+  README.md      ← you are here: the system entry point
+  rules/         the criteria, one file per domain (the shared bar for "good")
+  TASKS.md       current run's target × domain status matrix + checklist
+  NOTES.md       current run's shared, append-only agent scratchpad
+  RUNNER.md      how to execute a pass (briefs, lanes, Workflow sketch, close-out)
+  templates/     report + synthesis templates a run fills in
+  findings/      working area for the current run's reports (drains to archive/)
+  archive/       completed runs, one dated folder each (frozen)
+```
 
-## Per-Repo Reports
+## Domains
 
-Each report follows the `dev/reports/` convention: framing paragraph, numbered
-findings with `High` / `Medium` / `Low` severity, verified `file:line`
-references, and a per-finding `Streamline:` direction (not a fix).
+Every pass judges each target against these eight domains. Full criteria in
+[`rules/`](./rules/README.md).
 
-| Repo | Report | H / M / L |
+| # | Domain | Judges |
 |---|---|---|
-| `bifrost-rs` (Rust signer/runtime core) | [bifrost-rs-audit-2026-04-22.md](./bifrost-rs-audit-2026-04-22.md) | 5 / 6 / 4 |
-| `igloo-shell` (CLI operator host) | [igloo-shell-audit-2026-04-22.md](./igloo-shell-audit-2026-04-22.md) | 5 / 6 / 3 |
-| `frostr-infra` (parent workspace) | [frostr-infra-audit-2026-04-22.md](./frostr-infra-audit-2026-04-22.md) | 4 / 7 / 3 |
-| `igloo-shared` (TS adapter / runtime bridge) | [igloo-shared-audit-2026-04-22.md](./igloo-shared-audit-2026-04-22.md) | 5 / 5 / 4 |
-| `igloo-home` (Tauri desktop host) | [igloo-home-audit-2026-04-22.md](./igloo-home-audit-2026-04-22.md) | 4 / 6 / 3 |
-| `igloo-pwa` (browser PWA host) | [igloo-pwa-audit-2026-04-22.md](./igloo-pwa-audit-2026-04-22.md) | 3 / 6 / 3 |
-| `igloo-ui` (shared React UI package) | [igloo-ui-audit-2026-04-22.md](./igloo-ui-audit-2026-04-22.md) | 3 / 6 / 2 |
-| | **Totals** | **29 / 42 / 22** |
+| 01 | [Legacy & deprecation](./rules/01-legacy-deprecation.md) | shims, dead code, version forks, retired APIs |
+| 02 | [Architecture & boundaries](./rules/02-architecture-boundaries.md) | god files, mixed concerns, layering, leaky packages |
+| 03 | [Code quality & practices](./rules/03-code-quality-practices.md) | error taxonomy, panics, type escapes, duplication |
+| 04 | [Readability & searchability](./rules/04-readability-searchability.md) | naming, function size, grep-ability, entry points |
+| 05 | [Aesthetics & formatting](./rules/05-aesthetics-formatting.md) | whitespace, density, alignment, formatter enforcement |
+| 06 | [Documentation](./rules/06-documentation.md) | doc comments, README accuracy, doc-vs-code drift |
+| 07 | [Testing](./rules/07-testing.md) | core-journey coverage, adversarial paths, KATs |
+| 08 | [Security](./rules/08-security.md) | secret lifecycle, crypto, validation, IPC auth |
 
-## Audit Dimensions
+## Targets
 
-Every report evaluates six axes:
+A pass covers the parent workspace and every active submodule:
+`frostr-infra`, `bifrost-rs`, `igloo-shared`, `igloo-ui`, `igloo-pwa`,
+`igloo-chrome`, `igloo-home`, `igloo-shell`. `igloo-paper` is reference-only and
+out of scope.
 
-1. **Security** — secret-material handling, crypto correctness, input validation, dependency exposure, `unsafe` / panic discipline.
-2. **Code quality** — error taxonomy, modularity, idioms, abstraction discipline.
-3. **Readability** — naming, file sizes, complexity, dead code.
-4. **Technical debt** — TODOs / FIXMEs, duplication, half-finished work, legacy shims.
-5. **Test coverage** — presence, shape, adversarial-vs-happy-path coverage, gap analysis.
-6. **Documentation** — README accuracy, in-code docs, doc-vs-code drift against `docs/`.
+## How to use it
 
-## What Was Not Audited
+- **Run a pass:** follow [`RUNNER.md`](./RUNNER.md) — one finder per target across
+  all domains, then a synthesis. It includes a ready-to-adapt `Workflow` sketch.
+- **Track progress:** [`TASKS.md`](./TASKS.md) holds the `target × domain` matrix
+  and per-target checklist for the run in flight.
+- **Share notes:** agents append cross-cutting observations to
+  [`NOTES.md`](./NOTES.md) so findings in one target inform another.
+- **Read past runs:** [`archive/`](./archive/) — each dated folder is frozen;
+  its `file:line` references reflect the code at run time.
 
-- `igloo-paper` — reference-only submodule, uninitialized in the working tree.
-- `igloo-chrome` — prior audit at `dev/reports/igloo-chrome-audit-2026-04-02.md` still stands. A re-audit is recommended (tracked in the synthesis under Bucket J6).
-- Live `cargo audit` / `npm audit` against registries — flagged as a recommendation in individual reports but not executed.
-- Fuzzing / property testing at runtime — several findings call for adding it; none was performed during the audit.
-- Production deployment surfaces (headers, package publication chain, release signing) — out of scope.
+## What this produces
 
-## Working With These Reports
+Findings, not fixes — each one cites a rule ID and a `file:line`, and points a
+direction via `Streamline:`. Confirmed, actionable items graduate to
+[`../BACKLOG.md`](../BACKLOG.md); decisions and remediation plans live in
+[`../plans/`](../plans/). Nothing under `dev/audit/` writes code or takes a
+decision.
 
-- Findings cite absolute paths under `/home/cscott/Repos/frostr/frostr-infra/…`. All line numbers were verified at write time (2026-04-22) but will drift as the codebase changes.
-- Cross-repo concerns are flagged per finding with a `Cross-repo note:` line; the synthesis aggregates them under the Theme Map.
-- Reports contain findings only. Fixes are not written and decisions are not taken here — that belongs in follow-up plans under `dev/plans/`.
+Related: [`../policies/`](../policies/) is per-change review guidance (the rules
+here reuse, not restate, its drift signals); the canonical system behavior the
+audit checks against lives in [`../../docs/`](../../docs/).
