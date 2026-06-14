@@ -114,9 +114,14 @@ test.describe('igloo-pwa peer permission persistence @live', () => {
       await p.dashboard.expectPeerPolicyAllowed(TOGGLED_POLICY, true);
       await p.dashboard.expectPeerPolicyOverride(TOGGLED_POLICY, 'unset');
 
-      // One click on an effective-allow method sets a manual 'deny' override. We
-      // assert the OVERRIDE (the operator's directly-edited, persisted tri-state),
-      // not the effective capability — the latter tracks the live negotiation.
+      // The toggle cycles the manual override forward: unset → allow → ask → deny.
+      // Click through to a 'deny' override (also exercises the new 'ask' state),
+      // asserting the OVERRIDE (the operator's directly-edited, persisted tri-state)
+      // at each step — not the effective capability, which tracks live negotiation.
+      await p.dashboard.togglePeerPolicy(TOGGLED_POLICY);
+      await p.dashboard.expectPeerPolicyOverride(TOGGLED_POLICY, 'allow');
+      await p.dashboard.togglePeerPolicy(TOGGLED_POLICY);
+      await p.dashboard.expectPeerPolicyOverride(TOGGLED_POLICY, 'ask');
       await p.dashboard.togglePeerPolicy(TOGGLED_POLICY);
       await p.dashboard.expectPeerPolicyOverride(TOGGLED_POLICY, 'deny');
 

@@ -1,21 +1,52 @@
-# Hand-off: L-task program — seam + telemetry + consolidation DONE; pick the next L item
+# Hand-off: L-task program — seam + telemetry + consolidation + approval-queue DONE; pick the next L item
 
-_Last updated: 2026-06-13_
+_Last updated: 2026-06-14_
 
 > **Read this first.** Entry point for a new session in the `frostr-infra`
 > workspace. The **MED+ remediation program (Phases 1–6) is complete and pushed**.
 > We then opened the **L-task program** and have completed, in order:
-> **(1)** the onboard→signer seam refactor, **(2)** the peer-telemetry pass, and
-> **(3)** a consolidation cleanup the telemetry pass exposed. See the three `✅ Done`
-> sections below. The per-phase MED+ sections further down record the earlier work.
+> **(1)** the onboard→signer seam refactor, **(2)** the peer-telemetry pass,
+> **(3)** a consolidation cleanup the telemetry pass exposed, and **(4)** the
+> **interactive signing-approval queue** (the last big L-feature from the spec).
+> See the `✅ Done` sections below. The per-phase MED+ sections further down record
+> the earlier work.
 >
 > **All commits are local on `dev`** across the repos (not pushed). The parent repo
 > also carries **pre-existing, unrelated staged WIP** (`dev/audit/*` + `.gitignore`)
-> that is NOT ours — leave it; commit only explicit paths (like the `PAPER-SECURITY-
-> RECONCILE.md ` D` of old).
+> that is NOT ours — leave it; commit only explicit paths.
 >
 > **▶ NEXT: pick the next L item** from `BACKLOG.md` — see
 > [§ Next work](#-next-work-remaining-l-items).
+
+## ✅ Done: interactive signing-approval queue (L-task #4)
+
+**Landed (submodule-then-pointer):** bifrost-rs `83b63fe`, igloo-shared `c7702e0`,
+igloo-ui `9c0a97c`, igloo-pwa `64c59ff`, igloo-chrome `0cc453c`, igloo-home `eeb6d59`.
+Spec item (d) of `plans/bifrost-rs-peer-telemetry-and-approval-spec-2026-06-10.md`.
+
+A new **`PolicyOverrideValue::Ask`** parks an inbound request in a runtime-only
+`pending_approvals` queue (not persisted) until the operator decides — **Deny /
+Allow once / Always allow**. Core: `handle_inbound_request` got one hoisted policy
+gate (a `forced` flag bypasses it on approved replay); `SignerInput::ResolveApproval`
+replays the stored envelope or rejects with `operator_denied`. Surfaced via
+`BridgeCommand::ResolveApproval` (router) → `resolve_approval` over `handle_command`
+(bridge-wasm) and a `resolve_approval` handle method (bridge-tokio). The three
+buttons = two primitives (Always allow also writes a persisted `Allow` override).
+Shared `buildPendingApprovalRows` feeds all dashboards; the permissions toggle is
+now **tri-state** (allow→ask→deny→unset).
+
+**Two coupling notes that shaped it:**
+- **WASM blob** was rebuilt + re-stamped and re-vendored in igloo-shared + pwa + chrome
+  (see [[wasm-build-macos]]). The `test/browser-wasm-source.stamp` guard tracks the
+  *committed* bifrost-rs state — **re-stamp AFTER committing bifrost-rs**, not before.
+- **igloo-home runs a NATIVE signer** (Tauri → bifrost-bridge-tokio), not the JS node —
+  an explorer agent's claim that it used `updateRuntimePeerPolicyOverrideOnNode` was
+  wrong. Home needed two new Tauri commands (`resolve_approval_command`,
+  `update_peer_policy_command` driving the bridge handle) + newly-editable permissions.
+
+**Verified:** full Rust suite + clippy + fmt; rebuilt WASM + stamp guard; unit suites
+(shared 142, ui 131, pwa 64, chrome 97, home 24); `make test-fast` (pwa 20 + chrome 17);
+`make test-live` (**sign-shell** real 2-of-2 signature + permissions tri-state persist).
 
 ## ✅ Done: onboard→signer seam refactor (L-task #1)
 
@@ -82,19 +113,19 @@ See [[runtime-status-type-flow]] (memory) — don't re-add a per-client merge.
 
 ## ▶ Next work: remaining L items
 
-Candidates in `BACKLOG.md` (telemetry now done):
-- **Interactive signing-approval queue** (L) — Deny / Allow once / Always behind the
-  shipped Pending-Approvals shell (`pendingApprovalRows` model field already stubbed);
-  per-method policy already exists. The natural pair to telemetry — **same spec**, item
-  (d). Biggest lift (bifrost-signer queue + `SignerInput::ApproveRequest`, bifrost-core
-  policy value, bifrost-bridge-wasm `approve_request`, igloo-shared, igloo-ui).
+Candidates in `BACKLOG.md` (telemetry + approval queue now done):
 - **Dashboard router** (L, igloo-pwa) — URL deep-linking / back-button; route-guard
   considerations for sensitive unlocked states. Self-contained, no Rust.
 - **Dashboard error/empty states** (L, igloo-pwa) — a 5-screen UI build.
 - Smaller: **chrome e2e page-objects** (M), **chrome onboard→signer seam** (M, sibling
-  of L-task #1 — but chrome *persists* the snapshot, so a different shape), and the two
-  cleanup follow-ups logged this session (dedupe igloo-ui's redeclared wire types;
-  remove the dead `runtimeStatusToSignerDashboardView`).
+  of L-task #1 — but chrome *persists* the snapshot, so a different shape), and two
+  cleanup follow-ups the approval pass reinforced: **dedupe the redeclared wire types**
+  (the `pending_approvals`/`'ask'` fields now live in igloo-shared **and** the igloo-ui
+  adapter **and** chrome's `runtime-types.ts` mirror — growing drift risk), and remove
+  the dead `runtimeStatusToSignerDashboardView`.
+- Follow-up the approval pass left: there is **no automated e2e for the approval queue
+  itself** (set Ask → park → Deny/Allow-once/Always-allow). `make test-live` covers the
+  tri-state policy persistence but not the queue round-trip. Worth an `@live` spec.
 
 **Start with a Plan-mode design pass** on whichever is chosen. **No new PRs** —
 submodule-commit-then-pointer-bump.

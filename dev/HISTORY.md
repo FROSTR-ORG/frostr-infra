@@ -9,6 +9,32 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
+## 2026-06-14 — Interactive signing-approval queue (the `Ask` disposition)
+
+The last big L-feature from the peer-telemetry-and-approval spec (item d). A new
+`PolicyOverrideValue::Ask` parks an inbound request (sign/ecdh/ping/onboard) in a
+**runtime-only** `pending_approvals` queue awaiting an operator decision instead of
+the old immediate auto-allow/deny. In `bifrost-signer`, `handle_inbound_request`
+gained a single hoisted policy gate (with a `forced` flag for approved replays); a
+new `SignerInput::ResolveApproval` replays the stored envelope (emitting its
+deferred response) or rejects it with `operator_denied`. Surfaced through
+`BridgeCommand::ResolveApproval` (router), a `resolve_approval` `handle_command`
+input (bridge-wasm), and a `resolve_approval` handle method (bridge-tokio);
+`pending_approvals` was added to `runtime_status` and `Ask` round-trips through
+profile packages. The three buttons map to two primitives: Deny/Allow-once →
+`resolve_approval`, Always allow → `resolve_approval` + a persisted `Allow` override.
+UI: `OperatorSignerPanel` renders the decision buttons, the permissions toggle is
+now tri-state (allow→ask→deny→unset), and a shared `buildPendingApprovalRows`
+projection (mirroring `buildPeerReadinessRows`) feeds all three dashboards. Full
+parity: pwa + chrome go through the JS bridge node; **igloo-home runs a native
+(bifrost-bridge-tokio) signer**, so it gained two Tauri commands
+(`resolve_approval_command`, `update_peer_policy_command`) and editable permissions
+so an operator can opt into `Ask`. Verified: full Rust suite + clippy + fmt, rebuilt
+browser WASM + stamp guard, unit suites across all six repos, `make test-fast`, and
+`make test-live` (real 2-of-2 sign-shell signature + tri-state policy persistence).
+Submodules `bifrost-rs 83b63fe`, `igloo-shared c7702e0`, `igloo-ui 9c0a97c`,
+`igloo-pwa 64c59ff`, `igloo-chrome 0cc453c`, `igloo-home eeb6d59`.
+
 ## 2026-06-13 — Phase 6: test/CI hardening (high-value items; remainder CI-gated)
 
 Landed the high-value, locally-validatable Phase-6 items (all parent-repo — no

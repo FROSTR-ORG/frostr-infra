@@ -440,7 +440,7 @@ export class DashboardPage extends BasePage {
 
 export type PeerPolicyDirection = 'request' | 'respond';
 export type PeerPolicyMethod = 'ping' | 'onboard' | 'sign' | 'ecdh';
-export type PeerPolicyOverrideValue = 'allow' | 'deny' | 'unset';
+export type PeerPolicyOverrideValue = 'allow' | 'deny' | 'unset' | 'ask';
 export interface PeerPolicySelector {
   pubkey?: string;
   direction: PeerPolicyDirection;

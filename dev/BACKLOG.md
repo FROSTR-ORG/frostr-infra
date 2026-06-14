@@ -45,16 +45,23 @@ Group by area. When an item is finished, move a one-line summary to
   the pwa / chrome / home dashboards. Spec items (c)→(a)→(b). The `dashboard-signer`
   visual entry's blocking telemetry has landed — promote it toward `aligned`. Spec:
   [`plans/bifrost-rs-peer-telemetry-and-approval-spec-2026-06-10.md`](./plans/bifrost-rs-peer-telemetry-and-approval-spec-2026-06-10.md).
-- [ ] (effort: L) **Interactive signing-approval queue** (Deny / Allow once /
-  Always allow) behind the shipped Pending-Approvals shell — per-method allow/deny
-  policy already exists; this adds a wait-for-approval queue. Same spec as above.
+- [x] (effort: L) **Interactive signing-approval queue — DONE (2026-06-14).** A new
+  `PolicyOverrideValue::Ask` parks inbound requests in a runtime-only queue until the
+  operator resolves them (Deny / Allow once / Always allow), end to end across the Rust
+  core (`SignerInput::ResolveApproval` + `pending_approvals` in `runtime_status`), the JS
+  bridge (`resolve_approval`), and all three dashboards — including igloo-home, whose
+  native (bifrost-bridge-tokio) signer gained Tauri `resolve_approval` / `update_peer_policy`
+  commands + editable permissions. Spec item (d). Permissions toggle is now tri-state
+  (allow→ask→deny→unset). Verified via `make test-live` (sign-shell + tri-state persistence).
 - [ ] (effort: S) **Dedupe the runtime wire types redeclared in igloo-ui.**
   `igloo-ui/src/adapters/runtime-view-models.ts` hand-redeclares `RuntimePeerStatusInput`
   / `RuntimeStatusSummaryInput` (kept decoupled from `igloo-shared` on purpose), so the
   telemetry pass had to add the same fields in **two** repos — a real drift risk. Decide:
   import the wire types from `igloo-shared` (or a types-only shared module), or add a
   contract test that fails when the shapes diverge. The pwa-local `PwaRuntimePeerStatus`/
-  `PwaRuntimeStatus` minimal mirrors are part of the same smell (surfaced 2026-06-13).
+  `PwaRuntimeStatus` minimal mirrors are part of the same smell (surfaced 2026-06-13). The
+  approval pass (2026-06-14) made it worse: `pending_approvals` / `'ask'` had to be added in
+  igloo-shared **and** the igloo-ui adapter **and** chrome's `runtime-types.ts` mirror.
 - [ ] (effort: S) **Remove or repurpose the dead `runtimeStatusToSignerDashboardView`.**
   After the peer→row consolidation it is exported + test-only (no client consumes it; all
   three dashboards build rows via `buildPeerReadinessRows`). Either delete it (+ its
