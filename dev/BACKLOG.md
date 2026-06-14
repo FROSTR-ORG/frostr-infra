@@ -34,6 +34,11 @@ Group by area. When an item is finished, move a one-line summary to
   match Paper on 2026-06-13.)
 - [ ] (effort: S) Confirm whether `Export Profile`/`Export Share` should keep a
   quick unencrypted copy-to-clipboard alongside the password modal — product call.
+- [ ] (effort: S) **Sync the Pending Approvals card + tri-state permissions to Paper.**
+  The approval queue shipped 2026-06-14: the Pending Approvals card is now interactive
+  (Deny / Allow once / Always allow) and the permissions toggle is tri-state
+  (allow → ask → deny → unset, with an amber `ask` state). Re-diff Paper's
+  `1-signer-dashboard` + permissions artboard against the runtime — `igloo-paper`.
 
 ## bifrost-rs / igloo-shared runtime
 
@@ -53,6 +58,23 @@ Group by area. When an item is finished, move a one-line summary to
   native (bifrost-bridge-tokio) signer gained Tauri `resolve_approval` / `update_peer_policy`
   commands + editable permissions. Spec item (d). Permissions toggle is now tri-state
   (allow→ask→deny→unset). Verified via `make test-live` (sign-shell + tri-state persistence).
+- [ ] (effort: S) **Document the `Ask` disposition + approval queue in `docs/PROTOCOL.md`.**
+  The shared protocol manual has a "Default Peer Permissions" note but nothing about the
+  new third policy state (`PolicyOverrideValue::Ask`) or the wait-for-approval flow
+  (park → operator Deny / Allow once / Always allow → replay/reject). Real doc drift from
+  the 2026-06-14 approval-queue feature (surfaced 2026-06-14).
+- [ ] (effort: M) **Native control-surface / igloo-shell approval parity — decision.**
+  igloo-home reached the approval queue by calling the `bifrost-bridge-tokio` handle
+  directly (`resolve_approval` / `set_policy_override`). `bifrost-app`'s typed
+  control-socket command surface — what `igloo-shell` drives — exposes neither. Decide
+  whether the shell host should get the queue (add the typed commands) or stay
+  approval-unaware (surfaced 2026-06-14). See [[igloo-home-native-signer]].
+- [ ] (effort: S) **Approval-queue cleanups.** (1) "Always allow" is two non-atomic
+  calls (`resolve_approval` then a policy write) in all three clients — if the policy
+  write fails the request is already approved but the override didn't persist; consider
+  reordering or surfacing partial failure. (2) `approval_timeout_secs` is on
+  `DeviceConfig`/`AppOptions` but not `DeviceConfigPatch` or any settings UI, so it can't
+  be tuned at runtime (surfaced 2026-06-14).
 - [ ] (effort: S) **Dedupe the runtime wire types redeclared in igloo-ui.**
   `igloo-ui/src/adapters/runtime-view-models.ts` hand-redeclares `RuntimePeerStatusInput`
   / `RuntimeStatusSummaryInput` (kept decoupled from `igloo-shared` on purpose), so the
