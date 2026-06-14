@@ -58,23 +58,21 @@ Group by area. When an item is finished, move a one-line summary to
   native (bifrost-bridge-tokio) signer gained Tauri `resolve_approval` / `update_peer_policy`
   commands + editable permissions. Spec item (d). Permissions toggle is now tri-state
   (allow→ask→deny→unset). Verified via `make test-live` (sign-shell + tri-state persistence).
-- [ ] (effort: S) **Document the `Ask` disposition + approval queue in `docs/PROTOCOL.md`.**
-  The shared protocol manual has a "Default Peer Permissions" note but nothing about the
-  new third policy state (`PolicyOverrideValue::Ask`) or the wait-for-approval flow
-  (park → operator Deny / Allow once / Always allow → replay/reject). Real doc drift from
-  the 2026-06-14 approval-queue feature (surfaced 2026-06-14).
-- [ ] (effort: M) **Native control-surface / igloo-shell approval parity — decision.**
-  igloo-home reached the approval queue by calling the `bifrost-bridge-tokio` handle
-  directly (`resolve_approval` / `set_policy_override`). `bifrost-app`'s typed
-  control-socket command surface — what `igloo-shell` drives — exposes neither. Decide
-  whether the shell host should get the queue (add the typed commands) or stay
-  approval-unaware (surfaced 2026-06-14). See [[igloo-home-native-signer]].
-- [ ] (effort: S) **Approval-queue cleanups.** (1) "Always allow" is two non-atomic
-  calls (`resolve_approval` then a policy write) in all three clients — if the policy
-  write fails the request is already approved but the override didn't persist; consider
-  reordering or surfacing partial failure. (2) `approval_timeout_secs` is on
-  `DeviceConfig`/`AppOptions` but not `DeviceConfigPatch` or any settings UI, so it can't
-  be tuned at runtime (surfaced 2026-06-14).
+- [x] (effort: S) **Document the `Ask` disposition + approval queue — DONE (2026-06-14).**
+  Added an "Interactive Approval (`Ask`)" subsection to `docs/PROTOCOL.md`'s peer-permission
+  note: the third policy state, the runtime-only park queue, the three resolution paths,
+  timeout/restart drop, and per-device-local semantics.
+- [x] (effort: M) **Native control-surface / igloo-shell approval parity — DONE (2026-06-14).**
+  Added `ResolveApproval` to `bifrost-app`'s control-socket command surface + a
+  `DaemonClient::resolve_approval`, and an `igloo-shell runtime resolve-approval` CLI +
+  `CliPolicyValue::Ask` (so `policy set-peer-override --value ask` works). `SetPolicyOverride`
+  + `runtime status` (with `pending_approvals`) already existed. The shell now reaches the
+  queue over the typed control socket rather than only the direct tokio handle.
+- [ ] (effort: S) **Approval-queue cleanup: `approval_timeout_secs` runtime-tunability.**
+  It is on `DeviceConfig`/`AppOptions` but not `DeviceConfigPatch` or any settings UI, so it
+  can't be tuned at runtime. Low value (fixed 300s default is fine) — deferred. (The sibling
+  "Always allow" atomicity concern was verified resolved 2026-06-14: all three clients surface
+  a partial-failure via their error paths, and resolve-first ordering is correct.)
 - [ ] (effort: S) **Dedupe the runtime wire types redeclared in igloo-ui.**
   `igloo-ui/src/adapters/runtime-view-models.ts` hand-redeclares `RuntimePeerStatusInput`
   / `RuntimeStatusSummaryInput` (kept decoupled from `igloo-shared` on purpose), so the

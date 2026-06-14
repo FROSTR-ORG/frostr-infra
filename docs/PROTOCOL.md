@@ -208,6 +208,38 @@ Operators tighten this posture per peer via **manual peer-permission overrides**
 `bifrost-core::types::MethodPolicy::default()`; every host's UI default mirrors
 it.
 
+### Interactive Approval (`Ask`)
+
+`PolicyOverrideValue` has a third disposition beyond `Allow` / `Deny`: **`Ask`**.
+When a peer + method (in the `respond` direction) is set to `Ask`, an inbound
+request for that method is neither auto-allowed nor auto-rejected — it is **parked
+in a runtime-only approval queue** and the signer sends no response until the
+operator decides. The parked request is held with its decrypted envelope so it can
+be replayed verbatim once approved.
+
+Properties:
+- **Runtime-only.** The queue is never persisted (it is excluded from the
+  persisted device state). On restart it starts empty; the requester's own
+  operation times out and can be re-sent. Parked requests are also dropped after
+  `approval_timeout_secs` (default 300s).
+- **Surfaced for operators** in `runtime_status().pending_approvals` (each entry
+  carries `request_id`, `peer`, `method`, `queued_at`, `expires_at`).
+- **Capability-allowed for readiness.** An `Ask` peer still counts as
+  sign-capable (`can_sign`) — `Ask` collapses to "allowed" everywhere except the
+  inbound-respond gate, which is the only place the deferral is enforced.
+
+The operator resolves each parked request one of three ways:
+- **Deny** — the requester receives an `operator_denied` error.
+- **Allow once** — the stored request is replayed and its response sent; the
+  `Ask` policy remains, so the next request parks again.
+- **Always allow** — the request is replayed **and** a persistent `Allow`
+  override is written for that peer + method, so future requests auto-allow.
+
+Resolution is driven via `bifrost-bridge-*`'s `resolve_approval(request_id,
+approved)` (browser hosts) or the native control-socket / `igloo-shell runtime
+resolve-approval` command (desktop/shell hosts). `Ask` is per-device-local policy:
+each signer decides independently for its own inbound traffic.
+
 ## Nonce Pools In The Protocol
 
 Nonce pools are runtime-owned operational state that affect protocol eligibility for signing.

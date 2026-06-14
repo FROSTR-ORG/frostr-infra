@@ -128,8 +128,17 @@ Candidates in `BACKLOG.md` (telemetry + approval queue now done):
   the shell-initiated sign parks in the card, then Deny (sign fails) → Allow once (verifiable
   signature, re-parks) → Always allow (signature + override flips to `allow`) → auto-allowed
   (no park). Parent-repo only (`test/` page-objects + spec; +`'ask'` in two chrome test-support
-  inline types the feature's `'ask'` widening had broken). **Remaining:** a chrome `@live`
-  counterpart (different co-signer harness) — still a follow-up.
+  inline types the feature's `'ask'` widening had broken).
+- ✅ **Approval-queue follow-ups — DONE (2026-06-14).** `docs/PROTOCOL.md` now documents the
+  `Ask` disposition + queue; **igloo-shell reaches the queue** over the control socket
+  (`bifrost-app` `ResolveApproval` command + `igloo-shell runtime resolve-approval` +
+  `CliPolicyValue::Ask`) — bifrost-rs `bd8997b`, igloo-shell `934dc4c`. "Always allow"
+  atomicity verified already-robust (no change).
+- **Still open follow-ups:** a **chrome `@live`** approval spec (chrome's live harness is
+  responder-only — needs a co-signer `requestSign` + dashboard page-objects); **Paper sync**
+  of the Pending-Approvals card + tri-state toggle (dedicated Paper session); `approval_timeout_secs`
+  settings-UI tunability (low value); plus the standing **wire-type dedup** + dead
+  `runtimeStatusToSignerDashboardView` cleanups.
 
 **Start with a Plan-mode design pass** on whichever is chosen. **No new PRs** —
 submodule-commit-then-pointer-bump.

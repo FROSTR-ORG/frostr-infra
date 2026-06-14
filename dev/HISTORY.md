@@ -9,6 +9,29 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
+## 2026-06-14 — Approval-queue follow-ups: protocol docs + native/shell parity
+
+Cleared the in-scope approval-queue follow-ups (chrome `@live` e2e + Paper sync
+deferred by product call). **Docs:** added an "Interactive Approval (`Ask`)"
+subsection to `docs/PROTOCOL.md` — the third `PolicyOverrideValue`, the runtime-only
+park queue, the Deny / Allow once / Always allow resolution paths, timeout/restart
+drop, and per-device-local semantics. **Native/shell parity:** `igloo-shell` can now
+drive the queue — `bifrost-app` gained a `ResolveApproval` control-socket command
+(routed to the admin dispatch, calling the existing `Bridge::resolve_approval`) + a
+`DaemonClient::resolve_approval`; `igloo-shell` gained `runtime resolve-approval` and a
+`CliPolicyValue::Ask` so `policy set-peer-override --value ask` sets the disposition.
+`SetPolicyOverride` + `runtime status` (already carrying `pending_approvals`) existed,
+so this was additive. A `#[serde(flatten)]` collision between the wrapper's `request_id`
+and the command's was fixed by renaming the wire key to `approval_request_id` (guarded
+by a new round-trip test the handler-level test couldn't catch). Also backfilled the
+igloo-shell-core runtime-status fixture with the telemetry + `pending_approvals` fields
+(latent since the telemetry pass). The "Always allow" atomicity concern was verified
+already-resolved (all three clients surface partial failure; resolve-first ordering is
+correct); `approval_timeout_secs` settings-UI tunability stays deferred (low value).
+Verified: `cargo test -p bifrost-app` (47) + clippy/fmt; `igloo-shell` workspace tests
+incl. the live `policy_integration` (`ask` round-trip + `resolve-approval`); doc guards.
+Submodules `bifrost-rs bd8997b`, `igloo-shell 934dc4c`.
+
 ## 2026-06-14 — Interactive signing-approval queue (the `Ask` disposition)
 
 The last big L-feature from the peer-telemetry-and-approval spec (item d). A new
