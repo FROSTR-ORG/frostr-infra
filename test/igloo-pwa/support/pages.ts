@@ -314,6 +314,26 @@ export class DashboardPage extends BasePage {
   async expectPendingApprovalsEmpty(): Promise<void> {
     await expect(this.tid(TID.dashboardPendingApprovals)).toContainText('No pending approvals');
   }
+  // --- Pending Approvals card (the `ask` disposition) --------------------
+  // The decision buttons render test-ids composed off the registered
+  // dashboard-pending-approvals base; build raw locators like peerPolicyToggle
+  // (only registered ids are accepted by tid()). The spec parks one request at
+  // a time, so each button locator resolves to exactly one element.
+  private pendingApprovalButton(action: 'deny' | 'allow-once' | 'always-allow'): Locator {
+    return this.page.locator(`[data-testid="${TID.dashboardPendingApprovals}-${action}"]`);
+  }
+  async expectPendingApprovalVisible(timeout = 30_000): Promise<void> {
+    await expect(this.pendingApprovalButton('allow-once')).toBeVisible({ timeout });
+  }
+  async denyPendingApproval(): Promise<void> {
+    await this.pendingApprovalButton('deny').click();
+  }
+  async approvePendingApprovalOnce(): Promise<void> {
+    await this.pendingApprovalButton('allow-once').click();
+  }
+  async alwaysAllowPendingApproval(): Promise<void> {
+    await this.pendingApprovalButton('always-allow').click();
+  }
   // Permissions page (peer-only on the PWA; the site/origin section is chrome-only).
   async expectPeerPermissions(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'Peer Permissions' })).toBeVisible();

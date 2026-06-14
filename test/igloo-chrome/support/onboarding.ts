@@ -25,18 +25,18 @@ type LiveOnboardingProfile = {
         pubkey: string;
         policy: {
           request: {
-            echo: 'unset' | 'allow' | 'deny';
-            ping: 'unset' | 'allow' | 'deny';
-            onboard: 'unset' | 'allow' | 'deny';
-            sign: 'unset' | 'allow' | 'deny';
-            ecdh: 'unset' | 'allow' | 'deny';
+            echo: 'unset' | 'allow' | 'deny' | 'ask';
+            ping: 'unset' | 'allow' | 'deny' | 'ask';
+            onboard: 'unset' | 'allow' | 'deny' | 'ask';
+            sign: 'unset' | 'allow' | 'deny' | 'ask';
+            ecdh: 'unset' | 'allow' | 'deny' | 'ask';
           };
           respond: {
-            echo: 'unset' | 'allow' | 'deny';
-            ping: 'unset' | 'allow' | 'deny';
-            onboard: 'unset' | 'allow' | 'deny';
-            sign: 'unset' | 'allow' | 'deny';
-            ecdh: 'unset' | 'allow' | 'deny';
+            echo: 'unset' | 'allow' | 'deny' | 'ask';
+            ping: 'unset' | 'allow' | 'deny' | 'ask';
+            onboard: 'unset' | 'allow' | 'deny' | 'ask';
+            sign: 'unset' | 'allow' | 'deny' | 'ask';
+            ecdh: 'unset' | 'allow' | 'deny' | 'ask';
           };
         };
       }>;

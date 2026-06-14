@@ -123,9 +123,13 @@ Candidates in `BACKLOG.md` (telemetry + approval queue now done):
   (the `pending_approvals`/`'ask'` fields now live in igloo-shared **and** the igloo-ui
   adapter **and** chrome's `runtime-types.ts` mirror — growing drift risk), and remove
   the dead `runtimeStatusToSignerDashboardView`.
-- Follow-up the approval pass left: there is **no automated e2e for the approval queue
-  itself** (set Ask → park → Deny/Allow-once/Always-allow). `make test-live` covers the
-  tri-state policy persistence but not the queue round-trip. Worth an `@live` spec.
+- ✅ **Approval-queue `@live` e2e — DONE (2026-06-14).** `test/igloo-pwa/specs/approval-queue.spec.ts`
+  drives the full lifecycle against a real igloo-shell co-signer: set `respond.sign`→`ask`,
+  the shell-initiated sign parks in the card, then Deny (sign fails) → Allow once (verifiable
+  signature, re-parks) → Always allow (signature + override flips to `allow`) → auto-allowed
+  (no park). Parent-repo only (`test/` page-objects + spec; +`'ask'` in two chrome test-support
+  inline types the feature's `'ask'` widening had broken). **Remaining:** a chrome `@live`
+  counterpart (different co-signer harness) — still a follow-up.
 
 **Start with a Plan-mode design pass** on whichever is chosen. **No new PRs** —
 submodule-commit-then-pointer-bump.
