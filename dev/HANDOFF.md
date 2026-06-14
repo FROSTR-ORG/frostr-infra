@@ -135,8 +135,12 @@ Candidates in `BACKLOG.md` (telemetry + approval queue now done):
   `CliPolicyValue::Ask`) — bifrost-rs `bd8997b`, igloo-shell `934dc4c`. "Always allow"
   atomicity verified already-robust (no change).
 - **Still open follow-ups:** a **chrome `@live`** approval spec (chrome's live harness is
-  responder-only — needs a co-signer `requestSign` + dashboard page-objects); **Paper sync**
-  of the Pending-Approvals card + tri-state toggle (dedicated Paper session); `approval_timeout_secs`
+  responder-only — needs a co-signer `requestSign` + dashboard page-objects); an **igloo-shell
+  full approval round-trip** integration test (shell path is only smoke-covered today);
+  **harden `demo-pair-check`** to `cargo clippy --all-targets` for igloo-shell (the bin-only
+  `cargo check` let bifrost-rs struct-field adds silently rot the shell's test fixtures — see
+  [[control-command-wire-flatten]] / [[runtime-status-type-flow]]); **Paper sync** of the
+  Pending-Approvals card + tri-state toggle (dedicated Paper session); `approval_timeout_secs`
   settings-UI tunability (low value); plus the standing **wire-type dedup** + dead
   `runtimeStatusToSignerDashboardView` cleanups.
 

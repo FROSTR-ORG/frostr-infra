@@ -171,6 +171,23 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## Test harness / CI
 
+- [ ] (effort: S) **The cross-repo `demo-pair-check` guard misses igloo-shell test
+  drift.** `make demo-pair-check` runs `cargo check --bin igloo-shell` — bin-only,
+  no `--all-targets` — so it does not compile igloo-shell-core/cli **test fixtures**.
+  bifrost-rs struct-field additions then rot the shell's struct-literal fixtures
+  silently: the 2026-06-13 telemetry pass left `igloo-shell-core`'s runtime-status
+  fixture missing `PeerStatus` fields, only caught 2026-06-14 by a local
+  `clippy --all-targets`. Strengthen the guard to `cargo clippy --all-targets`
+  (or `cargo test --no-run`) for igloo-shell (and bifrost-devtools) so fixture/test
+  drift is caught at pointer-bump time, not later (surfaced 2026-06-14).
+- [ ] (effort: M) **igloo-shell full approval round-trip integration test.** The shell
+  path's approval coverage is only smoke-level today (`policy_integration.rs`: an `ask`
+  override persists; `runtime resolve-approval` on an unknown id is a no-op success). Add
+  the shell analog of `test/igloo-pwa/specs/approval-queue.spec.ts`: two daemons, one
+  initiates a sign against an `ask`-gated peer so it parks, then `runtime resolve-approval`
+  (deny → fails; approve → completes a verifiable signature). Optionally add an ergonomic
+  `runtime approvals` list (today operators read `pending_approvals` from `runtime status`
+  JSON). Surfaced 2026-06-14.
 - [ ] (effort: S) **igloo-home visual/desktop lanes are Linux-only** — `test/visual/run.mjs`
   hardcodes `/usr/bin`/`/snap` chromium paths and the desktop lane needs `xvfb-run` +
   ImageMagick `identify` + X11 `xwininfo`, so neither runs on macOS (homebrew chromium at
