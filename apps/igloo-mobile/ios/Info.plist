@@ -45,5 +45,7 @@
 	<array>
 		<string>NSPrivacyAccessedAPICategoryTypeUserInitiated</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Igloo Mobile uses the camera only to scan a bfonboard1 QR code when bringing in a share from another device. Scanning is optional; on devices without a camera, paste a bfonboard1 package manually instead.</string>
 </dict>
 </plist>

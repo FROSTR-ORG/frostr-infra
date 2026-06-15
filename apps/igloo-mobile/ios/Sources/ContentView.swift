@@ -1,4 +1,6 @@
 import SwiftUI
+import AVFoundation
+import UIKit
 
 // OnboardDiagnostics is compiled only for DEBUG builds.
 #if DEBUG
@@ -414,6 +416,12 @@ struct OnboardConnectView: View {
     @State private var relayUrl: String = "ws://127.0.0.1:8194"
     @FocusState private var focusedField: Field?
 
+    /// QR scanner sheet visibility (VAL-QR-002 / VAL-QR-003). The Onboard Connect
+    /// surface offers a Scan QR affordance that opens this sheet; the sheet
+    /// gracefully degrades on the iOS Simulator (no camera) to a paste fallback
+    /// so the same flow path is reachable without camera hardware.
+    @State private var showQrScanner: Bool = false
+
     /// Explicit onboarding step tracking to ensure SwiftUI re-renders when the
     /// step transitions to Decrypting/Handshaking. Using @State forces SwiftUI
     /// to observe changes via the onChange handler, bypassing any potential
@@ -525,6 +533,21 @@ struct OnboardConnectView: View {
                             .font(IglooTypography.BodyFont)
                             .foregroundStyle(IglooColors.Slate400)
                         Spacer()
+                        // Scan QR affordance (VAL-QR-002 / VAL-QR-003). Opens the
+                        // QrScannerSheet which gracefully degrades on the iOS
+                        // Simulator (no camera) to a paste-fallback surface that
+                        // completes the same onboarding flow path used by manual
+                        // paste + the btn_connect entry.
+                        Button {
+                            showQrScanner = true
+                        } label: {
+                            Label("Scan", systemImage: "qrcode.viewfinder")
+                                .font(IglooTypography.SmallFont)
+                                .foregroundStyle(IglooColors.Blue400)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("btn_scan_qr")
+
                         // Paste button: tries file-based injection first (for Maestro test
                         // automation), then falls back to clipboard paste for real users.
                         // File injection bypasses iOS Simulator UITextView ~67-char limit.
@@ -791,6 +814,25 @@ struct OnboardConnectView: View {
             }
             .padding(.vertical, IglooSpacing.Sm)
             .background(IglooColors.Gray950)
+        }
+        // QR scanner sheet (VAL-QR-002 / VAL-QR-003). Opens the
+        // QrScannerSheet which gracefully degrades on the iOS Simulator
+        // (no camera) to a paste-fallback surface. The fallback feeds the
+        // trimmed bfonboard payload into packageText via the closure so the
+        // onboarding flow continues normally.
+        .sheet(isPresented: $showQrScanner) {
+            QrScannerSheet(
+                onScanned: { payload in
+                    let trimmed = payload.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        packageText = trimmed
+                    }
+                    showQrScanner = false
+                },
+                onCancel: {
+                    showQrScanner = false
+                }
+            )
         }
     }
 }
@@ -2500,6 +2542,271 @@ struct QrCodeImage: View {
         }
         guard let cg = context.createCGImage(output, from: output.extent) else { return nil }
         return UIImage(cgImage: cg)
+    }
+}
+
+// MARK: - QR Scanner Sheet (VAL-QR-002 / VAL-QR-003)
+
+/// Sheet for scanning a `bfonboard1` QR code. On real iOS devices this would
+/// drive an AVCaptureSession + AVCaptureMetadataOutput against the back
+/// camera; on the iOS Simulator (no camera hardware) `AVCaptureDevice.default`
+/// returns nil and we immediately present the camera-unavailable fallback.
+///
+/// The fallback surface offers a "Paste from Clipboard" button + manual paste
+/// field so the user can complete the same onboarding flow path a real scan
+/// would feed. After the fallback populates the bfonboard envelope, control
+/// returns to the OnboardConnect form and the user proceeds normally (password
+/// + Connect + handshake + save).
+struct QrScannerSheet: View {
+    let onScanned: (String) -> Void
+    let onCancel: () -> Void
+
+    @State private var cameraAvailable: Bool = true
+    @State private var manualText: String = ""
+    @State private var hasAppeared: Bool = false
+
+    var body: some View {
+        NavigationView {
+            Group {
+                if cameraAvailable {
+                    VStack(spacing: IglooSpacing.Lg) {
+                        Text("Align the bfonboard QR code within the frame.")
+                            .font(IglooTypography.BodyFont)
+                            .foregroundStyle(IglooColors.Slate400)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, IglooSpacing.Lg)
+
+                        QrScannerCameraView(onScanned: onScanned)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                        Button {
+                            // Validate & feed pasted clipboard on the real-camera path too.
+                            if let clipboardContent = UIPasteboard.general.string {
+                                let trimmed = clipboardContent.trimmingCharacters(in: .whitespacesAndNewlines)
+                                if !trimmed.isEmpty {
+                                    onScanned(trimmed)
+                                }
+                            }
+                        } label: {
+                            Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
+                                .font(IglooTypography.BodyFont)
+                                .foregroundStyle(IglooColors.Gray950)
+                                .frame(maxWidth: .infinity)
+                                .padding(IglooSpacing.Md)
+                                .background(IglooColors.Blue400)
+                                .cornerRadius(IglooRadii.Md)
+                        }
+                        .accessibilityIdentifier("btn_qr_paste_clipboard")
+                        .padding(.horizontal, IglooSpacing.Lg)
+                        .padding(.bottom, IglooSpacing.Lg)
+                    }
+                } else {
+                    // Camera unavailable fallback (VAL-QR-002). Simulator + devices
+                    // with no rear camera land here. Surface a clear message + a
+                    // visible path to manual entry so the onboarding flow path is
+                    // still reachable end-to-end (VAL-QR-003).
+                    VStack(spacing: IglooSpacing.Lg) {
+                        Image(systemName: "camera.metering.unknown")
+                            .font(.system(size: 48, weight: .regular))
+                            .foregroundStyle(IglooColors.Slate400)
+                            .padding(.top, IglooSpacing.Xl)
+                            .accessibilityIdentifier("qr_scan_camera_unavailable_icon")
+
+                        Text("Camera unavailable")
+                            .font(IglooTypography.H3Font)
+                            .foregroundStyle(IglooColors.Slate200)
+                            .accessibilityIdentifier("qr_scan_camera_unavailable_title")
+
+                        Text("This device has no working camera. Paste your bfonboard1 package below or use the clipboard button.")
+                            .font(IglooTypography.BodyFont)
+                            .foregroundStyle(IglooColors.Slate400)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, IglooSpacing.Lg)
+
+                        // Manual paste field within the scanner sheet; toolbar button
+                        // also covers users who paste via the in-app paste button on
+                        // the OnboardConnect form (toolbar still dismisses).
+                        VStack(alignment: .leading, spacing: IglooSpacing.Xs) {
+                            Text("bfonboard1 package")
+                                .font(IglooTypography.BodyFont)
+                                .foregroundStyle(IglooColors.Slate400)
+                            NativeTextView(
+                                text: $manualText,
+                                placeholder: "bfonboard10...",
+                                minHeight: 100,
+                                accessibilityId: "input_qr_fallback_package"
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: IglooRadii.Md)
+                                    .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+                            )
+                        }
+                        .padding(.horizontal, IglooSpacing.Lg)
+
+                        // Use manually entered text (VAL-QR-003: same flow path).
+                        Button {
+                            let trimmed = manualText.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !trimmed.isEmpty {
+                                onScanned(trimmed)
+                            }
+                        } label: {
+                            Label("Use This Package", systemImage: "checkmark.seal")
+                                .font(IglooTypography.BodyFont)
+                                .foregroundStyle(IglooColors.Gray950)
+                                .frame(maxWidth: .infinity)
+                                .padding(IglooSpacing.Md)
+                                .background(IglooColors.Blue400)
+                                .cornerRadius(IglooRadii.Md)
+                        }
+                        .disabled(manualText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .accessibilityIdentifier("btn_qr_fallback_use")
+                        .padding(.horizontal, IglooSpacing.Lg)
+
+                        // Paste from clipboard (parity with the existing
+                        // btn_paste_package affordance on OnboardConnect).
+                        Button {
+                            if let clipboardContent = UIPasteboard.general.string {
+                                let trimmed = clipboardContent.trimmingCharacters(in: .whitespacesAndNewlines)
+                                if !trimmed.isEmpty {
+                                    manualText = trimmed
+                                }
+                            }
+                        } label: {
+                            Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
+                                .font(IglooTypography.BodyFont)
+                                .foregroundStyle(IglooColors.Blue400)
+                                .frame(maxWidth: .infinity)
+                                .padding(IglooSpacing.Md)
+                                .background(IglooColors.Slate900StrongTranslucent)
+                                .cornerRadius(IglooRadii.Md)
+                        }
+                        .accessibilityIdentifier("btn_qr_paste_clipboard")
+                        .padding(.horizontal, IglooSpacing.Lg)
+
+                        Spacer(minLength: IglooSpacing.Lg)
+                    }
+                }
+            }
+            .navigationTitle("Scan QR")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Back") { onCancel() }
+                        .accessibilityIdentifier("btn_qr_scan_back")
+                }
+            }
+            .background(IglooColors.Gray950.ignoresSafeArea())
+        }
+        // Detect camera availability exactly once on appear. AVCaptureDevice
+        // .default(for: .video) returns nil on the iOS Simulator because there
+        // is no camera hardware — this is the documented graceful-degrade path.
+        .onAppear {
+            guard !hasAppeared else { return }
+            hasAppeared = true
+            let available = AVCaptureDevice.default(for: .video) != nil
+            cameraAvailable = available
+        }
+    }
+}
+
+/// Real-camera scanner view backed by AVCaptureSession. Wraps a UIKit
+/// UIViewController so we can drive AVCaptureMetadataOutput without
+/// pulling in a third-party dependency. On devices with no camera the
+/// parent QrScannerSheet never instantiates this view (the parent
+/// falls back to the camera-unavailable branch on `onAppear`).
+struct QrScannerCameraView: UIViewControllerRepresentable {
+    let onScanned: (String) -> Void
+
+    func makeUIViewController(context: Context) -> QrScannerCameraController {
+        return QrScannerCameraController(onScanned: onScanned)
+    }
+
+    func updateUIViewController(_ controller: QrScannerCameraController, context: Context) {
+        controller.onScanned = onScanned
+    }
+}
+
+final class QrScannerCameraController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
+    var onScanned: (String) -> Void
+
+    private var session: AVCaptureSession?
+    private var previewLayer: AVCaptureVideoPreviewLayer?
+    private var hasStarted = false
+    private var lastPayload: String = ""
+    private var lastPayloadAt: Date = .distantPast
+
+    init(onScanned: @escaping (String) -> Void) {
+        self.onScanned = onScanned
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        guard !hasStarted else { return }
+        hasStarted = true
+        startSession()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        session?.stopRunning()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        previewLayer?.frame = view.bounds
+    }
+
+    func metadataOutput(
+        _ output: AVCaptureMetadataOutput,
+        didOutput metadataObjects: [AVMetadataObject],
+        from connection: AVCaptureConnection
+    ) {
+        guard
+            let machineReadableCode = metadataObjects.compactMap({ $0 as? AVMetadataMachineReadableCodeObject }).first,
+            let value = machineReadableCode.stringValue
+        else { return }
+        // Debounce identical scans within 1 second so the callback is not
+        // called repeatedly per preview frame while the same QR is visible.
+        if value == lastPayload && Date().timeIntervalSince(lastPayloadAt) < 1.0 { return }
+        lastPayload = value
+        lastPayloadAt = Date()
+        onScanned(value)
+    }
+
+    private func startSession() {
+        guard let device = AVCaptureDevice.default(for: .video),
+              let input = try? AVCaptureDeviceInput(device: device)
+        else { return }
+        let session = AVCaptureSession()
+        if session.canAddInput(input) {
+            session.addInput(input)
+        }
+        let metadataOutput = AVCaptureMetadataOutput()
+        if session.canAddOutput(metadataOutput) {
+            session.addOutput(metadataOutput)
+            metadataOutput.setMetadataObjectsDelegate(self, queue: DispatchQueue.main)
+            metadataOutput.metadataObjectTypes = [.qr]
+        }
+        let preview = AVCaptureVideoPreviewLayer(session: session)
+        preview.frame = view.layer.bounds
+        preview.videoGravity = .resizeAspectFill
+        view.layer.addSublayer(preview)
+        self.session = session
+        self.previewLayer = preview
+        // Async start avoids blocking the main thread on the first preview frame.
+        DispatchQueue.global(qos: .userInitiated).async {
+            session.startRunning()
+        }
     }
 }
 
