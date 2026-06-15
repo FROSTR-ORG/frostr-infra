@@ -39,6 +39,20 @@ class AppManager private constructor(context: Context) : AppReconciler {
                     password = "",
                     path = "",
                     resolved = null
+                ), keyset = com.frostr.igloo.rust.KeysetFlowState(
+                    step = com.frostr.igloo.rust.KeysetFlowStep.IDLE,
+                    error = null,
+                    lastErrorMessage = null,
+                    mode = com.frostr.igloo.rust.KeysetFlowMode.CREATE,
+                    groupName = "",
+                    threshold = 2u,
+                    count = 3u,
+                    bundle = null,
+                    localShareIdx = 0u,
+                    deviceName = "",
+                    relays = emptyList(),
+                    distribute = emptyList(),
+                    acceptedShortId = null
                 ), dashboard = com.frostr.igloo.rust.DashboardState(
                     activeTab = com.frostr.igloo.rust.DashboardTab.SIGNER,
                     signer = com.frostr.igloo.rust.SignerRuntimeState(
@@ -53,7 +67,8 @@ class AppManager private constructor(context: Context) : AppReconciler {
                         testSignInProgress = false,
                         lastTestSign = null,
                         testEcdhInProgress = false,
-                        lastTestEcdh = null
+                        lastTestEcdh = null,
+                        runtimeObservedEventsLen = 0uL
                     ),
                     permissions = com.frostr.igloo.rust.PermissionsState(
                         peers = emptyList(),
@@ -415,6 +430,102 @@ class AppManager private constructor(context: Context) : AppReconciler {
                     // The settings are already updated in Rust state; the shell updates
                     // platform secure storage and the hub row label.
                     persistSettingsToStorage()
+                }
+                // ── Create / Rotate Keyset shell side-effects (VAL-CREATE-*) ────
+                // The Rust state machine emits these AppUpdates after the user
+                // accepts review. The shell runs heavy Argon2id/secp256k1 work
+                // off the main actor, then dispatches the resulting action back
+                // to advance the wizard.
+                is AppUpdate.PerformKeysetGeneration -> {
+                    val groupName = update.groupName
+                    val threshold = update.threshold
+                    val count = update.count
+                    val mode = update.mode
+                    Thread {
+                        val cfgJson = org.json.JSONObject()
+                            .put("group_name", groupName)
+                            .put("threshold", threshold.toInt())
+                            .put("count", count.toInt())
+                            .put("mode", mode)
+                            .toString()
+                        val bundleJson = rust.generateKeyset(configJson = cfgJson)
+                        mainHandler.post {
+                            if (bundleJson.startsWith("error:")) {
+                                dispatch(
+                                    AppAction.CreateKeysetGenerationFailed(
+                                        error = bundleJson.removePrefix("error:")
+                                    )
+                                )
+                            } else {
+                                dispatch(
+                                    AppAction.CreateKeysetGenerationSuccess(
+                                        bundleJson = bundleJson
+                                    )
+                                )
+                            }
+                        }
+                    }.start()
+                }
+                is AppUpdate.PerformKeysetDistribution -> {
+                    val shareIdx = update.shareIdx
+                    val shareSecretHex = update.shareSecretHex
+                    val relays = update.relays
+                    val label = update.label
+                    val password = update.password
+                    val method = update.method
+                    Thread {
+                        val pkg = rust.encodeDistributeOnboard(
+                            shareSecretHex = shareSecretHex,
+                            relays = relays,
+                            shareLabel = label,
+                            password = password
+                        )
+                        mainHandler.post {
+                            if (pkg.startsWith("error:")) {
+                                dispatch(
+                                    AppAction.CreateKeysetDistributeFailed(
+                                        shareIdx = shareIdx,
+                                        error = pkg.removePrefix("error:")
+                                    )
+                                )
+                            } else {
+                                dispatch(
+                                    AppAction.CreateKeysetDistributePackageProduced(
+                                        shareIdx = shareIdx,
+                                        `package` = pkg,
+                                        method = method
+                                    )
+                                )
+                            }
+                        }
+                    }.start()
+                }
+                is AppUpdate.StoreKeysetCreatedProfile -> {
+                    val profileId = update.profileId
+                    val label = update.label
+                    val shortId = update.shortId
+                    val material = update.material
+                    val stored = storage.storeProfile(
+                        profileId = profileId,
+                        label = label,
+                        shortId = shortId,
+                        material = material
+                    )
+                    if (stored) {
+                        dispatch(
+                            AppAction.CreateKeysetAccepted(
+                                profileId = profileId,
+                                label = label,
+                                shortId = shortId
+                            )
+                        )
+                    }
+                }
+                is AppUpdate.StartKeysetSignerRuntime -> {
+                    // Mirror SignerStart: kick the signer for the freshly-stored
+                    // profile so the Distribute step shows a running signer panel
+                    // (VAL-CREATE-010, VAL-CREATE-022).
+                    performStartSigner()
                 }
                 else -> {
                     // Unhandled update — ignore.

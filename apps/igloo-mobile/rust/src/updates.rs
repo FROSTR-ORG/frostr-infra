@@ -2,14 +2,17 @@
 
 use crate::actions::AppAction;
 use crate::state::{
-    AppState, DashboardState, DashboardTab, LogEntry, LogLevel, NonceInventory, OnboardingError,
-    OnboardingStep, PeerPermissions, PeerSelectionStrategy, PeerStatus, PendingOp, PendingOpType,
-    PermissionsState, PolicyDirection, PolicyMethod, PolicyOverrideValue, ProfileInfo,
-    ProfileStatus, RemotePolicyObservation, ResolvedIdentity, Screen, SettingsState,
+    AppState, DashboardState, DashboardTab, DistributeStatus, LogEntry, LogLevel, NonceInventory,
+    OnboardingError, OnboardingStep, PeerPermissions, PeerSelectionStrategy, PeerStatus, PendingOp,
+    PendingOpType, PermissionsState, PolicyDirection, PolicyMethod, PolicyOverrideValue,
+    ProfileInfo, ProfileStatus, RemotePolicyObservation, ResolvedIdentity, Screen, SettingsState,
     SignerReadiness, SignerRuntimeState, SignerStatus, StoredProfile, TestEcdhResultData,
     TestSignResultData,
 };
-use crate::AppUpdate;
+use crate::{
+    build_keyset_material, default_relay_url, derive_profile_id_from_secret_hex,
+    parse_keyset_bundle, AppUpdate,
+};
 
 /// Current UTC Unix epoch in whole seconds (i64).
 ///
@@ -93,6 +96,10 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
         }
 
         AppAction::NavigateCreateKeyset => {
+            // VAL-CREATE-021: Reset keyset state when entering the wizard
+            // so a previous run's Distribute state cannot bleed into the
+            // new run.
+            next.keyset.reset();
             next.router.screen = Screen::CreateKeysetEntry;
         }
 
@@ -630,19 +637,413 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
         }
 
         // ── Create Keyset flow ───────────────────────────────────────────
+        // VAL-CREATE-021: re-entering the wizard starts a fresh run with no
+        // stale Distribute state.
+        AppAction::CreateKeysetEnter => {
+            next.keyset.reset();
+            next.router.screen = Screen::CreateKeysetEntry;
+        }
+
+        // User picked "Create" mode on the entry tile. Both Create and
+        // Rotate land on the same Generate step (rotate flow is owned by
+        // the rotate-share feature, this action only widens the surface
+        // shape to match igloo-pwa's mode selector).
         AppAction::CreateKeysetSelectCreate => {
+            next.keyset.mode = crate::state::KeysetFlowMode::Create;
             next.router.screen = Screen::CreateKeysetGenerate;
         }
 
+        // VAL-CREATE-021: stays in Generate step until rotation actually
+        // happens (rotate-share feature ships the real flow).
         AppAction::CreateKeysetSelectRotate => {
+            next.keyset.mode = crate::state::KeysetFlowMode::Rotate;
             next.router.screen = Screen::CreateKeysetGenerate;
         }
 
-        AppAction::CreateKeysetGenerateSubmit { .. } => {
-            next.router.screen = Screen::CreateKeysetDeviceProfile;
+        // VAL-CREATE-002/003/009: each Generate-step field update keeps the
+        // previously entered values intact (back-navigation parity).
+        AppAction::CreateKeysetUpdateGroupName { value } => {
+            next.keyset.group_name = value.clone();
+            // Re-run validation so an inline error updates as the user
+            // types (the Generation block dispatches the final check).
+            next.keyset.error = next.keyset.validate_generate();
         }
 
-        AppAction::CreateKeysetDistributeSubmit { .. } => {
+        AppAction::CreateKeysetUpdateThreshold { value } => {
+            next.keyset.threshold = *value;
+            next.keyset.error = next.keyset.validate_generate();
+        }
+
+        AppAction::CreateKeysetUpdateCount { value } => {
+            next.keyset.count = *value;
+            next.keyset.error = next.keyset.validate_generate();
+        }
+
+        AppAction::CreateKeysetUpdateMode { mode } => {
+            next.keyset.mode = match mode.as_str() {
+                "rotate" => crate::state::KeysetFlowMode::Rotate,
+                _ => crate::state::KeysetFlowMode::Create,
+            };
+        }
+
+        // User tapped Generate (VAL-CREATE-003/004/022):
+        // - validate; if invalid, surface inline error and stay on Generate.
+        // - if valid, transition to `Generating` so the UI shows busy feedback
+        //   and dispatch the perf-sensitive FFI call through the shell.
+        AppAction::CreateKeysetGenerateSubmit {
+            group_name,
+            threshold,
+            count,
+            mode,
+        } => {
+            next.keyset.group_name = group_name.clone();
+            next.keyset.threshold = *threshold;
+            next.keyset.count = *count;
+            next.keyset.mode = match mode.as_str() {
+                "rotate" => crate::state::KeysetFlowMode::Rotate,
+                _ => crate::state::KeysetFlowMode::Create,
+            };
+            if let Some(err) = next.keyset.validate_generate() {
+                next.keyset.error = Some(err);
+                next.keyset.step = crate::state::KeysetFlowStep::GenerationFailed;
+                return (next, side_effect);
+            }
+            next.keyset.error = None;
+            next.keyset.step = crate::state::KeysetFlowStep::Generating;
+            // Move to the Generate-screen so busy feedback is visible while
+            // the FFI call dispatches. The shell resolves back with
+            // CreateKeysetGenerationSuccess / CreateKeysetGenerationFailed.
+            next.router.screen = Screen::CreateKeysetGenerate;
+            side_effect = Some(AppUpdate::PerformKeysetGeneration {
+                group_name: next.keyset.group_name.clone(),
+                threshold: next.keyset.threshold,
+                count: next.keyset.count,
+                mode: mode.clone(),
+            });
+        }
+
+        // FFI returned a JSON KeysetBundleWire. Parse it, build the share
+        // picker, and advance to Device Profile.
+        AppAction::CreateKeysetGenerationSuccess { bundle_json } => {
+            match parse_keyset_bundle(bundle_json) {
+                Ok(bundle) => {
+                    // VAL-CREATE-006: default the local-share picker to idx 0
+                    // so the share_idx field on the Distribute row matches the
+                    // user's selection downstream.
+                    next.keyset.bundle = Some(bundle.clone());
+                    next.keyset.local_share_idx =
+                        bundle.shares.first().map(|s| s.share_idx).unwrap_or(0);
+                    // VAL-CREATE-005: prefill device name with the group name
+                    // until the user overrides it.
+                    if next.keyset.device_name.trim().is_empty() {
+                        next.keyset.device_name = bundle.group_name.clone();
+                    }
+                    // VAL-CREATE-005: prefill the relay list with the
+                    // platform-correct default (per architecture §11 and the
+                    // FROSTR demo harness we run on relay 8194).
+                    if next.keyset.relays.is_empty() {
+                        next.keyset.relays = vec![default_relay_url()];
+                    }
+                    next.keyset.step = crate::state::KeysetFlowStep::DeviceProfile;
+                    next.router.screen = Screen::CreateKeysetDeviceProfile;
+                }
+                Err(_) => {
+                    next.keyset.step = crate::state::KeysetFlowStep::GenerationFailed;
+                    // Surface a non-block error: caller can re-tap Generate.
+                    next.keyset.error = Some(crate::state::KeysetValidationError::EmptyGroupName);
+                }
+            }
+        }
+
+        AppAction::CreateKeysetGenerationFailed { error } => {
+            // Stash the raw error string in the slot used by the
+            // GenerationFailed step. Operators can retry from the same form.
+            next.keyset.step = crate::state::KeysetFlowStep::GenerationFailed;
+            // Use the EmptyGroupName slot only as a placeholder to render
+            // the banner — the raw text from `error` is carried alongside.
+            next.keyset.error = Some(crate::state::KeysetValidationError::EmptyGroupName);
+            next.keyset.last_error_message = Some(error.clone());
+        }
+
+        // Share picker (VAL-CREATE-004/006).
+        AppAction::CreateKeysetSelectLocalShare { share_idx } => {
+            // Tolerate out-of-range / local-share-idx-bytes updates without
+            // crashing; only swap in adopted indices.
+            if next
+                .keyset
+                .bundle
+                .as_ref()
+                .map(|bundle| bundle.shares.iter().any(|s| s.share_idx == *share_idx))
+                .unwrap_or(false)
+            {
+                next.keyset.local_share_idx = *share_idx;
+            }
+        }
+
+        // Device Profile form inputs (VAL-CREATE-005).
+        AppAction::CreateKeysetUpdateDeviceName { value } => {
+            next.keyset.device_name = value.clone();
+        }
+
+        AppAction::CreateKeysetUpdateRelays { value } => {
+            next.keyset.relays = value.clone();
+        }
+
+        // "Continue to Review" button (VAL-CREATE-005/007/008).
+        AppAction::CreateKeysetAdvanceToReview => {
+            // VAL-CREATE-007: block incomplete input here too — the shell
+            // gates the button, but the actor re-checks in case the gate
+            // was bypassed (debug flow / Maestro timing).
+            if next.keyset.device_name.trim().is_empty() || next.keyset.relays.is_empty() {
+                return (next, side_effect);
+            }
+            next.keyset.step = crate::state::KeysetFlowStep::Review;
+            next.router.screen = Screen::CreateKeysetReview;
+        }
+
+        // "Accept and Continue" on Review (VAL-CREATE-010). Side effect asks
+        // the shell to store the runtime material under the new profile id;
+        // the shell returns `CreateKeysetAccepted` with the resulting ids.
+        AppAction::CreateKeysetAccept => {
+            // Build the OnboardProfileMaterial that's about to be persisted.
+            // The shell will encrypt and store it via the secure-storage path
+            // (same path Save Device uses post-onboarding). We compute the
+            // profile_id here so the shell does not have to redo the math.
+            let profile_id = match next.keyset.bundle.as_ref() {
+                Some(bundle) => bundle
+                    .shares
+                    .iter()
+                    .find(|s| s.share_idx == next.keyset.local_share_idx)
+                    .map(|share| {
+                        derive_profile_id_from_secret_hex(&share.share_secret_hex)
+                            .unwrap_or_default()
+                    })
+                    .unwrap_or_default(),
+                None => String::new(),
+            };
+            if profile_id.is_empty() {
+                return (next, side_effect);
+            }
+            // Build the material payload the secure-storage path expects.
+            let material_bytes = match build_keyset_material(&next.keyset) {
+                Ok(bytes) => bytes,
+                Err(_) => return (next, side_effect),
+            };
+            let label = next.keyset.device_name.clone();
+            let short_id = if profile_id.len() >= 8 {
+                profile_id[..8].to_string()
+            } else {
+                profile_id.clone()
+            };
+            next.keyset.step = crate::state::KeysetFlowStep::Distribute;
+            next.router.screen = Screen::CreateKeysetDistribute;
+            // Pre-populate the per-share distribute rows once Review accepts
+            // so subsequent Distribute actions find a non-empty list.
+            next.keyset.build_distribute_rows();
+            // Add the new profile to the hub row list ahead of storage so
+            // the Distribute-step embedded dashboard has identity data
+            // even before the shell finishes storing the material.
+            next.hub.profiles.insert(
+                0,
+                StoredProfile::new(label.clone(), profile_id.clone(), ProfileStatus::Active),
+            );
+            side_effect = Some(AppUpdate::StoreKeysetCreatedProfile {
+                profile_id: profile_id.clone(),
+                label: label.clone(),
+                short_id: short_id.clone(),
+                material: material_bytes,
+                relays: next.keyset.relays.clone(),
+            });
+        }
+
+        // Shell stored the material and reported the new profile id.
+        // Mirror into the dashboard identity surface so the embedded
+        // signer panel on the Distribute step reads the right info
+        // (VAL-CREATE-010 requires a live signer panel on this step).
+        AppAction::CreateKeysetAccepted {
+            profile_id,
+            label,
+            short_id,
+        } => {
+            // Find the newly-created profile in the hub and mark it Active.
+            for p in next.hub.profiles.iter_mut() {
+                if p.profile_id == *profile_id {
+                    p.status = ProfileStatus::Active;
+                }
+            }
+            // Populate the dashboard identity block with the resolved
+            // material-derived keys so the Distribute-step embedded signer
+            // panel can render Identities (VAL-CREATE-010/018).
+            let (share_pubkey, group_pubkey) = match next.keyset.bundle.as_ref() {
+                Some(bundle) => {
+                    let share_pubkey = bundle
+                        .shares
+                        .iter()
+                        .find(|s| s.share_idx == next.keyset.local_share_idx)
+                        .map(|s| s.share_pubkey.clone())
+                        .unwrap_or_default();
+                    (share_pubkey, bundle.group_pubkey.clone())
+                }
+                None => (String::new(), String::new()),
+            };
+            next.dashboard.profile_info = Some(ProfileInfo {
+                device_name: label.clone(),
+                share_pubkey,
+                group_pubkey,
+                profile_id: profile_id.clone(),
+            });
+            next.keyset.accepted_short_id = Some(short_id.clone());
+            // Ask the shell to kick the runtime for the freshly stored
+            // profile so the Distribute step shows a live signer panel.
+            side_effect = Some(AppUpdate::StartKeysetSignerRuntime {
+                profile_id: profile_id.clone(),
+                label: label.clone(),
+            });
+        }
+
+        // Distribute-step field updates (VAL-CREATE-013).
+        AppAction::CreateKeysetDistributeSetPassword {
+            share_idx,
+            password,
+        } => {
+            if let Some(row) = next.keyset.distribute_row_mut(*share_idx) {
+                row.password = password.clone();
+                // Invalidate any cached bfonboard1 package; the next
+                // Submit re-encodes with the new password (VAL-CREATE-022).
+                row.last_package.clear();
+            }
+        }
+
+        AppAction::CreateKeysetDistributeSetConfirm { share_idx, confirm } => {
+            if let Some(row) = next.keyset.distribute_row_mut(*share_idx) {
+                row.confirm_password = confirm.clone();
+            }
+        }
+
+        AppAction::CreateKeysetDistributeSetLabel { share_idx, label } => {
+            if let Some(row) = next.keyset.distribute_row_mut(*share_idx) {
+                row.label = label.clone();
+            }
+        }
+
+        // User tapped Copy / QR / Save on a Distribute row. We ask the
+        // shell to produce the bfonboard1 string and dispatch the result
+        // back as `CreateKeysetDistributePackageProduced`.
+        AppAction::CreateKeysetDistributeSubmit { share_idx, method } => {
+            // VAL-CREATE-013: enforce packaging validation here too.
+            let (password, label) = match next.keyset.distribute_row(*share_idx) {
+                Some(row) => {
+                    if method != "copy" && method != "qr" && method != "save" {
+                        return (next, side_effect);
+                    }
+                    // Empty password deliberately rejected (deliberate
+                    // strengthening over igloo-pwa; see contract note).
+                    if row.password.is_empty()
+                        || row.password != row.confirm_password
+                        || row.label.trim().is_empty()
+                    {
+                        next.keyset.last_error_message =
+                            Some("Package password and label are required.".to_string());
+                        return (next, side_effect);
+                    }
+                    (row.password.clone(), row.label.clone())
+                }
+                None => return (next, side_effect),
+            };
+            // Pull the share secret + relays from the bundle so the shell
+            // can call FfiApp.encode_distribute_onboard without holding
+            // any in-Rust secret material beyond this actor turn.
+            let (share_secret_hex, relays) = match next.keyset.bundle.as_ref() {
+                Some(bundle) => {
+                    let secret = bundle
+                        .shares
+                        .iter()
+                        .find(|s| s.share_idx == *share_idx)
+                        .map(|s| s.share_secret_hex.clone())
+                        .unwrap_or_default();
+                    if secret.is_empty() {
+                        return (next, side_effect);
+                    }
+                    (secret, next.keyset.relays.clone())
+                }
+                None => return (next, side_effect),
+            };
+            side_effect = Some(AppUpdate::PerformKeysetDistribution {
+                share_idx: *share_idx,
+                share_secret_hex,
+                relays,
+                label,
+                password,
+                method: method.clone(),
+            });
+        }
+
+        AppAction::CreateKeysetDistributePackageProduced {
+            share_idx,
+            package,
+            method,
+        } => {
+            if let Some(row) = next.keyset.distribute_row_mut(*share_idx) {
+                row.last_package = package.clone();
+                row.status_chip = match method.as_str() {
+                    "copy" => DistributeStatus::Copied,
+                    "qr" => DistributeStatus::Qr,
+                    "save" => DistributeStatus::Saved,
+                    _ => DistributeStatus::Pending,
+                };
+            }
+        }
+
+        AppAction::CreateKeysetDistributeFailed { share_idx, error } => {
+            // Keep the chip Pending; stash the error message for display.
+            next.keyset.last_error_message = Some(error.clone());
+            let _ = share_idx;
+        }
+
+        // User tapped Finish (VAL-CREATE-018/019/021).
+        // Profile is already on disk via CreateKeysetAccepted; we now:
+        // - mark the new profile Active so the hub row lights up.
+        // - reset the keyset wizard state so a re-entry starts fresh.
+        // - route to the new profile's dashboard.
+        AppAction::CreateKeysetDistributeFinish => {
+            // Find the profile we just accepted.
+            let target_id = next
+                .hub
+                .profiles
+                .first()
+                .map(|p| p.profile_id.clone())
+                .unwrap_or_default();
+            if !target_id.is_empty() {
+                for p in next.hub.profiles.iter_mut() {
+                    if p.profile_id == target_id {
+                        p.status = ProfileStatus::Active;
+                    }
+                }
+                next.router.screen = Screen::Dashboard;
+            } else {
+                // Defensive: fall back to the hub.
+                next.router.screen = Screen::Hub;
+            }
+            // VAL-CREATE-021: reset the wizard so a re-entry starts fresh.
+            let mode = next.keyset.mode;
+            let group_name = next.keyset.group_name.clone();
+            let threshold = next.keyset.threshold;
+            let count = next.keyset.count;
+            next.keyset.reset();
+            // Preserve the previous inputs so back-into-the-wizard preserves
+            // a tiny bit of progress without violating the reset contract
+            // (extra safety: the screens will still re-validate on submit).
+            next.keyset.mode = mode;
+            next.keyset.group_name = group_name;
+            next.keyset.threshold = threshold;
+            next.keyset.count = count;
+        }
+
+        // Full abandon: drop wizard state and route back to Hub
+        // (VAL-CREATE-020). Note: callers must already have cancelled any
+        // captured inputs — this only touches the keyset state.
+        AppAction::CreateKeysetAbandon => {
+            next.keyset.reset();
             next.router.screen = Screen::Hub;
         }
 

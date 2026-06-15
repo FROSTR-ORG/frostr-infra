@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-variant manifest overlay.
+
+  Adds a debug-only intent filter for `com.frostr.igloo.DEBUG_TEST_INJECT_ONBOARD`
+  to MainActivity. The action is consumed only in debug builds; release builds
+  use the default `src/main/AndroidManifest.xml` and gain no test-inject entry
+  point. This file is merged into the main manifest at assembleDebug time.
+
+  The action is paired with a custom category so that only test tooling (adb am
+  start / Maestro helper scripts) targeting this exact category will activate
+  the path. End-user launchers cannot invoke the test-inject entry point,
+  because the custom action is not advertised in the LAUNCHER intent-filter.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <activity
+            android:name="com.frostr.igloo.MainActivity"
+            android:exported="true"
+            tools:ignore="ExportedActivity">
+            <intent-filter>
+                <action android:name="com.frostr.igloo.DEBUG_TEST_INJECT_ONBOARD" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

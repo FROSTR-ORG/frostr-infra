@@ -1,0 +1,15 @@
+[project]
+name = "igloo-mobile"
+org = "com.frostr"
+
+[core]
+crate = "igloo-mobile-core"
+bindings = "uniffi"
+
+[ios]
+bundle_id = "com.frostr.igloo"
+scheme = "IglooMobile"
+
+[android]
+app_id = "com.frostr.igloo"
+avd_name = "rmp_api35"
