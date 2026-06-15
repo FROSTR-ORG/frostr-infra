@@ -6,12 +6,7 @@ how a finished run is archived and reset. For how cells get filled, see
 [`RUNNER.md`](./RUNNER.md); for what each domain judges, see
 [`rules/`](./rules/README.md).
 
-**Run:** _none in progress_ · **Started:** — · **Date stamp:** —
-
-> Last completed run: **2026-06-13** (81 findings — 18H/38M/25L), frozen in
-> [`archive/2026-06-13/`](./archive/2026-06-13/workspace-audit-synthesis-2026-06-13.md).
-> Verified follow-ups graduated to [`../BACKLOG.md`](../BACKLOG.md) under
-> "Code-health audit (2026-06-13)".
+**Run:** 2026-06-13 full pass · **Started:** 2026-06-13 · **Date stamp:** 2026-06-13
 
 ## Status matrix
 
@@ -21,14 +16,14 @@ clean).
 
 | Target | LEG | ARC | CQ | RS | AES | DOC | TST | SEC |
 |---|---|---|---|---|---|---|---|---|
-| `frostr-infra` (parent) | — | — | — | — | — | — | — | — |
-| `bifrost-rs` | — | — | — | — | — | — | — | — |
-| `igloo-shared` | — | — | — | — | — | — | — | — |
-| `igloo-ui` | — | — | — | — | — | — | — | — |
-| `igloo-pwa` | — | — | — | — | — | — | — | — |
-| `igloo-chrome` | — | — | — | — | — | — | — | — |
-| `igloo-home` | — | — | — | — | — | — | — | — |
-| `igloo-shell` | — | — | — | — | — | — | — | — |
+| `frostr-infra` (parent) | 1 | 1 | 2 | 0 | 1 | 0 | 0 | 5 |
+| `bifrost-rs` | 1 | 2 | 0 | 1 | 0 | 3 | 1 | 3 |
+| `igloo-shared` | 0 | 1 | 3 | 0 | 1 | 2 | 1 | 3 |
+| `igloo-ui` | 3 | 2 | 3 | 0 | 1 | 1 | 0 | 1 |
+| `igloo-pwa` | 2 | 3 | 2 | 0 | 1 | 1 | 1 | 2 |
+| `igloo-chrome` | 1 | 1 | 2 | 1 | 1 | 0 | 1 | 1 |
+| `igloo-home` | 0 | 1 | 2 | 0 | 1 | 1 | 1 | 4 |
+| `igloo-shell` | 1 | 1 | 1 | 0 | 1 | 1 | 1 | 1 |
 
 `igloo-paper` is reference-only and out of scope.
 
@@ -37,15 +32,15 @@ clean).
 Mark a target done once all eight domains are covered and its report is written
 to `findings/<target>-audit-<date>.md`.
 
-- [ ] `frostr-infra` — report written · row complete
-- [ ] `bifrost-rs` — report written · row complete
-- [ ] `igloo-shared` — report written · row complete
-- [ ] `igloo-ui` — report written · row complete
-- [ ] `igloo-pwa` — report written · row complete
-- [ ] `igloo-chrome` — report written · row complete
-- [ ] `igloo-home` — report written · row complete
-- [ ] `igloo-shell` — report written · row complete
-- [ ] **Synthesis** — `findings/workspace-audit-synthesis-<date>.md` written
+- [x] `frostr-infra` — report written · row complete
+- [x] `bifrost-rs` — report written · row complete
+- [x] `igloo-shared` — report written · row complete
+- [x] `igloo-ui` — report written · row complete
+- [x] `igloo-pwa` — report written · row complete
+- [x] `igloo-chrome` — report written · row complete
+- [x] `igloo-home` — report written · row complete
+- [x] `igloo-shell` — report written · row complete
+- [x] **Synthesis** — `findings/workspace-audit-synthesis-<date>.md` written
 
 ## Lifecycle
 
