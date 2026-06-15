@@ -117,9 +117,6 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## igloo-pwa
 
-- [ ] (effort: L) Adopt a real router for the dashboard pages — header nav still
-  drives `store.activeDashboardTab`; URL deep-linking / back-button is a separate
-  refactor with route-guard considerations for sensitive unlocked states.
 - [x] (effort: L) **DONE (2026-06-15).** Dashboard error/empty states (loading,
   load-failed, all-relays-offline, signing-blocked, signing-failed) — reusable
   igloo-ui screens (`DashboardLoadingScreen` / `DashboardLoadFailedScreen` /
