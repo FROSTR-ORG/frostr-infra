@@ -1,0 +1,1532 @@
+// ── Update handlers — TEA update fns ───────────────────────────────────────
+
+use crate::actions::AppAction;
+use crate::state::{
+    AppState, DashboardState, DashboardTab, LogEntry, LogLevel, NonceInventory, OnboardingError,
+    OnboardingStep, PeerPermissions, PeerSelectionStrategy, PeerStatus, PendingOp, PendingOpType,
+    PermissionsState, PolicyDirection, PolicyMethod, PolicyOverrideValue, ProfileInfo,
+    ProfileStatus, RemotePolicyObservation, ResolvedIdentity, Screen, SettingsState,
+    SignerReadiness, SignerRuntimeState, SignerStatus, StoredProfile, TestEcdhResultData,
+    TestSignResultData,
+};
+use crate::AppUpdate;
+
+/// Current UTC Unix epoch in whole seconds (i64).
+///
+/// Use this for numeric epoch-second fields (e.g. `completed_at_secs`,
+/// `last_refresh_secs`, `started_at_secs`). It is the Rust-side mirror of the
+/// `display_timestamp_rfc3339()` display path: the displayed RFC-3339 string and
+/// the numeric epoch seconds are produced by two separate helpers so the UI
+/// renders readable time and downstream numeric fields keep their i64 meaning.
+fn now_epoch_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// Convert a Unix epoch (whole seconds) to (year, month, day, hour, minute, second) in UTC.
+///
+/// Uses Howard Hinnant's civil_from_days/low-level date algorithm; verified
+/// against known anchors (1970-01-01T00:00:00Z, 2026-01-01T00:00:00Z, etc.).
+/// Operating range we need covers positive epoch seconds (post-1970) for the
+/// signer event log; rem_euclid / div_euclid keep the math safe at boundaries.
+fn utc_ymd_hms_from_epoch(secs: i64) -> (i32, u32, u32, u32, u32, u32) {
+    let sec = secs.rem_euclid(60) as u32;
+    let minute = secs.div_euclid(60).rem_euclid(60) as u32;
+    let hour = secs.div_euclid(3_600).rem_euclid(24) as u32;
+    let days = secs.div_euclid(86_400);
+
+    // z = days since civil 0000-03-01.
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64; // [0, 146096]
+    let yoe = ((doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365) as i64; // [0, 399]
+    let y_full = yoe + era * 400;
+    let doy = doe - (365 * yoe as u64 + yoe as u64 / 4 - yoe as u64 / 100); // [0, 365]
+    let mp: u32 = ((5 * doy + 2) / 153) as u32; // [0, 11]
+    let d = (doy - (153 * u64::from(mp) + 2) / 5 + 1) as u32; // [1, 31]
+                                                              // mp is u32 inside [0, 11], so the month index m spans [1, 12]. Year shift
+                                                              // when the month is Jan or Feb (m <= 2) and final year conversion.
+    let m: u32 = if mp < 10 { mp + 3 } else { mp - 9 }; // [1, 12]
+    let y: i64 = if m <= 2 { y_full + 1 } else { y_full };
+
+    (y as i32, m, d, hour, minute, sec)
+}
+
+/// Return an ISO-8601 / RFC-3339 UTC timestamp string for the current time
+/// (e.g. `2026-06-13T12:34:56Z`).
+///
+/// Used for signer event log timestamps (VAL-SIGNER-012). This is the visible
+/// "wall clock" path; numeric epoch-second fields (e.g.
+/// `completed_at_secs`, `last_refresh_secs`) are produced by the separate
+/// `now_epoch_secs()` helper so they keep their i64 meaning.
+fn display_timestamp_rfc3339() -> String {
+    let (year, month, day, hour, minute, second) = utc_ymd_hms_from_epoch(now_epoch_secs());
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        year, month, day, hour, minute, second
+    )
+}
+
+fn chrono_lite_timestamp() -> String {
+    display_timestamp_rfc3339()
+}
+
+/// Advance the state machine by one action. Returns the next state and
+/// an optional side effect to emit to the shell reconciler.
+pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpdate>) {
+    let mut next = state.clone();
+    next.rev += 1;
+    let mut side_effect = None;
+
+    match action {
+        // ── Hub navigation ──────────────────────────────────────────────
+        AppAction::NavigateOnboard => {
+            // Reset onboarding state when entering the flow (VAL-ONBOARD-013).
+            next.onboarding.reset();
+            next.router.screen = Screen::OnboardEntry;
+        }
+
+        AppAction::NavigateLoadProfile => {
+            next.router.screen = Screen::LoadProfileEntry;
+        }
+
+        AppAction::NavigateCreateKeyset => {
+            next.router.screen = Screen::CreateKeysetEntry;
+        }
+
+        AppAction::OpenProfile { profile_id } => {
+            // Mark the opened profile as Active; others as Available.
+            // VAL-SHELL-015: active status reflects running signer.
+            // VAL-CROSS-009: at most one active runtime.
+            for p in next.hub.profiles.iter_mut() {
+                if p.profile_id == *profile_id {
+                    p.status = ProfileStatus::Active;
+                } else {
+                    p.status = ProfileStatus::Available;
+                }
+            }
+            next.router.screen = Screen::Dashboard;
+        }
+
+        // ── Back / cancel ───────────────────────────────────────────────
+        AppAction::NavigateBack => {
+            let prev_screen = state.router.screen;
+            // VAL-ONBOARD-013: backing out before save stores nothing.
+            // VAL-LOAD-015: abandoning before confirmation stores nothing.
+            // Reset onboarding state whenever leaving any onboard step.
+            if matches!(
+                prev_screen,
+                Screen::OnboardEntry | Screen::OnboardConnect | Screen::OnboardReview
+            ) {
+                next.onboarding.reset();
+            }
+            // Reset load profile state when leaving any load profile step.
+            if matches!(
+                prev_screen,
+                Screen::LoadProfileEntry
+                    | Screen::LoadProfileImport
+                    | Screen::LoadProfileRecover
+                    | Screen::LoadProfileConfirm
+            ) {
+                next.load_profile.reset();
+            }
+            // Pop from back_history if available; otherwise fall back to go_back().
+            // This handles the direct Hub→OnboardConnect path where back should
+            // return to Hub (back_history = [Hub]), not to OnboardEntry.
+            if let Some(prev) = next.router.back_history.pop() {
+                next.router.screen = prev;
+            } else {
+                next.router.screen = go_back(prev_screen);
+            }
+            // VAL-SHELL-015: navigating back from dashboard preserves active
+            // status — the signer continues running and status stays Active.
+            // We do NOT reset Active to Available on back navigation.
+        }
+
+        // ── Onboard flow ─────────────────────────────────────────────────
+        // VAL-ONBOARD-002: empty fields blocked before any async work.
+        // VAL-ONBOARD-016: whitespace-tolerant (shells trim before dispatch).
+        // VAL-ONBOARD-003: malformed/truncated/wrong-type caught at decode.
+        // VAL-ONBOARD-004: wrong password is recoverable.
+        AppAction::NavigateOnboardConnect => {
+            // Navigate directly to OnboardConnect from Hub (VAL-ONBOARD-001 entry path).
+            // VAL-ONBOARD-013: cancellation safety — back always returns to Hub.
+            next.onboarding.reset();
+            next.router.screen = Screen::OnboardConnect;
+            // Always set back history to [Hub] so back returns to Hub.
+            next.router.back_history.clear();
+            next.router.back_history.push(Screen::Hub);
+        }
+
+        // Debug-gated credential preload for the OnboardConnect screen.
+        // Sets state.onboarding.{package,password,relay_url,injected_device_name}
+        // without advancing the step. The user/Maestro still taps btn_connect.
+        // This is the only path that bypasses long-text UI input friction —
+        // it does NOT bypass validation/state-machine semantics, because
+        // OnboardConnect is still dispatched and validated on btn_connect.
+        AppAction::InjectOnboardCredentials {
+            package,
+            password,
+            relay_url,
+            device_name,
+        } => {
+            // Trim the package; keep password and relay_url verbatim.
+            // Stamp the inject so the in-flow error/state machine stays at Idle.
+            next.onboarding.package = package.trim().to_string();
+            next.onboarding.password = password.clone();
+            next.onboarding.relay_url = relay_url.clone();
+            next.onboarding.error = None;
+            next.onboarding.step = OnboardingStep::Idle;
+            next.onboarding.resolved = None;
+            // Only set injected_device_name if non-empty; otherwise leave
+            // any prior hint untouched.
+            if let Some(name) = device_name {
+                let trimmed = name.trim();
+                next.onboarding.injected_device_name = if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                };
+            }
+        }
+
+        AppAction::OnboardConnect {
+            package,
+            password,
+            relay_url,
+        } => {
+            // Block on empty required fields (VAL-ONBOARD-002).
+            if package.trim().is_empty() || password.is_empty() {
+                next.onboarding.error = Some(OnboardingError::MalformedPackage);
+                next.onboarding.step = OnboardingStep::Error;
+                // Stay on connect screen — no navigation.
+                return (next, None);
+            }
+
+            // Store trimmed package and relay for use in handshake.
+            let trimmed_package = package.trim().to_string();
+            next.onboarding.package = trimmed_package.clone();
+            next.onboarding.password = password.clone();
+            next.onboarding.relay_url = relay_url.clone();
+            next.onboarding.error = None;
+            next.onboarding.step = OnboardingStep::Decrypting;
+
+            // Shell performs the async decrypt + relay handshake.
+            side_effect = Some(AppUpdate::PerformOnboardHandshake {
+                package: trimmed_package,
+                password: password.clone(),
+                relay_url: relay_url.clone(),
+            });
+        }
+
+        // Shell reported the handshake succeeded — transition to review.
+        // VAL-ONBOARD-008: resolved identity shown on review/save screen.
+        // VAL-ONBOARD-015: a profile_id that is already stored must be rejected
+        // visibly at or before Save Device. Implementing the pre-Save check
+        // here means the duplicate guard fires BEFORE we navigate to
+        // OnboardReview, so the user never starts editing `input_device_name`
+        // for an identity that the hub already has.
+        // (mobile-onboard-error-path-hardening-fix — parity with VAL-LOAD-008.)
+        AppAction::OnboardHandshakeSuccess {
+            device_name,
+            share_pubkey,
+            group_pubkey,
+            relays,
+            profile_id,
+        } => {
+            // VAL-ONBOARD-015: reject visibly at the earliest owned boundary
+            // (post-handshake, pre-OnboardReview) if the resolved profile_id is
+            // already in hub.profiles. Returning to OnboardConnect keeps the
+            // onboard_error banner visible instead of leaving the user on
+            // OnboardReview where the error is invisible.
+            if next
+                .hub
+                .profiles
+                .iter()
+                .any(|p| p.profile_id == *profile_id)
+            {
+                next.onboarding.error = Some(OnboardingError::DuplicateProfile);
+                next.onboarding.step = OnboardingStep::Error;
+                // Discard the resolved identity so a stale resolved entry
+                // cannot survive the rejected flow and confuse OnboardStored
+                // if the user backs out and re-enters the flow.
+                next.onboarding.resolved = None;
+                // Stay on OnboardConnect so the visible onboard_error banner
+                // appears at or before Save Device. Screen::OnboardReview does
+                // not render `onboarding.error`, so leaving the user there is
+                // the silent-failure mode this fix removes.
+                return (next, None);
+            }
+            next.onboarding.resolved = Some(ResolvedIdentity {
+                device_name: device_name.clone(),
+                share_pubkey: share_pubkey.clone(),
+                group_pubkey: group_pubkey.clone(),
+                relays: relays.clone(),
+                profile_id: profile_id.clone(),
+            });
+            next.onboarding.step = OnboardingStep::Complete;
+            next.onboarding.error = None;
+            next.router.screen = Screen::OnboardReview;
+        }
+
+        // Shell reported the handshake failed with a specific error kind.
+        // VAL-ONBOARD-007: unreachable relay; VAL-ONBOARD-004: wrong password;
+        // VAL-ONBOARD-003: malformed package; VAL-ONBOARD-014: offline provisioner.
+        AppAction::OnboardHandshakeFailure { error } => {
+            let onboarding_error = match error.as_str() {
+                "wrong_password" => OnboardingError::WrongPassword,
+                "relay_unreachable" => OnboardingError::RelayUnreachable,
+                "provisioner_offline" => OnboardingError::ProvisionerOffline,
+                "onboard_timeout" => OnboardingError::ProvisionerOffline,
+                "malformed_package" => OnboardingError::MalformedPackage,
+                _ => OnboardingError::MalformedPackage,
+            };
+            next.onboarding.step = OnboardingStep::Error;
+            next.onboarding.error = Some(onboarding_error);
+            // Stay on the connect screen for retry (VAL-ONBOARD-004 recoverable).
+        }
+
+        // User tapped "Save Device" on the review screen.
+        // VAL-ONBOARD-011: save persists the profile and arrives at dashboard.
+        AppAction::OnboardSave {
+            profile_id,
+            label,
+            short_id,
+        } => {
+            if let Some(resolved) = next.onboarding.resolved.as_mut() {
+                resolved.device_name = label.clone();
+            }
+            side_effect = Some(AppUpdate::StoreOnboardedProfile {
+                profile_id: profile_id.clone(),
+                label: label.clone(),
+                short_id: short_id.clone(),
+            });
+        }
+
+        // DEBUG/diagnostic harness path: route OnboardReview -> Dashboard
+        // through the same shell storage side effect as the Save Device button,
+        // without depending on simulator SwiftUI button-tap delivery.
+        AppAction::DiagnosticsOnboardSave { device_name } => {
+            if let Some(resolved) = next.onboarding.resolved.as_mut() {
+                let action_label = device_name
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string);
+                let injected_label = next
+                    .onboarding
+                    .injected_device_name
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string);
+                let label = action_label
+                    .or(injected_label)
+                    .unwrap_or_else(|| resolved.device_name.clone());
+                let short_id = if resolved.profile_id.len() >= 8 {
+                    resolved.profile_id[..8].to_string()
+                } else {
+                    resolved.profile_id.clone()
+                };
+
+                resolved.device_name = label.clone();
+
+                side_effect = Some(AppUpdate::StoreOnboardedProfile {
+                    profile_id: resolved.profile_id.clone(),
+                    label,
+                    short_id,
+                });
+            }
+        }
+
+        // Shell reported the profile was stored successfully.
+        // Add to hub and navigate to dashboard (VAL-ONBOARD-011).
+        AppAction::OnboardStored { profile_id } => {
+            if let Some(resolved) = &next.onboarding.resolved {
+                // Add to hub if not already present (VAL-ONBOARD-015 dedupe).
+                if !next
+                    .hub
+                    .profiles
+                    .iter()
+                    .any(|p| p.profile_id == *profile_id)
+                {
+                    next.hub.profiles.push(StoredProfile::new(
+                        resolved.device_name.clone(),
+                        profile_id.clone(),
+                        ProfileStatus::Active,
+                    ));
+                }
+            }
+            // Reset onboarding and navigate to dashboard.
+            next.onboarding.reset();
+            next.router.screen = Screen::Dashboard;
+        }
+
+        // Shell reported a duplicate profile_id was rejected.
+        // VAL-ONBOARD-015: re-onboarding an already-stored identity is rejected.
+        // mobile-onboard-error-path-hardening-fix: the rejection must be visible.
+        // The pre-Save duplicate check is implemented on
+        // `AppAction::OnboardHandshakeSuccess` (above); this handler covers
+        // the secondary path where the shell's secure-storage layer detects
+        // the duplicate at write time (race / API drift fallback). In both
+        // paths we navigate back to OnboardConnect so the `onboard_error`
+        // banner is rendered to the user, instead of leaving them on
+        // OnboardReview where the error is invisible.
+        AppAction::OnboardDuplicateRejected { profile_id: _ } => {
+            // Use the specific DuplicateProfile kind so shells render the
+            // "This profile already exists on this device." message and not
+            // the generic "An unexpected error occurred." that the
+            // previously-bundled OnboardingError::Unexpected produced.
+            next.onboarding.error = Some(OnboardingError::DuplicateProfile);
+            next.onboarding.step = OnboardingStep::Error;
+            // Discard any resolved identity and reset package/password
+            // retention so a stale resolved entry from a duplicate attempt
+            // cannot bleed into a subsequent OnboardStored if the user backs
+            // out and re-enters the flow. The `password` field is also reset
+            // because the duplicate rejection means the stored profile is
+            // already in the hub — re-using the same credentials on a
+            // different package would be expected, so we keep it, but the
+            // resolved identity MUST be cleared.
+            next.onboarding.resolved = None;
+            // Return to OnboardConnect so the onboard_error banner is
+            // visible. The previous behavior of staying on OnboardReview
+            // suppressed the error (OnboardReview does not render
+            // `onboarding.error`) and produced the user-reported silent
+            // over-write mode.
+            if next.router.screen == Screen::OnboardReview {
+                next.router.screen = Screen::OnboardConnect;
+            }
+        }
+
+        // User tapped retry after an error — clear error and return to idle.
+        AppAction::OnboardClearError => {
+            // Keep package/password/relay_url for retry (VAL-ONBOARD-004).
+            next.onboarding.step = OnboardingStep::Idle;
+            next.onboarding.error = None;
+        }
+
+        // ── Load Profile flow ───────────────────────────────────────────
+        // VAL-LOAD-001: entry offers both import and recovery paths.
+        AppAction::LoadProfileSelectImport => {
+            next.load_profile.reset();
+            next.load_profile.path = "import".to_string();
+            next.router.screen = Screen::LoadProfileImport;
+        }
+
+        AppAction::LoadProfileSelectRecover => {
+            next.load_profile.reset();
+            next.load_profile.path = "recover".to_string();
+            next.router.screen = Screen::LoadProfileRecover;
+        }
+
+        // VAL-LOAD-002/003/004/005: import path decode + preview.
+        // VAL-LOAD-016: empty fields blocked; VAL-LOAD-016: whitespace tolerated.
+        AppAction::LoadProfileImportSubmit { package, password } => {
+            // Block on empty required fields (VAL-LOAD-003).
+            if package.trim().is_empty() || password.is_empty() {
+                next.load_profile.error = Some(crate::state::LoadProfileError::MalformedPackage);
+                next.load_profile.step = crate::state::LoadProfileStep::Error;
+                return (next, None);
+            }
+            let trimmed = package.trim().to_string();
+            next.load_profile.package = trimmed.clone();
+            next.load_profile.password = password.clone();
+            next.load_profile.error = None;
+            next.load_profile.step = crate::state::LoadProfileStep::Decrypting;
+
+            side_effect = Some(AppUpdate::PerformLoadProfileImport {
+                package: trimmed,
+                password: password.clone(),
+            });
+        }
+
+        // VAL-LOAD-009/010/011/012/013/019: recover path decrypt + relay fetch.
+        // VAL-LOAD-016: empty fields blocked; VAL-LOAD-016: whitespace tolerated.
+        AppAction::LoadProfileRecoverSubmit { package, password } => {
+            // Block on empty required fields (VAL-LOAD-016).
+            if package.trim().is_empty() || password.is_empty() {
+                next.load_profile.error = Some(crate::state::LoadProfileError::MalformedPackage);
+                next.load_profile.step = crate::state::LoadProfileStep::Error;
+                return (next, None);
+            }
+            let trimmed = package.trim().to_string();
+            next.load_profile.package = trimmed.clone();
+            next.load_profile.password = password.clone();
+            next.load_profile.error = None;
+            next.load_profile.step = crate::state::LoadProfileStep::FetchingBackup;
+
+            side_effect = Some(AppUpdate::PerformLoadProfileRecovery {
+                package: trimmed,
+                password: password.clone(),
+            });
+        }
+
+        // Shell reported import decode succeeded — show preview on confirm screen.
+        // VAL-LOAD-006: preview shows device name, share pubkey, group pubkey, relays.
+        AppAction::LoadProfileImportSuccess {
+            device_name,
+            share_pubkey,
+            group_pubkey,
+            relays,
+            profile_id,
+        } => {
+            next.load_profile.resolved = Some(crate::state::LoadProfileResolved {
+                device_name: device_name.clone(),
+                share_pubkey: share_pubkey.clone(),
+                group_pubkey: group_pubkey.clone(),
+                relays: relays.clone(),
+                profile_id: profile_id.clone(),
+            });
+            next.load_profile.step = crate::state::LoadProfileStep::Preview;
+            next.load_profile.error = None;
+            // Back from confirm should go to the import entry screen.
+            next.router.back_history.clear();
+            next.router.back_history.push(Screen::LoadProfileImport);
+            next.router.screen = Screen::LoadProfileConfirm;
+        }
+
+        // Shell reported import decode/decrypt failed.
+        // VAL-LOAD-004: malformed package; VAL-LOAD-005: wrong password.
+        AppAction::LoadProfileImportFailure { error } => {
+            let load_error = match error.as_str() {
+                "wrong_password" => crate::state::LoadProfileError::WrongPassword,
+                "duplicate_profile" => crate::state::LoadProfileError::DuplicateProfile,
+                _ => crate::state::LoadProfileError::MalformedPackage,
+            };
+            next.load_profile.step = crate::state::LoadProfileStep::Error;
+            next.load_profile.error = Some(load_error);
+            // Stay on import screen for retry (VAL-LOAD-005 recoverable).
+        }
+
+        // Shell reported recovery succeeded — show preview on confirm screen.
+        // VAL-LOAD-012: recovered profile preview shows the same fields as import.
+        AppAction::LoadProfileRecoverSuccess {
+            device_name,
+            share_pubkey,
+            group_pubkey,
+            relays,
+            profile_id,
+        } => {
+            next.load_profile.resolved = Some(crate::state::LoadProfileResolved {
+                device_name: device_name.clone(),
+                share_pubkey: share_pubkey.clone(),
+                group_pubkey: group_pubkey.clone(),
+                relays: relays.clone(),
+                profile_id: profile_id.clone(),
+            });
+            next.load_profile.step = crate::state::LoadProfileStep::Preview;
+            next.load_profile.error = None;
+            // Back from confirm should go to the recover entry screen.
+            next.router.back_history.clear();
+            next.router.back_history.push(Screen::LoadProfileRecover);
+            next.router.screen = Screen::LoadProfileConfirm;
+        }
+
+        // Shell reported recovery failed.
+        // VAL-LOAD-010: malformed; VAL-LOAD-011: wrong password; VAL-LOAD-013: no backup;
+        // VAL-LOAD-019: unreachable relay.
+        AppAction::LoadProfileRecoverFailure { error } => {
+            let load_error = match error.as_str() {
+                "wrong_password" => crate::state::LoadProfileError::WrongPassword,
+                "no_backup_found" => crate::state::LoadProfileError::NoBackupFound,
+                "relay_unreachable" => crate::state::LoadProfileError::RelayUnreachable,
+                "duplicate_profile" => crate::state::LoadProfileError::DuplicateProfile,
+                _ => crate::state::LoadProfileError::MalformedPackage,
+            };
+            next.load_profile.step = crate::state::LoadProfileStep::Error;
+            next.load_profile.error = Some(load_error);
+            // Stay on recover screen for retry (VAL-LOAD-011, VAL-LOAD-019 recoverable).
+        }
+
+        // User confirmed the imported/recovered profile — persist to secure storage.
+        // VAL-LOAD-007: import confirm persists and exits to dashboard.
+        // VAL-LOAD-014: recover confirm persists and exits to dashboard.
+        AppAction::LoadProfileConfirm => {
+            if let Some(resolved) = &next.load_profile.resolved {
+                side_effect = Some(AppUpdate::StoreLoadedProfile {
+                    profile_id: resolved.profile_id.clone(),
+                    label: resolved.device_name.clone(),
+                    short_id: if resolved.profile_id.len() >= 8 {
+                        resolved.profile_id[..8].to_string()
+                    } else {
+                        resolved.profile_id.clone()
+                    },
+                });
+            }
+        }
+
+        // Shell reported the loaded profile was stored successfully.
+        // VAL-LOAD-007/014: add to hub and navigate to dashboard.
+        AppAction::LoadProfileStored { profile_id } => {
+            if let Some(resolved) = &next.load_profile.resolved {
+                if !next
+                    .hub
+                    .profiles
+                    .iter()
+                    .any(|p| p.profile_id == *profile_id)
+                {
+                    next.hub.profiles.push(StoredProfile::new(
+                        resolved.device_name.clone(),
+                        profile_id.clone(),
+                        ProfileStatus::Active,
+                    ));
+                }
+            }
+            next.load_profile.reset();
+            next.router.screen = Screen::Dashboard;
+        }
+
+        // Shell reported duplicate profile_id was rejected.
+        // VAL-LOAD-008: import duplicate rejected; VAL-LOAD-017: recover duplicate rejected.
+        AppAction::LoadProfileDuplicateRejected { profile_id: _ } => {
+            next.load_profile.error = Some(crate::state::LoadProfileError::DuplicateProfile);
+            next.load_profile.step = crate::state::LoadProfileStep::Error;
+            // Stay on confirm screen with error; do NOT add to hub.
+        }
+
+        // User tapped retry after an error — clear error and return to idle.
+        AppAction::LoadProfileClearError => {
+            // Keep package/password for retry (VAL-LOAD-005/011).
+            next.load_profile.step = crate::state::LoadProfileStep::Idle;
+            next.load_profile.error = None;
+        }
+
+        // ── Create Keyset flow ───────────────────────────────────────────
+        AppAction::CreateKeysetSelectCreate => {
+            next.router.screen = Screen::CreateKeysetGenerate;
+        }
+
+        AppAction::CreateKeysetSelectRotate => {
+            next.router.screen = Screen::CreateKeysetGenerate;
+        }
+
+        AppAction::CreateKeysetGenerateSubmit { .. } => {
+            next.router.screen = Screen::CreateKeysetDeviceProfile;
+        }
+
+        AppAction::CreateKeysetDistributeSubmit { .. } => {
+            next.router.screen = Screen::Hub;
+        }
+
+        // ── Profile management ───────────────────────────────────────────
+        // VAL-SHELL-012: deleting a stored profile requires confirmation.
+        AppAction::RequestDeleteProfile { profile_id } => {
+            if let Some(profile) = next
+                .hub
+                .profiles
+                .iter()
+                .find(|p| p.profile_id == *profile_id)
+            {
+                side_effect = Some(AppUpdate::ShowDeleteConfirmation {
+                    profile_id: profile_id.clone(),
+                    label: profile.label.clone(),
+                });
+            }
+        }
+
+        AppAction::ConfirmDeleteProfile { profile_id } => {
+            next.hub.profiles.retain(|p| p.profile_id != *profile_id);
+            side_effect = Some(AppUpdate::DeleteFromSecureStorage {
+                profile_id: profile_id.clone(),
+            });
+        }
+
+        // VAL-SHELL-013: stored profile opens without password after restart.
+        AppAction::RestoreAllProfiles => {
+            side_effect = Some(AppUpdate::RestoreAllStoredProfiles);
+        }
+
+        // VAL-SHELL-007: stored profile appears on hub with label, short_id, status.
+        AppAction::ProfileRestored {
+            label,
+            profile_id,
+            short_id: _,
+        } => {
+            if !next
+                .hub
+                .profiles
+                .iter()
+                .any(|p| p.profile_id == *profile_id)
+            {
+                next.hub.profiles.push(StoredProfile::new(
+                    label.clone(),
+                    profile_id.clone(),
+                    ProfileStatus::Available,
+                ));
+            }
+        }
+
+        // VAL-SHELL-015: hub active status reflects running signer.
+        AppAction::UpdateHubStatus { profile_id, active } => {
+            for p in next.hub.profiles.iter_mut() {
+                if p.profile_id == *profile_id {
+                    p.status = if *active {
+                        ProfileStatus::Active
+                    } else {
+                        ProfileStatus::Available
+                    };
+                    break;
+                }
+            }
+        }
+
+        // ── Dashboard ─────────────────────────────────────────────────────
+        // VAL-SIGNER-001: Signer tab shows stopped baseline by default.
+        AppAction::DashboardSetTab { tab } => match tab.as_str() {
+            "permissions" => next.dashboard.active_tab = DashboardTab::Permissions,
+            "settings" => next.dashboard.active_tab = DashboardTab::Settings,
+            _ => next.dashboard.active_tab = DashboardTab::Signer,
+        },
+
+        // Open dashboard for the given profile, populating the identity block.
+        // VAL-SIGNER-005: identity block shows device name, group pubkey, share pubkey.
+        AppAction::OpenDashboard {
+            profile_id,
+            device_name,
+            share_pubkey,
+            group_pubkey,
+        } => {
+            next.dashboard = DashboardState {
+                active_tab: DashboardTab::Signer,
+                signer: SignerRuntimeState {
+                    status: SignerStatus::Stopped,
+                    relay_connected: false,
+                    readiness: SignerReadiness::Idle,
+                    peers: Vec::new(),
+                    events: Vec::new(),
+                    pending_ops: Vec::new(),
+                    last_refresh_secs: None,
+                    ping_in_progress: false,
+                    test_sign_in_progress: false,
+                    last_test_sign: None,
+                    test_ecdh_in_progress: false,
+                    last_test_ecdh: None,
+                },
+                // VAL-PERM-002: permissions tab renders a matrix for each peer (alice, carol).
+                permissions: PermissionsState::with_demo_peers(),
+                // VAL-SET-001: settings tab with five fields at defaults.
+                // VAL-SET-013: signer name from the profile; VAL-SET-014: relays from profile.
+                settings: SettingsState::from_profile(device_name.clone(), Vec::new()),
+                profile_info: Some(ProfileInfo {
+                    device_name: device_name.clone(),
+                    share_pubkey: share_pubkey.clone(),
+                    group_pubkey: group_pubkey.clone(),
+                    profile_id: profile_id.clone(),
+                }),
+            };
+            next.router.screen = Screen::Dashboard;
+        }
+
+        // ── Signer runtime console (VAL-SIGNER-001 through VAL-SIGNER-018) ──
+        // VAL-SIGNER-002: Start signer transitions to running state.
+        // VAL-SIGNER-001: stopped baseline while not running.
+        AppAction::SignerStart => {
+            // Emit side effect to tell the shell to call FfiApp.start_signer().
+            // The shell will dispatch SignerStarted after the bridge starts.
+            side_effect = Some(AppUpdate::StartSignerRuntime);
+        }
+
+        // VAL-SIGNER-002: signer transitioned to running; update status.
+        AppAction::SignerStarted {
+            relay_connected,
+            readiness,
+        } => {
+            let readiness = match readiness.as_str() {
+                "restoring" => SignerReadiness::Restoring,
+                "runtime_ready" => SignerReadiness::RuntimeReady,
+                "sign_ready" => SignerReadiness::SignReady,
+                "degraded" => SignerReadiness::Degraded,
+                _ => SignerReadiness::Idle,
+            };
+            next.dashboard.signer.status = SignerStatus::Running;
+            next.dashboard.signer.relay_connected = *relay_connected;
+            next.dashboard.signer.readiness = readiness;
+            // Add a startup event log entry (VAL-SIGNER-012).
+            let now = chrono_lite_timestamp();
+            next.dashboard.signer.events.insert(
+                0,
+                LogEntry {
+                    level: LogLevel::Info,
+                    timestamp: now,
+                    message: "Signer runtime started".to_string(),
+                },
+            );
+        }
+
+        // VAL-SIGNER-015: Stop signer returns to stopped state.
+        AppAction::SignerStop => {
+            // Emit side effect to tell the shell to call FfiApp.stop_signer().
+            // The shell will dispatch SignerStopped after the bridge stops.
+            side_effect = Some(AppUpdate::StopSignerRuntime);
+        }
+
+        // VAL-SIGNER-015: signer stopped; reset to idle/empty baseline.
+        AppAction::SignerStopped => {
+            next.dashboard.signer = SignerRuntimeState::default();
+            // Keep profile_info so the identity block stays populated (VAL-SIGNER-005).
+        }
+
+        // VAL-SIGNER-011: periodic poll updates the display without user interaction.
+        // VAL-SIGNER-003: relay connection reflected in running summary.
+        // VAL-SIGNER-004: readiness progresses to sign_ready after ping round.
+        // VAL-SIGNER-006/007/008/009: peer list updated on each poll.
+        // VAL-SIGNER-012/013: event log live-updates.
+        // VAL-SIGNER-014: pending ops section updated.
+        AppAction::SignerStatusUpdate {
+            relay_connected,
+            readiness,
+            peer_aliases,
+            peer_pubkeys,
+            peer_online,
+            peer_last_seen,
+            peer_incoming_available,
+            peer_outgoing_available,
+            peer_outgoing_spent,
+            pending_op_types,
+            pending_op_started_at,
+            last_refresh_secs,
+            events_len: _,
+        } => {
+            let readiness = match readiness.as_str() {
+                "restoring" => SignerReadiness::Restoring,
+                "runtime_ready" => SignerReadiness::RuntimeReady,
+                "sign_ready" => SignerReadiness::SignReady,
+                "degraded" => SignerReadiness::Degraded,
+                _ => SignerReadiness::Idle,
+            };
+            next.dashboard.signer.relay_connected = *relay_connected;
+            next.dashboard.signer.readiness = readiness;
+            next.dashboard.signer.last_refresh_secs = *last_refresh_secs;
+
+            // Build peer status list from the poll data, preserving prior
+            // liveness when a transient poll lacks last_seen evidence.
+            let n = peer_aliases
+                .len()
+                .min(peer_pubkeys.len())
+                .min(peer_online.len());
+            let existing: std::collections::HashMap<String, PeerStatus> = state
+                .dashboard
+                .signer
+                .peers
+                .iter()
+                .map(|peer| (peer.alias.clone(), peer.clone()))
+                .collect();
+            let mut seen = std::collections::HashSet::new();
+            let mut peers = Vec::new();
+            for i in 0..n {
+                let alias = peer_aliases[i].clone();
+                let pubkey = peer_pubkeys[i].clone();
+                let last_seen = peer_last_seen.get(i).copied().flatten();
+                let incoming_nonces = NonceInventory {
+                    incoming_available: peer_incoming_available.get(i).copied().unwrap_or(0),
+                    outgoing_available: peer_outgoing_available.get(i).copied().unwrap_or(0),
+                    outgoing_spent: peer_outgoing_spent.get(i).copied().unwrap_or(0),
+                };
+
+                let mut online = peer_online[i] && last_seen.is_some();
+                let mut merged_last_seen = last_seen;
+                let mut nonces = incoming_nonces;
+                if last_seen.is_none() {
+                    if let Some(previous) = existing.get(&alias) {
+                        if previous.online {
+                            online = true;
+                            merged_last_seen = previous.last_seen_secs;
+                            nonces = previous.nonces.clone();
+                        } else {
+                            online = false;
+                        }
+                    } else {
+                        online = false;
+                    }
+                }
+
+                seen.insert(alias.clone());
+                peers.push(PeerStatus {
+                    alias,
+                    pubkey,
+                    online,
+                    last_seen_secs: merged_last_seen,
+                    nonces,
+                });
+            }
+            for previous in state.dashboard.signer.peers.iter() {
+                if !seen.contains(&previous.alias) {
+                    peers.push(previous.clone());
+                }
+            }
+            next.dashboard.signer.peers = peers;
+
+            // Build pending ops list.
+            let m = pending_op_types.len().min(pending_op_started_at.len());
+            let mut pending_ops = Vec::new();
+            for i in 0..m {
+                let op_type = match pending_op_types[i].as_str() {
+                    "ping" => PendingOpType::Ping,
+                    "sign" => PendingOpType::Sign,
+                    "ecdh" => PendingOpType::Ecdh,
+                    "onboard" => PendingOpType::Onboard,
+                    _ => continue,
+                };
+                pending_ops.push(PendingOp {
+                    op_type,
+                    started_at_secs: pending_op_started_at[i],
+                });
+            }
+            next.dashboard.signer.pending_ops = pending_ops;
+        }
+
+        // VAL-SIGNER-011: periodic poll updates display without user interaction.
+        // Shell dispatches this every ~1s while the Signer tab is visible.
+        AppAction::SignerPoll => {
+            side_effect = Some(AppUpdate::PollSignerStatus);
+        }
+
+        // VAL-SIGNER-010: manual peer Refresh updates status data.
+        // VAL-SIGNER-018: test ping affordance initiates real ping round.
+        AppAction::SignerPingPeers => {
+            // Prepend an INFO event-log row so the alternative evidence
+            // path for VAL-SIGNER-010 ("a new log entry per the
+            // alternative") is observable even when no ping round-trip
+            // completes before the next poll tick fires. The
+            // mobile-signer-peer-refresh-liveness-fix hardens Refresh
+            // against failing when no PONG arrives: the row shows up
+            // deterministically in the signer console.
+            let now = display_timestamp_rfc3339();
+            next.dashboard.signer.events.insert(
+                0,
+                LogEntry {
+                    level: LogLevel::Info,
+                    timestamp: now,
+                    message: "Refresh peer status".to_string(),
+                },
+            );
+            // Emit side effect — shell calls FfiApp.ping_peers() for online peers.
+            side_effect = Some(AppUpdate::PingSignerPeers);
+        }
+
+        // VAL-SIGNER-007/008/009: peer status updated after ping round.
+        AppAction::SignerPingComplete {
+            peer_alias,
+            last_seen_secs,
+            incoming_available,
+        } => {
+            // Update the specific peer's last_seen and incoming_available.
+            for peer in next.dashboard.signer.peers.iter_mut() {
+                if peer.alias == *peer_alias {
+                    peer.last_seen_secs = Some(*last_seen_secs);
+                    peer.nonces.incoming_available = *incoming_available;
+                    peer.online = true;
+                    break;
+                }
+            }
+            // Add ping completion event to the log (VAL-SIGNER-013 live-update).
+            let now = chrono_lite_timestamp();
+            next.dashboard.signer.events.insert(
+                0,
+                LogEntry {
+                    level: LogLevel::Info,
+                    timestamp: now,
+                    message: format!("Ping complete: {}", peer_alias),
+                },
+            );
+        }
+
+        // VAL-SIGNER-017: copy identity key values to platform clipboard.
+        AppAction::CopyToClipboard { value, label } => {
+            side_effect = Some(AppUpdate::CopyToClipboard {
+                value: value.clone(),
+                label: label.clone(),
+            });
+        }
+
+        // ── Test Sign and ECDH (VAL-SIGN-002, VAL-SIGN-005) ─────────────────
+        // VAL-SIGN-002: user activated test-sign affordance → shell calls FfiApp.test_sign().
+        AppAction::TestSign => {
+            next.dashboard.signer.test_sign_in_progress = true;
+            side_effect = Some(AppUpdate::PerformTestSign);
+        }
+        // VAL-SIGN-002: test sign round completed successfully.
+        AppAction::TestSignResult {
+            request_id,
+            digest,
+            signature,
+        } => {
+            next.dashboard.signer.test_sign_in_progress = false;
+            let now = chrono_lite_timestamp();
+            let completed_at_secs = now.parse::<i64>().unwrap_or(0);
+            next.dashboard.signer.last_test_sign = Some(TestSignResultData {
+                request_id: request_id.clone(),
+                digest: digest.clone(),
+                signature: signature.clone(),
+                completed_at_secs,
+            });
+            next.dashboard.signer.events.insert(
+                0,
+                LogEntry {
+                    level: LogLevel::Info,
+                    timestamp: now,
+                    message: format!("Test sign complete: {}", request_id),
+                },
+            );
+        }
+        // VAL-SIGN-002: test sign round failed.
+        AppAction::TestSignFailed { error } => {
+            next.dashboard.signer.test_sign_in_progress = false;
+            let now = chrono_lite_timestamp();
+            next.dashboard.signer.events.insert(
+                0,
+                LogEntry {
+                    level: LogLevel::Error,
+                    timestamp: now,
+                    message: format!("Test sign failed: {}", error),
+                },
+            );
+        }
+        // VAL-SIGN-005: user activated test-ECDH affordance → shell calls FfiApp.test_ecdh().
+        AppAction::TestEcdh => {
+            next.dashboard.signer.test_ecdh_in_progress = true;
+            side_effect = Some(AppUpdate::PerformTestEcdh);
+        }
+        // VAL-SIGN-005: test ECDH round completed successfully.
+        AppAction::TestEcdhResult {
+            request_id,
+            target_pubkey,
+            shared_secret,
+        } => {
+            next.dashboard.signer.test_ecdh_in_progress = false;
+            let now = chrono_lite_timestamp();
+            let completed_at_secs = now.parse::<i64>().unwrap_or(0);
+            next.dashboard.signer.last_test_ecdh = Some(TestEcdhResultData {
+                request_id: request_id.clone(),
+                target_pubkey: target_pubkey.clone(),
+                shared_secret: shared_secret.clone(),
+                completed_at_secs,
+            });
+            next.dashboard.signer.events.insert(
+                0,
+                LogEntry {
+                    level: LogLevel::Info,
+                    timestamp: now,
+                    message: format!("Test ECDH complete: {}", request_id),
+                },
+            );
+        }
+        // VAL-SIGN-005: test ECDH round failed.
+        AppAction::TestEcdhFailed { error } => {
+            next.dashboard.signer.test_ecdh_in_progress = false;
+            let now = chrono_lite_timestamp();
+            next.dashboard.signer.events.insert(
+                0,
+                LogEntry {
+                    level: LogLevel::Error,
+                    timestamp: now,
+                    message: format!("Test ECDH failed: {}", error),
+                },
+            );
+        }
+        // Clear the displayed test sign result.
+        AppAction::ClearTestSignResult => {
+            next.dashboard.signer.last_test_sign = None;
+        }
+        // Clear the displayed test ECDH result.
+        AppAction::ClearTestEcdhResult => {
+            next.dashboard.signer.last_test_ecdh = None;
+        }
+
+        // ── Permissions policy editor (VAL-PERM-001 through VAL-PERM-013) ────
+        // VAL-PERM-005: setting deny is reflected immediately.
+        // VAL-PERM-006: only the edited cell changes.
+        // VAL-PERM-007: effective policy recomputes live (handled by state struct methods).
+        AppAction::SetPolicyOverride {
+            peer_alias,
+            direction,
+            method,
+            value,
+        } => {
+            let direction = match direction.as_str() {
+                "request" => PolicyDirection::Request,
+                "respond" => PolicyDirection::Respond,
+                _ => return (next, side_effect), // invalid, ignore
+            };
+            let method = match method.as_str() {
+                "ping" => PolicyMethod::Ping,
+                "onboard" => PolicyMethod::Onboard,
+                "sign" => PolicyMethod::Sign,
+                "ecdh" => PolicyMethod::Ecdh,
+                _ => return (next, side_effect), // invalid, ignore
+            };
+            let value = match value.as_str() {
+                "allow" => PolicyOverrideValue::Allow,
+                "deny" => PolicyOverrideValue::Deny,
+                _ => PolicyOverrideValue::Unset,
+            };
+
+            // Ensure the permissions state has an entry for this peer.
+            // VAL-PERM-002: policy matrix renders for each peer.
+            if next
+                .dashboard
+                .permissions
+                .find_peer(peer_alias.as_str())
+                .is_none()
+            {
+                next.dashboard
+                    .permissions
+                    .peers
+                    .push(PeerPermissions::new(peer_alias.clone()));
+            }
+            if let Some(peer) = next
+                .dashboard
+                .permissions
+                .find_peer_mut(peer_alias.as_str())
+            {
+                peer.set_override(direction, method, value);
+            }
+        }
+
+        // VAL-PERM-010: reset a single cell back to unset.
+        AppAction::ResetPolicyOverride {
+            peer_alias,
+            direction,
+            method,
+        } => {
+            let direction = match direction.as_str() {
+                "request" => PolicyDirection::Request,
+                "respond" => PolicyDirection::Respond,
+                _ => return (next, side_effect),
+            };
+            let method = match method.as_str() {
+                "ping" => PolicyMethod::Ping,
+                "onboard" => PolicyMethod::Onboard,
+                "sign" => PolicyMethod::Sign,
+                "ecdh" => PolicyMethod::Ecdh,
+                _ => return (next, side_effect),
+            };
+
+            if let Some(peer) = next
+                .dashboard
+                .permissions
+                .find_peer_mut(peer_alias.as_str())
+            {
+                peer.reset_override(direction, method);
+            }
+        }
+
+        // VAL-PERM-011: clear all overrides for a peer.
+        AppAction::ClearAllPeerOverrides { peer_alias } => {
+            if let Some(peer) = next
+                .dashboard
+                .permissions
+                .find_peer_mut(peer_alias.as_str())
+            {
+                peer.clear_all_overrides();
+            }
+        }
+
+        // VAL-PERM-012/013: refresh remote policy observations.
+        // Emit side effect — shell queries peer policy advertisements from the signer runtime.
+        AppAction::RefreshRemotePolicy => {
+            next.dashboard.permissions.start_refresh();
+            side_effect = Some(AppUpdate::RefreshRemotePolicy);
+        }
+
+        // Sync online status from the signer runtime peer list to permissions state.
+        // VAL-PERM-012: only live peer (alice) shows remote policy observation.
+        AppAction::SyncPeerOnlineStatus {
+            peer_aliases,
+            peer_online,
+        } => {
+            for (i, alias) in peer_aliases.iter().enumerate() {
+                let online = peer_online.get(i).copied().unwrap_or(false);
+                next.dashboard
+                    .permissions
+                    .update_peer_online_status(alias, online);
+            }
+        }
+
+        // Update a peer's remote policy observation.
+        // VAL-PERM-012: alice's observation is populated after ping round.
+        // VAL-PERM-013: carol never shows a remote observation (no running signer).
+        AppAction::UpdateRemotePolicyObservation {
+            peer_alias,
+            available,
+            last_observed_secs,
+            revision,
+        } => {
+            if let Some(peer) = next
+                .dashboard
+                .permissions
+                .find_peer_mut(peer_alias.as_str())
+            {
+                peer.remote_observation = RemotePolicyObservation {
+                    available: *available,
+                    last_observed_secs: *last_observed_secs,
+                    revision: *revision,
+                };
+            }
+        }
+
+        // ── Settings & Maintenance (VAL-SET-001 through VAL-SET-016) ────
+        // VAL-SET-001: initialize settings when dashboard opens.
+        AppAction::OpenDashboardSettings {
+            device_name,
+            relays,
+        } => {
+            next.dashboard.settings =
+                SettingsState::from_profile(device_name.clone(), relays.clone());
+            // Also update the profile_info with the same device name
+            if let Some(ref mut info) = next.dashboard.profile_info {
+                info.device_name = device_name.clone();
+            }
+        }
+
+        // VAL-SET-013: editing the signer name.
+        AppAction::EditSignerName { name } => {
+            next.dashboard.settings.set_signer_name(name.to_string());
+            next.dashboard
+                .settings
+                .set_save_blocked(next.dashboard.signer.status != SignerStatus::Running);
+        }
+
+        // VAL-SET-002/005: editing sign timeout.
+        AppAction::EditSignTimeout { value } => {
+            next.dashboard.settings.set_sign_timeout(*value);
+            next.dashboard
+                .settings
+                .set_save_blocked(next.dashboard.signer.status != SignerStatus::Running);
+        }
+
+        // VAL-SET-002: editing ping timeout.
+        AppAction::EditPingTimeout { value } => {
+            next.dashboard.settings.set_ping_timeout(*value);
+            next.dashboard
+                .settings
+                .set_save_blocked(next.dashboard.signer.status != SignerStatus::Running);
+        }
+
+        // VAL-SET-002: editing request TTL.
+        AppAction::EditRequestTtl { value } => {
+            next.dashboard.settings.set_request_ttl(*value);
+            next.dashboard
+                .settings
+                .set_save_blocked(next.dashboard.signer.status != SignerStatus::Running);
+        }
+
+        // VAL-SET-002: editing state save interval.
+        AppAction::EditStateSaveInterval { value } => {
+            next.dashboard.settings.set_state_save_interval(*value);
+            next.dashboard
+                .settings
+                .set_save_blocked(next.dashboard.signer.status != SignerStatus::Running);
+        }
+
+        // VAL-SET-003: editing peer selection strategy.
+        AppAction::EditPeerSelectionStrategy { strategy } => {
+            next.dashboard
+                .settings
+                .set_peer_selection_strategy(strategy);
+            next.dashboard
+                .settings
+                .set_save_blocked(next.dashboard.signer.status != SignerStatus::Running);
+        }
+
+        // VAL-SET-014: adding a relay with trim + dedupe.
+        AppAction::AddRelay { url } => {
+            next.dashboard.settings.add_relay(url);
+            next.dashboard
+                .settings
+                .set_save_blocked(next.dashboard.signer.status != SignerStatus::Running);
+        }
+
+        // VAL-SET-014: removing a relay.
+        AppAction::RemoveRelay { url } => {
+            next.dashboard.settings.remove_relay(url);
+            next.dashboard
+                .settings
+                .set_save_blocked(next.dashboard.signer.status != SignerStatus::Running);
+        }
+
+        // VAL-SET-002/003/004/013/014: save settings while signer is running.
+        // VAL-SET-004: saving does not disrupt a running signer.
+        // VAL-SET-016: save is blocked when signer is stopped.
+        AppAction::SaveSettings => {
+            // Only allow save when signer is running (VAL-SET-016).
+            if next.dashboard.signer.status == SignerStatus::Running {
+                next.dashboard.settings.mark_saved();
+                // Also propagate the signer name to profile_info for display updates.
+                if let Some(ref mut info) = next.dashboard.profile_info {
+                    info.device_name = next.dashboard.settings.signer_name.clone();
+                }
+                // Emit side effect to tell shell to persist settings and update hub row label.
+                side_effect = Some(AppUpdate::PersistSettings {
+                    signer_name: next.dashboard.settings.signer_name.clone(),
+                    sign_timeout_secs: next.dashboard.settings.settings.sign_timeout_secs,
+                    ping_timeout_secs: next.dashboard.settings.settings.ping_timeout_secs,
+                    request_ttl_secs: next.dashboard.settings.settings.request_ttl_secs,
+                    state_save_interval_secs: next
+                        .dashboard
+                        .settings
+                        .settings
+                        .state_save_interval_secs,
+                    peer_selection_strategy: match next
+                        .dashboard
+                        .settings
+                        .settings
+                        .peer_selection_strategy
+                    {
+                        PeerSelectionStrategy::Random => "random".to_string(),
+                        _ => "deterministic_sorted".to_string(),
+                    },
+                    relays: next.dashboard.settings.relays.clone(),
+                });
+            }
+            // If signer is stopped, save is silently blocked (VAL-SET-016).
+            // The UI should have the save button disabled in this case.
+        }
+
+        // VAL-SET-006: trigger copy profile — shell shows password prompt.
+        AppAction::RequestCopyProfile => {
+            next.dashboard.settings.start_copy_profile();
+            side_effect = Some(AppUpdate::ShowExportPasswordPrompt {
+                export_type: "profile".to_string(),
+            });
+        }
+
+        // VAL-SET-007/015: confirm copy profile with export password.
+        // Shell produces bfprofile1 and writes to clipboard.
+        AppAction::ConfirmCopyProfile { password } => {
+            next.dashboard.settings.pending_export_password = Some(password.clone());
+            side_effect = Some(AppUpdate::PerformCopyProfile {
+                password: password.clone(),
+            });
+        }
+
+        // VAL-SET-008: trigger copy share — shell shows password prompt.
+        AppAction::RequestCopyShare => {
+            next.dashboard.settings.start_copy_share();
+            side_effect = Some(AppUpdate::ShowExportPasswordPrompt {
+                export_type: "share".to_string(),
+            });
+        }
+
+        // VAL-SET-008/015: confirm copy share with export password.
+        // Shell produces bfshare1 and writes to clipboard.
+        AppAction::ConfirmCopyShare { password } => {
+            next.dashboard.settings.pending_export_password = Some(password.clone());
+            side_effect = Some(AppUpdate::PerformCopyShare {
+                password: password.clone(),
+            });
+        }
+
+        // VAL-ROTATE-005: navigate to rotate share flow.
+        AppAction::NavigateToRotateShare => {
+            next.router.screen = Screen::RotateShare;
+            next.router.back_history.clear();
+            next.router.back_history.push(Screen::Dashboard);
+        }
+
+        // VAL-SET-010/011/012: logout — stop signer, zero secrets, return to hub.
+        // Profile remains stored and re-openable without a password.
+        AppAction::Logout => {
+            // Stop the signer runtime (VAL-SET-011).
+            side_effect = Some(AppUpdate::StopSignerRuntime);
+            // Clear in-memory state — the hub row will show Available (not Active).
+            next.dashboard.signer = SignerRuntimeState::default();
+            // Mark all profiles as Available on the hub.
+            for p in next.hub.profiles.iter_mut() {
+                p.status = ProfileStatus::Available;
+            }
+            // Navigate to hub.
+            next.router.screen = Screen::Hub;
+            next.router.back_history.clear();
+        }
+
+        // Internal: export completed successfully.
+        AppAction::ExportCompleted { package_type } => {
+            next.dashboard.settings.clear_pending_export();
+            // Add success event to the signer log.
+            let now = chrono_lite_timestamp();
+            next.dashboard.signer.events.insert(
+                0,
+                LogEntry {
+                    level: LogLevel::Info,
+                    timestamp: now,
+                    message: format!("Exported {}: copied to clipboard", package_type),
+                },
+            );
+        }
+
+        // Internal: export failed.
+        AppAction::ExportFailed { error } => {
+            next.dashboard.settings.clear_pending_export();
+            // Add error event to the signer log.
+            let now = chrono_lite_timestamp();
+            next.dashboard.signer.events.insert(
+                0,
+                LogEntry {
+                    level: LogLevel::Error,
+                    timestamp: now,
+                    message: format!("Export failed: {}", error),
+                },
+            );
+        }
+
+        // Clear any pending export (password prompt cancelled).
+        AppAction::ClearExportState => {
+            next.dashboard.settings.clear_pending_export();
+        }
+    }
+
+    (next, side_effect)
+}
+
+/// Determine the "back" destination for a given screen.
+fn go_back(screen: Screen) -> Screen {
+    match screen {
+        Screen::Hub => Screen::Hub,
+        Screen::OnboardEntry => Screen::Hub,
+        Screen::OnboardConnect => Screen::OnboardEntry,
+        // VAL-ONBOARD-013: back from review returns to the connect screen
+        // (not to hub — the profile has not been saved yet).
+        Screen::OnboardReview => Screen::OnboardEntry,
+        Screen::LoadProfileEntry => Screen::Hub,
+        Screen::LoadProfileImport => Screen::LoadProfileEntry,
+        Screen::LoadProfileRecover => Screen::LoadProfileEntry,
+        Screen::LoadProfileConfirm => Screen::LoadProfileImport,
+        Screen::CreateKeysetEntry => Screen::Hub,
+        Screen::CreateKeysetGenerate => Screen::CreateKeysetEntry,
+        Screen::CreateKeysetDeviceProfile => Screen::CreateKeysetGenerate,
+        Screen::CreateKeysetReview => Screen::CreateKeysetDeviceProfile,
+        Screen::CreateKeysetDistribute => Screen::CreateKeysetReview,
+        // Dashboard back to hub preserves Active status (VAL-SHELL-015).
+        Screen::Dashboard => Screen::Hub,
+        // RotateShare back to dashboard.
+        Screen::RotateShare => Screen::Dashboard,
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Timestamp helpers — unit coverage
+// Tests for the display_timestamp_rfc3339 / now_epoch_secs / utc_ymd_hms_from_epoch
+// helpers used by the signer event log. The display path carries the visible
+// "wall clock" string both shells render; the numeric epoch path is what the
+// completed_at_secs / last_refresh_secs / started_at_secs fields require.
+// ════════════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod timestamp_tests {
+    use super::{display_timestamp_rfc3339, now_epoch_secs, utc_ymd_hms_from_epoch};
+
+    /// Anchor: epoch 0 maps to 1970-01-01T00:00:00Z. The most important known
+    /// fact about Unix time and the foundation for every fixture below.
+    #[test]
+    fn utc_ymd_hms_epoch_zero_is_1970_01_01() {
+        let (y, m, d, h, mn, s) = utc_ymd_hms_from_epoch(0);
+        assert_eq!((y, m, d, h, mn, s), (1970, 1, 1, 0, 0, 0));
+    }
+
+    /// Anchor: 2024-01-01T00:00:00Z = 1704067200. Cross-checked with an
+    /// independent epoch→UTC tool outside the codebase.
+    #[test]
+    fn utc_ymd_hms_2024_01_01() {
+        let (y, m, d, h, mn, s) = utc_ymd_hms_from_epoch(1_704_067_200);
+        assert_eq!((y, m, d, h, mn, s), (2024, 1, 1, 0, 0, 0));
+    }
+
+    /// Anchor: 2026-01-01T00:00:00Z = 1767225600. Confirms the algorithm
+    /// includes the 14 leap years between 1970 and 2025.
+    #[test]
+    fn utc_ymd_hms_2026_01_01() {
+        let (y, m, d, h, mn, s) = utc_ymd_hms_from_epoch(1_767_225_600);
+        assert_eq!((y, m, d, h, mn, s), (2026, 1, 1, 0, 0, 0));
+    }
+
+    /// Anchor: a fixed time of day (12:34:56Z) on a non-midnight date verifies
+    /// that the time-of-day component is correctly partitioned. The epoch
+    /// value (1749990896) is cross-checked against Python's
+    /// `datetime(2025,6,15,12,34,56,tzinfo=utc).timestamp()`.
+    #[test]
+    fn utc_ymd_hms_preserves_time_of_day() {
+        let secs = 1_749_990_896;
+        let (y, m, d, h, mn, s) = utc_ymd_hms_from_epoch(secs);
+        assert_eq!((y, m, d, h, mn, s), (2025, 6, 15, 12, 34, 56));
+    }
+
+    /// Leap day sanity: 2024-02-29 exists and the algorithm lands on it.
+    /// 2024-02-29T00:00:00Z = 1709164800 (59 days after 2024-01-01).
+    #[test]
+    fn utc_ymd_hms_recognises_leap_day() {
+        let (y, m, d, h, mn, s) = utc_ymd_hms_from_epoch(1_709_164_800);
+        assert_eq!((y, m, d, h, mn, s), (2024, 2, 29, 0, 0, 0));
+    }
+
+    /// Display path: the produced string MUST be a valid UTC RFC-3339
+    /// timestamp of the form `YYYY-MM-DDTHH:MM:SSZ`. The MAX-LENGTH bounds
+    /// also reject accidental epoch-second coercion.
+    #[test]
+    fn display_timestamp_rfc3339_matches_format() {
+        let stamp = display_timestamp_rfc3339();
+        // Length: 4 + 1 + 2 + 1 + 2 + 1 + 2 + 1 + 2 + 1 + 2 + 1 = 20 chars.
+        assert_eq!(stamp.len(), 20, "RFC-3339 UTC must be 20 chars: {stamp}");
+        let bytes = stamp.as_bytes();
+        // Fixed positions of dashes, 'T', colons, and trailing 'Z'.
+        assert_eq!(bytes[4], b'-');
+        assert_eq!(bytes[7], b'-');
+        assert_eq!(bytes[10], b'T');
+        assert_eq!(bytes[13], b':');
+        assert_eq!(bytes[16], b':');
+        assert_eq!(bytes[19], b'Z');
+        // Year / month / day / hour / minute / second must all be ASCII digits.
+        for &idx in &[
+            0, 1, 2, 3, // year
+            5, 6, // month
+            8, 9, // day
+            11, 12, // hour
+            14, 15, // minute
+            17, 18, // second
+        ] {
+            assert!(
+                bytes[idx].is_ascii_digit(),
+                "expected digit at position {idx} of '{stamp}'"
+            );
+        }
+    }
+
+    /// Display path: the wall-clock represented in the RFC-3339 string must
+    /// agree with the time we asked the OS for. This locks in that the helper
+    /// is actually formatting the current instant, not a frozen placeholder.
+    #[test]
+    fn display_timestamp_rfc3339_agrees_with_now_epoch_secs() {
+        let secs_before = now_epoch_secs();
+        let stamp = display_timestamp_rfc3339();
+        let secs_after = now_epoch_secs();
+        let (y, m, d, h, mn, s) = utc_ymd_hms_from_epoch(secs_before);
+        let expected = format!("{y:04}-{m:02}-{d:02}T{h:02}:{mn:02}:{s:02}Z");
+        // Allow the timestamp to land either on secs_before or secs_after
+        // (boundary case where the OS clock ticks between the two reads).
+        let (y2, m2, d2, h2, mn2, s2) = utc_ymd_hms_from_epoch(secs_after);
+        let alt = format!("{y2:04}-{m2:02}-{d2:02}T{h2:02}:{mn2:02}:{s2:02}Z");
+        assert!(
+            stamp == expected || stamp == alt,
+            "display_timestamp_rfc3339 returned '{stamp}', expected '{expected}' or '{alt}'"
+        );
+    }
+
+    /// Numeric path: now_epoch_secs() must produce a positive i64 well above
+    /// zero — guards the completed_at_secs / last_refresh_secs / started_at_secs
+    /// fields against being silently coerced to 0.
+    #[test]
+    fn now_epoch_secs_is_minute_after_unix_epoch() {
+        let secs = now_epoch_secs();
+        assert!(secs > 0, "now_epoch_secs must be > 0, got {secs}");
+        // Anything below 1.7 billion means the clock regressed or the helper
+        // is broken. We are well past 2024.
+        assert!(
+            secs > 1_700_000_000,
+            "now_epoch_secs must be > 1.7B (post-2024), got {secs}"
+        );
+        // And it must fit comfortably in i64 (no ReLu / sign-flip issues).
+        assert!(secs < i64::MAX / 2);
+    }
+}

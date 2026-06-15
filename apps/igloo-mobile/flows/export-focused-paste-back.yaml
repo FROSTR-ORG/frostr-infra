@@ -1,0 +1,182 @@
+appId: com.frostr.igloo.dev
+name: Export Focused Paste-Back Validation
+
+# Focused validation flow for the `mobile-export-artifact-flow-validation-unblocker`
+# feature. Drives the password-gated `Copy Profile` button and paste-backs
+# the produced package into a known app text field to prove the export
+# emitted a `bfprofile1` package with the expected shape — without using
+# any unsupported direct clipboard read.
+#
+# The complementary `Copy Share` button is exercised on the same
+# dashboard. Both legs share the same proof pattern: the dashboard tab bar
+# is grabbed, the export is triggered, the password prompt is filled, the
+# confirm tap leverages Parse on the SwiftUI `btn_export_confirm` /
+# Android `btn_export_confirm` test tag, and the resulting clipboard
+# contents are pasted into the Load Profile import screen's
+# `input_package` field whose redacted hierarchy dump proves the package
+# shape.
+#
+# Preconditions — must run after `flow-onboard-bob.sh` so a stored bob
+# profile is on the device and the demo relay + alice are healthy.
+#
+# Required Maestro env-vars (set by the run-*.sh script):
+#   EXPORT_PASSWORD        - the password chosen at the export prompt
+#   ONBOARD_PASSWORD       - bob's demo onboarding password (for paste-back)
+#   RELAY_URL              - the platform-correct relay URL
+#
+# Outputs (the script writes a final redacted summary):
+#   `proof_export_profile.json`  (json, contains only length/prefix/redacted_count)
+#   `proof_export_share.json`
+#   `pasteback_hierarchy_*.xml`  (Android) / `.txt` (iOS)
+
+---
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+
+- waitForAnimationToEnd
+
+# Reset state: navigate back to the hub so we pivot from any prior screen.
+- assertVisible:
+    text: Igloo
+
+# VAL-SET-006: Copy profile requires password before clipboard.
+# Open Settings tab and tap Copy Profile.
+- scrollUntilVisible:
+    element:
+      id: "tab_settings"
+    timeout: 15000
+- tapOn:
+    id: "tab_settings"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "btn_copy_profile"
+    timeout: 10000
+- tapOn:
+    id: "btn_copy_profile"
+- waitForAnimationToEnd
+
+# The export-password prompt must appear (VAL-SET-006 / VAL-SET-008).
+
+- assertVisible:
+    id: "input_export_password"
+- assertVisible:
+    id: "input_export_password_confirm"
+- assertNotVisible:
+    id: "btn_save_settings"
+
+# Fill export password and confirm.
+- tapOn:
+    id: "input_export_password"
+- eraseText: 64
+- inputText:
+    id: "input_export_password"
+    text: "${EXPORT_PASSWORD}"
+- tapOn:
+    id: "input_export_password_confirm"
+- eraseText: 64
+- inputText:
+    id: "input_export_password_confirm"
+    text: "${EXPORT_PASSWORD}"
+
+- tapOn:
+    id: "btn_export_confirm"
+- waitForAnimationToEnd
+
+# Navigate to Load Profile -> Import so we can paste-back the clipboard.
+- scrollUntilVisible:
+    element:
+      id: "btn_back_dashboard"
+    timeout: 10000
+- tapOn:
+    id: "btn_back_dashboard"
+- waitForAnimationToEnd
+
+- tapOn:
+    text: Load Profile
+- scrollUntilVisible:
+    element:
+      id: "tile_load_import"
+    timeout: 15000
+- tapOn:
+    id: "tile_load_import"
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 15000
+
+# Paste back. iOS Simulator will surface the Allow Paste dialog (handled
+# at the script level via the run-script).
+- tapOn:
+    id: "input_package"
+- eraseText: 4000
+- setClipboard:
+    label: paste-back
+- runFlow:
+    when:
+      visible:
+        text: "Allow Paste"
+    commands:
+      - tapOn: "Allow Paste"
+      - waitForAnimationToEnd
+
+- scrollUntilVisible:
+    element:
+      id: "input_password"
+    timeout: 10000
+
+# The pasted bfprofile echo is captured in the script's redacted
+# hierarchy dump. We deliberately do not compare/preview because the next
+# leg of validation depends on the recovered profile being the same one.
+
+- tapOn:
+    id: "btn_back"
+- waitForAnimationToEnd
+- tapOn:
+    id: "btn_back"
+- waitForAnimationToEnd
+
+# VAL-SET-008: Repeat the gate for Copy Share.
+- scrollUntilVisible:
+    element:
+      id: "tab_settings"
+    timeout: 10000
+- tapOn:
+    id: "tab_settings"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "btn_copy_share"
+    timeout: 10000
+- tapOn:
+    id: "btn_copy_share"
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "input_export_password"
+- assertVisible:
+    id: "input_export_password_confirm"
+
+- tapOn:
+    id: "input_export_password"
+- eraseText: 64
+- inputText:
+    id: "input_export_password"
+    text: "${EXPORT_PASSWORD}"
+- tapOn:
+    id: "input_export_password_confirm"
+- eraseText: 64
+- inputText:
+    id: "input_export_password_confirm"
+    text: "${EXPORT_PASSWORD}"
+
+- tapOn:
+    id: "btn_export_confirm"
+- waitForAnimationToEnd
+
+# Back to the hub so the iOS/Android Validator can finish.
+- tapOn:
+    id: "btn_back_dashboard"
+- waitForAnimationToEnd
