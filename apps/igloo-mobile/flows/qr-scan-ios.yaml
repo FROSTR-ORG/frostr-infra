@@ -1,0 +1,143 @@
+appId: com.frostr.igloo.dev
+name: QR Scan / Paste Fallback - iOS (VAL-QR-002/003)
+
+# Focused gate verifying that the Onboard Device flow's new Scan QR affordance
+# degrades gracefully on the iOS Simulator (no camera hardware) and completes
+# the same onboarding flow path through the scan paste-fallback
+# (mobile-qr-display-and-scan-support).
+#
+# The QrScannerSheet on iOS probes `AVCaptureDevice.default(for: .video)` and
+# when the simulator's value is nil (no camera) the QrScannerSheet renders the
+# camera-unavailable fallback branch. The fallback exposes a manual entry
+# field, a "Paste from Clipboard" button, and a "Use This Package"
+# confirmation button — all feeding the trimmed bfonboard text back into the
+# OnboardConnectView's `packageText` `@State` exactly the same way the regular
+# paste path does.
+#
+# On real iOS devices the QrScannerSheet would drive an AVCaptureSession +
+# AVCaptureMetadataOutput session against the rear camera and pass detected
+# strings through the same `onScanned` callback. The simulator path is what
+# the validators exercise; this flow proves that path end-to-end.
+#
+# Runtime credential loading via Maestro -e flags (same pattern as the
+# existing onboard-ios*.yaml flows):
+#
+#   maestro --device <ios-udid> test flows/qr-scan-ios.yaml \
+#     -e ONBOARD_PACKAGE="$(cat .tmp/test-harness/onboard-bob.txt)" \
+#     -e ONBOARD_PASSWORD="$(cat .tmp/test-harness/onboard-bob.password.txt)" \
+#     -e RELAY_URL="ws://127.0.0.1:8194"
+
+---
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+- waitForAnimationToEnd
+
+# Start from hub.
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "Onboard Device"
+
+# Hub → OnboardEntry → OnboardConnect.
+- tapOn:
+    text: "Onboard Device"
+
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+- tapOn:
+    id: "btn_connect_entry"
+
+- scrollUntilVisible:
+    element:
+      id: "btn_scan_qr"
+    timeout: 20000
+
+# VAL-QR-002: tap Scan QR — iOS Simulator has no camera so the QrScannerSheet
+# renders the camera-unavailable fallback branch immediately.
+- tapOn:
+    id: "btn_scan_qr"
+
+- assertVisible:
+    id: "qr_scan_camera_unavailable_title"
+- assertVisible:
+    id: "input_qr_fallback_package"
+- assertVisible:
+    id: "btn_qr_paste_clipboard"
+- assertVisible:
+    id: "btn_qr_scan_back"
+
+# VAL-QR-003: paste clipboard into the fallback field, then surface the
+# trimmed bfonboard envelope via "Use This Package" so OnboardConnectView
+# receives the same payload a real scan would have produced.
+- tapOn:
+    id: "input_qr_fallback_package"
+- eraseText: 1000
+- setClipboard: "${ONBOARD_PACKAGE}"
+- pasteText
+- tapOn:
+    id: "btn_qr_fallback_use"
+
+- assertVisible:
+    id: "input_package"
+- assertVisible:
+    id: "input_password"
+- assertVisible:
+    id: "btn_connect"
+
+# Set the relay URL (platform-correct iOS Simulator value).
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "${RELAY_URL}"
+
+# Password via setClipboard + pasteText. iOS Maestro paste timing on iOS 26.5
+# SwiftUI TextEditor is documented to be flaky; on iOS we can use the
+# btn_paste_package product-grade paste button + reset state path. For
+# VAL-QR-003 we deliberately keep the same entry pattern as the existing
+# onboarding paths so the comparison stays apples-to-apples.
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- setClipboard: "${ONBOARD_PASSWORD}"
+- pasteText
+
+# Drive the handshake through the standard Connect button.
+- waitForAnimationToEnd
+- tapOn:
+    id: "btn_connect"
+- waitForAnimationToEnd
+
+# Same review-screen gate as the standard onboarding flow.
+- scrollUntilVisible:
+    element:
+      id: "input_device_name"
+    timeout: 240000
+- assertVisible:
+    id: "input_device_name"
+- assertVisible:
+    id: "btn_save_device"
+
+# Save device → dashboard arrival.
+- inputText:
+    id: "input_device_name"
+    text: "qr-fallback"
+- tapOn:
+    id: "btn_save_device"
+- waitForAnimationToEnd
+
+- scrollUntilVisible:
+    element:
+      text: "Signer"
+    timeout: 30000
+- assertVisible:
+    text: "Signer"
+- assertVisible:
+    text: "Permissions"
+- assertVisible:
+    text: "Settings"

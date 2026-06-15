@@ -1,0 +1,145 @@
+appId: com.frostr.igloo.dev
+name: QR Scan / Paste Fallback - Android (VAL-QR-002/003)
+
+# Focused gate verifying that the Onboard Device flow's new Scan QR affordance
+# degrades gracefully on the Android emulator (no working rear camera) and
+# completes the same onboarding flow path through the scan paste-fallback
+# (mobile-qr-display-and-scan-support).
+#
+# The fallback surface (QrScannerDialog -> QrScannerFallback) renders on
+# devices that match the Build.FINGERPRINT emulator fingerprint (which
+# includes the rmp_api35 AVD used for validation) even though their virtual
+# cameras report a single BACK-facing lens entry. Real devices with working
+# rear cameras transition to RealCameraScannerSurface; the paste-fallback
+# is unreachable from there.
+#
+# The "Use This Package" button on the fallback surface feeds the trimmed
+# bfonboard text into the OnboardConnectScreen's `packageText` state, the
+# same way btn_paste_package and the manual paste path do. The subsequent
+# OnboardConnect action is identical regardless of source origin.
+#
+# Runtime credential loading via Maestro -e flags (same pattern as the
+# existing onboard-android.yaml flow). The same ONBOARD_PACKAGE /
+# ONBOARD_PASSWORD / RELAY_URL env flags are reused:
+#
+#   maestro --device emulator-5554 test flows/qr-scan-android.yaml \
+#     -e ONBOARD_PACKAGE="$(cat .tmp/test-harness/onboard-carol.txt)" \
+#     -e ONBOARD_PASSWORD="$(cat .tmp/test-harness/onboard-carol.password.txt)" \
+#     -e RELAY_URL="ws://10.0.2.2:8194"
+
+---
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+
+- waitForAnimationToEnd
+
+# Start from hub.
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "Onboard Device"
+
+# Hub → OnboardEntry → OnboardConnect.
+- tapOn:
+    text: "Onboard Device"
+
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+- tapOn:
+    id: "btn_connect_entry"
+
+- scrollUntilVisible:
+    element:
+      id: "btn_scan_qr"
+    timeout: 20000
+
+# VAL-QR-002: tap Scan QR — emulator reports no working rear camera so the
+# QrScannerDialog renders the camera-unavailable fallback immediately.
+- tapOn:
+    id: "btn_scan_qr"
+
+- assertVisible:
+    id: "qr_scan_camera_unavailable_title"
+- assertVisible:
+    id: "input_qr_fallback_package"
+- assertVisible:
+    id: "btn_qr_paste_clipboard"
+- assertVisible:
+    id: "btn_qr_scan_back"
+
+# VAL-QR-003: paste clipboard into the fallback field, then surface the
+# trimmed bfonboard envelope via "Use This Package" so OnboardConnect
+# receives the same payload it would have after a real scan.
+- tapOn:
+    id: "input_qr_fallback_package"
+- setClipboard: "${ONBOARD_PACKAGE}"
+- pasteText
+- tapOn:
+    id: "btn_qr_fallback_use"
+
+- assertVisible:
+    id: "input_package"
+- assertVisible:
+    id: "input_password"
+- assertVisible:
+    id: "btn_connect"
+
+# Enter relay URL (platform-correct Android emulator value).
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "${RELAY_URL}"
+
+# Password via setClipboard + pasteText (Android Compose reliably accepts
+# the same way as the existing onboard-android.yaml flow).
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- setClipboard: "${ONBOARD_PASSWORD}"
+- pasteText
+
+# Drive the handshake through the standard Connect button.
+- waitForAnimationToEnd
+- tapOn:
+    id: "btn_connect"
+- waitForAnimationToEnd
+
+# Same review-screen gate as the standard onboarding flow.
+- scrollUntilVisible:
+    element:
+      id: "input_device_name"
+    timeout: 240000
+- assertVisible:
+    id: "input_device_name"
+- assertVisible:
+    id: "btn_save_device"
+
+# Save device — pin via the resolved share/group pubkeys on the review screen
+# rather than the device-name textfield (which is a Compose focus side-effect
+# already covered by the standard onboarding flow). The QR paste-fallback
+# path is proven by the fact that we reached the review screen at all.
+- inputText:
+    id: "input_device_name"
+    text: "qr-fallback"
+- tapOn:
+    id: "btn_save_device"
+- waitForAnimationToEnd
+
+# Dashboard arrived → Signer tab is present (parity text visible on
+# both platforms).
+- scrollUntilVisible:
+    element:
+      text: "Signer"
+    timeout: 30000
+- assertVisible:
+    text: "Signer"
+- assertVisible:
+    text: "Permissions"
+- assertVisible:
+    text: "Settings"

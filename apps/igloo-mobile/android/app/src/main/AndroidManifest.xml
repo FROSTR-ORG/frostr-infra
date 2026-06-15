@@ -3,6 +3,18 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!--
+        Camera permission for the QR scanner affordance on the Onboard Device
+        flow (mobile-qr-display-and-scan-support, VAL-QR-002/003). Declared
+        optional via `required="false"` so the app installs on emulator AVDs
+        that do not provide a back camera. When the device reports no camera
+        we surface the camera-unavailable fallback screen with a paste
+        affordance.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
     <application
         android:allowBackup="true"
         android:label="Igloo Mobile"

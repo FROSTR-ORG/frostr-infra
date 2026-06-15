@@ -3715,3 +3715,86 @@ fn settings_navigate_to_rotate_share_opens_screen() {
         "NavigateToRotateShare must open RotateShare screen (VAL-ROTATE-005)"
     );
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+
+/// invocation shape without committing any password-shaped bytes).
+const PLACEHOLDER_CREDENTIAL: &str = "PLACEHOLDER_NOT_A_REAL_PASSWORD";
+
+/// placeholder hex-shaped share_secret fixture - same shape pattern as
+/// bifrost-rs' own BfOnboardPayload tests (Crates
+/// package_v2::sample_onboard_payload).
+fn qr_share_secret_fixture() -> String {
+    let prefix: &str = "AA";
+    prefix.repeat(32)
+}
+
+fn qr_peer_pk_fixture() -> String {
+    let prefix: &str = "BB";
+    prefix.repeat(32)
+}
+
+#[test]
+fn qqr_disp1y() {
+    use frostr_utils::{encode_bfonboard_package, BfOnboardPayload};
+
+    let payload = BfOnboardPayload {
+        share_secret: qr_share_secret_fixture(),
+        relays: vec!["ws://127.0.0.1:8194".to_string()],
+        peer_pk: qr_peer_pk_fixture(),
+    };
+    let password = PLACEHOLDER_CREDENTIAL.to_string();
+    let encoded = encode_bfonboard_package(&payload, &password)
+        .expect("bfonboard envelope must encode");
+
+    assert!(
+        encoded.starts_with("bfonboard1"),
+        "QR-displayed payload must start with bfonboard1 (VAL-QR-001 envelope shape)"
+    );
+    assert!(
+        !encoded.contains(' '),
+        "QR-displayed payload must not contain whitespace tokens"
+    );
+    assert!(
+        encoded.len() >= 600,
+        "QR-displayed bfonboard envelope must be a single contiguous bfonboard1 string          ~690 chars per the canonical frostr-utils envelope shape"
+    );
+}
+
+#[test]
+fn qqr_paste1t() {
+    let raw = "  bfonboard1abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcd  \n";
+
+    let state = dispatch(
+        &AppState::initial(),
+        AppAction::InjectOnboardCredentials {
+            package: raw.to_string(),
+            password: PLACEHOLDER_CREDENTIAL.to_string(),
+            relay_url: "ws://127.0.0.1:8194".to_string(),
+            device_name: None,
+        },
+    );
+
+    assert_eq!(
+        state.onboarding.package,
+        "bfonboard1abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcd",
+        "trim must apply uniformly: the bfonboard envelope fed through the QR          scan paste-fallback reaches OnboardConnect with the same trimmed form          as any other entry surface (VAL-QR-003)"
+    );
+    assert!(
+        !state.onboarding.package.contains('\n') && !state.onboarding.package.contains(' '),
+        "trim must strip embedded newlines + leading/trailing whitespace"
+    );
+
+    let next = dispatch(
+        &state,
+        AppAction::OnboardConnect {
+            package: state.onboarding.package.clone(),
+            password: state.onboarding.password.clone(),
+            relay_url: state.onboarding.relay_url.clone(),
+        },
+    );
+    assert_eq!(
+        next.onboarding.package, state.onboarding.package,
+        "OnboardConnect must preserve the trimmed form produced by the QR fallback (VAL-QR-003)"
+    );
+}
