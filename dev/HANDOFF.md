@@ -10,14 +10,52 @@ _Last updated: 2026-06-15_
 > **interactive signing-approval queue**, and **(5)** the **dashboard error/empty
 > states** (loading / load-failed / all-relays-offline / signing-blocked /
 > signing-failed) across all three clients, followed by **two follow-up rounds**
-> that cleaned up and finished that feature. See the `✅ Done` sections below.
+> that cleaned up and finished that feature, then a **backlog Tiers 1-4 batch**
+> (CI repair, security hardening, dead-code cleanups). See the `✅ Done` sections below.
 >
 > **All commits are local on `dev`** across the repos (not pushed). The parent repo
 > also carries **pre-existing, unrelated staged WIP** (`dev/audit/*` + `.gitignore`)
 > that is NOT ours — leave it; commit only explicit paths.
 >
-> **▶ NEXT: pick the next L item** from `BACKLOG.md` — see
-> [§ Next work](#-next-work-remaining-l-items).
+> **▶ NEXT: pick the next L item** from `BACKLOG.md` — the standout is the
+> **"Unify app-facing NIP-44 on the standard raw-X derivation"** crypto task
+> (adjudicated this batch as a real ecosystem interop bug; needs its own
+> adversarially-reviewed plan + WASM rebuild; fold in the router Ping-sentinel +
+> the bifrost-profile clippy lints, which ride the same blob rebuild).
+
+## ✅ Done: backlog Tiers 1-4 (CI repair, hardening, cleanups)
+
+**Landed (submodule-then-pointer):** bifrost-rs `b732968`, igloo-chrome `9e21568`,
+igloo-ui `c08975c`, igloo-pwa `5d49c7c`, igloo-shared `58b8144` → parent `1d11701`.
+**No WASM-relevant source touched → no blob rebuild / re-stamp.** Plan:
+`plans/vivid-swinging-pony.md`.
+
+- **CI repair (Tier 1):** `release-validation.yml` push trigger now includes
+  `master` (it only had `main`, so the release matrix never ran post-merge).
+  bifrost-rs `ci.yml` **rewritten** — its whole matrix tested a vanished node-era
+  architecture (bifrost-node/transport-ws/dev, devnet/tui scripts, the example);
+  replaced the dead `test-*` shards with one `cargo test --workspace` (rot-proof,
+  covers the NIP-44 KATs), dropped the gone steps. **Caveat:** the unchanged clippy
+  `-D warnings` job now surfaces 3 pre-existing `bifrost-profile`
+  `too_many_arguments` lints (logged; fix rides the next blob change).
+- **Hardening (Tier 2):** chrome page bridge **origin-pinned** (`window.location.origin`
+  on send + `event.origin` validation on receive) — closes cross-origin sniff/forge;
+  **dead NIP-04 surface removed**; pwa runtime-log error suffix **redacted** to an
+  allow-list (no verbatim `error_message`); demo passphrase **off argv** →
+  `--passphrase-file` (0600). Demo `chmod` tightening deferred (load-bearing for
+  Docker cross-UID).
+- **Cleanups (Tier 4):** dead `PwaView` members (`create-choice`/`settings`) removed +
+  the blank-pane reload fallback fixed; vestigial `onRelaysChange` dropped (+ made
+  optional in igloo-ui); dead `RelayInput` deleted.
+- **NIP-44 (Tier 3) — adjudicated, fix split out:** `window.nostr.nip44` is a live
+  NIP-07 method keyed on `SHA256(threshold-ECDH point)` instead of the standard
+  raw-X, so it **doesn't interop with standard NIP-44 peers** — a real bug.
+  Documented the seam in `igloo-shared/runtime-internal.ts`; logged the crypto-core
+  unify task (see NEXT above). No crypto change this batch.
+
+**Verified:** `cargo test --workspace` + fmt + check (bifrost-rs); units (chrome 98,
+pwa 65, ui 144); wasm stamp guard unchanged; `make test-fast` (pwa 20, chrome 17);
+`make test-smoke` (demo onboard via `--passphrase-file`).
 
 ## ✅ Done: dashboard-states round-2 polish (relay back-off, mirror cull, closures)
 
