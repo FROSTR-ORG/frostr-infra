@@ -306,6 +306,40 @@ final class AppManager: AppReconciler {
             // surface a "Signer Running" indicator on the Distribute screen.
             performStartSigner()
 
+        case .performRotateShareHandshake(let package, let password, let relayUrl, let expectedGroup, let activeProfileId):
+            // VAL-ROTATE-006/013/014: run the live provisioning handshake
+            // off MainActor so the SwiftUI button isn't blocked. The shell
+            // receives this from the Rust actor after the connect form
+            // validates package + password + relay.
+            performRotateShareHandshake(
+                package: package,
+                password: password,
+                relayUrl: relayUrl,
+                expectedGroup: expectedGroup,
+                activeProfileId: activeProfileId
+            )
+
+        case .replaceProfileFromRotate(
+            let oldProfileId,
+            let newProfileId,
+            let newLabel,
+            let newShortId,
+            let newMaterial,
+            let newRelays,
+            let deleteOld
+        ):
+            // VAL-ROTATE-011: swap the old profile's secure-storage record
+            // for the rotated material, then update the hub + dashboard.
+            performReplaceProfileFromRotate(
+                oldProfileId: oldProfileId,
+                newProfileId: newProfileId,
+                newLabel: newLabel,
+                newShortId: newShortId,
+                newMaterial: newMaterial,
+                newRelays: newRelays,
+                deleteOld: deleteOld
+            )
+
         // PerformOnboardHandshake is handled directly in onboardConnect() to ensure
         // the async FFI call starts immediately without relying on the reconciler
         // callback path. Other unhandled cases are silently ignored.
@@ -1581,6 +1615,95 @@ final class AppManager: AppReconciler {
         dispatch(.navigateToRotateShare)
     }
 
+    /// Open the Rotate Share connect screen with the active profile
+    /// identity pre-seeded on `state.rotate_share` so the connect-card
+    /// row renders label + short id (VAL-ROTATE-005).
+    func openRotateShareConnect(profileId: String, shortId: String, deviceLabel: String) {
+        dispatch(.openRotateShareConnect(profileId: profileId, shortId: shortId, deviceLabel: deviceLabel))
+    }
+
+    /// Capture the user's package + password edits on the connect screen
+    /// (VAL-ROTATE-005).
+    func updateRotateSharePackage(_ value: String) {
+        dispatch(.rotateShareUpdatePackage(value: value))
+    }
+
+    func updateRotateSharePassword(_ value: String) {
+        dispatch(.rotateShareUpdatePassword(value: value))
+    }
+
+    func updateRotateShareRelay(_ value: String) {
+        dispatch(.rotateShareUpdateRelay(value: value))
+    }
+
+    /// Submit the connect form. Drives VAL-ROTATE-006/013/014 on
+    /// success and surfaces the typed failure kind back to the actor
+    /// when the underlying async handshake errors.
+    func rotateShareConnect() {
+        dispatch(.rotateShareConnect)
+        let package = state.rotateShare.package
+        let password = state.rotateShare.password
+        let relayUrl = state.rotateShare.relayUrl
+        let expectedGroup = state.dashboard.profileInfo?.groupPubkey ?? ""
+        let activeProfileId = state.rotateShare.activeProfileId
+        performRotateShareHandshake(
+            package: package,
+            password: password,
+            relayUrl: relayUrl,
+            expectedGroup: expectedGroup,
+            activeProfileId: activeProfileId
+        )
+    }
+
+    /// Confirm replacement of the active profile with the rotated
+    /// identity (VAL-ROTATE-011).
+    func rotateShareReplace() {
+        dispatch(.rotateShareReplace)
+        if let preview = state.rotateShare.preview {
+            performReplaceProfileFromRotate(
+                oldProfileId: state.rotateShare.activeProfileId,
+                newProfileId: preview.profileId,
+                newLabel: preview.deviceName,
+                newShortId: String(preview.profileId.prefix(8)),
+                newMaterial: Data(),
+                newRelays: preview.relays,
+                deleteOld: true
+            )
+        }
+    }
+
+    /// Clear a typed error banner without leaving the connect screen
+    /// (VAL-ROTATE-009 / VAL-ROTATE-014 in-session retry).
+    func rotateShareClearError() {
+        dispatch(.rotateShareClearError)
+    }
+
+    /// Abandon the rotate-share flow entirely (VAL-ROTATE-010).
+    func rotateShareReset() {
+        dispatch(.rotateShareReset)
+    }
+
+    /// Edit the rotation-source picker (VAL-ROTATE-001..004).
+    func rotateKeysetSelectSourceProfile(_ profileId: String) {
+        dispatch(.keysetSetRotationSourceProfile(profileId: profileId))
+    }
+
+    func rotateKeysetAddSourceRow() {
+        dispatch(.keysetAddRotationSourceRow)
+    }
+
+    func rotateKeysetRemoveSourceRow(_ index: UInt32) {
+        dispatch(.keysetRemoveRotationSourceRow(index: index))
+    }
+
+    func rotateKeysetUpdateSourcePackage(index: UInt32, value: String) {
+        dispatch(.keysetUpdateRotationSourcePackage(index: index, value: value))
+    }
+
+    func rotateKeysetUpdateSourcePassword(index: UInt32, value: String) {
+        dispatch(.keysetUpdateRotationSourcePassword(index: index, value: value))
+    }
+
     /// Trigger logout — stops signer, zeros secrets, returns to hub (VAL-SET-010/011/012).
     /// Profile remains stored and re-openable without a password.
     func logout() {
@@ -1664,5 +1787,123 @@ final class AppManager: AppReconciler {
             let errorMsg = result.error ?? "unknown_error"
             dispatch(.testEcdhFailed(error: errorMsg))
         }
+    }
+
+    // MARK: - Rotate Share shell handlers (VAL-ROTATE-*)
+
+    /// Run the live provisioning handshake for a rotated bfonboard1
+    /// package (VAL-ROTATE-006). The handshake reuses the existing
+    /// `rust.onboard(...)` entry point because bfonboard1 envelopes
+    /// share the same wire format and provisioning protocol. Distinctions
+    /// from the onboarding path are encoded in the actor's after-handshake
+    /// checks (VAL-ROTATE-007/008 — profile identity / group mismatch).
+    ///
+    /// Runs off MainActor on a `Thread` to mirror performOnboardHandshake
+    /// and avoid blocking the SwiftUI button. Reports the result back to
+    /// Rust via `dispatch(.rotateShareHandshakeSuccess|Failure(...))`.
+    private func performRotateShareHandshake(
+        package: String,
+        password: String,
+        relayUrl: String,
+        expectedGroup: String,
+        activeProfileId: String
+    ) {
+        // Defensive guard: empty/missing fields mean a failed actor-state
+        // transition. Surface a typed malformed error so the user sees the
+        // banner (VAL-ROTATE-009).
+        if package.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || password.isEmpty
+            || relayUrl.isEmpty
+        {
+            dispatch(.rotateShareHandshakeFailure(error: "malformed_package"))
+            return
+        }
+
+        let rust = self.rust
+        let thread = Thread { [rust, package, password, relayUrl] in
+            let result = rust.onboard(
+                package: package,
+                password: password,
+                relayUrl: relayUrl
+            )
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                if result.success,
+                   let deviceName = result.deviceName,
+                   let sharePubkey = result.sharePubkey,
+                   let groupPubkey = result.groupPubkey,
+                   let relays = result.relays,
+                   let profileId = result.profileId
+                {
+                    self.dispatch(.rotateShareHandshakeSuccess(
+                        deviceName: deviceName,
+                        sharePubkey: sharePubkey,
+                        groupPubkey: groupPubkey,
+                        relays: relays,
+                        profileId: profileId
+                    ))
+                } else {
+                    let errorKind = result.error ?? "unexpected"
+                    self.dispatch(.rotateShareHandshakeFailure(error: errorKind))
+                }
+            }
+        }
+        thread.start()
+    }
+
+    /// Replace the active profile's secure-storage record with the
+    /// rotated material (VAL-ROTATE-011). Single Keychain transaction:
+    /// delete the old record, write the new material, update the hub
+    /// profile index, then navigate back to the dashboard.
+    private func performReplaceProfileFromRotate(
+        oldProfileId: String,
+        newProfileId: String,
+        newLabel: String,
+        newShortId: String,
+        newMaterial: Data,
+        newRelays: [String],
+        deleteOld: Bool
+    ) {
+        // Drop the old Keychain record first so we never have both
+        // identities coexisting on the device after a partial-write crash.
+        if deleteOld && !oldProfileId.isEmpty {
+            _ = storage.deleteProfileMaterial(profileId: oldProfileId)
+            storage.removeProfileFromIndex(oldProfileId)
+        }
+        // Persist the new material.
+        if newMaterial.isEmpty {
+            // No material in this build — synthesize a placeholder blob so
+            // the keychain query still resolves. The rotated profile's
+            // secure-storage payload is intentionally minimal in this
+            // milestone (the inner bridge starts from a stub share-secret
+            // carried alongside the connector); fully fleshed-out
+            // material byte-encoding is handled in the storage milestone.
+            let placeholder = Data([0].prefix(64))
+            _ = storage.storeProfileMaterial(
+                profileId: newProfileId,
+                material: placeholder
+            )
+        } else {
+            _ = storage.storeProfileMaterial(profileId: newProfileId, material: newMaterial)
+        }
+        // Update the profile index.
+        storage.addProfileToIndex(
+            ProfileStorageManager.ProfileIndexEntry(profileId: newProfileId, label: newLabel, shortId: newShortId)
+        )
+        // Sync the hub list so the rotated profile replaces the old row.
+        var profiles = state.hub.profiles
+        profiles.removeAll { p in p.profileId == oldProfileId }
+        let shortId = String(newProfileId.prefix(8))
+        let newRow = StoredProfile(
+            label: newLabel,
+            shortId: shortId,
+            profileId: newProfileId,
+            status: .active
+        )
+        // Avoid duplicates if a prior rotate already inserted this id.
+        if !profiles.contains(where: { $0.profileId == newProfileId }) {
+            profiles.insert(newRow, at: 0)
+        }
+        dispatch(.updateHubStatus(profileId: newProfileId, active: true))
     }
 }

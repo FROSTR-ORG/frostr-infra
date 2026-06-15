@@ -349,6 +349,76 @@ pub enum AppAction {
     },
     NavigateToRotateShare,
     Logout,
+
+    // ── Rotate Share flow (VAL-ROTATE-*) ────────────────────────────────
+    /// Open the Rotate Share connect screen with the active profile
+    /// identity pinned on `state.rotate_share`. Equivalent to
+    /// `NavigateToRotateShare` but also seeds the active-profile
+    /// fields so the connect-card row renders
+    /// (VAL-ROTATE-005).
+    OpenRotateShareConnect {
+        profile_id: String,
+        short_id: String,
+        device_label: String,
+    },
+    /// User editable input on the Rotate Share connect screen.
+    RotateShareUpdatePackage {
+        value: String,
+    },
+    RotateShareUpdatePassword {
+        value: String,
+    },
+    RotateShareUpdateRelay {
+        value: String,
+    },
+    /// Submit the connect form. Routed to the appropriate failure
+    /// variant after the deduplication/group check (VAL-ROTATE-007/008)
+    /// and the live handshake (VAL-ROTATE-006/013/014).
+    RotateShareConnect,
+    /// Live handshake completed; resolution shares the active group's
+    /// pubkey but yields a fresh share pubkey + profile id
+    /// (VAL-ROTATE-006, VAL-ROTATE-011).
+    RotateShareHandshakeSuccess {
+        device_name: String,
+        share_pubkey: String,
+        group_pubkey: String,
+        relays: Vec<String>,
+        profile_id: String,
+    },
+    /// Live handshake failed — the actor maps the shell's error_kind
+    /// string into a typed `RotateShareError` and stays on the connect
+    /// screen.
+    RotateShareHandshakeFailure {
+        error: String,
+    },
+    /// Confirm replacement — swap the active profile with the rotated
+    /// profile and land on the dashboard
+    /// (VAL-ROTATE-011, VAL-ROTATE-012).
+    RotateShareReplace,
+    /// Clear the existing error banner without leaving the connect
+    /// screen (parity with `OnboardClearError`).
+    RotateShareClearError,
+    /// Abandon the flow entirely — same semantics as a back-press from
+    /// the connect screen (VAL-ROTATE-010).
+    RotateShareReset,
+
+    // ── Rotate mode within Create Keyset wizard (VAL-ROTATE-001..004) ──
+    /// User-side edits on the rotation-source picker.
+    KeysetSetRotationSourceProfile {
+        profile_id: String,
+    },
+    KeysetAddRotationSourceRow,
+    KeysetRemoveRotationSourceRow {
+        index: u32,
+    },
+    KeysetUpdateRotationSourcePackage {
+        index: u32,
+        value: String,
+    },
+    KeysetUpdateRotationSourcePassword {
+        index: u32,
+        value: String,
+    },
     ExportCompleted {
         package_type: String,
     },

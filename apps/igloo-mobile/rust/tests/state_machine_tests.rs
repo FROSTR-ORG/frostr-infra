@@ -233,6 +233,7 @@ fn state_with_profiles(hub: HubState) -> AppState {
             resolved: None,
         },
         keyset: KeysetFlowState::new(),
+        rotate_share: igloo_mobile_core::RotateShareState::new(),
         dashboard: DashboardState::empty(),
         rev: 0,
     }
@@ -3744,8 +3745,8 @@ fn qqr_disp1y() {
         peer_pk: qr_peer_pk_fixture(),
     };
     let password = PLACEHOLDER_CREDENTIAL.to_string();
-    let encoded = encode_bfonboard_package(&payload, &password)
-        .expect("bfonboard envelope must encode");
+    let encoded =
+        encode_bfonboard_package(&payload, &password).expect("bfonboard envelope must encode");
 
     assert!(
         encoded.starts_with("bfonboard1"),

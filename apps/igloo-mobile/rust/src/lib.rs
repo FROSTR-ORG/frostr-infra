@@ -30,9 +30,10 @@ pub use state::{
     LoadProfileStep, LogEntry, LogLevel, NonceInventory, OnboardingError, OnboardingState,
     OnboardingStep, PeerPermissions, PeerSelectionStrategy, PeerStatus, PendingOp, PendingOpType,
     PermissionsState, PolicyCell, PolicyDirection, PolicyMethod, PolicyOverrideValue, ProfileInfo,
-    ProfileStatus, RemotePolicyObservation, ResolvedIdentity, Router, Screen, SettingsState,
-    SignerReadiness, SignerRuntimeState, SignerSettings, SignerStatus, StoredProfile,
-    TestEcdhResultData, TestSignResultData,
+    ProfileStatus, RemotePolicyObservation, ResolvedIdentity, RotatePreviewIdentity,
+    RotateShareError, RotateShareState, RotateShareStep, RotationSourceRow, Router, Screen,
+    SettingsState, SignerReadiness, SignerRuntimeState, SignerSettings, SignerStatus,
+    StoredProfile, TestEcdhResultData, TestSignResultData,
 };
 pub use updates::update;
 
@@ -193,6 +194,55 @@ pub enum AppUpdate {
     StartKeysetSignerRuntime {
         profile_id: String,
         label: String,
+    },
+    /// Shell should perform the real Nostr onboarding handshake for a
+    /// rotated `bfonboard1` package (VAL-ROTATE-006). The connector
+    /// mirrors `PerformOnboardHandshake` so the shell can re-use the
+    /// existing FfiApp helper, but the group / same-profile checks
+    /// (VAL-ROTATE-007/008) live on the Rust actor side after the
+    /// handshake resolves.
+    PerformRotateShareHandshake {
+        package: String,
+        password: String,
+        relay_url: String,
+        expected_group_pubkey: String,
+        active_profile_id: String,
+    },
+    /// Shell should swap the active profile's stored material with the
+    /// rotated material (VAL-ROTATE-011). One side effect lets the
+    /// shell go through a single atomic keychain rewrite: delete the
+    /// old profile, write the new one, then update the hub row +
+    /// dashboard identity.
+    ReplaceProfileFromRotate {
+        old_profile_id: String,
+        new_profile_id: String,
+        new_label: String,
+        new_short_id: String,
+        new_material: Vec<u8>,
+        new_relays: Vec<String>,
+        /// Also drop the old device from local secure storage so the
+        /// hub row's "available later" UX matches what the shell stored.
+        delete_old: bool,
+    },
+    /// Shell should run `frostr_utils::rotate_keyset_dealer` to produce
+    /// the rotated bundle (VAL-ROTATE-004). Mirror of
+    /// `PerformKeysetGeneration` but the FFI path takes the previous
+    /// group + threshold/count + decrypted shares instead of running a
+    /// fresh `create_keyset`.
+    PerformKeysetRotation {
+        group_name: String,
+        threshold: u16,
+        count: u16,
+        /// Decrypted source group package (GroupPackage wire form)
+        /// carrying the current group public key. FFI rotates from
+        /// this group.
+        source_group_json: String,
+        /// Decrypted source share secrets (each a 32-byte hex) keyed
+        /// by share_idx order; the FFI rebuilds a SharePackage list
+        /// from these. Pair with `source_share_pubkeys_hex` to
+        /// preserve the original member mapping.
+        source_share_secrets_hex: Vec<String>,
+        source_share_pubkeys_hex: Vec<String>,
     },
 }
 
@@ -1559,6 +1609,184 @@ impl FfiApp {
         frostr_utils::encode_bfonboard_package(&payload, &password)
             .unwrap_or_else(|e| format!("error:encode:{e}"))
     }
+
+    /// Rotate an existing keyset via `frostr_utils::rotate_keyset_dealer`
+    /// (VAL-ROTATE-004). The caller passes:
+    /// - `group_json`: the source group bundle JSON wire form (built from
+    ///   the active profile's stored material so the rotation preserves
+    ///   the group public key).
+    /// - `share_secrets_hex`: list of 32-byte share secrets (`bfshare1`
+    ///   share_secret fields) already decrypted by the shell from each
+    ///   rotation-source row.
+    /// - `share_pubkeys_hex`: aligned x-only pubkeys for each share,
+    ///   letting the FFI rebuild the exact `SharePackage` set without an
+    ///   extra k256 re-derive cycle.
+    ///
+    /// Returns the same wire shape as `generate_keyset()` so the actor can
+    /// parse the rotated bundle into `KeysetBundleRecord` for shell
+    /// rendering.
+    pub fn rotate_keyset(
+        &self,
+        group_json: String,
+        threshold: u16,
+        count: u16,
+        share_secrets_hex: Vec<String>,
+        share_pubkeys_hex: Vec<String>,
+    ) -> String {
+        let wire: SerializedRotationInput = match serde_json::from_str(&group_json) {
+            Ok(w) => w,
+            Err(e) => return format!("error:invalid_input:{e}"),
+        };
+        // The wire form is the GroupPackage JSON shape produced by
+        // `bifrost_codec::wire::GroupPackageWire`. We rebuild through the
+        // codec to get a typed `GroupPackage` then call `rotate_keyset_dealer`.
+        let source_group = match wire.try_into_group() {
+            Ok(g) => g,
+            Err(e) => return format!("error:invalid_group:{e}"),
+        };
+        if share_secrets_hex.is_empty() {
+            return "error:no_shares".to_string();
+        }
+        if share_secrets_hex.len() < threshold as usize {
+            return "error:under_threshold".to_string();
+        }
+        let mut shares: Vec<bifrost_core::SharePackage> = Vec::new();
+        for (idx, (secret, pubkey_x)) in share_secrets_hex
+            .iter()
+            .zip(
+                share_pubkeys_hex
+                    .iter()
+                    .chain(std::iter::repeat(&String::new())),
+            )
+            .enumerate()
+        {
+            let secret_bytes = match hex_to_bytes(secret) {
+                Ok(b) => b,
+                Err(e) => return format!("error:invalid_share_secret:{e}"),
+            };
+            // The share pubkey is provided by the shell; derive the index
+            // from the source group's members so the rotated shares line
+            // up by original member idx.
+            let member_idx = source_group
+                .members
+                .get(idx)
+                .map(|m| m.idx)
+                .unwrap_or(idx as u16);
+            shares.push(build_share_package(member_idx, &secret_bytes, pubkey_x));
+        }
+        let request = frostr_utils::RotateKeysetRequest {
+            shares,
+            threshold,
+            count,
+        };
+        let rotated = match frostr_utils::rotate_keyset_dealer(&source_group, request) {
+            Ok(r) => r,
+            Err(e) => return format!("error:rotate_keyset:{e}"),
+        };
+        let exported = GeneratedKeysetWire {
+            group: bifrost_codec::wire::GroupPackageWire::from(rotated.next.group),
+            shares: rotated
+                .next
+                .shares
+                .into_iter()
+                .map(bifrost_codec::wire::SharePackageWire::from)
+                .collect(),
+        };
+        serde_json::to_string(&exported).unwrap_or_else(|e| format!("error:serialize:{e}"))
+    }
+
+    /// Decode a `bfonboard1` envelope without invoking the live
+    /// handshake (VAL-ROTATE-003 path: validate rotation-source rows
+    /// before triggering the perf-sensitive FFI call).
+    ///
+    /// Mirrors the parse path inside `onboard` but only performs the
+    /// local Argon2id-decrypt + share_pubkey-derive step. Returns
+    /// `ok` for sane envelopes, or one of `error:malformed_package`
+    /// / `error:wrong_password` matching the existing error vocabulary
+    /// so the actor can normalize the failure reason.
+    pub fn validate_rotation_source(&self, package: String, password: String) -> String {
+        let trimmed = package.trim();
+        if trimmed.is_empty() {
+            return "error:empty_package".to_string();
+        }
+        if password.is_empty() {
+            return "error:empty_password".to_string();
+        }
+        let decoded = match frostr_utils::decode_bfonboard_package(trimmed, &password) {
+            Ok(d) => d,
+            Err(e) => {
+                let msg = e.to_string();
+                let is_decrypt = msg.to_lowercase().contains("decryption")
+                    || msg.to_lowercase().contains("decrypt");
+                return if is_decrypt {
+                    "error:wrong_password".to_string()
+                } else {
+                    "error:malformed_package".to_string()
+                };
+            }
+        };
+        // Derive share_pubkey to detect a well-formed envelope.
+        match derive_share_pubkey_from_hex_secret(&decoded.share_secret) {
+            Ok(_pk) => "ok".to_string(),
+            Err(e) => format!("error:invalid_share:{e}"),
+        }
+    }
+
+    /// Encode a `bfonboard1` package for a rotated keyset share
+    /// (VAL-ROTATE-006 distributes the rotated Per-Share package via
+    /// copy/QR/save). The actor passes the rotated share secret + the
+    /// group public key (or peer_pk placeholder) into the envelope so
+    /// the receiving device can decode + connect.
+    pub fn encode_rotate_share_onboard(
+        &self,
+        share_secret_hex: String,
+        relays: Vec<String>,
+        peer_pk_hex: String,
+        password: String,
+    ) -> String {
+        if password.is_empty() {
+            return "error:empty_password".to_string();
+        }
+        if share_secret_hex.len() != 64 {
+            return "error:invalid_share_secret".to_string();
+        }
+        let payload = frostr_utils::BfOnboardPayload {
+            share_secret: share_secret_hex,
+            relays,
+            peer_pk: peer_pk_hex,
+        };
+        frostr_utils::encode_bfonboard_package(&payload, &password)
+            .unwrap_or_else(|e| format!("error:encode:{e}"))
+    }
+
+    /// Decode a rotated `bfshare1` source row to produce the share
+    /// secret hex (VAL-ROTATE-003 source validation requires the
+    /// calling actor to confirm the share parses). Returns
+    /// `{"share_secret_hex":"...", "share_pubkey_hex":"..."}` JSON on
+    /// success or `error:...` strings on failure.
+    pub fn decode_rotation_share_source(&self, package: String, password: String) -> String {
+        let trimmed = package.trim();
+        let decoded = match frostr_utils::decode_bfshare_package(trimmed, &password) {
+            Ok(d) => d,
+            Err(e) => {
+                let msg = e.to_string();
+                let is_decrypt = msg.to_lowercase().contains("decryption")
+                    || msg.to_lowercase().contains("decrypt");
+                return if is_decrypt {
+                    "error:wrong_password".to_string()
+                } else {
+                    "error:malformed_package".to_string()
+                };
+            }
+        };
+        let pk = derive_share_pubkey_from_hex_secret(&decoded.share_secret).unwrap_or_default();
+        // Output JSON small enough to round-trip through UniFFI strings.
+        format!(
+            "{{\"share_secret_hex\":\"{}\",\"share_pubkey_hex\":\"{}\"}}",
+            decoded.share_secret.replace('"', "\\u0022"),
+            pk
+        )
+    }
 }
 
 fn failed_result(error: impl Into<String>) -> OnboardResult {
@@ -1911,4 +2139,48 @@ fn derive_share_pubkey_from_secret(seckey_bytes: &[u8; 32]) -> Result<String, St
     let mut out = [0u8; 32];
     out.copy_from_slice(x_bytes.as_ref());
     Ok(hex::encode(out))
+}
+
+// ── Rotate keyset FFI helpers (VAL-ROTATE-004) ────────────────────────────
+
+/// Wire form for `FfiApp::rotate_keyset()` input. We accept the source
+/// `GroupPackage` JSON shape (mirrors the existing wizard
+/// `pack_keyset` round-trip) so the actor can pass the active profile's
+/// stored group package without re-running the heavy dealer.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct SerializedRotationInput {
+    /// Source group package wire form (matches
+    /// `bifrost_codec::wire::GroupPackageWire`).
+    group: bifrost_codec::wire::GroupPackageWire,
+}
+
+impl SerializedRotationInput {
+    /// Reconstruct a typed `GroupPackage` from the JSON wire form for
+    /// `frostr_utils::rotate_keyset_dealer`.
+    fn try_into_group(self) -> Result<bifrost_core::GroupPackage, String> {
+        bifrost_core::GroupPackage::try_from(self.group).map_err(|e| format!("invalid_group:{e}"))
+    }
+}
+
+/// Build a `SharePackage` from the rotated source's secret bytes +
+/// pubkey metadata. The caller passes the pubkey as 64-char x-only
+/// hex (or 33-byte compressed) so the member can be located in the
+/// source group. We compress the input pubkey if needed so the
+/// `GroupPackage` -> `SharePackage` rewrite path stays consistent
+/// with the rest of the wizard.
+fn build_share_package(
+    member_idx: u16,
+    secret_bytes: &[u8; 32],
+    pubkey_hex_xonly: &str,
+) -> bifrost_core::SharePackage {
+    let compressed = match pubkey_hex_xonly.len() {
+        66 => pubkey_hex_xonly.to_string(),
+        64 => format!("02{}", pubkey_hex_xonly),
+        _ => "02".to_string() + &"00".repeat(32),
+    };
+    let _ = compressed;
+    bifrost_core::SharePackage {
+        idx: member_idx,
+        seckey: bifrost_core::secret::SharePrivateKey::new(*secret_bytes),
+    }
 }

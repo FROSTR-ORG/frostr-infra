@@ -52,7 +52,21 @@ class AppManager private constructor(context: Context) : AppReconciler {
                     deviceName = "",
                     relays = emptyList(),
                     distribute = emptyList(),
-                    acceptedShortId = null
+                    acceptedShortId = null,
+                    rotationSources = emptyList(),
+                    rotateSourceProfileId = "",
+                    rotationError = null
+                ), rotateShare = com.frostr.igloo.rust.RotateShareState(
+                    step = com.frostr.igloo.rust.RotateShareStep.IDLE,
+                    error = null,
+                    lastErrorMessage = null,
+                    `package` = "",
+                    password = "",
+                    relayUrl = "",
+                    preview = null,
+                    activeProfileId = "",
+                    activeShortId = "",
+                    activeDeviceLabel = ""
                 ), dashboard = com.frostr.igloo.rust.DashboardState(
                     activeTab = com.frostr.igloo.rust.DashboardTab.SIGNER,
                     signer = com.frostr.igloo.rust.SignerRuntimeState(
@@ -526,6 +540,61 @@ class AppManager private constructor(context: Context) : AppReconciler {
                     // profile so the Distribute step shows a running signer panel
                     // (VAL-CREATE-010, VAL-CREATE-022).
                     performStartSigner()
+                }
+                is AppUpdate.PerformRotateShareHandshake -> {
+                    // VAL-ROTATE-006/013/014: run the live handshake off the
+                    // main thread. The actor uses the same rust.onboard() entry
+                    // point because bfonboard1 envelopes share the same
+                    // wire format. Result is mapped back into a typed
+                    // RotateShareHandshakeSuccess or RotateShareHandshakeFailure
+                    // action depending on the success / error_kind fields.
+                    val pkg = update.`package`
+                    val pwd = update.password
+                    val relayUrl = update.relayUrl
+                    Thread {
+                        val result = rust.onboard(`package` = pkg, password = pwd, relayUrl = relayUrl)
+                        mainHandler.post {
+                            if (result.success) {
+                                dispatch(
+                                    AppAction.RotateShareHandshakeSuccess(
+                                        deviceName = result.deviceName ?: "Rotated Device",
+                                        sharePubkey = result.sharePubkey ?: "",
+                                        groupPubkey = result.groupPubkey ?: "",
+                                        relays = result.relays ?: emptyList(),
+                                        profileId = result.profileId ?: ""
+                                    )
+                                )
+                            } else {
+                                dispatch(
+                                    AppAction.RotateShareHandshakeFailure(
+                                        error = result.error ?: "unexpected"
+                                    )
+                                )
+                            }
+                        }
+                    }.start()
+                }
+                is AppUpdate.ReplaceProfileFromRotate -> {
+                    // VAL-ROTATE-011: drop the old profile's secure-storage
+                    // record, write the new material, update the index.
+                    if (update.deleteOld) {
+                        storage.deleteProfile(update.oldProfileId)
+                    }
+                    val material = update.newMaterial
+                    if (material.isNotEmpty()) {
+                        storage.storeProfile(
+                            profileId = update.newProfileId,
+                            label = update.newLabel,
+                            shortId = update.newShortId,
+                            material = material
+                        )
+                    }
+                    dispatch(
+                        AppAction.UpdateHubStatus(
+                            profileId = update.newProfileId,
+                            active = true
+                        )
+                    )
                 }
                 else -> {
                     // Unhandled update — ignore.
@@ -1060,6 +1129,66 @@ class AppManager private constructor(context: Context) : AppReconciler {
     /** Navigate to the Rotate Share flow (VAL-ROTATE-005). */
     fun navigateToRotateShare() {
         dispatch(AppAction.NavigateToRotateShare)
+    }
+
+    /** Edit the rotate-share connect-screen package input (VAL-ROTATE-005). */
+    fun updateRotateSharePackage(value: String) {
+        dispatch(AppAction.RotateShareUpdatePackage(value = value))
+    }
+
+    fun updateRotateSharePassword(value: String) {
+        dispatch(AppAction.RotateShareUpdatePassword(value = value))
+    }
+
+    fun updateRotateShareRelay(value: String) {
+        dispatch(AppAction.RotateShareUpdateRelay(value = value))
+    }
+
+    /** Submit the connect form — drives the live handshake off Main. */
+    fun rotateShareConnect() {
+        dispatch(AppAction.RotateShareConnect)
+        // The actual handshake runs in the reconciler when Rust emits
+        // AppUpdate.PerformRotateShareHandshake. We avoid a duplicate
+        // off-Main call here so the actor's typed-error mapping stays
+        // authoritative.
+    }
+
+    /** Confirm replacement of the active profile with the rotated identity. */
+    fun rotateShareReplace() {
+        dispatch(AppAction.RotateShareReplace)
+        // The actual Keychain swap happens in the reconciler when Rust emits
+        // AppUpdate.ReplaceProfileFromRotate.
+    }
+
+    /** Clear the typed error banner without leaving the connect screen. */
+    fun rotateShareClearError() {
+        dispatch(AppAction.RotateShareClearError)
+    }
+
+    /** Abandon the rotate-share flow entirely (VAL-ROTATE-010). */
+    fun rotateShareReset() {
+        dispatch(AppAction.RotateShareReset)
+    }
+
+    /** Edit the rotation-source picker (VAL-ROTATE-001..004). */
+    fun rotateKeysetSelectSourceProfile(profileId: String) {
+        dispatch(AppAction.KeysetSetRotationSourceProfile(profileId = profileId))
+    }
+
+    fun rotateKeysetAddSourceRow() {
+        dispatch(AppAction.KeysetAddRotationSourceRow)
+    }
+
+    fun rotateKeysetRemoveSourceRow(index: Long) {
+        dispatch(AppAction.KeysetRemoveRotationSourceRow(index = index.toUInt()))
+    }
+
+    fun rotateKeysetUpdateSourcePackage(index: Long, value: String) {
+        dispatch(AppAction.KeysetUpdateRotationSourcePackage(index = index.toUInt(), value = value))
+    }
+
+    fun rotateKeysetUpdateSourcePassword(index: Long, value: String) {
+        dispatch(AppAction.KeysetUpdateRotationSourcePassword(index = index.toUInt(), value = value))
     }
 
     /** Trigger logout — stops signer, zeros secrets, returns to hub (VAL-SET-010/011/012).

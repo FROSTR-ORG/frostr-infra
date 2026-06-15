@@ -658,9 +658,13 @@ internal object IntegrityCheckingUniffiLib {
         uniffiCheckContractApiVersion(this)
         uniffiCheckApiChecksums(this)
     }
+    external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_decode_rotation_share_source(
+    ): Short
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_dispatch(
     ): Short
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_encode_distribute_onboard(
+    ): Short
+    external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_encode_rotate_share_onboard(
     ): Short
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_export_profile(
     ): Short
@@ -680,6 +684,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Short
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_recover_profile(
     ): Short
+    external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_rotate_keyset(
+    ): Short
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_set_active_profile_material(
     ): Short
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_start_signer(
@@ -691,6 +697,8 @@ internal object IntegrityCheckingUniffiLib {
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_test_ecdh(
     ): Short
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_test_sign(
+    ): Short
+    external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_validate_rotation_source(
     ): Short
     external fun uniffi_igloo_mobile_core_checksum_constructor_ffiapp_new(
     ): Short
@@ -716,153 +724,161 @@ internal object UniffiLib {
         
     }
     external fun uniffi_igloo_mobile_core_fn_clone_ffiapp(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Long
-    external fun uniffi_igloo_mobile_core_fn_free_ffiapp(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    external fun uniffi_igloo_mobile_core_fn_constructor_ffiapp_new(`dataDir`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): Long
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_dispatch(`ptr`: Long,`action`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_encode_distribute_onboard(`ptr`: Long,`shareSecretHex`: RustBuffer.ByValue,`relays`: RustBuffer.ByValue,`shareLabel`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_export_profile(`ptr`: Long,`exportPassword`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_export_share(`ptr`: Long,`exportPassword`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_generate_keyset(`ptr`: Long,`configJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_get_signer_status(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_import_profile(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_listen_for_updates(`ptr`: Long,`reconciler`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_onboard(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,`relayUrl`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_ping_peer(`ptr`: Long,`peerAlias`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): Byte
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_recover_profile(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_set_active_profile_material(`ptr`: Long,`materialJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_start_signer(`ptr`: Long,`materialJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): Byte
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_state(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_stop_signer(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_test_ecdh(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_test_sign(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun uniffi_igloo_mobile_core_fn_init_callback_vtable_appreconciler(`vtable`: UniffiVTableCallbackInterfaceAppReconciler,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun ffi_igloo_mobile_core_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun ffi_igloo_mobile_core_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    external fun ffi_igloo_mobile_core_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun ffi_igloo_mobile_core_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_cancel_u8(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_free_u8(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Byte
-    external fun ffi_igloo_mobile_core_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_cancel_i8(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_free_i8(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Byte
-    external fun ffi_igloo_mobile_core_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_cancel_u16(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_free_u16(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Short
-    external fun ffi_igloo_mobile_core_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_cancel_i16(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_free_i16(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Short
-    external fun ffi_igloo_mobile_core_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_cancel_u32(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_free_u32(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Int
-    external fun ffi_igloo_mobile_core_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_cancel_i32(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_free_i32(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Int
-    external fun ffi_igloo_mobile_core_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_cancel_u64(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_free_u64(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Long
-    external fun ffi_igloo_mobile_core_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_cancel_i64(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_free_i64(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Long
-    external fun ffi_igloo_mobile_core_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_cancel_f32(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_free_f32(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Float
-    external fun ffi_igloo_mobile_core_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_cancel_f64(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_free_f64(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Double
-    external fun ffi_igloo_mobile_core_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_cancel_rust_buffer(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_free_rust_buffer(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun ffi_igloo_mobile_core_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_cancel_void(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_free_void(`handle`: Long,
-    ): Unit
-    external fun ffi_igloo_mobile_core_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
+): Long
+external fun uniffi_igloo_mobile_core_fn_free_ffiapp(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_igloo_mobile_core_fn_constructor_ffiapp_new(`dataDir`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_decode_rotation_share_source(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_dispatch(`ptr`: Long,`action`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_encode_distribute_onboard(`ptr`: Long,`shareSecretHex`: RustBuffer.ByValue,`relays`: RustBuffer.ByValue,`shareLabel`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_encode_rotate_share_onboard(`ptr`: Long,`shareSecretHex`: RustBuffer.ByValue,`relays`: RustBuffer.ByValue,`peerPkHex`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_export_profile(`ptr`: Long,`exportPassword`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_export_share(`ptr`: Long,`exportPassword`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_generate_keyset(`ptr`: Long,`configJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_get_signer_status(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_import_profile(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_listen_for_updates(`ptr`: Long,`reconciler`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_onboard(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,`relayUrl`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_ping_peer(`ptr`: Long,`peerAlias`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_recover_profile(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_rotate_keyset(`ptr`: Long,`groupJson`: RustBuffer.ByValue,`threshold`: Short,`count`: Short,`shareSecretsHex`: RustBuffer.ByValue,`sharePubkeysHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_set_active_profile_material(`ptr`: Long,`materialJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_start_signer(`ptr`: Long,`materialJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_state(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_stop_signer(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_test_ecdh(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_test_sign(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_validate_rotation_source(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_igloo_mobile_core_fn_init_callback_vtable_appreconciler(`vtable`: UniffiVTableCallbackInterfaceAppReconciler,
+): Unit
+external fun ffi_igloo_mobile_core_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun ffi_igloo_mobile_core_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun ffi_igloo_mobile_core_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun ffi_igloo_mobile_core_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun ffi_igloo_mobile_core_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_cancel_u8(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_free_u8(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun ffi_igloo_mobile_core_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_cancel_i8(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_free_i8(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun ffi_igloo_mobile_core_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_cancel_u16(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_free_u16(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Short
+external fun ffi_igloo_mobile_core_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_cancel_i16(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_free_i16(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Short
+external fun ffi_igloo_mobile_core_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_cancel_u32(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_free_u32(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Int
+external fun ffi_igloo_mobile_core_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_cancel_i32(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_free_i32(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Int
+external fun ffi_igloo_mobile_core_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_cancel_u64(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_free_u64(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun ffi_igloo_mobile_core_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_cancel_i64(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_free_i64(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun ffi_igloo_mobile_core_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_cancel_f32(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_free_f32(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Float
+external fun ffi_igloo_mobile_core_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_cancel_f64(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_free_f64(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Double
+external fun ffi_igloo_mobile_core_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_cancel_rust_buffer(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_free_rust_buffer(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun ffi_igloo_mobile_core_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_cancel_void(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_free_void(`handle`: Long,
+): Unit
+external fun ffi_igloo_mobile_core_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
 
-        
+    
 }
 
 private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
@@ -876,10 +892,16 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
+    if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_decode_rotation_share_source() != 28789.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_dispatch() != 50970.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_encode_distribute_onboard() != 58543.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_encode_rotate_share_onboard() != 10153.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_export_profile() != 39303.toShort()) {
@@ -909,6 +931,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_recover_profile() != 34514.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_rotate_keyset() != 22415.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_set_active_profile_material() != 63524.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -925,6 +950,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_test_sign() != 65235.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_validate_rotation_source() != 26903.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_igloo_mobile_core_checksum_constructor_ffiapp_new() != 44565.toShort()) {
@@ -1410,6 +1438,15 @@ public object FfiConverterByteArray: FfiConverterRustBuffer<ByteArray> {
 
 public interface FfiAppInterface {
     
+    /**
+     * Decode a rotated `bfshare1` source row to produce the share
+     * secret hex (VAL-ROTATE-003 source validation requires the
+     * calling actor to confirm the share parses). Returns
+     * `{"share_secret_hex":"...", "share_pubkey_hex":"..."}` JSON on
+     * success or `error:...` strings on failure.
+     */
+    fun `decodeRotationShareSource`(`package`: kotlin.String, `password`: kotlin.String): kotlin.String
+    
     fun `dispatch`(`action`: AppAction): AppState
     
     /**
@@ -1425,6 +1462,15 @@ public interface FfiAppInterface {
      * `CreateKeysetDistributeFailed` action).
      */
     fun `encodeDistributeOnboard`(`shareSecretHex`: kotlin.String, `relays`: List<kotlin.String>, `shareLabel`: kotlin.String, `password`: kotlin.String): kotlin.String
+    
+    /**
+     * Encode a `bfonboard1` package for a rotated keyset share
+     * (VAL-ROTATE-006 distributes the rotated Per-Share package via
+     * copy/QR/save). The actor passes the rotated share secret + the
+     * group public key (or peer_pk placeholder) into the envelope so
+     * the receiving device can decode + connect.
+     */
+    fun `encodeRotateShareOnboard`(`shareSecretHex`: kotlin.String, `relays`: List<kotlin.String>, `peerPkHex`: kotlin.String, `password`: kotlin.String): kotlin.String
     
     fun `exportProfile`(`exportPassword`: kotlin.String): kotlin.String
     
@@ -1518,6 +1564,25 @@ public interface FfiAppInterface {
     
     fun `recoverProfile`(`package`: kotlin.String, `password`: kotlin.String): OnboardResult
     
+    /**
+     * Rotate an existing keyset via `frostr_utils::rotate_keyset_dealer`
+     * (VAL-ROTATE-004). The caller passes:
+     * - `group_json`: the source group bundle JSON wire form (built from
+     * the active profile's stored material so the rotation preserves
+     * the group public key).
+     * - `share_secrets_hex`: list of 32-byte share secrets (`bfshare1`
+     * share_secret fields) already decrypted by the shell from each
+     * rotation-source row.
+     * - `share_pubkeys_hex`: aligned x-only pubkeys for each share,
+     * letting the FFI rebuild the exact `SharePackage` set without an
+     * extra k256 re-derive cycle.
+     *
+     * Returns the same wire shape as `generate_keyset()` so the actor can
+     * parse the rotated bundle into `KeysetBundleRecord` for shell
+     * rendering.
+     */
+    fun `rotateKeyset`(`groupJson`: kotlin.String, `threshold`: kotlin.UShort, `count`: kotlin.UShort, `shareSecretsHex`: List<kotlin.String>, `sharePubkeysHex`: List<kotlin.String>): kotlin.String
+    
     fun `setActiveProfileMaterial`(`materialJson`: kotlin.String)
     
     /**
@@ -1560,6 +1625,19 @@ public interface FfiAppInterface {
      * request_id, digest, and signature on success.
      */
     fun `testSign`(): TestSignResult
+    
+    /**
+     * Decode a `bfonboard1` envelope without invoking the live
+     * handshake (VAL-ROTATE-003 path: validate rotation-source rows
+     * before triggering the perf-sensitive FFI call).
+     *
+     * Mirrors the parse path inside `onboard` but only performs the
+     * local Argon2id-decrypt + share_pubkey-derive step. Returns
+     * `ok` for sane envelopes, or one of `error:malformed_package`
+     * / `error:wrong_password` matching the existing error vocabulary
+     * so the actor can normalize the failure reason.
+     */
+    fun `validateRotationSource`(`package`: kotlin.String, `password`: kotlin.String): kotlin.String
     
     companion object
 }
@@ -1668,6 +1746,26 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
         }
     }
 
+    
+    /**
+     * Decode a rotated `bfshare1` source row to produce the share
+     * secret hex (VAL-ROTATE-003 source validation requires the
+     * calling actor to confirm the share parses). Returns
+     * `{"share_secret_hex":"...", "share_pubkey_hex":"..."}` JSON on
+     * success or `error:...` strings on failure.
+     */override fun `decodeRotationShareSource`(`package`: kotlin.String, `password`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_igloo_mobile_core_fn_method_ffiapp_decode_rotation_share_source(
+        it,
+        FfiConverterString.lower(`package`),FfiConverterString.lower(`password`),_status)
+}
+    }
+    )
+    }
+    
+
     override fun `dispatch`(`action`: AppAction): AppState {
             return FfiConverterTypeAppState.lift(
     callWithHandle {
@@ -1700,6 +1798,26 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     UniffiLib.uniffi_igloo_mobile_core_fn_method_ffiapp_encode_distribute_onboard(
         it,
         FfiConverterString.lower(`shareSecretHex`),FfiConverterSequenceString.lower(`relays`),FfiConverterString.lower(`shareLabel`),FfiConverterString.lower(`password`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Encode a `bfonboard1` package for a rotated keyset share
+     * (VAL-ROTATE-006 distributes the rotated Per-Share package via
+     * copy/QR/save). The actor passes the rotated share secret + the
+     * group public key (or peer_pk placeholder) into the envelope so
+     * the receiving device can decode + connect.
+     */override fun `encodeRotateShareOnboard`(`shareSecretHex`: kotlin.String, `relays`: List<kotlin.String>, `peerPkHex`: kotlin.String, `password`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_igloo_mobile_core_fn_method_ffiapp_encode_rotate_share_onboard(
+        it,
+        FfiConverterString.lower(`shareSecretHex`),FfiConverterSequenceString.lower(`relays`),FfiConverterString.lower(`peerPkHex`),FfiConverterString.lower(`password`),_status)
 }
     }
     )
@@ -1896,6 +2014,36 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     
 
+    
+    /**
+     * Rotate an existing keyset via `frostr_utils::rotate_keyset_dealer`
+     * (VAL-ROTATE-004). The caller passes:
+     * - `group_json`: the source group bundle JSON wire form (built from
+     * the active profile's stored material so the rotation preserves
+     * the group public key).
+     * - `share_secrets_hex`: list of 32-byte share secrets (`bfshare1`
+     * share_secret fields) already decrypted by the shell from each
+     * rotation-source row.
+     * - `share_pubkeys_hex`: aligned x-only pubkeys for each share,
+     * letting the FFI rebuild the exact `SharePackage` set without an
+     * extra k256 re-derive cycle.
+     *
+     * Returns the same wire shape as `generate_keyset()` so the actor can
+     * parse the rotated bundle into `KeysetBundleRecord` for shell
+     * rendering.
+     */override fun `rotateKeyset`(`groupJson`: kotlin.String, `threshold`: kotlin.UShort, `count`: kotlin.UShort, `shareSecretsHex`: List<kotlin.String>, `sharePubkeysHex`: List<kotlin.String>): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_igloo_mobile_core_fn_method_ffiapp_rotate_keyset(
+        it,
+        FfiConverterString.lower(`groupJson`),FfiConverterUShort.lower(`threshold`),FfiConverterUShort.lower(`count`),FfiConverterSequenceString.lower(`shareSecretsHex`),FfiConverterSequenceString.lower(`sharePubkeysHex`),_status)
+}
+    }
+    )
+    }
+    
+
     override fun `setActiveProfileMaterial`(`materialJson`: kotlin.String)
         = 
     callWithHandle {
@@ -2004,6 +2152,30 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     
 
     
+    /**
+     * Decode a `bfonboard1` envelope without invoking the live
+     * handshake (VAL-ROTATE-003 path: validate rotation-source rows
+     * before triggering the perf-sensitive FFI call).
+     *
+     * Mirrors the parse path inside `onboard` but only performs the
+     * local Argon2id-decrypt + share_pubkey-derive step. Returns
+     * `ok` for sane envelopes, or one of `error:malformed_package`
+     * / `error:wrong_password` matching the existing error vocabulary
+     * so the actor can normalize the failure reason.
+     */override fun `validateRotationSource`(`package`: kotlin.String, `password`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_igloo_mobile_core_fn_method_ffiapp_validate_rotation_source(
+        it,
+        FfiConverterString.lower(`package`),FfiConverterString.lower(`password`),_status)
+}
+    }
+    )
+    }
+    
+
+    
 
     
 
@@ -2075,6 +2247,11 @@ data class AppState (
     var `keyset`: KeysetFlowState
     , 
     /**
+     * Rotate Share flow state (VAL-ROTATE-*).
+     */
+    var `rotateShare`: RotateShareState
+    , 
+    /**
      * Dashboard state for signer runtime, permissions, and settings tabs.
      */
     var `dashboard`: DashboardState
@@ -2105,6 +2282,7 @@ public object FfiConverterTypeAppState: FfiConverterRustBuffer<AppState> {
             FfiConverterTypeOnboardingState.read(buf),
             FfiConverterTypeLoadProfileState.read(buf),
             FfiConverterTypeKeysetFlowState.read(buf),
+            FfiConverterTypeRotateShareState.read(buf),
             FfiConverterTypeDashboardState.read(buf),
             FfiConverterULong.read(buf),
         )
@@ -2116,6 +2294,7 @@ public object FfiConverterTypeAppState: FfiConverterRustBuffer<AppState> {
             FfiConverterTypeOnboardingState.allocationSize(value.`onboarding`) +
             FfiConverterTypeLoadProfileState.allocationSize(value.`loadProfile`) +
             FfiConverterTypeKeysetFlowState.allocationSize(value.`keyset`) +
+            FfiConverterTypeRotateShareState.allocationSize(value.`rotateShare`) +
             FfiConverterTypeDashboardState.allocationSize(value.`dashboard`) +
             FfiConverterULong.allocationSize(value.`rev`)
     )
@@ -2126,6 +2305,7 @@ public object FfiConverterTypeAppState: FfiConverterRustBuffer<AppState> {
             FfiConverterTypeOnboardingState.write(value.`onboarding`, buf)
             FfiConverterTypeLoadProfileState.write(value.`loadProfile`, buf)
             FfiConverterTypeKeysetFlowState.write(value.`keyset`, buf)
+            FfiConverterTypeRotateShareState.write(value.`rotateShare`, buf)
             FfiConverterTypeDashboardState.write(value.`dashboard`, buf)
             FfiConverterULong.write(value.`rev`, buf)
     }
@@ -2537,6 +2717,30 @@ data class KeysetFlowState (
      * Used by the Distribute step's embedded dashboard header on iOS.
      */
     var `acceptedShortId`: kotlin.String?
+    , 
+    /**
+     * Rotation-mode source picker (VAL-ROTATE-001..004).
+     *
+     * Populated only when `mode == KeysetFlowMode::Rotate`. Each row
+     * accepts a `bfshare1` + password pair; absolute source-profile
+     * picker state is recorded via `rotate_source_profile_id` so the
+     * wizard can perform the under-threshold check
+     * (VAL-ROTATE-002) against the right stored profile.
+     */
+    var `rotationSources`: List<RotationSourceRow>
+    , 
+    /**
+     * Profile id the rotation source picker binds to (VAL-ROTATE-001).
+     * Empty means the picker is showing the placeholder.
+     */
+    var `rotateSourceProfileId`: kotlin.String
+    , 
+    /**
+     * Surface error for the rotation-source stage. Mirrors the
+     * typed `error` slot so the same inline-error UI handles both
+     * shape rejections (VAL-ROTATE-002, VAL-ROTATE-003).
+     */
+    var `rotationError`: kotlin.String?
     
 ){
     
@@ -2566,6 +2770,9 @@ public object FfiConverterTypeKeysetFlowState: FfiConverterRustBuffer<KeysetFlow
             FfiConverterSequenceString.read(buf),
             FfiConverterSequenceTypeDistributeShareRecord.read(buf),
             FfiConverterOptionalString.read(buf),
+            FfiConverterSequenceTypeRotationSourceRow.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
         )
     }
 
@@ -2582,7 +2789,10 @@ public object FfiConverterTypeKeysetFlowState: FfiConverterRustBuffer<KeysetFlow
             FfiConverterString.allocationSize(value.`deviceName`) +
             FfiConverterSequenceString.allocationSize(value.`relays`) +
             FfiConverterSequenceTypeDistributeShareRecord.allocationSize(value.`distribute`) +
-            FfiConverterOptionalString.allocationSize(value.`acceptedShortId`)
+            FfiConverterOptionalString.allocationSize(value.`acceptedShortId`) +
+            FfiConverterSequenceTypeRotationSourceRow.allocationSize(value.`rotationSources`) +
+            FfiConverterString.allocationSize(value.`rotateSourceProfileId`) +
+            FfiConverterOptionalString.allocationSize(value.`rotationError`)
     )
 
     override fun write(value: KeysetFlowState, buf: ByteBuffer) {
@@ -2599,6 +2809,9 @@ public object FfiConverterTypeKeysetFlowState: FfiConverterRustBuffer<KeysetFlow
             FfiConverterSequenceString.write(value.`relays`, buf)
             FfiConverterSequenceTypeDistributeShareRecord.write(value.`distribute`, buf)
             FfiConverterOptionalString.write(value.`acceptedShortId`, buf)
+            FfiConverterSequenceTypeRotationSourceRow.write(value.`rotationSources`, buf)
+            FfiConverterString.write(value.`rotateSourceProfileId`, buf)
+            FfiConverterOptionalString.write(value.`rotationError`, buf)
     }
 }
 
@@ -3612,6 +3825,268 @@ public object FfiConverterTypeResolvedIdentity: FfiConverterRustBuffer<ResolvedI
             FfiConverterString.write(value.`groupPubkey`, buf)
             FfiConverterSequenceString.write(value.`relays`, buf)
             FfiConverterString.write(value.`profileId`, buf)
+    }
+}
+
+
+
+/**
+ * Resolved rotated identity shown in the Replacement Preview
+ * (VAL-ROTATE-006).
+ */
+data class RotatePreviewIdentity (
+    /**
+     * Pre-filled label candidate for the rotated profile (keeps the
+     * existing device name by default so the user does not see the
+     * rename side effect on the hub — VAL-ROTATE-011 parity keeps the
+     * previous label).
+     */
+    var `deviceName`: kotlin.String
+    , 
+    /**
+     * 64-char lowercase-hex share public key of the rotated share.
+     */
+    var `sharePubkey`: kotlin.String
+    , 
+    /**
+     * 64-char lowercase-hex group public key (matches the active
+     * profile's group key — VAL-ROTATE-004 invariant).
+     */
+    var `groupPubkey`: kotlin.String
+    , 
+    /**
+     * Derived 64-char lowercase-hex profile id of the rotated share.
+     */
+    var `profileId`: kotlin.String
+    , 
+    /**
+     * Relay list in effect for the rotated profile (carried verbatim
+     * from the rotated package so round-tripping is lossless).
+     */
+    var `relays`: List<kotlin.String>
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeRotatePreviewIdentity: FfiConverterRustBuffer<RotatePreviewIdentity> {
+    override fun read(buf: ByteBuffer): RotatePreviewIdentity {
+        return RotatePreviewIdentity(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterSequenceString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: RotatePreviewIdentity) = (
+            FfiConverterString.allocationSize(value.`deviceName`) +
+            FfiConverterString.allocationSize(value.`sharePubkey`) +
+            FfiConverterString.allocationSize(value.`groupPubkey`) +
+            FfiConverterString.allocationSize(value.`profileId`) +
+            FfiConverterSequenceString.allocationSize(value.`relays`)
+    )
+
+    override fun write(value: RotatePreviewIdentity, buf: ByteBuffer) {
+            FfiConverterString.write(value.`deviceName`, buf)
+            FfiConverterString.write(value.`sharePubkey`, buf)
+            FfiConverterString.write(value.`groupPubkey`, buf)
+            FfiConverterString.write(value.`profileId`, buf)
+            FfiConverterSequenceString.write(value.`relays`, buf)
+    }
+}
+
+
+
+/**
+ * The full Rotate Share flow state, owned by `AppState.rotate_share`.
+ */
+data class RotateShareState (
+    /**
+     * Current progress step (UI drives off this field).
+     */
+    var `step`: RotateShareStep
+    , 
+    /**
+     * Most recent error, if any, for display on the connect screen.
+     */
+    var `error`: RotateShareError?
+    , 
+    /**
+     * Raw error text the shell returned alongside the typed error —
+     * rendered next to the typed message for diagnostics.
+     */
+    var `lastErrorMessage`: kotlin.String?
+    , 
+    /**
+     * bfonboard package text as entered (trimmed).
+     */
+    var `package`: kotlin.String
+    , 
+    /**
+     * bfonboard package password as entered (not persisted).
+     */
+    var `password`: kotlin.String
+    , 
+    /**
+     * Relay URL in effect — package-embedded or user-edited to platform
+     * correct value (`127.0.0.1:8194` on iOS sim, `10.0.2.2:8194` on
+     * Android emulator).
+     */
+    var `relayUrl`: kotlin.String
+    , 
+    /**
+     * Resolved rotated identity (set once handshake completes).
+     */
+    var `preview`: RotatePreviewIdentity?
+    , 
+    /**
+     * Active profile id at the time the user opened the rotate-share
+     * flow. Used by VAL-ROTATE-010 (back leaves original untouched),
+     * VAL-ROTATE-011 (confirm replacement swaps to the rotated profile),
+     * and VAL-ROTATE-008 (resolve SameProfile when the rotated
+     * profile_id matches this).
+     */
+    var `activeProfileId`: kotlin.String
+    , 
+    /**
+     * Active profile short id (first 8 hex chars) for the connect-card
+     * row (VAL-ROTATE-005).
+     */
+    var `activeShortId`: kotlin.String
+    , 
+    /**
+     * Active profile device label for the connect-card row
+     * (VAL-ROTATE-005).
+     */
+    var `activeDeviceLabel`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeRotateShareState: FfiConverterRustBuffer<RotateShareState> {
+    override fun read(buf: ByteBuffer): RotateShareState {
+        return RotateShareState(
+            FfiConverterTypeRotateShareStep.read(buf),
+            FfiConverterOptionalTypeRotateShareError.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalTypeRotatePreviewIdentity.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: RotateShareState) = (
+            FfiConverterTypeRotateShareStep.allocationSize(value.`step`) +
+            FfiConverterOptionalTypeRotateShareError.allocationSize(value.`error`) +
+            FfiConverterOptionalString.allocationSize(value.`lastErrorMessage`) +
+            FfiConverterString.allocationSize(value.`package`) +
+            FfiConverterString.allocationSize(value.`password`) +
+            FfiConverterString.allocationSize(value.`relayUrl`) +
+            FfiConverterOptionalTypeRotatePreviewIdentity.allocationSize(value.`preview`) +
+            FfiConverterString.allocationSize(value.`activeProfileId`) +
+            FfiConverterString.allocationSize(value.`activeShortId`) +
+            FfiConverterString.allocationSize(value.`activeDeviceLabel`)
+    )
+
+    override fun write(value: RotateShareState, buf: ByteBuffer) {
+            FfiConverterTypeRotateShareStep.write(value.`step`, buf)
+            FfiConverterOptionalTypeRotateShareError.write(value.`error`, buf)
+            FfiConverterOptionalString.write(value.`lastErrorMessage`, buf)
+            FfiConverterString.write(value.`package`, buf)
+            FfiConverterString.write(value.`password`, buf)
+            FfiConverterString.write(value.`relayUrl`, buf)
+            FfiConverterOptionalTypeRotatePreviewIdentity.write(value.`preview`, buf)
+            FfiConverterString.write(value.`activeProfileId`, buf)
+            FfiConverterString.write(value.`activeShortId`, buf)
+            FfiConverterString.write(value.`activeDeviceLabel`, buf)
+    }
+}
+
+
+
+/**
+ * One row in the rotation-source picker (VAL-ROTATE-001).
+ *
+ * Each row accepts a `bfshare1` package text plus its password; the
+ * wizard validates them as the user edits. Persisted in
+ * `KeysetFlowState::rotation_sources` so the picker survives back
+ * navigation (VAL-CREATE-009 parity).
+ */
+data class RotationSourceRow (
+    /**
+     * Trimmed bfshare1 package text. Empty means the row is a blank
+     * widget waiting for the user to paste; non-empty means it has
+     * been claimed and re-fills on back navigation.
+     */
+    var `package`: kotlin.String
+    , 
+    /**
+     * bfshare1 password as entered (validated, not persisted).
+     */
+    var `password`: kotlin.String
+    , 
+    /**
+     * Whitelisted profile id this rotation source targets. Set when
+     * the source-profile picker binds the row to a stored profile.
+     * Empty means the row is unknown-profile until the shell resolves
+     * it.
+     */
+    var `sourceProfileId`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeRotationSourceRow: FfiConverterRustBuffer<RotationSourceRow> {
+    override fun read(buf: ByteBuffer): RotationSourceRow {
+        return RotationSourceRow(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: RotationSourceRow) = (
+            FfiConverterString.allocationSize(value.`package`) +
+            FfiConverterString.allocationSize(value.`password`) +
+            FfiConverterString.allocationSize(value.`sourceProfileId`)
+    )
+
+    override fun write(value: RotationSourceRow, buf: ByteBuffer) {
+            FfiConverterString.write(value.`package`, buf)
+            FfiConverterString.write(value.`password`, buf)
+            FfiConverterString.write(value.`sourceProfileId`, buf)
     }
 }
 
@@ -5085,6 +5560,160 @@ sealed class AppAction {
     object Logout : AppAction()
     
     
+    /**
+     * Open the Rotate Share connect screen with the active profile
+     * identity pinned on `state.rotate_share`. Equivalent to
+     * `NavigateToRotateShare` but also seeds the active-profile
+     * fields so the connect-card row renders
+     * (VAL-ROTATE-005).
+     */
+    data class OpenRotateShareConnect(
+        val `profileId`: kotlin.String, 
+        val `shortId`: kotlin.String, 
+        val `deviceLabel`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * User editable input on the Rotate Share connect screen.
+     */
+    data class RotateShareUpdatePackage(
+        val `value`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class RotateShareUpdatePassword(
+        val `value`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class RotateShareUpdateRelay(
+        val `value`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * Submit the connect form. Routed to the appropriate failure
+     * variant after the deduplication/group check (VAL-ROTATE-007/008)
+     * and the live handshake (VAL-ROTATE-006/013/014).
+     */
+    object RotateShareConnect : AppAction()
+    
+    
+    /**
+     * Live handshake completed; resolution shares the active group's
+     * pubkey but yields a fresh share pubkey + profile id
+     * (VAL-ROTATE-006, VAL-ROTATE-011).
+     */
+    data class RotateShareHandshakeSuccess(
+        val `deviceName`: kotlin.String, 
+        val `sharePubkey`: kotlin.String, 
+        val `groupPubkey`: kotlin.String, 
+        val `relays`: List<kotlin.String>, 
+        val `profileId`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * Live handshake failed — the actor maps the shell's error_kind
+     * string into a typed `RotateShareError` and stays on the connect
+     * screen.
+     */
+    data class RotateShareHandshakeFailure(
+        val `error`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * Confirm replacement — swap the active profile with the rotated
+     * profile and land on the dashboard
+     * (VAL-ROTATE-011, VAL-ROTATE-012).
+     */
+    object RotateShareReplace : AppAction()
+    
+    
+    /**
+     * Clear the existing error banner without leaving the connect
+     * screen (parity with `OnboardClearError`).
+     */
+    object RotateShareClearError : AppAction()
+    
+    
+    /**
+     * Abandon the flow entirely — same semantics as a back-press from
+     * the connect screen (VAL-ROTATE-010).
+     */
+    object RotateShareReset : AppAction()
+    
+    
+    /**
+     * User-side edits on the rotation-source picker.
+     */
+    data class KeysetSetRotationSourceProfile(
+        val `profileId`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    object KeysetAddRotationSourceRow : AppAction()
+    
+    
+    data class KeysetRemoveRotationSourceRow(
+        val `index`: kotlin.UInt) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class KeysetUpdateRotationSourcePackage(
+        val `index`: kotlin.UInt, 
+        val `value`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class KeysetUpdateRotationSourcePassword(
+        val `index`: kotlin.UInt, 
+        val `value`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
     data class ExportCompleted(
         val `packageType`: kotlin.String) : AppAction()
         
@@ -5416,13 +6045,56 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 )
             96 -> AppAction.NavigateToRotateShare
             97 -> AppAction.Logout
-            98 -> AppAction.ExportCompleted(
+            98 -> AppAction.OpenRotateShareConnect(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 )
-            99 -> AppAction.ExportFailed(
+            99 -> AppAction.RotateShareUpdatePackage(
                 FfiConverterString.read(buf),
                 )
-            100 -> AppAction.ClearExportState
+            100 -> AppAction.RotateShareUpdatePassword(
+                FfiConverterString.read(buf),
+                )
+            101 -> AppAction.RotateShareUpdateRelay(
+                FfiConverterString.read(buf),
+                )
+            102 -> AppAction.RotateShareConnect
+            103 -> AppAction.RotateShareHandshakeSuccess(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterSequenceString.read(buf),
+                FfiConverterString.read(buf),
+                )
+            104 -> AppAction.RotateShareHandshakeFailure(
+                FfiConverterString.read(buf),
+                )
+            105 -> AppAction.RotateShareReplace
+            106 -> AppAction.RotateShareClearError
+            107 -> AppAction.RotateShareReset
+            108 -> AppAction.KeysetSetRotationSourceProfile(
+                FfiConverterString.read(buf),
+                )
+            109 -> AppAction.KeysetAddRotationSourceRow
+            110 -> AppAction.KeysetRemoveRotationSourceRow(
+                FfiConverterUInt.read(buf),
+                )
+            111 -> AppAction.KeysetUpdateRotationSourcePackage(
+                FfiConverterUInt.read(buf),
+                FfiConverterString.read(buf),
+                )
+            112 -> AppAction.KeysetUpdateRotationSourcePassword(
+                FfiConverterUInt.read(buf),
+                FfiConverterString.read(buf),
+                )
+            113 -> AppAction.ExportCompleted(
+                FfiConverterString.read(buf),
+                )
+            114 -> AppAction.ExportFailed(
+                FfiConverterString.read(buf),
+                )
+            115 -> AppAction.ClearExportState
             else -> throw RuntimeException("invalid enum value, something is very wrong!!")
         }
     }
@@ -6143,6 +6815,114 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 4UL
             )
         }
+        is AppAction.OpenRotateShareConnect -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`profileId`)
+                + FfiConverterString.allocationSize(value.`shortId`)
+                + FfiConverterString.allocationSize(value.`deviceLabel`)
+            )
+        }
+        is AppAction.RotateShareUpdatePackage -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`value`)
+            )
+        }
+        is AppAction.RotateShareUpdatePassword -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`value`)
+            )
+        }
+        is AppAction.RotateShareUpdateRelay -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`value`)
+            )
+        }
+        is AppAction.RotateShareConnect -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is AppAction.RotateShareHandshakeSuccess -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`deviceName`)
+                + FfiConverterString.allocationSize(value.`sharePubkey`)
+                + FfiConverterString.allocationSize(value.`groupPubkey`)
+                + FfiConverterSequenceString.allocationSize(value.`relays`)
+                + FfiConverterString.allocationSize(value.`profileId`)
+            )
+        }
+        is AppAction.RotateShareHandshakeFailure -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`error`)
+            )
+        }
+        is AppAction.RotateShareReplace -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is AppAction.RotateShareClearError -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is AppAction.RotateShareReset -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is AppAction.KeysetSetRotationSourceProfile -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`profileId`)
+            )
+        }
+        is AppAction.KeysetAddRotationSourceRow -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is AppAction.KeysetRemoveRotationSourceRow -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterUInt.allocationSize(value.`index`)
+            )
+        }
+        is AppAction.KeysetUpdateRotationSourcePackage -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterUInt.allocationSize(value.`index`)
+                + FfiConverterString.allocationSize(value.`value`)
+            )
+        }
+        is AppAction.KeysetUpdateRotationSourcePassword -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterUInt.allocationSize(value.`index`)
+                + FfiConverterString.allocationSize(value.`value`)
+            )
+        }
         is AppAction.ExportCompleted -> {
             // Add the size for the Int that specifies the variant plus the size needed for all fields
             (
@@ -6688,18 +7468,96 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 buf.putInt(97)
                 Unit
             }
-            is AppAction.ExportCompleted -> {
+            is AppAction.OpenRotateShareConnect -> {
                 buf.putInt(98)
+                FfiConverterString.write(value.`profileId`, buf)
+                FfiConverterString.write(value.`shortId`, buf)
+                FfiConverterString.write(value.`deviceLabel`, buf)
+                Unit
+            }
+            is AppAction.RotateShareUpdatePackage -> {
+                buf.putInt(99)
+                FfiConverterString.write(value.`value`, buf)
+                Unit
+            }
+            is AppAction.RotateShareUpdatePassword -> {
+                buf.putInt(100)
+                FfiConverterString.write(value.`value`, buf)
+                Unit
+            }
+            is AppAction.RotateShareUpdateRelay -> {
+                buf.putInt(101)
+                FfiConverterString.write(value.`value`, buf)
+                Unit
+            }
+            is AppAction.RotateShareConnect -> {
+                buf.putInt(102)
+                Unit
+            }
+            is AppAction.RotateShareHandshakeSuccess -> {
+                buf.putInt(103)
+                FfiConverterString.write(value.`deviceName`, buf)
+                FfiConverterString.write(value.`sharePubkey`, buf)
+                FfiConverterString.write(value.`groupPubkey`, buf)
+                FfiConverterSequenceString.write(value.`relays`, buf)
+                FfiConverterString.write(value.`profileId`, buf)
+                Unit
+            }
+            is AppAction.RotateShareHandshakeFailure -> {
+                buf.putInt(104)
+                FfiConverterString.write(value.`error`, buf)
+                Unit
+            }
+            is AppAction.RotateShareReplace -> {
+                buf.putInt(105)
+                Unit
+            }
+            is AppAction.RotateShareClearError -> {
+                buf.putInt(106)
+                Unit
+            }
+            is AppAction.RotateShareReset -> {
+                buf.putInt(107)
+                Unit
+            }
+            is AppAction.KeysetSetRotationSourceProfile -> {
+                buf.putInt(108)
+                FfiConverterString.write(value.`profileId`, buf)
+                Unit
+            }
+            is AppAction.KeysetAddRotationSourceRow -> {
+                buf.putInt(109)
+                Unit
+            }
+            is AppAction.KeysetRemoveRotationSourceRow -> {
+                buf.putInt(110)
+                FfiConverterUInt.write(value.`index`, buf)
+                Unit
+            }
+            is AppAction.KeysetUpdateRotationSourcePackage -> {
+                buf.putInt(111)
+                FfiConverterUInt.write(value.`index`, buf)
+                FfiConverterString.write(value.`value`, buf)
+                Unit
+            }
+            is AppAction.KeysetUpdateRotationSourcePassword -> {
+                buf.putInt(112)
+                FfiConverterUInt.write(value.`index`, buf)
+                FfiConverterString.write(value.`value`, buf)
+                Unit
+            }
+            is AppAction.ExportCompleted -> {
+                buf.putInt(113)
                 FfiConverterString.write(value.`packageType`, buf)
                 Unit
             }
             is AppAction.ExportFailed -> {
-                buf.putInt(99)
+                buf.putInt(114)
                 FfiConverterString.write(value.`error`, buf)
                 Unit
             }
             is AppAction.ClearExportState -> {
-                buf.putInt(100)
+                buf.putInt(115)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
@@ -7047,6 +7905,85 @@ sealed class AppUpdate {
         companion object
     }
     
+    /**
+     * Shell should perform the real Nostr onboarding handshake for a
+     * rotated `bfonboard1` package (VAL-ROTATE-006). The connector
+     * mirrors `PerformOnboardHandshake` so the shell can re-use the
+     * existing FfiApp helper, but the group / same-profile checks
+     * (VAL-ROTATE-007/008) live on the Rust actor side after the
+     * handshake resolves.
+     */
+    data class PerformRotateShareHandshake(
+        val `package`: kotlin.String, 
+        val `password`: kotlin.String, 
+        val `relayUrl`: kotlin.String, 
+        val `expectedGroupPubkey`: kotlin.String, 
+        val `activeProfileId`: kotlin.String) : AppUpdate()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * Shell should swap the active profile's stored material with the
+     * rotated material (VAL-ROTATE-011). One side effect lets the
+     * shell go through a single atomic keychain rewrite: delete the
+     * old profile, write the new one, then update the hub row +
+     * dashboard identity.
+     */
+    data class ReplaceProfileFromRotate(
+        val `oldProfileId`: kotlin.String, 
+        val `newProfileId`: kotlin.String, 
+        val `newLabel`: kotlin.String, 
+        val `newShortId`: kotlin.String, 
+        val `newMaterial`: kotlin.ByteArray, 
+        val `newRelays`: List<kotlin.String>, 
+        /**
+         * Also drop the old device from local secure storage so the
+         * hub row's "available later" UX matches what the shell stored.
+         */
+        val `deleteOld`: kotlin.Boolean) : AppUpdate()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * Shell should run `frostr_utils::rotate_keyset_dealer` to produce
+     * the rotated bundle (VAL-ROTATE-004). Mirror of
+     * `PerformKeysetGeneration` but the FFI path takes the previous
+     * group + threshold/count + decrypted shares instead of running a
+     * fresh `create_keyset`.
+     */
+    data class PerformKeysetRotation(
+        val `groupName`: kotlin.String, 
+        val `threshold`: kotlin.UShort, 
+        val `count`: kotlin.UShort, 
+        /**
+         * Decrypted source group package (GroupPackage wire form)
+         * carrying the current group public key. FFI rotates from
+         * this group.
+         */
+        val `sourceGroupJson`: kotlin.String, 
+        /**
+         * Decrypted source share secrets (each a 32-byte hex) keyed
+         * by share_idx order; the FFI rebuilds a SharePackage list
+         * from these. Pair with `source_share_pubkeys_hex` to
+         * preserve the original member mapping.
+         */
+        val `sourceShareSecretsHex`: List<kotlin.String>, 
+        val `sourceSharePubkeysHex`: List<kotlin.String>) : AppUpdate()
+        
+    {
+        
+
+        companion object
+    }
+    
 
     
 
@@ -7156,6 +8093,30 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
             27 -> AppUpdate.StartKeysetSignerRuntime(
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
+                )
+            28 -> AppUpdate.PerformRotateShareHandshake(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                )
+            29 -> AppUpdate.ReplaceProfileFromRotate(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterByteArray.read(buf),
+                FfiConverterSequenceString.read(buf),
+                FfiConverterBoolean.read(buf),
+                )
+            30 -> AppUpdate.PerformKeysetRotation(
+                FfiConverterString.read(buf),
+                FfiConverterUShort.read(buf),
+                FfiConverterUShort.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterSequenceString.read(buf),
+                FfiConverterSequenceString.read(buf),
                 )
             else -> throw RuntimeException("invalid enum value, something is very wrong!!")
         }
@@ -7372,6 +8333,42 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 + FfiConverterString.allocationSize(value.`label`)
             )
         }
+        is AppUpdate.PerformRotateShareHandshake -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`package`)
+                + FfiConverterString.allocationSize(value.`password`)
+                + FfiConverterString.allocationSize(value.`relayUrl`)
+                + FfiConverterString.allocationSize(value.`expectedGroupPubkey`)
+                + FfiConverterString.allocationSize(value.`activeProfileId`)
+            )
+        }
+        is AppUpdate.ReplaceProfileFromRotate -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`oldProfileId`)
+                + FfiConverterString.allocationSize(value.`newProfileId`)
+                + FfiConverterString.allocationSize(value.`newLabel`)
+                + FfiConverterString.allocationSize(value.`newShortId`)
+                + FfiConverterByteArray.allocationSize(value.`newMaterial`)
+                + FfiConverterSequenceString.allocationSize(value.`newRelays`)
+                + FfiConverterBoolean.allocationSize(value.`deleteOld`)
+            )
+        }
+        is AppUpdate.PerformKeysetRotation -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`groupName`)
+                + FfiConverterUShort.allocationSize(value.`threshold`)
+                + FfiConverterUShort.allocationSize(value.`count`)
+                + FfiConverterString.allocationSize(value.`sourceGroupJson`)
+                + FfiConverterSequenceString.allocationSize(value.`sourceShareSecretsHex`)
+                + FfiConverterSequenceString.allocationSize(value.`sourceSharePubkeysHex`)
+            )
+        }
     }
 
     override fun write(value: AppUpdate, buf: ByteBuffer) {
@@ -7532,6 +8529,36 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 FfiConverterString.write(value.`label`, buf)
                 Unit
             }
+            is AppUpdate.PerformRotateShareHandshake -> {
+                buf.putInt(28)
+                FfiConverterString.write(value.`package`, buf)
+                FfiConverterString.write(value.`password`, buf)
+                FfiConverterString.write(value.`relayUrl`, buf)
+                FfiConverterString.write(value.`expectedGroupPubkey`, buf)
+                FfiConverterString.write(value.`activeProfileId`, buf)
+                Unit
+            }
+            is AppUpdate.ReplaceProfileFromRotate -> {
+                buf.putInt(29)
+                FfiConverterString.write(value.`oldProfileId`, buf)
+                FfiConverterString.write(value.`newProfileId`, buf)
+                FfiConverterString.write(value.`newLabel`, buf)
+                FfiConverterString.write(value.`newShortId`, buf)
+                FfiConverterByteArray.write(value.`newMaterial`, buf)
+                FfiConverterSequenceString.write(value.`newRelays`, buf)
+                FfiConverterBoolean.write(value.`deleteOld`, buf)
+                Unit
+            }
+            is AppUpdate.PerformKeysetRotation -> {
+                buf.putInt(30)
+                FfiConverterString.write(value.`groupName`, buf)
+                FfiConverterUShort.write(value.`threshold`, buf)
+                FfiConverterUShort.write(value.`count`, buf)
+                FfiConverterString.write(value.`sourceGroupJson`, buf)
+                FfiConverterSequenceString.write(value.`sourceShareSecretsHex`, buf)
+                FfiConverterSequenceString.write(value.`sourceSharePubkeysHex`, buf)
+                Unit
+            }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
     }
 }
@@ -7635,9 +8662,8 @@ public object FfiConverterTypeDistributeStatus: FfiConverterRustBuffer<Distribut
  * Wizard mode selected on the CreateKeysetEntry screen.
  *
  * VAL-CREATE-002 requires the Generate form to expose a mode selector
- * (new keyset vs rotate). VAL-ROTATE-* lives in the rotate-share feature
- * and is out of scope here; this wizard plans for both modes but only the
- * `Create` path is implemented end-to-end in this feature.
+ * (new keyset vs rotate). VAL-ROTATE-001..004 toggle the rotation
+ * source picker; both modes share the same wizard chrome.
  */
 
 enum class KeysetFlowMode {
@@ -8319,6 +9345,147 @@ public object FfiConverterTypeProfileStatus: FfiConverterRustBuffer<ProfileStatu
 
 
 /**
+ * Error kinds surfaced during the rotate-share flow.
+ *
+ * Tracks VAL-ROTATE-007 (`GroupMismatch`), VAL-ROTATE-008
+ * (`SameProfile`), VAL-ROTATE-009 (`MalformedPackage`,
+ * `WrongPassword`), VAL-ROTATE-014 (`RelayUnreachable`,
+ * `ProvisionerOffline`).
+ */
+
+enum class RotateShareError {
+    
+    /**
+     * Package text is not a valid bech32m bfonboard1 envelope or the
+     * payload failed decryption for non-password reasons
+     * (VAL-ROTATE-009).
+     */
+    MALFORMED_PACKAGE,
+    /**
+     * The package password is incorrect — decryption failed
+     * (VAL-ROTATE-009).
+     */
+    WRONG_PASSWORD,
+    /**
+     * The relay URL is not reachable within the timeout
+     * (VAL-ROTATE-014 unreachable-relay branch).
+     */
+    RELAY_UNREACHABLE,
+    /**
+     * Provisioning signer (the wizard-side signer that produced the
+     * rotated bfonboard1) did not respond within the timeout
+     * (VAL-ROTATE-014 offline-provisioner branch).
+     */
+    PROVISIONER_OFFLINE,
+    /**
+     * Resolved profile id matches the device's current profile id —
+     * the rotated package did not yield a fresh share
+     * (VAL-ROTATE-008).
+     */
+    SAME_PROFILE,
+    /**
+     * Resolved group public key does not match the active profile's
+     * group public key — the rotated package belongs to a different
+     * keyset (VAL-ROTATE-007).
+     */
+    GROUP_MISMATCH,
+    /**
+     * Catch-all error type.
+     */
+    UNEXPECTED;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeRotateShareError: FfiConverterRustBuffer<RotateShareError> {
+    override fun read(buf: ByteBuffer) = try {
+        RotateShareError.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: RotateShareError) = 4UL
+
+    override fun write(value: RotateShareError, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * Progress indicator for the rotate-share flow (VAL-ROTATE-*).
+ */
+
+enum class RotateShareStep {
+    
+    /**
+     * Initial state — connect screen awaits paste + password + relay.
+     */
+    IDLE,
+    /**
+     * Decrypting rotated bfonboard package locally.
+     */
+    DECRYPTING,
+    /**
+     * Performing the live provisioning handshake to resolve the rotated
+     * share identity (VAL-ROTATE-006).
+     */
+    HANDSHAKING,
+    /**
+     * Handshake complete — preview ready, awaiting confirm-replace.
+     * `preview` field carries the resolved rotated identity summary.
+     */
+    PREVIEW,
+    /**
+     * Active profile was replaced; user is on the rotated profile's
+     * dashboard. Transient state — shells rebuild from `AppState` after.
+     */
+    COMPLETE,
+    /**
+     * Recoverable error — form stays editable for retry (VAL-ROTATE-009,
+     * VAL-ROTATE-014).
+     */
+    ERROR;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeRotateShareStep: FfiConverterRustBuffer<RotateShareStep> {
+    override fun read(buf: ByteBuffer) = try {
+        RotateShareStep.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: RotateShareStep) = 4UL
+
+    override fun write(value: RotateShareStep, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
  * Screen stack — Rust owns navigation. Only the active screen is rendered.
  */
 
@@ -8829,6 +9996,38 @@ public object FfiConverterOptionalTypeResolvedIdentity: FfiConverterRustBuffer<R
 /**
  * @suppress
  */
+public object FfiConverterOptionalTypeRotatePreviewIdentity: FfiConverterRustBuffer<RotatePreviewIdentity?> {
+    override fun read(buf: ByteBuffer): RotatePreviewIdentity? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeRotatePreviewIdentity.read(buf)
+    }
+
+    override fun allocationSize(value: RotatePreviewIdentity?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeRotatePreviewIdentity.allocationSize(value)
+        }
+    }
+
+    override fun write(value: RotatePreviewIdentity?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeRotatePreviewIdentity.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterOptionalTypeTestEcdhResultData: FfiConverterRustBuffer<TestEcdhResultData?> {
     override fun read(buf: ByteBuffer): TestEcdhResultData? {
         if (buf.get().toInt() == 0) {
@@ -8979,6 +10178,38 @@ public object FfiConverterOptionalTypeOnboardingError: FfiConverterRustBuffer<On
         } else {
             buf.put(1)
             FfiConverterTypeOnboardingError.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeRotateShareError: FfiConverterRustBuffer<RotateShareError?> {
+    override fun read(buf: ByteBuffer): RotateShareError? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeRotateShareError.read(buf)
+    }
+
+    override fun allocationSize(value: RotateShareError?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeRotateShareError.allocationSize(value)
+        }
+    }
+
+    override fun write(value: RotateShareError?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeRotateShareError.write(value, buf)
         }
     }
 }
@@ -9347,6 +10578,34 @@ public object FfiConverterSequenceTypePolicyCell: FfiConverterRustBuffer<List<Po
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypePolicyCell.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeRotationSourceRow: FfiConverterRustBuffer<List<RotationSourceRow>> {
+    override fun read(buf: ByteBuffer): List<RotationSourceRow> {
+        val len = buf.getInt()
+        return List<RotationSourceRow>(len) {
+            FfiConverterTypeRotationSourceRow.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<RotationSourceRow>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeRotationSourceRow.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<RotationSourceRow>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeRotationSourceRow.write(it, buf)
         }
     }
 }
