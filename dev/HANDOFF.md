@@ -9,7 +9,8 @@ _Last updated: 2026-06-15_
 > **(3)** a consolidation cleanup the telemetry pass exposed, **(4)** the
 > **interactive signing-approval queue**, and **(5)** the **dashboard error/empty
 > states** (loading / load-failed / all-relays-offline / signing-blocked /
-> signing-failed) across all three clients. See the `✅ Done` sections below.
+> signing-failed) across all three clients, followed by a **6-item follow-up
+> sweep** that cleaned up and finished that feature. See the `✅ Done` sections below.
 >
 > **All commits are local on `dev`** across the repos (not pushed). The parent repo
 > also carries **pre-existing, unrelated staged WIP** (`dev/audit/*` + `.gitignore`)
@@ -17,6 +18,49 @@ _Last updated: 2026-06-15_
 >
 > **▶ NEXT: pick the next L item** from `BACKLOG.md` — see
 > [§ Next work](#-next-work-remaining-l-items).
+
+## ✅ Done: dashboard-states follow-up sweep (6 cleanups)
+
+**Landed (submodule-then-pointer):** igloo-ui `7df7fbd`, igloo-chrome `7138393`,
+igloo-shared `3acb944`, igloo-pwa `2230d87`, igloo-home `65c7eeb` → parent
+`9b3c6a7`. All **TS-only** (no Rust/WASM change → no re-stamp). Plan:
+`plans/vivid-swinging-pony.md`.
+
+- **T1** — removed the dead `runtimeStatusToSignerDashboardView` (+ orphaned helper + tests).
+- **T2 wire-type drift guard** — igloo-ui stays **decoupled** from igloo-shared (it
+  copies test setup rather than depend on it), so the contract lives in **chrome**
+  (`src/extension/runtime-types.contract.ts`) — the one repo that depends on both.
+  It fails `tsc` when a canonical igloo-shared wire field isn't mirrored by chrome's
+  `RuntimeStatusSummary` or igloo-ui's adapter inputs (now exported). Key-coverage
+  only; intentional skips are `Omit<>`-spelled. **Verified it errors on drift.**
+- **T3 load-failed reachable** — pwa + home capture a signer-start failure into a
+  `dashboardLoadError` and route to the dashboard's load-failed screen (Retry/Clear).
+  Home no longer rethrows (it would leak an unhandled rejection at the `void`
+  onPrimaryAction call site). chrome's `runtime_unavailable` stays a soft in-panel state.
+- **T4 live relay-health** — `refreshRelayHealth()` re-probes on a ~30s interval
+  (`relayHealthHandle`, started in connect / cleared in shutdown), so
+  `connected_relays` / all-relays-offline track **post-boot** drops & recoveries.
+  NB: `readiness.restore_complete` ≠ loading (it's "no pending ops") — see
+  [[restore-complete-not-loading]].
+- **T5 `@live` e2e** — `test/igloo-pwa/specs/dashboard-states.spec.ts` drives
+  signing-blocked (deny peer `request.sign` → `sign_ready` drops) then
+  all-relays-offline (close relay → re-probe empties the set; banner flips on
+  precedence). **Gotcha:** don't double-`close()` the local relay — it's SIGKILLed
+  (no clean SIGTERM exit) so `exitCode` stays null and a second close hangs; guard
+  with a flag. Stop the shell *before* dropping the relay (a `daemon stop` against a
+  dead relay hangs).
+- **T6 onboarding de-flake** — `startRelayEventRecorder` gained `waitReady()` (resolves
+  on EOSE); the spec gates the handshake on it so the ephemeral onboard request can't
+  be published before the subscription is live (the prior intermittent failure).
+
+**Verified:** per-repo typecheck + unit suites; `make test-fast` (pwa 20, chrome 17);
+`make test-live` green — **14 + 15 passed** (was 12 + an onboarding flake; flake gone,
+dashboard-states passing).
+
+**Still open (logged in `BACKLOG.md`):** native `last_load_error` enrichment
+(bifrost-bridge-tokio; home drives load-failed from its own start-error today), and a
+**signing-failed `@live`** (needs a *local* node to record a `Sign` failure — the
+responder-only PWA dashboard can't initiate one).
 
 ## ✅ Done: dashboard error/empty states (L-task #5)
 
