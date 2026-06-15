@@ -1,15 +1,15 @@
-# Hand-off: L-task program — seam + telemetry + consolidation + approval-queue DONE; pick the next L item
+# Hand-off: L-task program — seam + telemetry + consolidation + approval-queue + dashboard-states DONE; pick the next L item
 
-_Last updated: 2026-06-14_
+_Last updated: 2026-06-15_
 
 > **Read this first.** Entry point for a new session in the `frostr-infra`
 > workspace. The **MED+ remediation program (Phases 1–6) is complete and pushed**.
 > We then opened the **L-task program** and have completed, in order:
 > **(1)** the onboard→signer seam refactor, **(2)** the peer-telemetry pass,
-> **(3)** a consolidation cleanup the telemetry pass exposed, and **(4)** the
-> **interactive signing-approval queue** (the last big L-feature from the spec).
-> See the `✅ Done` sections below. The per-phase MED+ sections further down record
-> the earlier work.
+> **(3)** a consolidation cleanup the telemetry pass exposed, **(4)** the
+> **interactive signing-approval queue**, and **(5)** the **dashboard error/empty
+> states** (loading / load-failed / all-relays-offline / signing-blocked /
+> signing-failed) across all three clients. See the `✅ Done` sections below.
 >
 > **All commits are local on `dev`** across the repos (not pushed). The parent repo
 > also carries **pre-existing, unrelated staged WIP** (`dev/audit/*` + `.gitignore`)
@@ -17,6 +17,46 @@ _Last updated: 2026-06-14_
 >
 > **▶ NEXT: pick the next L item** from `BACKLOG.md` — see
 > [§ Next work](#-next-work-remaining-l-items).
+
+## ✅ Done: dashboard error/empty states (L-task #5)
+
+**Landed (submodule-then-pointer):** bifrost-rs `48a8839`, igloo-shared `bdadf54`,
+igloo-ui `ca131b1`, igloo-pwa `835b729`, igloo-chrome `152d6e7`, igloo-home
+`450ad64` → parent `e83790f`. Plan: `plans/vivid-swinging-pony.md`.
+
+Five reusable dashboard states, **mixed presentation**: *loading* + *load-failed*
+replace the signer panel; *all-relays-offline / signing-blocked / signing-failed*
+are banners over a still-usable dashboard. One igloo-ui `DashboardState` union +
+`deriveDashboardState()` selector, consumed by all three clients (no per-client
+drift — like `[[runtime-status-type-flow]]`).
+
+**First-class signals — three different owners (the key design fact):**
+- **`last_sign_failure`** is the only *true core* signal — retained on
+  `SigningDevice` (runtime-only, like the latency rings), set at the
+  take_failures chokepoint (newest Sign wins), cleared on the next successful
+  sign. Surfaced on `RuntimeStatusSummary` → WASM rebuild + re-stamp + re-vendor
+  (shared+pwa+chrome). Wire round-trip test per `[[control-command-wire-flatten]]`.
+- **`connected_relays` / `configured_relays`** are **bridge-owned** (relay sockets
+  live in the bridge, not the core): enriched in the Tokio bridge
+  (`NostrSdkAdapter`, default-None trait methods) and the browser bridge (TS).
+- **`last_load_error`** is a host signal that **no client populates yet** — hard
+  load failures throw before any runtime exists (pwa connect()/home daemon-start),
+  so the full-panel load-failed is currently **wired but dormant**. chrome's
+  `runtime_unavailable` is a *soft* in-panel state, not load-failed. See the
+  dashboard-state follow-ups in `BACKLOG.md`.
+
+**Two traps that bit (now fixed):** (a) `readiness.restore_complete` means "no
+pending operations", NOT "still loading" — using it as a loading signal hid the
+panel during normal operation (caught by `make test-live`). Loading = `active &&
+no status yet`. (b) chrome's `runtime_unavailable` after a fresh import is normal,
+not a failure — mapping it to full-panel load-failed hid the panel (caught by the
+chrome import `@fast` e2e).
+
+**Verified:** Rust suite + clippy + fmt + new wire/retention tests; units
+(shared 142, ui 148, pwa 64, chrome 97, home 24); WASM stamp guard; `make
+test-fast` (pwa 20, chrome 17); `make test-live` (12 passed; the lone
+onboard-request relay-recorder failure is a pre-existing flake — its page
+snapshot shows the dashboard rendering correctly, and it passes in isolation).
 
 ## ✅ Done: interactive signing-approval queue (L-task #4)
 
