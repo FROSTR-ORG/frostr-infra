@@ -45,6 +45,15 @@ export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/r}"
 export IGLOO_SHELL_PROFILE_PASSPHRASE="${IGLOO_SHELL_DEMO_PASSPHRASE}"
 export TMPDIR="${TMPDIR:-${IGLOO_SHELL_DEMO_TMPDIR}}"
 
+# Pass the demo passphrase to import / daemon-start via a 0600 file rather than
+# on argv (which is world-readable in /proc/<pid>/cmdline). Kept in /tmp — an
+# explicit dir so it escapes both TMPDIR (redirected under the artifact dir) and
+# relax_artifact_permissions' recursive a+rwX. Removed in cleanup(). (onboard
+# keeps --passphrase-env.)
+IGLOO_SHELL_DEMO_PASSPHRASE_FILE="$(mktemp /tmp/igloo-demo-passphrase.XXXXXX)"
+printf '%s' "${IGLOO_SHELL_PROFILE_PASSPHRASE}" > "${IGLOO_SHELL_DEMO_PASSPHRASE_FILE}"
+chmod 0600 "${IGLOO_SHELL_DEMO_PASSPHRASE_FILE}"
+
 declare -a ONBOARD_MEMBERS=()
 DEMO_PROFILE_ID=""
 DEMO_DAEMON_LOG=""
@@ -280,7 +289,7 @@ import_demo_profile() {
       --share "${IGLOO_SHELL_DEMO_DIR}/share-${IGLOO_SHELL_DEMO_MEMBER}.json" \
       --label "${IGLOO_SHELL_DEMO_MEMBER}" \
       --relay-profile "${IGLOO_SHELL_DEMO_RELAY_PROFILE}" \
-      --passphrase "${IGLOO_SHELL_PROFILE_PASSPHRASE}" \
+      --passphrase-file "${IGLOO_SHELL_DEMO_PASSPHRASE_FILE}" \
       --json
   )"
   DEMO_PROFILE_ID="$(printf '%s\n' "${import_json}" | imported_profile_id)"
@@ -354,7 +363,7 @@ start_demo_daemon() {
   # `daemon start` requires explicit passphrase input (the IGLOO_SHELL_PROFILE_
   # PASSPHRASE env fallback was retired in the C.5 hardening); pass it the same
   # way import_demo_profile does. Without it the command blocks reading stdin.
-  daemon_json="$("${IGLOO_SHELL_BIN}" daemon start --profile "${DEMO_PROFILE_ID}" --passphrase "${IGLOO_SHELL_PROFILE_PASSPHRASE}")"
+  daemon_json="$("${IGLOO_SHELL_BIN}" daemon start --profile "${DEMO_PROFILE_ID}" --passphrase-file "${IGLOO_SHELL_DEMO_PASSPHRASE_FILE}")"
   daemon_token="$(printf '%s\n' "${daemon_json}" | json_string_field "token")"
   daemon_socket_bind="$(printf '%s\n' "${daemon_json}" | json_string_field "socket_path")"
   daemon_socket_link_name="$(basename "${IGLOO_SHELL_DEMO_CONTROL_SOCKET}")"
@@ -419,6 +428,7 @@ cleanup() {
   if [ -n "${DEMO_PROFILE_ID}" ]; then
     "${IGLOO_SHELL_BIN}" daemon stop --profile "${DEMO_PROFILE_ID}" >/dev/null 2>&1 || true
   fi
+  rm -f "${IGLOO_SHELL_DEMO_PASSPHRASE_FILE}" >/dev/null 2>&1 || true
 }
 
 if ! command -v "${DEVTOOLS_BIN}" >/dev/null 2>&1; then

@@ -106,11 +106,13 @@ Group by area. When an item is finished, move a one-line summary to
   snapshot (it adopts the live node), so chrome is the sole remaining producer/consumer
   of onboard snapshots. Must stay back-compatible (treat un-versioned snapshots as
   restorable) — igloo-shared + the chrome snapshot write sites (surfaced 2026-06-13).
-- [ ] (effort: S) **Remaining router Ping-sentinels.** `BridgeCore::tick`'s
-  expire-tick failure (`bifrost-router` ~294) and `fail_request_and_dispatch`'s
-  internal failure (~580) hardcode `PendingOpType::Ping` — and the inbound-request
-  failure path (~311) still does too. Type them where the op is known; expire is a
-  background tick so Ping may stay (surfaced 2026-06-13; line refs re-verified 2026-06-15).
+- [ ] (effort: S) **Router Ping-sentinel — type `fail_request_and_dispatch` (~580).**
+  Adjudicated 2026-06-15: only this site can recover the real op type (look up
+  `op_type` from `pending_operations[request_id]`); the other two (`tick` expire ~294,
+  inbound-request ~311) are genuinely `Ping` (background tick / pre-parse, no known
+  op). bifrost-router is WASM-relevant, so **fold this one-line fix into the NIP-44
+  unify task** (it rides the same WASM rebuild) rather than incur a standalone blob
+  cycle — bifrost-router.
 
 ## igloo-pwa
 
@@ -283,30 +285,43 @@ corrected. The remaining Medium/Low findings stay in the per-target reports.
 
 ### Correctness / CI (highest confidence)
 
-- [ ] (effort: S) **`release-validation.yml` never fires on merge.** Its `push`
-  trigger targets `main`, but the repo's default branch is `master`, so the full
-  release matrix runs only on PRs, not post-merge. One-line fix — frostr-infra ·
-  audit 2026-06-13.
-- [ ] (effort: S) **bifrost-rs CI tests nonexistent crates.** `ci.yml` runs
-  `cargo test -p bifrost-node / bifrost-transport-ws / bifrost-dev`; none exist
-  (the real crate is `bifrost-devtools`), so those steps error out. Fix the crate
-  names — bifrost-rs · audit 2026-06-13.
+- [x] (effort: S) **`release-validation.yml` never fires on merge — DONE (2026-06-15).**
+  The `push` trigger now includes `master` (the default branch), so the release
+  matrix runs post-merge, not only on PRs.
+- [x] (effort: S) **bifrost-rs CI rewritten to the current layout — DONE (2026-06-15).**
+  The whole `checks` matrix tested a vanished node-era architecture (bifrost-node /
+  bifrost-transport-ws / bifrost-dev, devnet/test-node-e2e/tui scripts,
+  node_ws_multi_peer_example) — bigger than wrong crate names. Replaced the dead
+  `test-*` shards with one `cargo test --workspace` (covers every real crate incl.
+  the NIP-44 KATs; rot-proof), dropped the gone runtime-e2e/check-example steps +
+  the bifrost-dev regressions job, kept fmt/clippy/check/coverage/security-audit.
+  **NB:** the (unchanged) clippy `-D warnings` job now surfaces pre-existing
+  bifrost-profile lints — see the new item below.
+- [ ] (effort: S) **bifrost-profile `clippy::too_many_arguments` (3 fns in
+  `rotation_intent`).** Pre-existing; the repaired CI's clippy `-D warnings` job
+  fails on them. bifrost-profile is WASM-relevant, so fix on the next
+  blob-touching change (e.g. the NIP-44 unify task) to avoid a standalone WASM
+  rebuild/re-stamp — bifrost-rs · surfaced 2026-06-15.
 
 ### Crypto / secret seam
 
-- [ ] (effort: M) **Adjudicate + KAT-test the NIP-44 conversation-key seam.** The
-  messaging path (`nip44Encrypt/Decrypt` → `deriveConversationKeyFromSharedSecret`)
-  derives the key from the threshold-ECDH secret (`SHA256(point)` out of
-  `combine_ecdh_packages`), while the onboarding path uses the library's
-  raw-X-coordinate `getConversationKey` — **different IKM**. (The audit's
-  "HMAC instead of HKDF-Extract" framing is wrong: `HMAC(salt, IKM)` *is*
-  HKDF-Extract.) Confirm which derivation is NIP-44-interop-correct, then pin
-  known-answer vectors at the NIP-44 + FROST seams so a self-consistent-but-wrong
-  derivation can't pass — igloo-shared + bifrost-rs · audit 2026-06-13.
-- [ ] (effort: M) **Unit/KAT tests for the NIP-44 + bridge cipher path.**
-  `nip44Encrypt`/`nip44Decrypt` and the `BrowserBridgeNode` connect/sign/ECDH path
-  have no unit-level tests (only cross-repo e2e). This is the seam that hid the
-  KDF question above — igloo-shared · audit 2026-06-13.
+- [ ] (effort: M) **Unify app-facing NIP-44 on the standard raw-X derivation
+  (adjudicated 2026-06-15 — it's a real interop bug).** The messaging path
+  (`nip44Encrypt/Decrypt` → `deriveConversationKeyFromSharedSecret`) keys NIP-44 on
+  `SHA256(combined ECDH point)` (out of bifrost-core `combine_ecdh_packages`), while
+  standard NIP-44 — and FROSTR's own onboarding path (`getConversationKey`) — uses
+  the raw X-coordinate. Since `window.nostr.nip44.{encrypt,decrypt}` are live
+  NIP-07 provider methods, FROSTR's app-facing NIP-44 ciphertext is **not
+  decryptable by any standard NIP-44 peer** (and vice versa). Fix: expose the
+  combined point's raw X-coordinate from `combine_ecdh_packages` (without breaking
+  other consumers of the hashed secret) and feed standard `getConversationKey`, so
+  all NIP-44 uses one derivation. Crypto-core change → WASM rebuild + re-stamp +
+  re-vendor; re-pin Rust KATs + add TS-side KATs (the cipher path has no TS unit
+  coverage today); flag-day note (messages are ephemeral — no stored-ciphertext
+  migration). **Fold in the router Ping-sentinel fix** (below) — it rides the same
+  WASM rebuild. The non-standard seam is now documented in
+  `igloo-shared/src/runtime-internal.ts`. Its own focused, adversarially-reviewed
+  plan — igloo-shared + bifrost-rs.
 
 ### Secret hygiene ("decide once, propagate")
 
@@ -324,33 +339,35 @@ corrected. The remaining Medium/Low findings stay in the per-target reports.
 
 ### Trust boundaries
 
-- [ ] (effort: M) **Replace `window.postMessage('*')` page bridge.** The content
-  bridge broadcasts signed events / encryption results with target origin `'*'`
-  and a spoofable envelope (`EXTENSION_SOURCE` + a `Date.now()/random` id), so a
-  cross-origin frame can sniff results and a page script can forge a
-  `provider_response`. Use a MessageChannel handshake (or at minimum
-  `window.location.origin`) — igloo-chrome · audit 2026-06-13.
-- [ ] (effort: S) **Redact the runtime-log suffix on thrown errors.**
-  `connectOnboardingPackageAndCaptureProfile`'s catch appends the last 20 runtime
-  log lines (verbatim `error_message`) to the thrown error, which reaches the UI
-  banner. Latent secret leak if bifrost ever emits key material there — allow-list
-  / redact before surfacing — igloo-pwa · audit 2026-06-13.
+- [x] (effort: M) **Origin-pinned the `window.postMessage` page bridge — DONE
+  (2026-06-15).** The content script + injected provider now post with
+  `window.location.origin` (not `'*'`) and validate `event.origin ===
+  window.location.origin` on both inbound handlers, closing the cross-origin
+  sniff + forge vectors. Chose origin-pin over a MessageChannel handshake (the
+  audit's documented minimum; smaller diff). Unit test asserts a foreign-origin
+  response is dropped — igloo-chrome.
+- [x] (effort: S) **Redacted the runtime-log suffix on thrown errors — DONE
+  (2026-06-15).** The breadcrumb appended to the surfaced error is now an
+  allow-list of structured fields (`domain.event` + `request_id`) built from the
+  observability events — never the verbatim `error_message` — igloo-pwa.
 
 ### UI correctness
 
-- [ ] (effort: S) **`activeView` dead branches render a blank pane.**
-  `'create-choice'` and `'settings'` are members of the `PwaView` union but have
-  no branch in the `App.tsx` `activeView` dispatch; the live trigger is a
-  mid-create reload bounce-back (`store.tsx:412`). Add the render branches or
-  remove the members from the union — igloo-pwa · audit 2026-06-13.
+- [x] (effort: S) **`activeView` dead branches removed — DONE (2026-06-15).**
+  Dropped `'create-choice'` and `'settings'` from the `PwaView` union (neither had
+  a render branch); the mid-create reload fallback that set `'create-choice'` (the
+  blank pane) now bounces to `'landing'`, and the unused `startCreateChoice` action
+  is gone — igloo-pwa.
 
 ### Demo / test hardening (low prod risk, factual)
 
-- [ ] (effort: S) **Harden the demo harness secret handling.** `entrypoint.sh`
-  passes the shell passphrase as `--passphrase <value>` on argv (visible in
-  `/proc/<pid>/cmdline`) and does `chmod 0777` / `chmod -R a+rwX` on
-  secret-bearing dirs. The shell already supports stdin / `--passphrase-file`;
-  switch to it and tighten the perms — frostr-infra · audit 2026-06-13.
+- [x] (effort: S) **Demo passphrase off argv — DONE (2026-06-15).** `import` and
+  `daemon start` now read the passphrase from a `0600` `mktemp /tmp` file via
+  `--passphrase-file` (removed from `/proc/<pid>/cmdline`), cleaned up on exit.
+  **Deliberately NOT done:** the `chmod 0777`/`a+rwX` on the artifact dir + socket
+  are load-bearing for the demo's Docker cross-UID/mount access, and tightening
+  them risks breaking the (ephemeral, hardcoded-passphrase) harness for ~nil real
+  gain — frostr-infra.
 
 ### Code health (large / cross-cutting)
 
@@ -368,12 +385,10 @@ corrected. The remaining Medium/Low findings stay in the per-target reports.
 
 ### Deprecation
 
-- [ ] (effort: S) **Remove or gate the NIP-04 provider surface (igloo-chrome).**
-  `nip04.encrypt`/`decrypt` are exposed, routed, and prompt the user for
-  permission, then hard-throw "NIP-04 is not planned for the v2 runtime path".
-  Drop the dead surface (or gate it before the permission prompt) so sites don't
-  get approval dialogs for a method that always fails — igloo-chrome ·
-  audit 2026-06-13.
+- [x] (effort: S) **Removed the dead NIP-04 provider surface — DONE (2026-06-15).**
+  Deleted the `nip04.{encrypt,decrypt}` provider methods, routing, permission
+  labels, and the throwing execution branch (they prompted then hard-threw "not
+  planned for v2") — igloo-chrome.
 
 ## Open questions
 
