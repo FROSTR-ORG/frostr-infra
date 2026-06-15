@@ -1,4 +1,4 @@
-# Hand-off: L-task program — seam + telemetry + consolidation + approval-queue + dashboard-states + NIP-44 raw-X interop DONE; pick the next L item
+# Hand-off: L-task program — … + NIP-44 standard interop (raw-X + padding + Lagrange) DONE; pick the next L item
 
 _Last updated: 2026-06-15_
 
@@ -19,11 +19,50 @@ _Last updated: 2026-06-15_
 > also carries **pre-existing, unrelated WIP** (`dev/audit/*`) that is NOT ours —
 > leave it; commit only explicit paths.
 >
-> **▶ NEXT: pick the next L item** from `BACKLOG.md`. The NIP-44 unify task is now
-> **done** (raw-X hard cut — see the new `✅ Done` section); its only residue is a
-> logged, non-blocking follow-up: a real `@live` test that drives
-> `window.nostr.nip44.encrypt` through the chrome/pwa provider and decrypts with a
-> standard `nostr-tools` client.
+> **▶ NEXT: pick the next L item** from `BACKLOG.md`. NIP-44 standard interop is now
+> **fully done** — the `@live` interop test (see the new `✅ Done` section) drove out
+> and fixed two further bugs beyond the raw-X work (unpadded base64; a missing
+> Lagrange in threshold ECDH), so app-facing `window.nostr.nip44` now interoperates
+> with standard nostr clients for **real t-of-n groups**, not just threshold-1. No
+> NIP-44 residue remains.
+
+## ✅ Done: NIP-44 standard interop completed — Lagrange + padding + @live test (+ guard/socket hardening)
+
+**Landed (submodule-then-pointer):** bifrost-rs `38bbba3`, igloo-shell `eb4c421`,
+igloo-shared `8fccc0b`, igloo-pwa `b958ee5`, igloo-chrome `3e2713f` → parent
+`d529674`. **WASM-relevant → blob rebuilt + re-stamped + re-vendored.** Plan:
+`plans/vivid-swinging-pony.md`. This batch started as three follow-ups; the new
+`@live` test then revealed the raw-X fix alone wasn't sufficient for real groups.
+
+- **The decisive find (`@live` test).** A new `test/igloo-chrome/specs/provider-live-nip44.spec.ts`
+  case encrypts via the real `window.nostr.nip44.encrypt` on a live 2-of-3 group and
+  decrypts with a standard `nostr-tools` client (and vice versa) against an external
+  counterparty. It caught two interop bugs unit tests couldn't:
+  - **Padding (igloo-shared `8fccc0b`):** app-facing `nip44Encrypt` emitted *unpadded*
+    base64 (`normalizeNip44PayloadForRust`); strict standard decoders reject it. Now
+    returns canonical padded base64; decrypt still re-pads, so both forms decode.
+  - **Missing Lagrange (bifrost-rs `d8264a4` + test `38bbba3`):** threshold ECDH summed
+    *unweighted* shares → `(Σ shares)·C`, not `group_secret·C`, for any t-of-n, t>1.
+    Self-consistent (so FROSTR↔FROSTR and all prior threshold-1 tests passed) but not
+    standard-interoperable. FROSTR V1 (`@vbyte/frost` `calc_lagrange_coeff`) applies the
+    weighting; the Rust port had dropped it (the `members` quorum was passed but unused).
+    Restored over the already-plumbed `members` set; verified by a 2-of-3 source test
+    and a real-keygen cross-quorum test (any quorum → same group-key secret).
+  - **Result:** the `@live` test passes both directions; `getConversationKey(c,
+    groupPublicKey)` decrypts FROSTR output. NIP-44 is chrome-extension-only (PWA has no
+    nip44 surface), so the test is chrome-only.
+- **Guard (parent `Makefile`):** `demo-pair-check` now `cargo check --all-targets`
+  (was bin-only) → catches igloo-shell test-fixture drift at pointer-bump time.
+  Verified it fails on a dropped fixture field and passes clean. Closes the recurring
+  BACKLOG item.
+- **Socket test (igloo-shell `eb4c421`):** fake-daemon sockets bind under a short
+  `/tmp` root so the `sun_path`-limited `typed_daemon_helpers_decode_mutation_results`
+  runs on macOS/long-`$TMPDIR` (was Linux-CI-only green).
+
+**Verified:** bifrost-rs `cargo test --workspace` + clippy `-D warnings` + fmt;
+igloo-shared 151 units (incl. padding + interop regressions); chrome 98 + pwa 65;
+`make test-fast` (17); wasm stamp guard; `cargo test -p igloo-shell-core` on macOS;
+and the new chrome `@live` interop test (both directions, live 2-of-3).
 
 ## ✅ Done: NIP-44 app-facing raw-X interop fix (crypto-core unify)
 
