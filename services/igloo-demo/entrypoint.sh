@@ -26,12 +26,22 @@ IGLOO_SHELL_DEMO_ARTIFACT_DIR="${IGLOO_SHELL_DEMO_ARTIFACT_DIR:-${FROSTR_TEST_HA
 IGLOO_SHELL_DEMO_PASSWORD_BYTES="${IGLOO_SHELL_DEMO_PASSWORD_BYTES:-16}"
 IGLOO_SHELL_DEMO_PASSPHRASE="${IGLOO_SHELL_DEMO_PASSPHRASE:-dev-harness-passphrase}"
 IGLOO_SHELL_DEMO_XDG_ROOT="${IGLOO_SHELL_DEMO_XDG_ROOT:-${IGLOO_SHELL_DEMO_ARTIFACT_DIR}/igloo-shell-home}"
-IGLOO_SHELL_DEMO_STATE_LINK="${IGLOO_SHELL_DEMO_STATE_LINK:-/w}"
+# Short alias for the (long, bind-mounted) XDG_STATE_HOME. Lives under
+# world-writable /tmp because `/` is not writable by the non-root container
+# user (so the historical `/w` at the filesystem root cannot be created).
+IGLOO_SHELL_DEMO_STATE_LINK="${IGLOO_SHELL_DEMO_STATE_LINK:-/tmp/w}"
+# Short, writable XDG_RUNTIME_DIR for the daemon's AF_UNIX control socket.
+# igloo-shell shortens the socket to `<XDG_RUNTIME_DIR>/igloo-shell-<hash>.sock`
+# when the state-dir path would exceed the 100-byte sun_path budget; the
+# default `/run/user/$UID` does not exist for the non-root demo user, so the
+# fallback would otherwise fail with SocketPathTooLong.
+IGLOO_SHELL_DEMO_RUNTIME_DIR="${IGLOO_SHELL_DEMO_RUNTIME_DIR:-/tmp/r}"
 IGLOO_SHELL_DEMO_TMPDIR="${IGLOO_SHELL_DEMO_TMPDIR:-${IGLOO_SHELL_DEMO_ARTIFACT_DIR}/tmp}"
 
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/data}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-${IGLOO_SHELL_DEMO_STATE_LINK}}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-${IGLOO_SHELL_DEMO_RUNTIME_DIR}}"
 # The daemon's XDG_STATE_HOME socket path (.../profiles/<64-hex>/daemon.sock)
 # is exactly 100 bytes even via the short `/w` link, which the C.4 daemon
 # hardening rejects (sun_path budget is <100), so the daemon uses its

@@ -100,13 +100,31 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
             // Mark the opened profile as Active; others as Available.
             // VAL-SHELL-015: active status reflects running signer.
             // VAL-CROSS-009: at most one active runtime.
+            let mut profile_label = String::new();
             for p in next.hub.profiles.iter_mut() {
                 if p.profile_id == *profile_id {
                     p.status = ProfileStatus::Active;
+                    profile_label = p.label.clone();
                 } else {
                     p.status = ProfileStatus::Available;
                 }
             }
+            // Seed a minimal identity block with the label we have from the hub
+            // so the dashboard header shows the device name immediately. The
+            // shell will load the full material and dispatch OpenDashboard to
+            // populate share_pubkey / group_pubkey.
+            // (mobile-signer-startup-profile-info-fix)
+            next.dashboard.profile_info = Some(ProfileInfo {
+                device_name: profile_label,
+                share_pubkey: String::new(),
+                group_pubkey: String::new(),
+                profile_id: profile_id.clone(),
+            });
+            // Emit side effect so the shell loads the stored material and
+            // dispatches OpenDashboard with full identity data.
+            side_effect = Some(AppUpdate::RestoreFromSecureStorage {
+                profile_id: profile_id.clone(),
+            });
             next.router.screen = Screen::Dashboard;
         }
 
@@ -358,6 +376,15 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                         ProfileStatus::Active,
                     ));
                 }
+                // Populate dashboard identity block so the signer tab
+                // can start the runtime without a shell round-trip
+                // (mobile-signer-startup-profile-info-fix).
+                next.dashboard.profile_info = Some(ProfileInfo {
+                    device_name: resolved.device_name.clone(),
+                    share_pubkey: resolved.share_pubkey.clone(),
+                    group_pubkey: resolved.group_pubkey.clone(),
+                    profile_id: profile_id.clone(),
+                });
             }
             // Reset onboarding and navigate to dashboard.
             next.onboarding.reset();
@@ -573,6 +600,15 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                         ProfileStatus::Active,
                     ));
                 }
+                // Populate dashboard identity block so the signer tab
+                // can start the runtime without a shell round-trip
+                // (mobile-signer-startup-profile-info-fix).
+                next.dashboard.profile_info = Some(ProfileInfo {
+                    device_name: resolved.device_name.clone(),
+                    share_pubkey: resolved.share_pubkey.clone(),
+                    group_pubkey: resolved.group_pubkey.clone(),
+                    profile_id: profile_id.clone(),
+                });
             }
             next.load_profile.reset();
             next.router.screen = Screen::Dashboard;
