@@ -25,4 +25,5 @@ CLAUDE.md
 .DS_Store
 NOTES.md
 !dev/audit/NOTES.md
+!dev/audit/**/NOTES.md
 TODO.md
