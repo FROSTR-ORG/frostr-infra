@@ -3367,6 +3367,16 @@ data class SignerRuntimeState (
      * Result of the last completed test ECDH operation (VAL-SIGN-005).
      */
     var `lastTestEcdh`: TestEcdhResultData?
+    , 
+    /**
+     * Highest `events_len` value the actor has ingested from shell polls.
+     * Used to dedupe the per-poll cadence so a single runtime
+     * transition only produces one safe INFO row. The runtime counter
+     * follows the bridge count down on restarts/recovery so a
+     * post-recovery advancement appends exactly one fresh row.
+     * `mobile-create-keyset-flow` events_len contract.
+     */
+    var `runtimeObservedEventsLen`: kotlin.ULong
     
 ){
     
@@ -3395,6 +3405,7 @@ public object FfiConverterTypeSignerRuntimeState: FfiConverterRustBuffer<SignerR
             FfiConverterOptionalTypeTestSignResultData.read(buf),
             FfiConverterBoolean.read(buf),
             FfiConverterOptionalTypeTestEcdhResultData.read(buf),
+            FfiConverterULong.read(buf),
         )
     }
 
@@ -3410,7 +3421,8 @@ public object FfiConverterTypeSignerRuntimeState: FfiConverterRustBuffer<SignerR
             FfiConverterBoolean.allocationSize(value.`testSignInProgress`) +
             FfiConverterOptionalTypeTestSignResultData.allocationSize(value.`lastTestSign`) +
             FfiConverterBoolean.allocationSize(value.`testEcdhInProgress`) +
-            FfiConverterOptionalTypeTestEcdhResultData.allocationSize(value.`lastTestEcdh`)
+            FfiConverterOptionalTypeTestEcdhResultData.allocationSize(value.`lastTestEcdh`) +
+            FfiConverterULong.allocationSize(value.`runtimeObservedEventsLen`)
     )
 
     override fun write(value: SignerRuntimeState, buf: ByteBuffer) {
@@ -3426,6 +3438,7 @@ public object FfiConverterTypeSignerRuntimeState: FfiConverterRustBuffer<SignerR
             FfiConverterOptionalTypeTestSignResultData.write(value.`lastTestSign`, buf)
             FfiConverterBoolean.write(value.`testEcdhInProgress`, buf)
             FfiConverterOptionalTypeTestEcdhResultData.write(value.`lastTestEcdh`, buf)
+            FfiConverterULong.write(value.`runtimeObservedEventsLen`, buf)
     }
 }
 

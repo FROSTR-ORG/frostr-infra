@@ -889,3 +889,309 @@ fn fresh_sign_ready_status_update_seeds_both_peers_offline() {
         );
     }
 }
+
+// ── Tests pinning the events_len / runtime event count advance contract ───
+//
+// The `mobile-create-keyset-flow` events_len fix introduces a small
+// delta-tracking field on the actor's `SignerRuntimeState`. When the
+// shell dispatches `AppAction::SignerStatusUpdate` with a higher
+// `events_len` than the actor has already ingested, the actor must
+// prepend exactly one safe INFO row to the dashboard event log. The
+// dedicated field prevents the polling cadence (~1s) from producing
+// duplicate rows every tick, which would otherwise corrupt
+// `dashboard.signer.events` semantics. This is mirrored by the polling
+// task in `lib.rs` which now reports the bridge-supplied count via
+// `cache.events_len` instead of hardcoding 0.
+//
+// All tests below exercise the public `igloo_mobile_core::update`
+// entry point so they survive internal refactors.
+
+/// AppAction helper: build a fully-populated `SignerStatusUpdate`
+/// from per-peer vectors and a caller-supplied `events_len`. Mirrors
+/// the existing `make_status_update` helper but lets the new tests
+/// advance the count independently of the polling tick.
+fn make_status_update_with_events_len(
+    peer_aliases: Vec<String>,
+    peer_pubkeys: Vec<String>,
+    peer_online: Vec<bool>,
+    peer_last_seen: Vec<Option<i64>>,
+    peer_incoming_available: Vec<u32>,
+    events_len: u32,
+) -> igloo_mobile_core::AppAction {
+    let n = peer_aliases.len();
+    igloo_mobile_core::AppAction::SignerStatusUpdate {
+        relay_connected: true,
+        readiness: "sign_ready".to_string(),
+        peer_aliases,
+        peer_pubkeys,
+        peer_online,
+        peer_last_seen,
+        peer_incoming_available: peer_incoming_available.clone(),
+        peer_outgoing_available: vec![0u32; n],
+        peer_outgoing_spent: vec![0u32; n],
+        pending_op_types: vec![],
+        pending_op_started_at: vec![],
+        last_refresh_secs: Some(1_700_000_005),
+        events_len,
+    }
+}
+
+#[test]
+fn signer_status_update_appends_info_row_on_events_len_increase() {
+    // First observe an `events_len` of 5 after the bridge transitions
+    // the runtime into a state with 5 known events. The actor must
+    // prepend exactly one INFO row whose message references the new
+    // count so the existing event log remains newest-first usable.
+    use igloo_mobile_core::{AppState, LogLevel, SignerStatus};
+    let mut state = AppState::initial();
+    state.router.screen = igloo_mobile_core::Screen::Dashboard;
+    state.dashboard.signer.status = SignerStatus::Running;
+
+    let action = make_status_update_with_events_len(
+        vec!["alice".to_string()],
+        vec!["alice".to_string()],
+        vec![true],
+        vec![Some(1_700_000_005)],
+        vec![3],
+        5,
+    );
+    let (next, _effect) = igloo_mobile_core::update(&state, &action);
+
+    assert_eq!(
+        next.dashboard.signer.events.len(),
+        1,
+        "actor must append exactly one INFO row when the observed events_len advances from 0 to 5"
+    );
+    let entry = &next.dashboard.signer.events[0];
+    assert_eq!(
+        entry.level,
+        LogLevel::Info,
+        "events_len advance appends a safe INFO row (no WARN/ERROR)"
+    );
+    assert!(
+        entry.message.contains("5"),
+        "the appended row must reference the new event count; got '{}'",
+        entry.message
+    );
+    assert!(
+        entry.message.to_lowercase().contains("event"),
+        "the message must clearly reference runtime events; got '{}'",
+        entry.message
+    );
+    assert_eq!(
+        next.dashboard.signer.runtime_observed_events_len, 5,
+        "actor must track the latest observed events_len so subsequent polls deduplicate"
+    );
+}
+
+#[test]
+fn signer_status_update_does_not_duplicate_on_unchanged_events_len() {
+    // After the actor observed `events_len=5`, an unchanged `events_len=5`
+    // must not append another row. This prevents the polling cadence
+    // from corrupting the event log on every tick.
+    use igloo_mobile_core::{AppState, SignerStatus};
+    let mut state = AppState::initial();
+    state.router.screen = igloo_mobile_core::Screen::Dashboard;
+    state.dashboard.signer.status = SignerStatus::Running;
+    state.dashboard.signer.events = Vec::new();
+
+    let first = make_status_update_with_events_len(
+        vec!["alice".to_string()],
+        vec!["alice".to_string()],
+        vec![true],
+        vec![Some(1_700_000_005)],
+        vec![3],
+        5,
+    );
+    let (after_first, _e1) = igloo_mobile_core::update(&state, &first);
+    assert_eq!(
+        after_first.dashboard.signer.events.len(),
+        1,
+        "first observation must append the canonical row"
+    );
+
+    // Second poll with the same events_len must NOT append.
+    let second = make_status_update_with_events_len(
+        vec!["alice".to_string()],
+        vec!["alice".to_string()],
+        vec![true],
+        vec![Some(1_700_000_006)],
+        vec![3],
+        5,
+    );
+    let (after_second, _e2) = igloo_mobile_core::update(&after_first, &second);
+    assert_eq!(
+        after_second.dashboard.signer.events.len(),
+        1,
+        "unchanged events_len must not append a duplicate row (cycle 2 expectation)"
+    );
+    assert_eq!(
+        after_second.dashboard.signer.runtime_observed_events_len, 5,
+        "tracked count must not regress on a duplicate-count poll"
+    );
+}
+
+#[test]
+fn signer_status_update_uses_rfc3339_timestamp_in_info_row() {
+    // The mobile-signer-event-log-timestamp-rfc3339-fix handed off the
+    // `display_timestamp_rfc3339()` helper. The events_len INFO row
+    // must continue to use that helper so validators see a stable
+    // YYYY-MM-DDTHH:MM:SSZ shape (VAL-SIGNER-012).
+    use igloo_mobile_core::{AppState, SignerStatus};
+    let mut state = AppState::initial();
+    state.router.screen = igloo_mobile_core::Screen::Dashboard;
+    state.dashboard.signer.status = SignerStatus::Running;
+
+    let action = make_status_update_with_events_len(
+        vec!["alice".to_string()],
+        vec!["alice".to_string()],
+        vec![true],
+        vec![Some(1_700_000_005)],
+        vec![3],
+        7,
+    );
+    let (next, _effect) = igloo_mobile_core::update(&state, &action);
+
+    let entry = next.dashboard.signer.events.first().expect("event row");
+    let re: &str = entry.timestamp.as_str();
+    assert!(
+        re.len() >= 20 && re.ends_with('Z'),
+        "timestamp must end with 'Z' (UTC) for an RFC-3339 wall clock; got '{}'",
+        re
+    );
+    let date_part: String = re.chars().take(10).collect();
+    assert!(
+        date_part.len() == 10
+            && date_part.chars().nth(4) == Some('-')
+            && date_part.chars().nth(7) == Some('-'),
+        "timestamp must start with YYYY-MM-DD; got '{}'",
+        date_part
+    );
+    let time_part: String = re.chars().skip(11).take(8).collect();
+    assert!(
+        time_part.len() == 8
+            && time_part.chars().nth(2) == Some(':')
+            && time_part.chars().nth(5) == Some(':'),
+        "timestamp must contain the HH:MM:SS UTC time after the date; got '{}'",
+        time_part
+    );
+}
+
+#[test]
+fn signer_status_update_preserves_existing_events_after_info_append() {
+    // The mobile-signer-event-log-timestamp-rfc3339 precondition is that
+    // Rust-emitted rows (signer start, refresh, sign results) stay
+    // intact and newest-first. The events_len INFO row must prepend
+    // at index 0 without reordering or replacing existing entries.
+    use igloo_mobile_core::{AppState, LogEntry, LogLevel, SignerStatus};
+    let mut state = AppState::initial();
+    state.router.screen = igloo_mobile_core::Screen::Dashboard;
+    state.dashboard.signer.status = SignerStatus::Running;
+    // Pre-existing event from earlier actor action (e.g. Start signer).
+    state.dashboard.signer.events = vec![LogEntry {
+        level: LogLevel::Info,
+        timestamp: "2026-06-13T12:00:00Z".to_string(),
+        message: "Signer runtime started".to_string(),
+    }];
+
+    let action = make_status_update_with_events_len(
+        vec!["alice".to_string()],
+        vec!["alice".to_string()],
+        vec![true],
+        vec![Some(1_700_000_005)],
+        vec![3],
+        4,
+    );
+    let (next, _effect) = igloo_mobile_core::update(&state, &action);
+
+    assert_eq!(
+        next.dashboard.signer.events.len(),
+        2,
+        "events_len advance must prepend without removing the prior Rust-emitted row"
+    );
+    assert!(
+        next.dashboard.signer.events[0]
+            .message
+            .to_lowercase()
+            .contains("event"),
+        "index 0 must be the newest events_len row"
+    );
+    assert_eq!(
+        next.dashboard.signer.events[1].message, "Signer runtime started",
+        "index 1 must be the prior Rust-emitted row, unchanged"
+    );
+}
+
+#[test]
+fn signer_status_update_recovers_when_events_len_drops_then_advances_again() {
+    // A regression must not append a row when the count decreases,
+    // because the actor treats it as a recovery (restart cleared the
+    // bridge's own counter). Once the count re-advances past the
+    // (now-lowered) tracked value, exactly one new row is appended.
+    use igloo_mobile_core::{AppState, SignerStatus};
+    let mut state = AppState::initial();
+    state.router.screen = igloo_mobile_core::Screen::Dashboard;
+    state.dashboard.signer.status = SignerStatus::Running;
+
+    // First poll establishes the actor's tracked count at 10.
+    let high = make_status_update_with_events_len(
+        vec!["alice".to_string()],
+        vec!["alice".to_string()],
+        vec![true],
+        vec![Some(1_700_000_005)],
+        vec![3],
+        10,
+    );
+    let (after_high, _) = igloo_mobile_core::update(&state, &high);
+    assert_eq!(after_high.dashboard.signer.events.len(), 1);
+    assert_eq!(after_high.dashboard.signer.runtime_observed_events_len, 10);
+
+    // Recovery poll: the bridge restarted; only 2 events observed so
+    // far. NO row should be appended because the count decreased.
+    let recovered = make_status_update_with_events_len(
+        vec!["alice".to_string()],
+        vec!["alice".to_string()],
+        vec![true],
+        vec![Some(1_700_000_006)],
+        vec![3],
+        2,
+    );
+    let (after_recovered, _) = igloo_mobile_core::update(&after_high, &recovered);
+    assert_eq!(
+        after_recovered.dashboard.signer.events.len(),
+        1,
+        "recovery with lower events_len must NOT append a duplicate or recovery row"
+    );
+    assert_eq!(
+        after_recovered.dashboard.signer.runtime_observed_events_len, 2,
+        "tracked count must follow the recovery down to its new minimum"
+    );
+
+    // Subsequent advancement from the recovered baseline appends
+    // exactly one fresh row and references the new count.
+    let next = make_status_update_with_events_len(
+        vec!["alice".to_string()],
+        vec!["alice".to_string()],
+        vec![true],
+        vec![Some(1_700_000_007)],
+        vec![3],
+        3,
+    );
+    let (after_advance, _) = igloo_mobile_core::update(&after_recovered, &next);
+    assert_eq!(
+        after_advance.dashboard.signer.events.len(),
+        2,
+        "advancing past the recovered baseline appends exactly one new INFO row"
+    );
+    assert!(
+        after_advance.dashboard.signer.events[0]
+            .message
+            .contains("3"),
+        "the latest row must reference the post-recovery count; got '{}'",
+        after_advance.dashboard.signer.events[0].message
+    );
+    assert_eq!(
+        after_advance.dashboard.signer.runtime_observed_events_len, 3,
+        "tracked count must follow the recovered advancement"
+    );
+}
