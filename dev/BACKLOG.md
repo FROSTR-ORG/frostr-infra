@@ -106,13 +106,10 @@ Group by area. When an item is finished, move a one-line summary to
   snapshot (it adopts the live node), so chrome is the sole remaining producer/consumer
   of onboard snapshots. Must stay back-compatible (treat un-versioned snapshots as
   restorable) — igloo-shared + the chrome snapshot write sites (surfaced 2026-06-13).
-- [ ] (effort: S) **Router Ping-sentinel — type `fail_request_and_dispatch` (~580).**
-  Adjudicated 2026-06-15: only this site can recover the real op type (look up
-  `op_type` from `pending_operations[request_id]`); the other two (`tick` expire ~294,
-  inbound-request ~311) are genuinely `Ping` (background tick / pre-parse, no known
-  op). bifrost-router is WASM-relevant, so **fold this one-line fix into the NIP-44
-  unify task** (it rides the same WASM rebuild) rather than incur a standalone blob
-  cycle — bifrost-router.
+- [x] (effort: S) **DONE (2026-06-15).** Router Ping-sentinel — `fail_request_and_dispatch`
+  now recovers the real op type from `pending_operations[request_id]` (falling back to
+  `Ping` only when absent); the `tick` expire / inbound-request sites stay `Ping` as
+  adjudicated. Rode the NIP-44 raw-X WASM rebuild — bifrost-rs `c47d76e`.
 
 ## igloo-pwa
 
@@ -216,7 +213,12 @@ Group by area. When an item is finished, move a one-line summary to
   fixture missing `PeerStatus` fields, only caught 2026-06-14 by a local
   `clippy --all-targets`. Strengthen the guard to `cargo clippy --all-targets`
   (or `cargo test --no-run`) for igloo-shell (and bifrost-devtools) so fixture/test
-  drift is caught at pointer-bump time, not later (surfaced 2026-06-14).
+  drift is caught at pointer-bump time, not later (surfaced 2026-06-14). **Recurred
+  2026-06-15:** the dashboard-states `RuntimeStatusSummary` field additions
+  (last_sign_failure / connected_relays / configured_relays / last_load_error) rotted
+  the shell's `sample_runtime_status` fixture the same silent way; re-fixed in
+  igloo-shell `f3db913`. The guard itself is still bin-only — this item stays open
+  until the guard is strengthened.
 - [ ] (effort: M) **igloo-shell full approval round-trip integration test.** The shell
   path's approval coverage is only smoke-level today (`policy_integration.rs`: an `ask`
   override persists; `runtime resolve-approval` on an unknown id is a no-op success). Add
@@ -297,31 +299,40 @@ corrected. The remaining Medium/Low findings stay in the per-target reports.
   the bifrost-dev regressions job, kept fmt/clippy/check/coverage/security-audit.
   **NB:** the (unchanged) clippy `-D warnings` job now surfaces pre-existing
   bifrost-profile lints — see the new item below.
-- [ ] (effort: S) **bifrost-profile `clippy::too_many_arguments` (3 fns in
-  `rotation_intent`).** Pre-existing; the repaired CI's clippy `-D warnings` job
-  fails on them. bifrost-profile is WASM-relevant, so fix on the next
-  blob-touching change (e.g. the NIP-44 unify task) to avoid a standalone WASM
-  rebuild/re-stamp — bifrost-rs · surfaced 2026-06-15.
+- [x] (effort: S) **DONE (2026-06-15).** bifrost-profile `clippy::too_many_arguments`
+  cleared with `#[allow(...)]` + rationale on the three builder/import functions
+  (and a `bifrost-app` `items_after_test_module` lint that the same `-D warnings` job
+  surfaced), so CI's clippy job is green. Rode the NIP-44 raw-X WASM rebuild —
+  bifrost-rs `acab2b0`.
 
 ### Crypto / secret seam
 
-- [ ] (effort: M) **Unify app-facing NIP-44 on the standard raw-X derivation
-  (adjudicated 2026-06-15 — it's a real interop bug).** The messaging path
-  (`nip44Encrypt/Decrypt` → `deriveConversationKeyFromSharedSecret`) keys NIP-44 on
-  `SHA256(combined ECDH point)` (out of bifrost-core `combine_ecdh_packages`), while
-  standard NIP-44 — and FROSTR's own onboarding path (`getConversationKey`) — uses
-  the raw X-coordinate. Since `window.nostr.nip44.{encrypt,decrypt}` are live
-  NIP-07 provider methods, FROSTR's app-facing NIP-44 ciphertext is **not
-  decryptable by any standard NIP-44 peer** (and vice versa). Fix: expose the
-  combined point's raw X-coordinate from `combine_ecdh_packages` (without breaking
-  other consumers of the hashed secret) and feed standard `getConversationKey`, so
-  all NIP-44 uses one derivation. Crypto-core change → WASM rebuild + re-stamp +
-  re-vendor; re-pin Rust KATs + add TS-side KATs (the cipher path has no TS unit
-  coverage today); flag-day note (messages are ephemeral — no stored-ciphertext
-  migration). **Fold in the router Ping-sentinel fix** (below) — it rides the same
-  WASM rebuild. The non-standard seam is now documented in
-  `igloo-shared/src/runtime-internal.ts`. Its own focused, adversarially-reviewed
-  plan — igloo-shared + bifrost-rs.
+- [x] (effort: M) **DONE (2026-06-15).** Unified app-facing NIP-44 on the standard
+  raw-X derivation (it was a real interop bug). bifrost-core `combine_ecdh_packages`
+  now returns the raw X-coordinate of the combined threshold point instead of
+  `SHA256(point)` (bifrost-rs `89ee694`); since the combined point equals the point a
+  normal ECDH with the group key produces, the app-facing
+  `window.nostr.nip44.{encrypt,decrypt}` conversation key now matches what any
+  standard nostr client derives. `deriveConversationKeyFromSharedSecret` already does
+  HKDF-Extract, so it needed no code change — only its warning comment was flipped to a
+  match-confirmation. **Blast radius:** the threshold secret flows only outbound to the
+  app-facing NIP-44 / native `EcdhResult`; cosigner protocol messages use the *share*
+  secret via `event_shared_x` (already raw-X) and were unaffected, so no flag-day and
+  the NIP-44 KATs were untouched. Hard cut (alpha — no flags/migration). Coverage: a
+  Rust source test pinning threshold-combine == standard ECDH raw-X
+  (`combine_returns_standard_raw_x_ecdh_secret`) and a TS interop regression test
+  (`igloo-shared/src/nip44-interop.test.ts`) proving FROSTR↔nostr-tools round-trips
+  both directions. WASM rebuilt + re-stamped + re-vendored (shared/pwa/chrome). A real
+  `@live` provider-vs-nostr-tools behavioral check remains a (non-blocking) follow-up.
+  — bifrost-rs + igloo-shared.
+- [ ] (effort: M) **`@live` NIP-44 interop behavioral test (gold-standard for the
+  raw-X fix).** The raw-X unification (above) is covered by a bifrost-core source test
+  + an igloo-shared `nostr-tools` unit test, but nothing drives the *real* provider
+  end-to-end. Add an `@live` flow that encrypts via `window.nostr.nip44.encrypt`
+  through the chrome/pwa provider (a running threshold group) and decrypts the
+  ciphertext with a standard `nostr-tools` client (and vice versa). Needs a live
+  provider + threshold group, hence deferred from the fix itself — test/ + igloo-pwa
+  or igloo-chrome · surfaced 2026-06-15.
 
 ### Secret hygiene ("decide once, propagate")
 
