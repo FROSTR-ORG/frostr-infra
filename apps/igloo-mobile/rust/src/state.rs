@@ -9,11 +9,11 @@ mod rotate_share;
 mod router;
 
 pub use dashboard::{
-    DashboardState, DashboardTab, LogEntry, LogLevel, NonceInventory, PeerPermissions,
-    PeerSelectionStrategy, PeerStatus, PendingOp, PendingOpType, PermissionsState, PolicyCell,
-    PolicyDirection, PolicyMethod, PolicyOverrideValue, ProfileInfo, RemotePolicyObservation,
-    SettingsState, SignerReadiness, SignerRuntimeState, SignerSettings, SignerStatus,
-    TestEcdhResultData, TestSignResultData,
+    BackupPublishStatus, DashboardState, DashboardTab, LogEntry, LogLevel, NonceInventory,
+    PeerPermissions, PeerSelectionStrategy, PeerStatus, PendingOp, PendingOpType, PermissionsState,
+    PolicyCell, PolicyDirection, PolicyMethod, PolicyOverrideValue, ProfileInfo,
+    RemotePolicyObservation, SettingsState, SignerReadiness, SignerRuntimeState, SignerSettings,
+    SignerStatus, TestEcdhResultData, TestSignResultData,
 };
 pub use hub::{HubState, ProfileStatus, StoredProfile};
 pub use keyset::{

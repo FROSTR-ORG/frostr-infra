@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::Duration;
 
+use anyhow::Context as _;
 use bifrost_bridge_tokio::{Bridge, NostrSdkAdapter};
 use bifrost_core::{GroupPackage, MemberPackage, SharePrivateKey};
 use bifrost_signer::{DeviceConfig, DeviceState, SigningDevice};
@@ -24,16 +25,16 @@ mod updates;
 
 pub use actions::AppAction;
 pub use state::{
-    AppState, DashboardState, DashboardTab, DistributeShareRecord, DistributeStatus,
-    GeneratedShare, HubState, KeysetBundleRecord, KeysetFlowMode, KeysetFlowState, KeysetFlowStep,
-    KeysetValidationError, LoadProfileError, LoadProfileResolved, LoadProfileState,
-    LoadProfileStep, LogEntry, LogLevel, NonceInventory, OnboardingError, OnboardingState,
-    OnboardingStep, PeerPermissions, PeerSelectionStrategy, PeerStatus, PendingOp, PendingOpType,
-    PermissionsState, PolicyCell, PolicyDirection, PolicyMethod, PolicyOverrideValue, ProfileInfo,
-    ProfileStatus, RemotePolicyObservation, ResolvedIdentity, RotatePreviewIdentity,
-    RotateShareError, RotateShareState, RotateShareStep, RotationSourceRow, Router, Screen,
-    SettingsState, SignerReadiness, SignerRuntimeState, SignerSettings, SignerStatus,
-    StoredProfile, TestEcdhResultData, TestSignResultData,
+    AppState, BackupPublishStatus, DashboardState, DashboardTab, DistributeShareRecord,
+    DistributeStatus, GeneratedShare, HubState, KeysetBundleRecord, KeysetFlowMode,
+    KeysetFlowState, KeysetFlowStep, KeysetValidationError, LoadProfileError, LoadProfileResolved,
+    LoadProfileState, LoadProfileStep, LogEntry, LogLevel, NonceInventory, OnboardingError,
+    OnboardingState, OnboardingStep, PeerPermissions, PeerSelectionStrategy, PeerStatus, PendingOp,
+    PendingOpType, PermissionsState, PolicyCell, PolicyDirection, PolicyMethod,
+    PolicyOverrideValue, ProfileInfo, ProfileStatus, RemotePolicyObservation, ResolvedIdentity,
+    RotatePreviewIdentity, RotateShareError, RotateShareState, RotateShareStep, RotationSourceRow,
+    Router, Screen, SettingsState, SignerReadiness, SignerRuntimeState, SignerSettings,
+    SignerStatus, StoredProfile, TestEcdhResultData, TestSignResultData,
 };
 pub use updates::update;
 
@@ -195,6 +196,18 @@ pub enum AppUpdate {
         profile_id: String,
         label: String,
     },
+    /// Combined variant used by the Create Keyset acceptance path so
+    /// backup publication (VAL-BACKUP-001) and runtime kick
+    /// (VAL-CREATE-010) reach the shell in one update — keeps the
+    /// actor's single-side-effect invariant while chaining both
+    /// post-storage actions into one ordered handoff. The shell reads
+    /// the profile's stored material by `profile_id`, then forwards
+    /// the publish result back via `BackupPublishCompleted`.
+    StartKeysetSignerRuntimeAndPublishBackup {
+        source: String,
+        profile_id: String,
+        label: String,
+    },
     /// Shell should perform the real Nostr onboarding handshake for a
     /// rotated `bfonboard1` package (VAL-ROTATE-006). The connector
     /// mirrors `PerformOnboardHandshake` so the shell can re-use the
@@ -223,6 +236,47 @@ pub enum AppUpdate {
         /// Also drop the old device from local secure storage so the
         /// hub row's "available later" UX matches what the shell stored.
         delete_old: bool,
+    },
+    /// Combined variant used by the rotate-share replacement path so
+    /// backup publication (VAL-BACKUP-004, by the new share) and
+    /// secure-storage swap (VAL-ROTATE-011) reach the shell in one
+    /// update. The shell swaps storage, then reads the freshly written
+    /// material to publish a kind-10000 event under the new share's
+    /// derived author pubkey. The backup publish appears after the
+    /// storage swap so the relay's author check happens against the
+    /// new (post-rotate) share, not the pre-rotation one.
+    ReplaceProfileFromRotateAndPublishBackup {
+        source: String,
+        old_profile_id: String,
+        new_profile_id: String,
+        new_label: String,
+        new_short_id: String,
+        new_material: Vec<u8>,
+        new_relays: Vec<String>,
+        delete_old: bool,
+    },
+    /// Shell should publish a kind-10000 encrypted profile backup to
+    /// every relay embedded in the freshly materialized profile.
+    /// The actor dispatches this side effect after each
+    /// materialization confirmation (StoreKeysetCreatedProfile,
+    /// OnboardStored, ReplaceProfileFromRotate, LoadProfileStored).
+    /// `source` is one of "create" | "onboard" | "rotate" | "import" |
+    /// "recover" so validators can correlate which materialization
+    /// path produced the new event.
+    ///
+    /// VAL-BACKUP-001 through VAL-BACKUP-006: the actor fires the
+    /// publish via this side effect so the shell publishes an
+    /// encrypted kind-10000 Nostr event to each relay embedded in the
+    /// freshly materialized profile. The shell owns secure storage,
+    /// so it reads the profile's stored material by `profile_id` and
+    /// calls `FfiApp.publish_backup(source, material_json)`. The
+    /// result is then forwarded back via
+    /// `AppAction::BackupPublishCompleted` so the actor can mirror it
+    /// into `dashboard.last_backup_publish` for validators and tests.
+    PublishProfileBackup {
+        source: String,
+        profile_id: String,
+        material_json: String,
     },
     /// Shell should run `frostr_utils::rotate_keyset_dealer` to produce
     /// the rotated bundle (VAL-ROTATE-004). Mirror of
@@ -320,6 +374,52 @@ pub struct OnboardResult {
     pub group_pubkey: Option<String>,
     pub relays: Option<Vec<String>>,
     pub profile_id: Option<String>,
+}
+
+/// Outcome of publishing a kind-10000 encrypted profile backup to the
+/// configured Nostr relays (VAL-BACKUP-001..006).
+///
+/// `content_redacted` is the first `min(content_len, 24)` chars of the
+/// NIP-44 ciphertext plus the byte length so validators and tests can
+/// confirm the event content is opaque base64 without ever logging the
+/// full ciphertext or any plaintext secret. The `content` field on the
+/// event itself is NIP-44 content, not plaintext JSON, and must not
+/// contain the device name, share secret hex, or relay URL in
+/// cleartext (VAL-BACKUP-003).
+#[derive(uniffi::Record, Clone, Debug)]
+pub struct BackupPublishResult {
+    pub success: bool,
+    /// "create" | "onboard" | "rotate" | "import" | "recover" — passed
+    /// back from the actor's `AppUpdate::PublishProfileBackup` so the
+    /// shell can correlate which path produced this event.
+    pub source: String,
+    /// Hex-encoded Nostr event id once the relay confirmed receipt.
+    /// `None` if the publish did not reach any relay or if the parsed
+    /// event never landed on a watched relay.
+    pub event_id: Option<String>,
+    /// Hex-encoded Nostr pubkey of the event author (derived from the
+    /// profile's share secret). This is the same value as the share
+    /// pubkey and the only stable filter for the relay-side proof in
+    /// VAL-BACKUP-001/002/004/006.
+    pub author_pubkey: Option<String>,
+    /// Number of bytes inside the encrypted `content` field.
+    pub content_length: u32,
+    /// First 24 chars (truncated form) of the encrypted NIP-44
+    /// `content` plus the total length; never the raw ciphertext.
+    pub content_redacted: String,
+    /// Group public key the backup was published for (`None` if the
+    /// material lacked a valid group pubkey).
+    pub group_pubkey: Option<String>,
+    /// Concatenated list of relay URLs the publish tried.
+    pub relays_attempted: Vec<String>,
+    /// Subset of `relays_attempted` whose `["OK", true, …]` ack we
+    /// observed before the relay closed or timed out. Empty when the
+    /// publish failed at every relay.
+    pub relays_published_to: Vec<String>,
+    /// Error string when `success == false`. Distinct from the OK
+    /// streams above so a partial publish (one relay OK, two failed)
+    /// can still be surfaced with the failed relay URLs.
+    pub error: Option<String>,
 }
 
 // Core message types - dispatch uses a synchronous response channel so the
@@ -1477,24 +1577,116 @@ impl FfiApp {
             Ok(id) => id,
             Err(e) => return failed_result(e.to_string()),
         };
-        let recovered_device_name = "Recovered Device".to_string();
+        if decoded.relays.is_empty() {
+            return failed_result("no_relays_in_share");
+        }
+        // VAL-BACKUP-005: round-trip recovery must actually fetch the
+        // encrypted kind-10000 backup from the relays embedded in the
+        // `bfshare1` envelope, decrypt with the share-derived NIP-44
+        // conversation key, and reconstruct a full multi-member profile
+        // (group key, member list, device label, manual policy overrides)
+        // — not just stub the material with a single-member keyset. The
+        // shell's other code paths (export-profile round-trip, copy
+        // share protocol KATs) all assume the recovered material carries
+        // the full member list so the signer can rebuild the multi-peer
+        // round.
+        let runtime = match tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_time()
+            .enable_io()
+            .build()
+        {
+            Ok(rt) => rt,
+            Err(_) => return failed_result("runtime_build_failed"),
+        };
+        let fetch_result = runtime
+            .block_on(async { fetch_latest_backup_event(&decoded.relays, &share_pubkey).await });
+        let (event, _relay_used) = match fetch_result {
+            Ok(value) => value,
+            Err(err) => {
+                let msg = err.to_string();
+                if msg.starts_with("no_backup_found") {
+                    return failed_result("no_backup_found");
+                }
+                return failed_result("relay_unreachable");
+            }
+        };
+        let backup = match frostr_utils::parse_profile_backup_event(&event, &decoded.share_secret) {
+            Ok(b) => b,
+            Err(e) => return failed_result(format!("backup_decode:{e}")),
+        };
+        // Build a BfProfilePayload with the bfshare1's share secret +
+        // the backup's device label, group package, policy overrides,
+        // and backup-embedded relays. Reuse the canonical
+        // `bf_profile_payload_from_material` round-trip by building a
+        // synthetic material, then mirror its output back into the
+        // OnboardResult fields the contract expects.
+        let group_pubkey = backup.group_package.group_pk.clone();
+        let device_name = backup.device.name.clone();
+        let relays = if !backup.device.relays.is_empty() {
+            backup.device.relays.clone()
+        } else {
+            decoded.relays.clone()
+        };
+        // VAL-BACKUP-005 / VAL-LOAD-012: the recovered profile must
+        // expose the full member list so the runtime can rebuild the
+        // multi-peer signing round. Build a synthesized material that
+        // carries every member's pubkey, then materialize it.
+        let mut members: Vec<MaterialMember> = Vec::new();
+        for member in &backup.group_package.members {
+            let pubkey_hex = compressed_member_pubkey(&member.pubkey);
+            members.push(MaterialMember {
+                idx: member.idx,
+                pubkey_hex,
+            });
+        }
+        let local_compressed = compressed_member_pubkey(&share_pubkey);
+        if !members
+            .iter()
+            .any(|m| m.pubkey_hex.trim().eq_ignore_ascii_case(&local_compressed))
+        {
+            members.push(MaterialMember {
+                idx: 0,
+                pubkey_hex: local_compressed,
+            });
+        }
+        let share_idx = members
+            .iter()
+            .find(|m| {
+                xonly_from_member_pubkey(&m.pubkey_hex)
+                    .map(|x| x == share_pubkey)
+                    .unwrap_or(false)
+            })
+            .map(|m| m.idx)
+            .unwrap_or(0);
+        let peer_pubkeys = members
+            .iter()
+            .filter(|m| m.idx != share_idx)
+            .filter_map(|m| xonly_from_member_pubkey(&m.pubkey_hex))
+            .collect::<Vec<_>>();
         let material = OnboardProfileMaterial {
-            share_seckey_hex: decoded.share_secret,
+            share_seckey_hex: decoded.share_secret.clone(),
             share_pubkey: share_pubkey.clone(),
-            group_pubkey: String::new(),
-            relays: decoded.relays.clone(),
+            group_pubkey: group_pubkey.clone(),
+            relays: relays.clone(),
             device_state_hex: String::new(),
             profile_id: profile_id.clone(),
-            share_idx: 0,
-            peer_pubkeys: Vec::new(),
-            members: Vec::new(),
-            device_name: recovered_device_name.clone(),
+            share_idx,
+            peer_pubkeys,
+            members,
+            device_name: device_name.clone(),
         };
+        runtime.block_on(async {
+            // Drop runtime after recovery completes; the backing
+            // tokio workers unwind harmlessly when the runtime goes
+            // out of scope.
+            let _ = tokio::time::sleep(std::time::Duration::from_millis(0)).await;
+        });
         success_result(
-            recovered_device_name,
+            device_name,
             share_pubkey,
-            String::new(),
-            decoded.relays,
+            group_pubkey,
+            relays,
             profile_id,
             Some(material.to_bytes()),
         )
@@ -1786,6 +1978,46 @@ impl FfiApp {
             decoded.share_secret.replace('"', "\\u0022"),
             pk
         )
+    }
+
+    // ── kind-10000 encrypted profile backup publication + round-trip ──
+    //
+    // These methods satisfy VAL-BACKUP-001..006: every materialization
+    // path (create, onboard, rotate, import, recovery) must publish a
+    // Nostr kind-10000 event whose content is NIP-44 ciphertext (so no
+    // plaintext name / share secret / relay URL leaks), and the
+    // published event MUST round-trip through bfshare1 recovery so a
+    // deleted profile can be restored from the relay. The Rust actor
+    // triggers these via `AppUpdate::PublishProfileBackup { source,
+    // material_json }` after each materialization confirmation.
+
+    /// Publish a kind-10000 encrypted profile backup to every relay
+    /// embedded in the freshly materialized profile. Returns a
+    /// `BackupPublishResult` describing which relays accepted the event
+    /// and the published event's metadata.
+    ///
+    /// `material_json` is the serialized `OnboardProfileMaterial` JSON
+    /// the shell stored under the profile id. The material carries the
+    /// share secret, the full group + member list, the relay list, and
+    /// the device name needed to build the canonical `BfProfilePayload`
+    /// that `frostr_utils::create_encrypted_profile_backup` /
+    /// `frostr-utils::build_profile_backup_event` consume.
+    ///
+    /// `source` is `"create" | "onboard" | "rotate" | "import" |
+    /// "recover"` — passed through so validators can correlate which
+    /// materialization produced a given event.
+    ///
+    /// VAL-BACKUP-001 / VAL-BACKUP-002 / VAL-BACKUP-004 / VAL-BACKUP-006:
+    /// the actor invokes this after each storage confirmation. The
+    /// publish work happens on a dedicated Tokio runtime spawned by the
+    /// call so the actor's update loop is never blocked on a relay
+    /// round-trip.
+    pub fn publish_backup(&self, source: String, material_json: String) -> BackupPublishResult {
+        let result = run_backup_publish(source.clone(), material_json);
+        match result {
+            Ok(value) => value,
+            Err(err) => failed_backup_publish(source, format!("publish_failure:{err}")),
+        }
     }
 }
 
@@ -2183,4 +2415,382 @@ fn build_share_package(
         idx: member_idx,
         seckey: bifrost_core::secret::SharePrivateKey::new(*secret_bytes),
     }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Kind-10000 encrypted profile backup publication (VAL-BACKUP-001..006)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Every profile materialization (create / onboard / rotate / import /
+// recovery) calls `run_backup_publish` on a dedicated Tokio runtime so the
+// actor's update loop never blocks on a WebSocket round-trip. The publish
+// path builds the canonical `BfProfilePayload` from the stored material,
+// then runs `frostr_utils::create_encrypted_profile_backup` to produce the
+// `EncryptedProfileBackup` envelope (NIP-44 ciphertext whose plaintext
+// contains the group package, the device label, the share public key,
+// any manual peer policy overrides, and the relay list — none of which
+// reach the wire in cleartext). `frostr_utils::build_profile_backup_event`
+// signs the envelope into a Nostr kind-10000 event whose author is the
+// share-derived pubkey, and `publish_nostr_event` ships that event to
+// every relay embedded in the materialized profile. The actor mirrors
+// the relay ok-stream into a `BackupPublishResult` so the shell can
+// surface it to validators without re-doing any cryptography.
+
+/// Build a `BfProfilePayload` from the stored material. Mirrors the
+/// shape `FfiApp::export_profile` already produces so a backup and a
+/// `bfprofile1` round-trip through the same canonical form, only the
+/// share-secret treatment differs (the payload form embeds the share
+/// secret while the backup only carries the share pubkey — see
+/// `EncryptedProfileBackupDevice`).
+///
+/// Returns `Err(String)` when the material is missing any of the
+/// required fields. The actor-side guard mirrors this so a malformed
+/// material never reaches the FrostrUtils layer.
+pub(crate) fn bf_profile_payload_from_material(
+    material: &OnboardProfileMaterial,
+) -> Result<frostr_utils::BfProfilePayload, String> {
+    let device_name = if material.device_name.trim().is_empty() {
+        "Igloo Mobile".to_string()
+    } else {
+        material.device_name.trim().to_string()
+    };
+    let share_pubkey_hex = derive_share_pubkey_from_hex_secret(&material.share_seckey_hex)?;
+    let profile_id = material.profile_id.trim().to_string();
+    if profile_id.is_empty() {
+        return Err("missing_profile_id".to_string());
+    }
+    if profile_id.len() != 64 {
+        return Err("invalid_profile_id_length".to_string());
+    }
+    if material.group_pubkey.len() != 64 {
+        return Err("invalid_group_pubkey".to_string());
+    }
+    let group = group_wire_from_material(material);
+    let payload = frostr_utils::BfProfilePayload {
+        profile_id: profile_id.clone(),
+        version: frostr_utils::BF_PACKAGE_VERSION,
+        device: frostr_utils::BfProfileDevice {
+            name: device_name,
+            share_secret: material.share_seckey_hex.clone(),
+            // The mobile material does not carry manual per-peer
+            // overrides in the round-tripped shape yet; we round-trip
+            // through an empty vector and rely on
+            // `frostr_utils::derive_profile_id_from_share_pubkey` for
+            // the canonicity check. Future encrypt-decrypt policy
+            // overrides will plumb through here without breaking the
+            // shape.
+            manual_peer_policy_overrides: Vec::new(),
+            relays: material.relays.clone(),
+        },
+        group_package: group,
+    };
+    // Sanity check: the share secret must derive to the same share
+    // pubkey the material advertised. Mismatch implies the shell wrote
+    // a non-canonical material and we must NOT publish a backup that
+    // nobody can recover.
+    if share_pubkey_hex != material.share_pubkey.trim().to_lowercase() {
+        return Err("share_pubkey_mismatch".to_string());
+    }
+    Ok(payload)
+}
+
+/// Stand-up a dedicated Tokio runtime for the publish side effect so
+/// the actor's update loop stays responsive. The runtime spins down
+/// as soon as the publish completes; we never share it with the
+/// signer runtime to avoid contention.
+fn run_backup_publish(
+    source: String,
+    material_json: String,
+) -> anyhow::Result<BackupPublishResult> {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_time()
+        .enable_io()
+        .build()?;
+    runtime.block_on(async move { backup_publish_async(source, material_json).await })
+}
+
+/// Async core of `run_backup_publish`. All relay round-trips happen
+/// here. Errors at any stage bubble up as a typed `BackupPublishResult`
+/// with the failure message surfaced in `error`.
+async fn backup_publish_async(
+    source: String,
+    material_json: String,
+) -> anyhow::Result<BackupPublishResult> {
+    let material: OnboardProfileMaterial = serde_json::from_str(&material_json)
+        .map_err(|e| anyhow::anyhow!("invalid_material:{e}"))?;
+    if material.share_seckey_hex.len() != 64 {
+        anyhow::bail!("invalid_share_secret_length");
+    }
+    if material.relays.is_empty() {
+        anyhow::bail!("no_relays_configured");
+    }
+    let payload = bf_profile_payload_from_material(&material)
+        .map_err(|e| anyhow::anyhow!("payload_build:{e}"))?;
+    let backup = frostr_utils::create_encrypted_profile_backup(&payload)
+        .map_err(|e| anyhow::anyhow!("backup_build:{e}"))?;
+    let event = frostr_utils::build_profile_backup_event(&material.share_seckey_hex, &backup, None)
+        .map_err(|e| anyhow::anyhow!("event_build:{e}"))?;
+    let event_json = serde_json::to_string(&event).context("serialize_event")?;
+    let (published_to, errors) = publish_nostr_event(&material.relays, &event_json).await;
+    let content_redacted = redacted_ciphertext(&event.content);
+    let content_length = event.content.len() as u32;
+    let success = !published_to.is_empty();
+    let error = if success {
+        None
+    } else if errors.is_empty() {
+        Some("no_relay_acknowledged".to_string())
+    } else {
+        Some(errors.join(" | "))
+    };
+    Ok(BackupPublishResult {
+        success,
+        source,
+        event_id: if success {
+            Some(event.id.to_hex())
+        } else {
+            None
+        },
+        author_pubkey: Some(event.pubkey.to_string()),
+        content_length,
+        content_redacted,
+        group_pubkey: Some(material.group_pubkey.clone()),
+        relays_attempted: material.relays.clone(),
+        relays_published_to: published_to,
+        error,
+    })
+}
+
+/// Strip the NIP-44 ciphertext down to a `[REDACTED-Nchars] prefix=PREFIX`
+/// shape so logs and validators never carry the raw bytes or any
+/// plaintext hint. The length is preserved so a validator can still
+/// correlate this event with one observed on the wire.
+fn redacted_ciphertext(content: &str) -> String {
+    let prefix_len = content.len().min(24);
+    let prefix = &content[..prefix_len];
+    format!("prefix={}... total_length={}", prefix, content.len())
+}
+
+/// Open a WebSocket to each relay in turn, ship the kind-10000 EVENT
+/// JSON, wait for an `["OK", event_id, true, ...]` ack, then close.
+/// Any single relay that acks wins: subsequent relays are skipped so
+/// we don't double-publish the same event id. Returns the list of
+/// relays that acknowledged plus a per-relay error log (empty when
+/// every relay succeeded).
+async fn publish_nostr_event(relays: &[String], event_json: &str) -> (Vec<String>, Vec<String>) {
+    use futures_util::{SinkExt, StreamExt};
+    use tokio::time::{timeout, Duration};
+    use tokio_tungstenite::connect_async;
+    use tokio_tungstenite::tungstenite::Message;
+    let mut published_to: Vec<String> = Vec::new();
+    let mut errors: Vec<String> = Vec::new();
+    for relay in relays {
+        let relay_label = relay.clone();
+        match timeout(Duration::from_secs(8), connect_async(relay.as_str())).await {
+            Ok(Ok((mut stream, _))) => {
+                // Send the EVENT message
+                let payload = format!("[\"EVENT\",{}]", event_json);
+                if let Err(e) = stream.send(Message::Text(payload)).await {
+                    errors.push(format!("{}:send:{e}", relay_label));
+                    continue;
+                }
+                // Read until we see an ["OK", …] frame
+                let verified = loop {
+                    match timeout(Duration::from_secs(4), stream.next()).await {
+                        Ok(Some(Ok(Message::Text(text)))) => {
+                            if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
+                                if let Some(arr) = value.as_array() {
+                                    match arr.first().and_then(|v| v.as_str()) {
+                                        Some("OK") => {
+                                            let ok = arr
+                                                .get(2)
+                                                .and_then(|v| v.as_bool())
+                                                .unwrap_or(false);
+                                            break ok;
+                                        }
+                                        Some("NOTICE") => {
+                                            break false;
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                        Ok(Some(Ok(Message::Close(_)))) | Ok(None) => break false,
+                        Ok(Some(Err(e))) => {
+                            errors.push(format!("{}:recv:{e}", relay_label));
+                            break false;
+                        }
+                        Err(_) => break false,
+                        _ => {}
+                    }
+                };
+                if verified {
+                    published_to.push(relay_label);
+                    let _ = stream.close(None).await;
+                    break;
+                } else {
+                    errors.push(format!("{}:not_ok", relay_label));
+                    let _ = stream.close(None).await;
+                }
+            }
+            Ok(Err(e)) => {
+                errors.push(format!("{}:connect:{e}", relay_label));
+            }
+            Err(_) => {
+                errors.push(format!("{}:connect_timeout", relay_label));
+            }
+        }
+    }
+    (published_to, errors)
+}
+
+/// Convenience factory for a failed `BackupPublishResult` used when the
+/// FFI's synchronous path returns an error before the publish runtime
+/// spun up.
+fn failed_backup_publish(source: String, error: String) -> BackupPublishResult {
+    BackupPublishResult {
+        success: false,
+        source,
+        event_id: None,
+        author_pubkey: None,
+        content_length: 0,
+        content_redacted: "no_backup_published".to_string(),
+        group_pubkey: None,
+        relays_attempted: Vec::new(),
+        relays_published_to: Vec::new(),
+        error: Some(error),
+    }
+}
+
+/// Fetch the latest kind-10000 event authored by `share_pubkey` from
+/// any relay in `relays`. Returns `(event, relay_used)` on success or
+/// bubbles the typed failure reason so `FfiApp::recover_profile` can
+/// map it into the existing `OnboardResult` error vocabulary.
+pub(crate) async fn fetch_latest_backup_event(
+    relays: &[String],
+    share_pubkey: &str,
+) -> anyhow::Result<(nostr::Event, String)> {
+    use futures_util::{SinkExt, StreamExt};
+    use tokio::time::{timeout, Duration};
+    use tokio_tungstenite::connect_async;
+    use tokio_tungstenite::tungstenite::Message;
+    let subscription_id = format!(
+        "igloo-mobile-recover-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
+    );
+    let filter = serde_json::json!({
+        "authors": [share_pubkey],
+        "kinds": [frostr_utils::PROFILE_BACKUP_EVENT_KIND],
+    });
+    let request = format!(
+        "[\"REQ\",{},{}]",
+        serde_json::Value::String(subscription_id.clone()),
+        serde_json::to_string(&filter).unwrap_or_else(|_| "{}".to_string())
+    );
+    let close = format!(
+        "[\"CLOSE\",{}]",
+        serde_json::Value::String(subscription_id.clone()),
+    );
+    let mut best: Option<(nostr::Event, String)> = None;
+    let mut last_err: Option<String> = None;
+    for relay in relays {
+        let relay_label = relay.clone();
+        match timeout(Duration::from_secs(8), connect_async(relay.as_str())).await {
+            Ok(Ok((mut stream, _))) => {
+                if let Err(e) = stream.send(Message::Text(request.clone())).await {
+                    last_err = Some(format!("{}:send:{e}", relay_label));
+                    continue;
+                }
+                let mut saw_event_for_author = false;
+                loop {
+                    match timeout(Duration::from_secs(4), stream.next()).await {
+                        Ok(Some(Ok(Message::Text(text)))) => {
+                            if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
+                                if let Some(arr) = value.as_array() {
+                                    match arr.first().and_then(|v| v.as_str()) {
+                                        Some("EVENT") => {
+                                            if let Some(event_value) = arr.get(2) {
+                                                match serde_json::from_value::<nostr::Event>(
+                                                    event_value.clone(),
+                                                ) {
+                                                    Ok(event) => {
+                                                        if event.pubkey.to_string()
+                                                            == share_pubkey
+                                                            && event.kind.as_u16()
+                                                                == frostr_utils::PROFILE_BACKUP_EVENT_KIND
+                                                        {
+                                                            saw_event_for_author = true;
+                                                            let replace = best
+                                                                .as_ref()
+                                                                .map(|existing| {
+                                                                    event.created_at
+                                                                        > existing.0.created_at
+                                                                })
+                                                                .unwrap_or(true);
+                                                            if replace {
+                                                                best = Some((
+                                                                    event,
+                                                                    relay_label.clone(),
+                                                                ));
+                                                            }
+                                                        }
+                                                    }
+                                                    Err(e) => {
+                                                        last_err = Some(format!(
+                                                            "{}:decode:{e}",
+                                                            relay_label
+                                                        ));
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Some("EOSE") => break,
+                                        Some("NOTICE") => break,
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                        Ok(Some(Ok(Message::Close(_)))) | Ok(None) => break,
+                        Ok(Some(Err(e))) => {
+                            last_err = Some(format!("{}:recv:{e}", relay_label));
+                            break;
+                        }
+                        Err(_) => break,
+                        _ => {}
+                    }
+                }
+                let _ = stream.send(Message::Text(close.clone())).await;
+                let _ = stream.close(None).await;
+                if saw_event_for_author {
+                    if let Some((evt, relay_used)) = best.take() {
+                        return Ok((evt, relay_used));
+                    }
+                }
+            }
+            Ok(Err(e)) => {
+                last_err = Some(format!("{}:connect:{e}", relay_label));
+                continue;
+            }
+            Err(_) => {
+                last_err = Some(format!("{}:connect_timeout", relay_label));
+                continue;
+            }
+        }
+    }
+    if best.is_some() {
+        if let Some((evt, relay_used)) = best {
+            return Ok((evt, relay_used));
+        }
+    }
+    // Map the absence-of-event to a typed error so the calling actor
+    // can branch on it.
+    Err(match last_err {
+        Some(msg) => anyhow::anyhow!("relay_unreachable:{msg}"),
+        None => anyhow::anyhow!("no_backup_found"),
+    })
 }

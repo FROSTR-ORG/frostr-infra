@@ -1,0 +1,14 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/backup_publication_and_recovery.rs (/Users/plebdev/Desktop/Projects/frostr-infra/apps/igloo-mobile/target/debug/deps/backup_publication_and_recovery-666b9ccbc9fd4a63)
+
+running 7 tests
+test live_relay_is_reachable_diagnostic ... ignored, diagnostic; requires live relay at ws://127.0.0.1:8194
+test live_relay_publish_backup_creates_kind_10000_event_with_share_author ... ignored, requires live relay at ws://127.0.0.1:8194; run via cargo test -- --ignored
+test live_relay_published_backup_round_trips_via_bfshare_recovery ... ignored, requires live relay at ws://127.0.0.1:8194; run via cargo test -- --ignored
+test backup_round_trips_through_event_and_share_secret_decrypt ... ok
+test kind_10000_event_content_is_encrypted_with_no_plaintext_leak ... ok
+test bfonboard_encode_decode_roundtrip_produces_share_secret ... ok
+test bfshare_decode_with_wrong_password_returns_decrypt_error ... ok
+
+test result: ok. 4 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 17.99s
+

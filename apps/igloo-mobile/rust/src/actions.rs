@@ -426,4 +426,26 @@ pub enum AppAction {
         error: String,
     },
     ClearExportState,
+
+    // ── Kind-10000 encrypted profile backup publication (VAL-BACKUP-*) ──
+    /// Shell forwarded the result of `FfiApp::publish_backup`. Each
+    /// materialization path (create / onboard / rotate / import /
+    /// recover) fires this after the publish settles so the actor can
+    /// surface the relay-side proof in state and tests/validators can
+    /// correlate events. The actor keeps the latest record attached to
+    /// `AppState::signer_recent_backup` (or a future dedicated slot)
+    /// but every retry of a materialization path bumps the rev guard
+    /// on the snapshot.
+    BackupPublishCompleted {
+        source: String,
+        success: bool,
+        event_id: Option<String>,
+        author_pubkey: Option<String>,
+        content_length: u32,
+        content_redacted: String,
+        group_pubkey: Option<String>,
+        relays_attempted: Vec<String>,
+        relays_published_to: Vec<String>,
+        error: Option<String>,
+    },
 }
