@@ -9,8 +9,8 @@ _Last updated: 2026-06-15_
 > **(3)** a consolidation cleanup the telemetry pass exposed, **(4)** the
 > **interactive signing-approval queue**, and **(5)** the **dashboard error/empty
 > states** (loading / load-failed / all-relays-offline / signing-blocked /
-> signing-failed) across all three clients, followed by a **6-item follow-up
-> sweep** that cleaned up and finished that feature. See the `✅ Done` sections below.
+> signing-failed) across all three clients, followed by **two follow-up rounds**
+> that cleaned up and finished that feature. See the `✅ Done` sections below.
 >
 > **All commits are local on `dev`** across the repos (not pushed). The parent repo
 > also carries **pre-existing, unrelated staged WIP** (`dev/audit/*` + `.gitignore`)
@@ -18,6 +18,34 @@ _Last updated: 2026-06-15_
 >
 > **▶ NEXT: pick the next L item** from `BACKLOG.md` — see
 > [§ Next work](#-next-work-remaining-l-items).
+
+## ✅ Done: dashboard-states round-2 polish (relay back-off, mirror cull, closures)
+
+**Landed (submodule-then-pointer):** igloo-shared `59b0ebb`, igloo-pwa `27ce223`,
+igloo-home `7620f0d` → parent `772c7b4`. **All TS-only** (no Rust/WASM, no re-stamp).
+
+- **Relay re-probe back-off** — the ~30s relay-health probe now pauses on
+  `document.hidden` (visibilitychange, `typeof document`-guarded so chrome's SW
+  skips it; resumes with an immediate refresh). Scoped to the probe only — the 1s
+  pump + signing keep running while hidden.
+- **Banner de-dup** — pwa `renderError` / home top-level banner suppressed when
+  `dashboardLoadError` is set (the full-panel load-failed screen already shows it).
+- **pwa wire-mirror cull** — deleted `PwaRuntimeStatus`/etc.; the two cast sites use
+  igloo-shared `RuntimeStatusSummary`/`RuntimeReadiness` directly (removes the
+  duplication outright — no guard needed). The chrome drift guard from the prior
+  round still covers chrome's mirror + the igloo-ui adapter inputs.
+- **Closed won't-build (with reasons):** native `last_load_error` enrichment
+  (architecturally moot — a restore failure aborts daemon start, so there's no
+  running runtime to query; the wire field's misleading comment was corrected) and
+  the signing-failed `@live` (responder-only PWA can't record a `Sign` failure; the
+  banner is covered by the igloo-ui unit test).
+
+**Verified:** units (shared 145, pwa 65, home 25); `make test-fast` (pwa 20, chrome
+17); `make test-live` **run 1 fully green (14 + 15)** with the onboarding de-flake
+holding and dashboard-states passing. **Run 2 hit only the pre-existing export-
+package flake** (ExportPackageModal controlled-input race under back-to-back-run
+load — passes in isolation, identical code passed run 1; now logged in `BACKLOG.md`
+Test-harness). Not caused by this work.
 
 ## ✅ Done: dashboard-states follow-up sweep (6 cleanups)
 
