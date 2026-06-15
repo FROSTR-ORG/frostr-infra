@@ -1,4 +1,4 @@
-# Hand-off: L-task program — seam + telemetry + consolidation + approval-queue + dashboard-states DONE; pick the next L item
+# Hand-off: L-task program — seam + telemetry + consolidation + approval-queue + dashboard-states + NIP-44 raw-X interop DONE; pick the next L item
 
 _Last updated: 2026-06-15_
 
@@ -11,17 +11,51 @@ _Last updated: 2026-06-15_
 > states** (loading / load-failed / all-relays-offline / signing-blocked /
 > signing-failed) across all three clients, followed by **two follow-up rounds**
 > that cleaned up and finished that feature, then a **backlog Tiers 1-4 batch**
-> (CI repair, security hardening, dead-code cleanups). See the `✅ Done` sections below.
+> (CI repair, security hardening, dead-code cleanups), and most recently **(6)** the
+> **NIP-44 app-facing raw-X interop fix** (the crypto-core unify task). See the
+> `✅ Done` sections below.
 >
 > **All commits are local on `dev`** across the repos (not pushed). The parent repo
-> also carries **pre-existing, unrelated staged WIP** (`dev/audit/*` + `.gitignore`)
-> that is NOT ours — leave it; commit only explicit paths.
+> also carries **pre-existing, unrelated WIP** (`dev/audit/*`) that is NOT ours —
+> leave it; commit only explicit paths.
 >
-> **▶ NEXT: pick the next L item** from `BACKLOG.md` — the standout is the
-> **"Unify app-facing NIP-44 on the standard raw-X derivation"** crypto task
-> (adjudicated this batch as a real ecosystem interop bug; needs its own
-> adversarially-reviewed plan + WASM rebuild; fold in the router Ping-sentinel +
-> the bifrost-profile clippy lints, which ride the same blob rebuild).
+> **▶ NEXT: pick the next L item** from `BACKLOG.md`. The NIP-44 unify task is now
+> **done** (raw-X hard cut — see the new `✅ Done` section); its only residue is a
+> logged, non-blocking follow-up: a real `@live` test that drives
+> `window.nostr.nip44.encrypt` through the chrome/pwa provider and decrypts with a
+> standard `nostr-tools` client.
+
+## ✅ Done: NIP-44 app-facing raw-X interop fix (crypto-core unify)
+
+**Landed (submodule-then-pointer):** bifrost-rs `acab2b0`, igloo-shared `747c38b`,
+igloo-pwa `a1609f3`, igloo-chrome `5c5e2c3`, igloo-shell `f3db913` → parent `6a1881e`.
+**WASM-relevant → blob rebuilt + re-stamped + re-vendored.** Plan:
+`plans/vivid-swinging-pony.md`. Hard cut (alpha — no flags/migration).
+
+- **The fix:** bifrost-core `combine_ecdh_packages` (`ecdh.rs`) now returns the raw
+  X-coordinate of the combined threshold point instead of `SHA256(point)`
+  (bifrost-rs `89ee694`). The combined point equals the point a normal ECDH with the
+  group key produces, so the app-facing `window.nostr.nip44.{encrypt,decrypt}`
+  conversation key now matches any standard nostr client's. TS needed no logic change
+  — `deriveConversationKeyFromSharedSecret` already does HKDF-Extract; only its
+  warning comment flipped to a match-confirmation.
+- **Blast radius (traced):** the threshold secret flows only outbound to app-facing
+  NIP-44 / native `EcdhResult`. Cosigner protocol messages encrypt with the *share*
+  secret via `event_shared_x` (already raw-X) → **unaffected, no flag-day**, NIP-44
+  KATs untouched. No test pinned the old hashed value.
+- **Riders (rode the forced blob rebuild):** router Ping-sentinel typed from the
+  pending op (`c47d76e`); pre-existing bifrost-profile `too_many_arguments` +
+  bifrost-app `items_after_test_module` lints cleared so CI `-D warnings` is green
+  (`acab2b0`).
+- **Bonus:** igloo-shell `RuntimeStatusSummary` test-fixture drift repaired
+  (`f3db913`) — pre-existing, from the dashboard-states field additions; surfaced when
+  igloo-shell `cargo test` (path-deps bifrost-rs) was run for verification.
+
+**Verified:** bifrost-rs `cargo test --workspace` + clippy `-D warnings` + fmt;
+igloo-shared 149 units (incl. the new `nip44-interop` FROSTR↔nostr-tools regression
+test); chrome 98 + typecheck; pwa 65; `make test-fast` (17); wasm stamp guard green;
+igloo-shell ecdh e2e green (one unrelated `sun_path`-length test fails in this env —
+pre-existing `[[daemon-socket-sunlen]]` gotcha, not from this change).
 
 ## ✅ Done: backlog Tiers 1-4 (CI repair, hardening, cleanups)
 
