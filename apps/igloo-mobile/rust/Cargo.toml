@@ -1,0 +1,30 @@
+[package]
+name = "igloo-mobile-core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+flume = "0.11"
+uniffi = "0.31.0"
+tokio = { version = "1.40", features = ["rt-multi-thread", "time", "sync", "macros", "net"] }
+
+# FROSTR core: path dep on repos/bifrost-rs (read-only)
+bifrost-bridge-tokio = { path = "../../../repos/bifrost-rs/crates/bifrost-bridge-tokio" }
+bifrost-app = { path = "../../../repos/bifrost-rs/crates/bifrost-app" }
+bifrost-core = { path = "../../../repos/bifrost-rs/crates/bifrost-core" }
+bifrost-codec = { path = "../../../repos/bifrost-rs/crates/bifrost-codec" }
+bifrost-signer = { path = "../../../repos/bifrost-rs/crates/bifrost-signer" }
+frostr-utils = { path = "../../../repos/bifrost-rs/crates/frostr-utils" }
+
+# crypto / encoding
+bech32 = "0.9"
+hex = "0.4"
+k256 = { version = "0.13", features = ["arithmetic", "ecdh"] }
+nostr = { version = "0.44", features = ["std", "nip44"] }
+rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1"

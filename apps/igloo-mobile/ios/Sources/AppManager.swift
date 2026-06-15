@@ -270,12 +270,140 @@ final class AppManager: AppReconciler {
             // platform secure storage and the hub row label.
             persistSettingsToStorage()
 
+        // ── Create / Rotate Keyset shell side-effects ──────────────────────────
+        // The Rust state machine emits these updates after the user accepts
+        // review. The shell runs the heavy Argon2id + secp256k1 work off the
+        // main actor, then dispatches the resulting action back so the wizard
+        // advances to the Distribute step (VAL-CREATE-009/022).
+        case .performKeysetGeneration(let groupName, let threshold, let count, let mode):
+            performKeysetGeneration(groupName: groupName, threshold: threshold, count: count, mode: mode)
+
+        case .performKeysetDistribution(let shareIdx, let shareSecretHex, let relays, let shareLabel, let password, let method):
+            // VAL-CREATE-014/015/016 — encode bfonboard1 + update chip.
+            performKeysetDistribution(
+                shareIdx: shareIdx,
+                shareSecretHex: shareSecretHex,
+                relays: relays,
+                shareLabel: shareLabel,
+                password: password,
+                method: method
+            )
+
+        case .storeKeysetCreatedProfile(let profileId, let label, let shortId, let material, let relays):
+            // VAL-CREATE-010 — store the freshly-accepted creator profile to
+            // Keychain and dispatch CreateKeysetAccepted so Distribute
+            // populates share rows.
+            storeKeysetCreatedProfile(
+                profileId: profileId,
+                label: label,
+                shortId: shortId,
+                material: material,
+                relays: relays
+            )
+
+        case .startKeysetSignerRuntime(_, _):
+            // VAL-CREATE-022 — start the signer for the new profile and
+            // surface a "Signer Running" indicator on the Distribute screen.
+            performStartSigner()
+
         // PerformOnboardHandshake is handled directly in onboardConnect() to ensure
         // the async FFI call starts immediately without relying on the reconciler
         // callback path. Other unhandled cases are silently ignored.
         default:
             break
         }
+    }
+
+    // ── Keyset shell helpers ──────────────────────────────────────────────────
+
+    /// Perform keyset generation off the main actor so heavy Argon2id work
+    /// never blocks the SwiftUI loop (VAL-CREATE-022).
+    private func performKeysetGeneration(groupName: String, threshold: UInt16, count: UInt16, mode: String) {
+        // Send a deterministic config_json from the wizard inputs. The Rust
+        // side deterministically derives the signing key from the group_name
+        // so two consecutive identical Generate taps yield equivalent bundles.
+        struct ConfigJson: Codable {
+            let group_name: String
+            let threshold: UInt16
+            let count: UInt16
+            let mode: String
+        }
+        let cfg = ConfigJson(
+            group_name: groupName,
+            threshold: threshold,
+            count: count,
+            mode: mode
+        )
+        let enc = JSONEncoder()
+        let cfgJson = String(data: (try? enc.encode(cfg)) ?? Data("{}".utf8), encoding: .utf8) ?? "{}"
+        // FfiApp is Sendable (UniFFI Arc wrapper). Capture only rust.
+        let rust = self.rust
+        Thread.detachNewThread {
+            let result = rust.generateKeyset(configJson: cfgJson)
+            DispatchQueue.main.async {
+                if result.hasPrefix("error:") {
+                    let err = String(result.dropFirst("error:".count))
+                    self.dispatch(.createKeysetGenerationFailed(error: err))
+                } else {
+                    self.dispatch(.createKeysetGenerationSuccess(bundleJson: result))
+                }
+            }
+        }
+    }
+
+    /// Encode bfonboard1 for a single remaining share and update its status
+    /// chip based on the chosen method (VAL-CREATE-014/015/016/017).
+    private func performKeysetDistribution(
+        shareIdx: UInt16,
+        shareSecretHex: String,
+        relays: [String],
+        shareLabel: String,
+        password: String,
+        method: String
+    ) {
+        let rust = self.rust
+        Thread.detachNewThread {
+            let pkg = rust.encodeDistributeOnboard(
+                shareSecretHex: shareSecretHex,
+                relays: relays,
+                shareLabel: shareLabel,
+                password: password
+            )
+            DispatchQueue.main.async {
+                if pkg.hasPrefix("error:") {
+                    let err = String(pkg.dropFirst("error:".count))
+                    self.dispatch(.createKeysetDistributeFailed(
+                        shareIdx: shareIdx,
+                        error: err
+                    ))
+                    return
+                }
+                self.dispatch(.createKeysetDistributePackageProduced(
+                    shareIdx: shareIdx,
+                    package: pkg,
+                    method: method
+                ))
+            }
+        }
+    }
+
+    /// Persist the freshly-accepted creator profile to Keychain and report
+    /// success to the Rust state machine (VAL-CREATE-010).
+    private func storeKeysetCreatedProfile(profileId: String, label: String, shortId: String, material: Data, relays: [String]) {
+        // Reuse the same storage path as load/store-loaded-profile: write
+        // the bundled share + identity material to Keychain so a future
+        // launch can rehydrate via restoreActiveProfile. The relays are also
+        // recorded for sign-policy parity.
+        _ = storage.storeProfile(profileId: profileId, label: label, shortId: shortId, material: material)
+
+        // Drive the live signer panel on the Distribute screen via dispatching
+        // `CreateKeysetAccepted` — this also enables the hub row insertion
+        // + dashboard re-route (VAL-CREATE-010).
+        dispatch(.createKeysetAccepted(
+            profileId: profileId,
+            label: label,
+            shortId: shortId
+        ))
     }
 
     // ── Diagnostic helpers (redacted labels, no sensitive data) ──────────────────

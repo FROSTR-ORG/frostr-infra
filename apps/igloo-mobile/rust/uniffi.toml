@@ -1,0 +1,7 @@
+[bindings.kotlin]
+package_name = "com.frostr.igloo.rust"
+cdylib_name = "igloo_mobile_core"
+
+[bindings.swift]
+package_name = "IglooMobileCore"
+cdylib_name = "igloo_mobile_core"

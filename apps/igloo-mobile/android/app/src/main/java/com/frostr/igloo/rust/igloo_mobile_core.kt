@@ -660,9 +660,13 @@ internal object IntegrityCheckingUniffiLib {
     }
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_dispatch(
     ): Short
+    external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_encode_distribute_onboard(
+    ): Short
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_export_profile(
     ): Short
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_export_share(
+    ): Short
+    external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_generate_keyset(
     ): Short
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_get_signer_status(
     ): Short
@@ -719,9 +723,13 @@ internal object UniffiLib {
     ): Long
     external fun uniffi_igloo_mobile_core_fn_method_ffiapp_dispatch(`ptr`: Long,`action`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_encode_distribute_onboard(`ptr`: Long,`shareSecretHex`: RustBuffer.ByValue,`relays`: RustBuffer.ByValue,`shareLabel`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     external fun uniffi_igloo_mobile_core_fn_method_ffiapp_export_profile(`ptr`: Long,`exportPassword`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_igloo_mobile_core_fn_method_ffiapp_export_share(`ptr`: Long,`exportPassword`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_igloo_mobile_core_fn_method_ffiapp_generate_keyset(`ptr`: Long,`configJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_igloo_mobile_core_fn_method_ffiapp_get_signer_status(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
@@ -871,10 +879,16 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_dispatch() != 50970.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_encode_distribute_onboard() != 58543.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_export_profile() != 39303.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_export_share() != 65184.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_generate_keyset() != 45895.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_get_signer_status() != 6805.toShort()) {
@@ -1398,9 +1412,37 @@ public interface FfiAppInterface {
     
     fun `dispatch`(`action`: AppAction): AppState
     
+    /**
+     * Encode a `bfonboard1` package from a single share secret + relays.
+     *
+     * This is the per-share encode path used by the Distribute step
+     * (VAL-CREATE-014/015/016). The actor passes the share secret + relays
+     * through this FFI call so the heavy Argon2id KDF work runs off the
+     * main actor thread.
+     *
+     * Returns the encoded `bfonboard1...` string on success, or an
+     * `error:...` string on failure (shells convert these into the
+     * `CreateKeysetDistributeFailed` action).
+     */
+    fun `encodeDistributeOnboard`(`shareSecretHex`: kotlin.String, `relays`: List<kotlin.String>, `shareLabel`: kotlin.String, `password`: kotlin.String): kotlin.String
+    
     fun `exportProfile`(`exportPassword`: kotlin.String): kotlin.String
     
     fun `exportShare`(`exportPassword`: kotlin.String): kotlin.String
+    
+    /**
+     * Generate a fresh keyset via `frostr_utils::create_keyset`.
+     *
+     * `config_json` is the serialized `CreateKeysetConfig` JSON accepted by
+     * `bifrost-bridge-wasm::create_keyset_bundle`. Returns the canonical
+     * wire form JSON (a `KeysetBundleExport` shape) so the actor can parse it
+     * back into `KeysetBundleRecord` for shell rendering.
+     *
+     * VAL-CREATE-004/022: this is the perf-sensitive step that runs off the
+     * main actor; shells dispatch it inside a `Thread/Handler` and resolve
+     * via `CreateKeysetGenerationSuccess` / `CreateKeysetGenerationFailed`.
+     */
+    fun `generateKeyset`(`configJson`: kotlin.String): kotlin.String
     
     /**
      * Get the current signer status as a JSON string for the shell to parse
@@ -1639,6 +1681,31 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     
 
+    
+    /**
+     * Encode a `bfonboard1` package from a single share secret + relays.
+     *
+     * This is the per-share encode path used by the Distribute step
+     * (VAL-CREATE-014/015/016). The actor passes the share secret + relays
+     * through this FFI call so the heavy Argon2id KDF work runs off the
+     * main actor thread.
+     *
+     * Returns the encoded `bfonboard1...` string on success, or an
+     * `error:...` string on failure (shells convert these into the
+     * `CreateKeysetDistributeFailed` action).
+     */override fun `encodeDistributeOnboard`(`shareSecretHex`: kotlin.String, `relays`: List<kotlin.String>, `shareLabel`: kotlin.String, `password`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_igloo_mobile_core_fn_method_ffiapp_encode_distribute_onboard(
+        it,
+        FfiConverterString.lower(`shareSecretHex`),FfiConverterSequenceString.lower(`relays`),FfiConverterString.lower(`shareLabel`),FfiConverterString.lower(`password`),_status)
+}
+    }
+    )
+    }
+    
+
     override fun `exportProfile`(`exportPassword`: kotlin.String): kotlin.String {
             return FfiConverterString.lift(
     callWithHandle {
@@ -1659,6 +1726,31 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     UniffiLib.uniffi_igloo_mobile_core_fn_method_ffiapp_export_share(
         it,
         FfiConverterString.lower(`exportPassword`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Generate a fresh keyset via `frostr_utils::create_keyset`.
+     *
+     * `config_json` is the serialized `CreateKeysetConfig` JSON accepted by
+     * `bifrost-bridge-wasm::create_keyset_bundle`. Returns the canonical
+     * wire form JSON (a `KeysetBundleExport` shape) so the actor can parse it
+     * back into `KeysetBundleRecord` for shell rendering.
+     *
+     * VAL-CREATE-004/022: this is the perf-sensitive step that runs off the
+     * main actor; shells dispatch it inside a `Thread/Handler` and resolve
+     * via `CreateKeysetGenerationSuccess` / `CreateKeysetGenerationFailed`.
+     */override fun `generateKeyset`(`configJson`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_igloo_mobile_core_fn_method_ffiapp_generate_keyset(
+        it,
+        FfiConverterString.lower(`configJson`),_status)
 }
     }
     )
@@ -1978,6 +2070,11 @@ data class AppState (
     var `loadProfile`: LoadProfileState
     , 
     /**
+     * Create / Rotate Keyset wizard state (VAL-CREATE-* / VAL-ROTATE-*).
+     */
+    var `keyset`: KeysetFlowState
+    , 
+    /**
      * Dashboard state for signer runtime, permissions, and settings tabs.
      */
     var `dashboard`: DashboardState
@@ -2007,6 +2104,7 @@ public object FfiConverterTypeAppState: FfiConverterRustBuffer<AppState> {
             FfiConverterTypeHubState.read(buf),
             FfiConverterTypeOnboardingState.read(buf),
             FfiConverterTypeLoadProfileState.read(buf),
+            FfiConverterTypeKeysetFlowState.read(buf),
             FfiConverterTypeDashboardState.read(buf),
             FfiConverterULong.read(buf),
         )
@@ -2017,6 +2115,7 @@ public object FfiConverterTypeAppState: FfiConverterRustBuffer<AppState> {
             FfiConverterTypeHubState.allocationSize(value.`hub`) +
             FfiConverterTypeOnboardingState.allocationSize(value.`onboarding`) +
             FfiConverterTypeLoadProfileState.allocationSize(value.`loadProfile`) +
+            FfiConverterTypeKeysetFlowState.allocationSize(value.`keyset`) +
             FfiConverterTypeDashboardState.allocationSize(value.`dashboard`) +
             FfiConverterULong.allocationSize(value.`rev`)
     )
@@ -2026,6 +2125,7 @@ public object FfiConverterTypeAppState: FfiConverterRustBuffer<AppState> {
             FfiConverterTypeHubState.write(value.`hub`, buf)
             FfiConverterTypeOnboardingState.write(value.`onboarding`, buf)
             FfiConverterTypeLoadProfileState.write(value.`loadProfile`, buf)
+            FfiConverterTypeKeysetFlowState.write(value.`keyset`, buf)
             FfiConverterTypeDashboardState.write(value.`dashboard`, buf)
             FfiConverterULong.write(value.`rev`, buf)
     }
@@ -2106,6 +2206,161 @@ public object FfiConverterTypeDashboardState: FfiConverterRustBuffer<DashboardSt
 
 
 /**
+ * One row in the Distribute step. There is one DistributeShareRecord per
+ * non-local share (VAL-CREATE-011), so for a 2-of-3 keyset where the
+ * device took one share we have exactly two of these.
+ *
+ * `status_chip` is what the user-facing chip displays (VAL-CREATE-017).
+ * `last_package` is the most recently produced `bfonboard1` string for
+ * that share — needed for QR display because heavy Argon2id KDF work
+ * should not re-run every time the QR modal is dismissed (VAL-CREATE-022).
+ */
+data class DistributeShareRecord (
+    var `shareIdx`: kotlin.UShort
+    , 
+    var `label`: kotlin.String
+    , 
+    /**
+     * Package password as entered (validated separately per share).
+     */
+    var `password`: kotlin.String
+    , 
+    /**
+     * Confirm-password field for the double-input UX (VAL-CREATE-013).
+     */
+    var `confirmPassword`: kotlin.String
+    , 
+    /**
+     * Most recent bfonboard1 package string for this share. Reset to
+     * empty when the password changes.
+     */
+    var `lastPackage`: kotlin.String
+    , 
+    /**
+     * Current distribution status chip (VAL-CREATE-017).
+     */
+    var `statusChip`: DistributeStatus
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeDistributeShareRecord: FfiConverterRustBuffer<DistributeShareRecord> {
+    override fun read(buf: ByteBuffer): DistributeShareRecord {
+        return DistributeShareRecord(
+            FfiConverterUShort.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterTypeDistributeStatus.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: DistributeShareRecord) = (
+            FfiConverterUShort.allocationSize(value.`shareIdx`) +
+            FfiConverterString.allocationSize(value.`label`) +
+            FfiConverterString.allocationSize(value.`password`) +
+            FfiConverterString.allocationSize(value.`confirmPassword`) +
+            FfiConverterString.allocationSize(value.`lastPackage`) +
+            FfiConverterTypeDistributeStatus.allocationSize(value.`statusChip`)
+    )
+
+    override fun write(value: DistributeShareRecord, buf: ByteBuffer) {
+            FfiConverterUShort.write(value.`shareIdx`, buf)
+            FfiConverterString.write(value.`label`, buf)
+            FfiConverterString.write(value.`password`, buf)
+            FfiConverterString.write(value.`confirmPassword`, buf)
+            FfiConverterString.write(value.`lastPackage`, buf)
+            FfiConverterTypeDistributeStatus.write(value.`statusChip`, buf)
+    }
+}
+
+
+
+/**
+ * One share produced by keygen, surfaced for the share picker (VAL-CREATE-004,
+ * VAL-CREATE-006, VAL-CREATE-008) and for the per-share Distribute forms
+ * (VAL-CREATE-011/012).
+ *
+ * The view model is serialized so an actor-driven snapshot carries it across
+ * the generator → device-profile → review → distribute flow without re-runs.
+ */
+data class GeneratedShare (
+    /**
+     * Identifier inside the keyset (matches `SharePackage.idx`).
+     */
+    var `shareIdx`: kotlin.UShort
+    , 
+    /**
+     * 64-char lowercase-hex compressed public key (33-byte form is rendered
+     * as x-only here so mobile validators can compare via accessibility
+     * value or copy affordance).
+     */
+    var `sharePubkey`: kotlin.String
+    , 
+    /**
+     * 32-byte share secret as 64-char lowercase hex. Kept here so the
+     * wizard can re-encode the share via the `bfonboard1` envelope on the
+     * Distribute step. Lives only inside the actor state; never sent to
+     * native logs.
+     */
+    var `shareSecretHex`: kotlin.String
+    , 
+    /**
+     * Default label for this share, derived from `group_name` + share_idx.
+     * The user can override it on the Distribute step (VAL-CREATE-011).
+     */
+    var `defaultLabel`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeGeneratedShare: FfiConverterRustBuffer<GeneratedShare> {
+    override fun read(buf: ByteBuffer): GeneratedShare {
+        return GeneratedShare(
+            FfiConverterUShort.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: GeneratedShare) = (
+            FfiConverterUShort.allocationSize(value.`shareIdx`) +
+            FfiConverterString.allocationSize(value.`sharePubkey`) +
+            FfiConverterString.allocationSize(value.`shareSecretHex`) +
+            FfiConverterString.allocationSize(value.`defaultLabel`)
+    )
+
+    override fun write(value: GeneratedShare, buf: ByteBuffer) {
+            FfiConverterUShort.write(value.`shareIdx`, buf)
+            FfiConverterString.write(value.`sharePubkey`, buf)
+            FfiConverterString.write(value.`shareSecretHex`, buf)
+            FfiConverterString.write(value.`defaultLabel`, buf)
+    }
+}
+
+
+
+/**
  * Landing hub state: stored-profile list + the three entry tiles.
  * Entry tiles are always present (not rendered from data) so they don't
  * need explicit state — only the stored profile list is dynamic.
@@ -2141,6 +2396,209 @@ public object FfiConverterTypeHubState: FfiConverterRustBuffer<HubState> {
 
     override fun write(value: HubState, buf: ByteBuffer) {
             FfiConverterSequenceTypeStoredProfile.write(value.`profiles`, buf)
+    }
+}
+
+
+
+/**
+ * Result of the keygen FFI call, surfaced into state by the actor.
+ *
+ * `bundle_json` is the canonical wire form produced by `frostr_utils::create_keyset`.
+ * We carry the wire form (rather than re-parse it) so the actor has a stable
+ * representation that survives rev/`serde` changes in `bifrost-codec`.
+ */
+data class KeysetBundleRecord (
+    var `groupName`: kotlin.String
+    , 
+    var `threshold`: kotlin.UShort
+    , 
+    var `count`: kotlin.UShort
+    , 
+    /**
+     * 64-char lowercase-hex group public key.
+     */
+    var `groupPubkey`: kotlin.String
+    , 
+    /**
+     * All shares produced by the dealer; the local device picks one and the
+     * Distribute step iterates over the remainder.
+     */
+    var `shares`: List<GeneratedShare>
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeKeysetBundleRecord: FfiConverterRustBuffer<KeysetBundleRecord> {
+    override fun read(buf: ByteBuffer): KeysetBundleRecord {
+        return KeysetBundleRecord(
+            FfiConverterString.read(buf),
+            FfiConverterUShort.read(buf),
+            FfiConverterUShort.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterSequenceTypeGeneratedShare.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: KeysetBundleRecord) = (
+            FfiConverterString.allocationSize(value.`groupName`) +
+            FfiConverterUShort.allocationSize(value.`threshold`) +
+            FfiConverterUShort.allocationSize(value.`count`) +
+            FfiConverterString.allocationSize(value.`groupPubkey`) +
+            FfiConverterSequenceTypeGeneratedShare.allocationSize(value.`shares`)
+    )
+
+    override fun write(value: KeysetBundleRecord, buf: ByteBuffer) {
+            FfiConverterString.write(value.`groupName`, buf)
+            FfiConverterUShort.write(value.`threshold`, buf)
+            FfiConverterUShort.write(value.`count`, buf)
+            FfiConverterString.write(value.`groupPubkey`, buf)
+            FfiConverterSequenceTypeGeneratedShare.write(value.`shares`, buf)
+    }
+}
+
+
+
+/**
+ * The full Create / Rotate Keyset wizard state. Lives in `AppState.keyset`
+ * so shells render snapshots re-guarded by `rev`.
+ */
+data class KeysetFlowState (
+    /**
+     * Current wizard progress.
+     */
+    var `step`: KeysetFlowStep
+    , 
+    /**
+     * Persistent validation error from the Generate step, cleared on the
+     * next successful validation pass.
+     */
+    var `error`: KeysetValidationError?
+    , 
+    /**
+     * Free-form error message surfaced when keygen or distribution fails.
+     * Lives separately so the typed `error` slot can keep validating form
+     * parity while runtime failures carry the FFI's raw error text.
+     */
+    var `lastErrorMessage`: kotlin.String?
+    , 
+    /**
+     * Wizard mode (Create vs Rotate) — VAL-CREATE-002 form parity.
+     */
+    var `mode`: KeysetFlowMode
+    , 
+    /**
+     * Generate-step inputs: group name, threshold, count. Kept across
+     * the wizard so back navigation preserves values (VAL-CREATE-009).
+     */
+    var `groupName`: kotlin.String
+    , 
+    var `threshold`: kotlin.UShort
+    , 
+    var `count`: kotlin.UShort
+    , 
+    /**
+     * Generated bundle; filled when `step` reaches DeviceProfile+ and
+     * empty after `reset()`.
+     */
+    var `bundle`: KeysetBundleRecord?
+    , 
+    /**
+     * Selected local share idx (VAL-CREATE-004, VAL-CREATE-006).
+     */
+    var `localShareIdx`: kotlin.UShort
+    , 
+    /**
+     * Device profile inputs: device name (prefilled from
+     * `group_name`+share-idx default), relay list pre-filled with the
+     * app default relay URL.
+     */
+    var `deviceName`: kotlin.String
+    , 
+    var `relays`: List<kotlin.String>
+    , 
+    /**
+     * One DistributeShareRecord per remaining (non-local) share.
+     * Empty until the wizard reaches the Distribute step.
+     */
+    var `distribute`: List<DistributeShareRecord>
+    , 
+    /**
+     * Short profile id captured after Accept-and-Continue storage completes.
+     * Used by the Distribute step's embedded dashboard header on iOS.
+     */
+    var `acceptedShortId`: kotlin.String?
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeKeysetFlowState: FfiConverterRustBuffer<KeysetFlowState> {
+    override fun read(buf: ByteBuffer): KeysetFlowState {
+        return KeysetFlowState(
+            FfiConverterTypeKeysetFlowStep.read(buf),
+            FfiConverterOptionalTypeKeysetValidationError.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterTypeKeysetFlowMode.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterUShort.read(buf),
+            FfiConverterUShort.read(buf),
+            FfiConverterOptionalTypeKeysetBundleRecord.read(buf),
+            FfiConverterUShort.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterSequenceTypeDistributeShareRecord.read(buf),
+            FfiConverterOptionalString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: KeysetFlowState) = (
+            FfiConverterTypeKeysetFlowStep.allocationSize(value.`step`) +
+            FfiConverterOptionalTypeKeysetValidationError.allocationSize(value.`error`) +
+            FfiConverterOptionalString.allocationSize(value.`lastErrorMessage`) +
+            FfiConverterTypeKeysetFlowMode.allocationSize(value.`mode`) +
+            FfiConverterString.allocationSize(value.`groupName`) +
+            FfiConverterUShort.allocationSize(value.`threshold`) +
+            FfiConverterUShort.allocationSize(value.`count`) +
+            FfiConverterOptionalTypeKeysetBundleRecord.allocationSize(value.`bundle`) +
+            FfiConverterUShort.allocationSize(value.`localShareIdx`) +
+            FfiConverterString.allocationSize(value.`deviceName`) +
+            FfiConverterSequenceString.allocationSize(value.`relays`) +
+            FfiConverterSequenceTypeDistributeShareRecord.allocationSize(value.`distribute`) +
+            FfiConverterOptionalString.allocationSize(value.`acceptedShortId`)
+    )
+
+    override fun write(value: KeysetFlowState, buf: ByteBuffer) {
+            FfiConverterTypeKeysetFlowStep.write(value.`step`, buf)
+            FfiConverterOptionalTypeKeysetValidationError.write(value.`error`, buf)
+            FfiConverterOptionalString.write(value.`lastErrorMessage`, buf)
+            FfiConverterTypeKeysetFlowMode.write(value.`mode`, buf)
+            FfiConverterString.write(value.`groupName`, buf)
+            FfiConverterUShort.write(value.`threshold`, buf)
+            FfiConverterUShort.write(value.`count`, buf)
+            FfiConverterOptionalTypeKeysetBundleRecord.write(value.`bundle`, buf)
+            FfiConverterUShort.write(value.`localShareIdx`, buf)
+            FfiConverterString.write(value.`deviceName`, buf)
+            FfiConverterSequenceString.write(value.`relays`, buf)
+            FfiConverterSequenceTypeDistributeShareRecord.write(value.`distribute`, buf)
+            FfiConverterOptionalString.write(value.`acceptedShortId`, buf)
     }
 }
 
@@ -4021,14 +4479,199 @@ sealed class AppAction {
     object LoadProfileClearError : AppAction()
     
     
+    /**
+     * Open the wizard — reset state and land on the entry screen.
+     */
+    object CreateKeysetEnter : AppAction()
+    
+    
+    /**
+     * Pick the create (new signing key) mode on the entry screen.
+     */
     object CreateKeysetSelectCreate : AppAction()
     
     
+    /**
+     * Pick the rotate (preserve group key) mode on the entry screen. The
+     * rotation path is owned by the rotate-share feature; this action
+     * exists so the entry selector shape matches parity but the wizard
+     * stays in the Generate step until the rotate feature completes it.
+     */
     object CreateKeysetSelectRotate : AppAction()
     
     
+    /**
+     * User-side field changes on the Generate step (VAL-CREATE-002,
+     * VAL-CREATE-003). Each field change recomputes validation.
+     */
+    data class CreateKeysetUpdateGroupName(
+        val `value`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class CreateKeysetUpdateThreshold(
+        val `value`: kotlin.UShort) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class CreateKeysetUpdateCount(
+        val `value`: kotlin.UShort) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class CreateKeysetUpdateMode(
+        val `mode`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * User tapped Generate with valid inputs (VAL-CREATE-002..007).
+     * Shells dispatch an FfiApp.generate_keyset() call and then resolve
+     * with `CreateKeysetGenerationSuccess`/`CreateKeysetGenerationFailed`.
+     */
     data class CreateKeysetGenerateSubmit(
-        val `deviceName`: kotlin.String) : AppAction()
+        val `groupName`: kotlin.String, 
+        val `threshold`: kotlin.UShort, 
+        val `count`: kotlin.UShort, 
+        val `mode`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * FfiApp.generate_keyset() succeeded with a JSON bundle wire form.
+     * The actor parses the bundle, builds the share picker and the
+     * Distribute rows, and advances to `DeviceProfile`.
+     */
+    data class CreateKeysetGenerationSuccess(
+        val `bundleJson`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * FfiApp.generate_keyset() failed — return to `GenerationFailed`.
+     */
+    data class CreateKeysetGenerationFailed(
+        val `error`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * Pick which share becomes the local device (VAL-CREATE-004,
+     * VAL-CREATE-006).
+     */
+    data class CreateKeysetSelectLocalShare(
+        val `shareIdx`: kotlin.UShort) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * User-side field changes on the Device Profile step.
+     */
+    data class CreateKeysetUpdateDeviceName(
+        val `value`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class CreateKeysetUpdateRelays(
+        val `value`: List<kotlin.String>) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * User tapped "Continue to Review" with valid inputs
+     * (VAL-CREATE-005/007/008).
+     */
+    object CreateKeysetAdvanceToReview : AppAction()
+    
+    
+    /**
+     * User tapped "Accept and Continue" (VAL-CREATE-010). Triggers
+     * AppUpdate::StoreKeysetCreatedProfile so the shell writes the
+     * decrypted material to native secure storage.
+     */
+    object CreateKeysetAccept : AppAction()
+    
+    
+    /**
+     * Shell stored the profile and reported the new profile id back.
+     */
+    data class CreateKeysetAccepted(
+        val `profileId`: kotlin.String, 
+        val `label`: kotlin.String, 
+        val `shortId`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * User-side field changes on the Distribute step (VAL-CREATE-013).
+     */
+    data class CreateKeysetDistributeSetPassword(
+        val `shareIdx`: kotlin.UShort, 
+        val `password`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class CreateKeysetDistributeSetConfirm(
+        val `shareIdx`: kotlin.UShort, 
+        val `confirm`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class CreateKeysetDistributeSetLabel(
+        val `shareIdx`: kotlin.UShort, 
+        val `label`: kotlin.String) : AppAction()
         
     {
         
@@ -4037,6 +4680,7 @@ sealed class AppAction {
     }
     
     data class CreateKeysetDistributeSubmit(
+        val `shareIdx`: kotlin.UShort, 
         val `method`: kotlin.String) : AppAction()
         
     {
@@ -4044,6 +4688,48 @@ sealed class AppAction {
 
         companion object
     }
+    
+    /**
+     * Shell produced the bfonboard1 package for the requested share;
+     * the actor stores it on the row and updates the status chip.
+     */
+    data class CreateKeysetDistributePackageProduced(
+        val `shareIdx`: kotlin.UShort, 
+        val `package`: kotlin.String, 
+        val `method`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * Shell failed to produce the bfonboard1 package for the requested
+     * share (KDF error, missing share, etc.). The chip stays Pending.
+     */
+    data class CreateKeysetDistributeFailed(
+        val `shareIdx`: kotlin.UShort, 
+        val `error`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * User tapped "Finish" (VAL-CREATE-018/019).
+     */
+    object CreateKeysetDistributeFinish : AppAction()
+    
+    
+    /**
+     * User abandoned the wizard before Review accept (VAL-CREATE-020).
+     * Actor resets `KeysetFlowState` and returns control to the caller.
+     */
+    object CreateKeysetAbandon : AppAction()
+    
     
     data class RequestDeleteProfile(
         val `profileId`: kotlin.String) : AppAction()
@@ -4518,47 +5204,109 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 FfiConverterString.read(buf),
                 )
             27 -> AppAction.LoadProfileClearError
-            28 -> AppAction.CreateKeysetSelectCreate
-            29 -> AppAction.CreateKeysetSelectRotate
-            30 -> AppAction.CreateKeysetGenerateSubmit(
+            28 -> AppAction.CreateKeysetEnter
+            29 -> AppAction.CreateKeysetSelectCreate
+            30 -> AppAction.CreateKeysetSelectRotate
+            31 -> AppAction.CreateKeysetUpdateGroupName(
                 FfiConverterString.read(buf),
                 )
-            31 -> AppAction.CreateKeysetDistributeSubmit(
+            32 -> AppAction.CreateKeysetUpdateThreshold(
+                FfiConverterUShort.read(buf),
+                )
+            33 -> AppAction.CreateKeysetUpdateCount(
+                FfiConverterUShort.read(buf),
+                )
+            34 -> AppAction.CreateKeysetUpdateMode(
                 FfiConverterString.read(buf),
                 )
-            32 -> AppAction.RequestDeleteProfile(
+            35 -> AppAction.CreateKeysetGenerateSubmit(
+                FfiConverterString.read(buf),
+                FfiConverterUShort.read(buf),
+                FfiConverterUShort.read(buf),
                 FfiConverterString.read(buf),
                 )
-            33 -> AppAction.ConfirmDeleteProfile(
+            36 -> AppAction.CreateKeysetGenerationSuccess(
                 FfiConverterString.read(buf),
                 )
-            34 -> AppAction.RestoreAllProfiles
-            35 -> AppAction.ProfileRestored(
+            37 -> AppAction.CreateKeysetGenerationFailed(
+                FfiConverterString.read(buf),
+                )
+            38 -> AppAction.CreateKeysetSelectLocalShare(
+                FfiConverterUShort.read(buf),
+                )
+            39 -> AppAction.CreateKeysetUpdateDeviceName(
+                FfiConverterString.read(buf),
+                )
+            40 -> AppAction.CreateKeysetUpdateRelays(
+                FfiConverterSequenceString.read(buf),
+                )
+            41 -> AppAction.CreateKeysetAdvanceToReview
+            42 -> AppAction.CreateKeysetAccept
+            43 -> AppAction.CreateKeysetAccepted(
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 )
-            36 -> AppAction.UpdateHubStatus(
+            44 -> AppAction.CreateKeysetDistributeSetPassword(
+                FfiConverterUShort.read(buf),
+                FfiConverterString.read(buf),
+                )
+            45 -> AppAction.CreateKeysetDistributeSetConfirm(
+                FfiConverterUShort.read(buf),
+                FfiConverterString.read(buf),
+                )
+            46 -> AppAction.CreateKeysetDistributeSetLabel(
+                FfiConverterUShort.read(buf),
+                FfiConverterString.read(buf),
+                )
+            47 -> AppAction.CreateKeysetDistributeSubmit(
+                FfiConverterUShort.read(buf),
+                FfiConverterString.read(buf),
+                )
+            48 -> AppAction.CreateKeysetDistributePackageProduced(
+                FfiConverterUShort.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                )
+            49 -> AppAction.CreateKeysetDistributeFailed(
+                FfiConverterUShort.read(buf),
+                FfiConverterString.read(buf),
+                )
+            50 -> AppAction.CreateKeysetDistributeFinish
+            51 -> AppAction.CreateKeysetAbandon
+            52 -> AppAction.RequestDeleteProfile(
+                FfiConverterString.read(buf),
+                )
+            53 -> AppAction.ConfirmDeleteProfile(
+                FfiConverterString.read(buf),
+                )
+            54 -> AppAction.RestoreAllProfiles
+            55 -> AppAction.ProfileRestored(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                )
+            56 -> AppAction.UpdateHubStatus(
                 FfiConverterString.read(buf),
                 FfiConverterBoolean.read(buf),
                 )
-            37 -> AppAction.DashboardSetTab(
+            57 -> AppAction.DashboardSetTab(
                 FfiConverterString.read(buf),
                 )
-            38 -> AppAction.OpenDashboard(
+            58 -> AppAction.OpenDashboard(
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 )
-            39 -> AppAction.SignerStart
-            40 -> AppAction.SignerStarted(
+            59 -> AppAction.SignerStart
+            60 -> AppAction.SignerStarted(
                 FfiConverterBoolean.read(buf),
                 FfiConverterString.read(buf),
                 )
-            41 -> AppAction.SignerStop
-            42 -> AppAction.SignerStopped
-            43 -> AppAction.SignerStatusUpdate(
+            61 -> AppAction.SignerStop
+            62 -> AppAction.SignerStopped
+            63 -> AppAction.SignerStatusUpdate(
                 FfiConverterBoolean.read(buf),
                 FfiConverterString.read(buf),
                 FfiConverterSequenceString.read(buf),
@@ -4573,108 +5321,108 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 FfiConverterOptionalLong.read(buf),
                 FfiConverterUInt.read(buf),
                 )
-            44 -> AppAction.SignerPoll
-            45 -> AppAction.SignerPingPeers
-            46 -> AppAction.SignerPingComplete(
+            64 -> AppAction.SignerPoll
+            65 -> AppAction.SignerPingPeers
+            66 -> AppAction.SignerPingComplete(
                 FfiConverterString.read(buf),
                 FfiConverterLong.read(buf),
                 FfiConverterUInt.read(buf),
                 )
-            47 -> AppAction.CopyToClipboard(
+            67 -> AppAction.CopyToClipboard(
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 )
-            48 -> AppAction.TestSign
-            49 -> AppAction.TestSignResult(
-                FfiConverterString.read(buf),
-                FfiConverterString.read(buf),
-                FfiConverterString.read(buf),
-                )
-            50 -> AppAction.TestSignFailed(
-                FfiConverterString.read(buf),
-                )
-            51 -> AppAction.TestEcdh
-            52 -> AppAction.TestEcdhResult(
+            68 -> AppAction.TestSign
+            69 -> AppAction.TestSignResult(
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 )
-            53 -> AppAction.TestEcdhFailed(
+            70 -> AppAction.TestSignFailed(
                 FfiConverterString.read(buf),
                 )
-            54 -> AppAction.ClearTestSignResult
-            55 -> AppAction.ClearTestEcdhResult
-            56 -> AppAction.SetPolicyOverride(
-                FfiConverterString.read(buf),
+            71 -> AppAction.TestEcdh
+            72 -> AppAction.TestEcdhResult(
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 )
-            57 -> AppAction.ResetPolicyOverride(
+            73 -> AppAction.TestEcdhFailed(
+                FfiConverterString.read(buf),
+                )
+            74 -> AppAction.ClearTestSignResult
+            75 -> AppAction.ClearTestEcdhResult
+            76 -> AppAction.SetPolicyOverride(
+                FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 )
-            58 -> AppAction.ClearAllPeerOverrides(
+            77 -> AppAction.ResetPolicyOverride(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 )
-            59 -> AppAction.RefreshRemotePolicy
-            60 -> AppAction.SyncPeerOnlineStatus(
+            78 -> AppAction.ClearAllPeerOverrides(
+                FfiConverterString.read(buf),
+                )
+            79 -> AppAction.RefreshRemotePolicy
+            80 -> AppAction.SyncPeerOnlineStatus(
                 FfiConverterSequenceString.read(buf),
                 FfiConverterSequenceBoolean.read(buf),
                 )
-            61 -> AppAction.UpdateRemotePolicyObservation(
+            81 -> AppAction.UpdateRemotePolicyObservation(
                 FfiConverterString.read(buf),
                 FfiConverterBoolean.read(buf),
                 FfiConverterOptionalLong.read(buf),
                 FfiConverterOptionalULong.read(buf),
                 )
-            62 -> AppAction.OpenDashboardSettings(
+            82 -> AppAction.OpenDashboardSettings(
                 FfiConverterString.read(buf),
                 FfiConverterSequenceString.read(buf),
                 )
-            63 -> AppAction.EditSignerName(
+            83 -> AppAction.EditSignerName(
                 FfiConverterString.read(buf),
                 )
-            64 -> AppAction.EditSignTimeout(
+            84 -> AppAction.EditSignTimeout(
                 FfiConverterUInt.read(buf),
                 )
-            65 -> AppAction.EditPingTimeout(
+            85 -> AppAction.EditPingTimeout(
                 FfiConverterUInt.read(buf),
                 )
-            66 -> AppAction.EditRequestTtl(
+            86 -> AppAction.EditRequestTtl(
                 FfiConverterUInt.read(buf),
                 )
-            67 -> AppAction.EditStateSaveInterval(
+            87 -> AppAction.EditStateSaveInterval(
                 FfiConverterUInt.read(buf),
                 )
-            68 -> AppAction.EditPeerSelectionStrategy(
+            88 -> AppAction.EditPeerSelectionStrategy(
                 FfiConverterString.read(buf),
                 )
-            69 -> AppAction.AddRelay(
+            89 -> AppAction.AddRelay(
                 FfiConverterString.read(buf),
                 )
-            70 -> AppAction.RemoveRelay(
+            90 -> AppAction.RemoveRelay(
                 FfiConverterString.read(buf),
                 )
-            71 -> AppAction.SaveSettings
-            72 -> AppAction.RequestCopyProfile
-            73 -> AppAction.ConfirmCopyProfile(
+            91 -> AppAction.SaveSettings
+            92 -> AppAction.RequestCopyProfile
+            93 -> AppAction.ConfirmCopyProfile(
                 FfiConverterString.read(buf),
                 )
-            74 -> AppAction.RequestCopyShare
-            75 -> AppAction.ConfirmCopyShare(
+            94 -> AppAction.RequestCopyShare
+            95 -> AppAction.ConfirmCopyShare(
                 FfiConverterString.read(buf),
                 )
-            76 -> AppAction.NavigateToRotateShare
-            77 -> AppAction.Logout
-            78 -> AppAction.ExportCompleted(
+            96 -> AppAction.NavigateToRotateShare
+            97 -> AppAction.Logout
+            98 -> AppAction.ExportCompleted(
                 FfiConverterString.read(buf),
                 )
-            79 -> AppAction.ExportFailed(
+            99 -> AppAction.ExportFailed(
                 FfiConverterString.read(buf),
                 )
-            80 -> AppAction.ClearExportState
+            100 -> AppAction.ClearExportState
             else -> throw RuntimeException("invalid enum value, something is very wrong!!")
         }
     }
@@ -4880,6 +5628,12 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 4UL
             )
         }
+        is AppAction.CreateKeysetEnter -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
         is AppAction.CreateKeysetSelectCreate -> {
             // Add the size for the Int that specifies the variant plus the size needed for all fields
             (
@@ -4892,18 +5646,159 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 4UL
             )
         }
+        is AppAction.CreateKeysetUpdateGroupName -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`value`)
+            )
+        }
+        is AppAction.CreateKeysetUpdateThreshold -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterUShort.allocationSize(value.`value`)
+            )
+        }
+        is AppAction.CreateKeysetUpdateCount -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterUShort.allocationSize(value.`value`)
+            )
+        }
+        is AppAction.CreateKeysetUpdateMode -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`mode`)
+            )
+        }
         is AppAction.CreateKeysetGenerateSubmit -> {
             // Add the size for the Int that specifies the variant plus the size needed for all fields
             (
                 4UL
-                + FfiConverterString.allocationSize(value.`deviceName`)
+                + FfiConverterString.allocationSize(value.`groupName`)
+                + FfiConverterUShort.allocationSize(value.`threshold`)
+                + FfiConverterUShort.allocationSize(value.`count`)
+                + FfiConverterString.allocationSize(value.`mode`)
+            )
+        }
+        is AppAction.CreateKeysetGenerationSuccess -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`bundleJson`)
+            )
+        }
+        is AppAction.CreateKeysetGenerationFailed -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`error`)
+            )
+        }
+        is AppAction.CreateKeysetSelectLocalShare -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterUShort.allocationSize(value.`shareIdx`)
+            )
+        }
+        is AppAction.CreateKeysetUpdateDeviceName -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`value`)
+            )
+        }
+        is AppAction.CreateKeysetUpdateRelays -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterSequenceString.allocationSize(value.`value`)
+            )
+        }
+        is AppAction.CreateKeysetAdvanceToReview -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is AppAction.CreateKeysetAccept -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is AppAction.CreateKeysetAccepted -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`profileId`)
+                + FfiConverterString.allocationSize(value.`label`)
+                + FfiConverterString.allocationSize(value.`shortId`)
+            )
+        }
+        is AppAction.CreateKeysetDistributeSetPassword -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterUShort.allocationSize(value.`shareIdx`)
+                + FfiConverterString.allocationSize(value.`password`)
+            )
+        }
+        is AppAction.CreateKeysetDistributeSetConfirm -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterUShort.allocationSize(value.`shareIdx`)
+                + FfiConverterString.allocationSize(value.`confirm`)
+            )
+        }
+        is AppAction.CreateKeysetDistributeSetLabel -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterUShort.allocationSize(value.`shareIdx`)
+                + FfiConverterString.allocationSize(value.`label`)
             )
         }
         is AppAction.CreateKeysetDistributeSubmit -> {
             // Add the size for the Int that specifies the variant plus the size needed for all fields
             (
                 4UL
+                + FfiConverterUShort.allocationSize(value.`shareIdx`)
                 + FfiConverterString.allocationSize(value.`method`)
+            )
+        }
+        is AppAction.CreateKeysetDistributePackageProduced -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterUShort.allocationSize(value.`shareIdx`)
+                + FfiConverterString.allocationSize(value.`package`)
+                + FfiConverterString.allocationSize(value.`method`)
+            )
+        }
+        is AppAction.CreateKeysetDistributeFailed -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterUShort.allocationSize(value.`shareIdx`)
+                + FfiConverterString.allocationSize(value.`error`)
+            )
+        }
+        is AppAction.CreateKeysetDistributeFinish -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is AppAction.CreateKeysetAbandon -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
             )
         }
         is AppAction.RequestDeleteProfile -> {
@@ -5418,58 +6313,165 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 buf.putInt(27)
                 Unit
             }
-            is AppAction.CreateKeysetSelectCreate -> {
+            is AppAction.CreateKeysetEnter -> {
                 buf.putInt(28)
                 Unit
             }
-            is AppAction.CreateKeysetSelectRotate -> {
+            is AppAction.CreateKeysetSelectCreate -> {
                 buf.putInt(29)
                 Unit
             }
-            is AppAction.CreateKeysetGenerateSubmit -> {
+            is AppAction.CreateKeysetSelectRotate -> {
                 buf.putInt(30)
-                FfiConverterString.write(value.`deviceName`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetUpdateGroupName -> {
+                buf.putInt(31)
+                FfiConverterString.write(value.`value`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetUpdateThreshold -> {
+                buf.putInt(32)
+                FfiConverterUShort.write(value.`value`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetUpdateCount -> {
+                buf.putInt(33)
+                FfiConverterUShort.write(value.`value`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetUpdateMode -> {
+                buf.putInt(34)
+                FfiConverterString.write(value.`mode`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetGenerateSubmit -> {
+                buf.putInt(35)
+                FfiConverterString.write(value.`groupName`, buf)
+                FfiConverterUShort.write(value.`threshold`, buf)
+                FfiConverterUShort.write(value.`count`, buf)
+                FfiConverterString.write(value.`mode`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetGenerationSuccess -> {
+                buf.putInt(36)
+                FfiConverterString.write(value.`bundleJson`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetGenerationFailed -> {
+                buf.putInt(37)
+                FfiConverterString.write(value.`error`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetSelectLocalShare -> {
+                buf.putInt(38)
+                FfiConverterUShort.write(value.`shareIdx`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetUpdateDeviceName -> {
+                buf.putInt(39)
+                FfiConverterString.write(value.`value`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetUpdateRelays -> {
+                buf.putInt(40)
+                FfiConverterSequenceString.write(value.`value`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetAdvanceToReview -> {
+                buf.putInt(41)
+                Unit
+            }
+            is AppAction.CreateKeysetAccept -> {
+                buf.putInt(42)
+                Unit
+            }
+            is AppAction.CreateKeysetAccepted -> {
+                buf.putInt(43)
+                FfiConverterString.write(value.`profileId`, buf)
+                FfiConverterString.write(value.`label`, buf)
+                FfiConverterString.write(value.`shortId`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetDistributeSetPassword -> {
+                buf.putInt(44)
+                FfiConverterUShort.write(value.`shareIdx`, buf)
+                FfiConverterString.write(value.`password`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetDistributeSetConfirm -> {
+                buf.putInt(45)
+                FfiConverterUShort.write(value.`shareIdx`, buf)
+                FfiConverterString.write(value.`confirm`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetDistributeSetLabel -> {
+                buf.putInt(46)
+                FfiConverterUShort.write(value.`shareIdx`, buf)
+                FfiConverterString.write(value.`label`, buf)
                 Unit
             }
             is AppAction.CreateKeysetDistributeSubmit -> {
-                buf.putInt(31)
+                buf.putInt(47)
+                FfiConverterUShort.write(value.`shareIdx`, buf)
                 FfiConverterString.write(value.`method`, buf)
                 Unit
             }
+            is AppAction.CreateKeysetDistributePackageProduced -> {
+                buf.putInt(48)
+                FfiConverterUShort.write(value.`shareIdx`, buf)
+                FfiConverterString.write(value.`package`, buf)
+                FfiConverterString.write(value.`method`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetDistributeFailed -> {
+                buf.putInt(49)
+                FfiConverterUShort.write(value.`shareIdx`, buf)
+                FfiConverterString.write(value.`error`, buf)
+                Unit
+            }
+            is AppAction.CreateKeysetDistributeFinish -> {
+                buf.putInt(50)
+                Unit
+            }
+            is AppAction.CreateKeysetAbandon -> {
+                buf.putInt(51)
+                Unit
+            }
             is AppAction.RequestDeleteProfile -> {
-                buf.putInt(32)
+                buf.putInt(52)
                 FfiConverterString.write(value.`profileId`, buf)
                 Unit
             }
             is AppAction.ConfirmDeleteProfile -> {
-                buf.putInt(33)
+                buf.putInt(53)
                 FfiConverterString.write(value.`profileId`, buf)
                 Unit
             }
             is AppAction.RestoreAllProfiles -> {
-                buf.putInt(34)
+                buf.putInt(54)
                 Unit
             }
             is AppAction.ProfileRestored -> {
-                buf.putInt(35)
+                buf.putInt(55)
                 FfiConverterString.write(value.`label`, buf)
                 FfiConverterString.write(value.`profileId`, buf)
                 FfiConverterString.write(value.`shortId`, buf)
                 Unit
             }
             is AppAction.UpdateHubStatus -> {
-                buf.putInt(36)
+                buf.putInt(56)
                 FfiConverterString.write(value.`profileId`, buf)
                 FfiConverterBoolean.write(value.`active`, buf)
                 Unit
             }
             is AppAction.DashboardSetTab -> {
-                buf.putInt(37)
+                buf.putInt(57)
                 FfiConverterString.write(value.`tab`, buf)
                 Unit
             }
             is AppAction.OpenDashboard -> {
-                buf.putInt(38)
+                buf.putInt(58)
                 FfiConverterString.write(value.`profileId`, buf)
                 FfiConverterString.write(value.`deviceName`, buf)
                 FfiConverterString.write(value.`sharePubkey`, buf)
@@ -5477,25 +6479,25 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 Unit
             }
             is AppAction.SignerStart -> {
-                buf.putInt(39)
+                buf.putInt(59)
                 Unit
             }
             is AppAction.SignerStarted -> {
-                buf.putInt(40)
+                buf.putInt(60)
                 FfiConverterBoolean.write(value.`relayConnected`, buf)
                 FfiConverterString.write(value.`readiness`, buf)
                 Unit
             }
             is AppAction.SignerStop -> {
-                buf.putInt(41)
+                buf.putInt(61)
                 Unit
             }
             is AppAction.SignerStopped -> {
-                buf.putInt(42)
+                buf.putInt(62)
                 Unit
             }
             is AppAction.SignerStatusUpdate -> {
-                buf.putInt(43)
+                buf.putInt(63)
                 FfiConverterBoolean.write(value.`relayConnected`, buf)
                 FfiConverterString.write(value.`readiness`, buf)
                 FfiConverterSequenceString.write(value.`peerAliases`, buf)
@@ -5512,68 +6514,68 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 Unit
             }
             is AppAction.SignerPoll -> {
-                buf.putInt(44)
+                buf.putInt(64)
                 Unit
             }
             is AppAction.SignerPingPeers -> {
-                buf.putInt(45)
+                buf.putInt(65)
                 Unit
             }
             is AppAction.SignerPingComplete -> {
-                buf.putInt(46)
+                buf.putInt(66)
                 FfiConverterString.write(value.`peerAlias`, buf)
                 FfiConverterLong.write(value.`lastSeenSecs`, buf)
                 FfiConverterUInt.write(value.`incomingAvailable`, buf)
                 Unit
             }
             is AppAction.CopyToClipboard -> {
-                buf.putInt(47)
+                buf.putInt(67)
                 FfiConverterString.write(value.`value`, buf)
                 FfiConverterString.write(value.`label`, buf)
                 Unit
             }
             is AppAction.TestSign -> {
-                buf.putInt(48)
+                buf.putInt(68)
                 Unit
             }
             is AppAction.TestSignResult -> {
-                buf.putInt(49)
+                buf.putInt(69)
                 FfiConverterString.write(value.`requestId`, buf)
                 FfiConverterString.write(value.`digest`, buf)
                 FfiConverterString.write(value.`signature`, buf)
                 Unit
             }
             is AppAction.TestSignFailed -> {
-                buf.putInt(50)
+                buf.putInt(70)
                 FfiConverterString.write(value.`error`, buf)
                 Unit
             }
             is AppAction.TestEcdh -> {
-                buf.putInt(51)
+                buf.putInt(71)
                 Unit
             }
             is AppAction.TestEcdhResult -> {
-                buf.putInt(52)
+                buf.putInt(72)
                 FfiConverterString.write(value.`requestId`, buf)
                 FfiConverterString.write(value.`targetPubkey`, buf)
                 FfiConverterString.write(value.`sharedSecret`, buf)
                 Unit
             }
             is AppAction.TestEcdhFailed -> {
-                buf.putInt(53)
+                buf.putInt(73)
                 FfiConverterString.write(value.`error`, buf)
                 Unit
             }
             is AppAction.ClearTestSignResult -> {
-                buf.putInt(54)
+                buf.putInt(74)
                 Unit
             }
             is AppAction.ClearTestEcdhResult -> {
-                buf.putInt(55)
+                buf.putInt(75)
                 Unit
             }
             is AppAction.SetPolicyOverride -> {
-                buf.putInt(56)
+                buf.putInt(76)
                 FfiConverterString.write(value.`peerAlias`, buf)
                 FfiConverterString.write(value.`direction`, buf)
                 FfiConverterString.write(value.`method`, buf)
@@ -5581,29 +6583,29 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 Unit
             }
             is AppAction.ResetPolicyOverride -> {
-                buf.putInt(57)
+                buf.putInt(77)
                 FfiConverterString.write(value.`peerAlias`, buf)
                 FfiConverterString.write(value.`direction`, buf)
                 FfiConverterString.write(value.`method`, buf)
                 Unit
             }
             is AppAction.ClearAllPeerOverrides -> {
-                buf.putInt(58)
+                buf.putInt(78)
                 FfiConverterString.write(value.`peerAlias`, buf)
                 Unit
             }
             is AppAction.RefreshRemotePolicy -> {
-                buf.putInt(59)
+                buf.putInt(79)
                 Unit
             }
             is AppAction.SyncPeerOnlineStatus -> {
-                buf.putInt(60)
+                buf.putInt(80)
                 FfiConverterSequenceString.write(value.`peerAliases`, buf)
                 FfiConverterSequenceBoolean.write(value.`peerOnline`, buf)
                 Unit
             }
             is AppAction.UpdateRemotePolicyObservation -> {
-                buf.putInt(61)
+                buf.putInt(81)
                 FfiConverterString.write(value.`peerAlias`, buf)
                 FfiConverterBoolean.write(value.`available`, buf)
                 FfiConverterOptionalLong.write(value.`lastObservedSecs`, buf)
@@ -5611,93 +6613,93 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 Unit
             }
             is AppAction.OpenDashboardSettings -> {
-                buf.putInt(62)
+                buf.putInt(82)
                 FfiConverterString.write(value.`deviceName`, buf)
                 FfiConverterSequenceString.write(value.`relays`, buf)
                 Unit
             }
             is AppAction.EditSignerName -> {
-                buf.putInt(63)
+                buf.putInt(83)
                 FfiConverterString.write(value.`name`, buf)
                 Unit
             }
             is AppAction.EditSignTimeout -> {
-                buf.putInt(64)
+                buf.putInt(84)
                 FfiConverterUInt.write(value.`value`, buf)
                 Unit
             }
             is AppAction.EditPingTimeout -> {
-                buf.putInt(65)
+                buf.putInt(85)
                 FfiConverterUInt.write(value.`value`, buf)
                 Unit
             }
             is AppAction.EditRequestTtl -> {
-                buf.putInt(66)
+                buf.putInt(86)
                 FfiConverterUInt.write(value.`value`, buf)
                 Unit
             }
             is AppAction.EditStateSaveInterval -> {
-                buf.putInt(67)
+                buf.putInt(87)
                 FfiConverterUInt.write(value.`value`, buf)
                 Unit
             }
             is AppAction.EditPeerSelectionStrategy -> {
-                buf.putInt(68)
+                buf.putInt(88)
                 FfiConverterString.write(value.`strategy`, buf)
                 Unit
             }
             is AppAction.AddRelay -> {
-                buf.putInt(69)
+                buf.putInt(89)
                 FfiConverterString.write(value.`url`, buf)
                 Unit
             }
             is AppAction.RemoveRelay -> {
-                buf.putInt(70)
+                buf.putInt(90)
                 FfiConverterString.write(value.`url`, buf)
                 Unit
             }
             is AppAction.SaveSettings -> {
-                buf.putInt(71)
+                buf.putInt(91)
                 Unit
             }
             is AppAction.RequestCopyProfile -> {
-                buf.putInt(72)
+                buf.putInt(92)
                 Unit
             }
             is AppAction.ConfirmCopyProfile -> {
-                buf.putInt(73)
+                buf.putInt(93)
                 FfiConverterString.write(value.`password`, buf)
                 Unit
             }
             is AppAction.RequestCopyShare -> {
-                buf.putInt(74)
+                buf.putInt(94)
                 Unit
             }
             is AppAction.ConfirmCopyShare -> {
-                buf.putInt(75)
+                buf.putInt(95)
                 FfiConverterString.write(value.`password`, buf)
                 Unit
             }
             is AppAction.NavigateToRotateShare -> {
-                buf.putInt(76)
+                buf.putInt(96)
                 Unit
             }
             is AppAction.Logout -> {
-                buf.putInt(77)
+                buf.putInt(97)
                 Unit
             }
             is AppAction.ExportCompleted -> {
-                buf.putInt(78)
+                buf.putInt(98)
                 FfiConverterString.write(value.`packageType`, buf)
                 Unit
             }
             is AppAction.ExportFailed -> {
-                buf.putInt(79)
+                buf.putInt(99)
                 FfiConverterString.write(value.`error`, buf)
                 Unit
             }
             is AppAction.ClearExportState -> {
-                buf.putInt(80)
+                buf.putInt(100)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
@@ -5976,6 +6978,75 @@ sealed class AppUpdate {
     object PerformTestEcdh : AppUpdate()
     
     
+    /**
+     * Shell should run frostr_utils::create_keyset() to produce the bundle.
+     * VAL-CREATE-022: this is the perf-sensitive step that must run off the
+     * main actor; shells dispatch a background thread and resolve with
+     * `CreateKeysetGenerationSuccess`/`CreateKeysetGenerationFailed`.
+     */
+    data class PerformKeysetGeneration(
+        val `groupName`: kotlin.String, 
+        val `threshold`: kotlin.UShort, 
+        val `count`: kotlin.UShort, 
+        val `mode`: kotlin.String) : AppUpdate()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * Shell should encode a `bfonboard1` package for one of the remaining
+     * shares and (depending on `method`) copy to the clipboard, open a QR
+     * modal, or save to a file. VAL-CREATE-014/015/016.
+     */
+    data class PerformKeysetDistribution(
+        val `shareIdx`: kotlin.UShort, 
+        val `shareSecretHex`: kotlin.String, 
+        val `relays`: List<kotlin.String>, 
+        val `label`: kotlin.String, 
+        val `password`: kotlin.String, 
+        val `method`: kotlin.String) : AppUpdate()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * Shell stored the freshly created profile material to secure storage.
+     * After successful storage the shell dispatches `CreateKeysetAccepted`
+     * with `profile_id`/`label`/`short_id`.
+     */
+    data class StoreKeysetCreatedProfile(
+        val `profileId`: kotlin.String, 
+        val `label`: kotlin.String, 
+        val `shortId`: kotlin.String, 
+        val `material`: kotlin.ByteArray, 
+        val `relays`: List<kotlin.String>) : AppUpdate()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * Shell should kick the signer runtime for the freshly stored profile
+     * so the Distribute step shows a live signer panel (VAL-CREATE-010).
+     */
+    data class StartKeysetSignerRuntime(
+        val `profileId`: kotlin.String, 
+        val `label`: kotlin.String) : AppUpdate()
+        
+    {
+        
+
+        companion object
+    }
+    
 
     
 
@@ -6061,6 +7132,31 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 )
             22 -> AppUpdate.PerformTestSign
             23 -> AppUpdate.PerformTestEcdh
+            24 -> AppUpdate.PerformKeysetGeneration(
+                FfiConverterString.read(buf),
+                FfiConverterUShort.read(buf),
+                FfiConverterUShort.read(buf),
+                FfiConverterString.read(buf),
+                )
+            25 -> AppUpdate.PerformKeysetDistribution(
+                FfiConverterUShort.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterSequenceString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                )
+            26 -> AppUpdate.StoreKeysetCreatedProfile(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterByteArray.read(buf),
+                FfiConverterSequenceString.read(buf),
+                )
+            27 -> AppUpdate.StartKeysetSignerRuntime(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                )
             else -> throw RuntimeException("invalid enum value, something is very wrong!!")
         }
     }
@@ -6235,6 +7331,47 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 4UL
             )
         }
+        is AppUpdate.PerformKeysetGeneration -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`groupName`)
+                + FfiConverterUShort.allocationSize(value.`threshold`)
+                + FfiConverterUShort.allocationSize(value.`count`)
+                + FfiConverterString.allocationSize(value.`mode`)
+            )
+        }
+        is AppUpdate.PerformKeysetDistribution -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterUShort.allocationSize(value.`shareIdx`)
+                + FfiConverterString.allocationSize(value.`shareSecretHex`)
+                + FfiConverterSequenceString.allocationSize(value.`relays`)
+                + FfiConverterString.allocationSize(value.`label`)
+                + FfiConverterString.allocationSize(value.`password`)
+                + FfiConverterString.allocationSize(value.`method`)
+            )
+        }
+        is AppUpdate.StoreKeysetCreatedProfile -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`profileId`)
+                + FfiConverterString.allocationSize(value.`label`)
+                + FfiConverterString.allocationSize(value.`shortId`)
+                + FfiConverterByteArray.allocationSize(value.`material`)
+                + FfiConverterSequenceString.allocationSize(value.`relays`)
+            )
+        }
+        is AppUpdate.StartKeysetSignerRuntime -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`profileId`)
+                + FfiConverterString.allocationSize(value.`label`)
+            )
+        }
     }
 
     override fun write(value: AppUpdate, buf: ByteBuffer) {
@@ -6362,6 +7499,39 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 buf.putInt(23)
                 Unit
             }
+            is AppUpdate.PerformKeysetGeneration -> {
+                buf.putInt(24)
+                FfiConverterString.write(value.`groupName`, buf)
+                FfiConverterUShort.write(value.`threshold`, buf)
+                FfiConverterUShort.write(value.`count`, buf)
+                FfiConverterString.write(value.`mode`, buf)
+                Unit
+            }
+            is AppUpdate.PerformKeysetDistribution -> {
+                buf.putInt(25)
+                FfiConverterUShort.write(value.`shareIdx`, buf)
+                FfiConverterString.write(value.`shareSecretHex`, buf)
+                FfiConverterSequenceString.write(value.`relays`, buf)
+                FfiConverterString.write(value.`label`, buf)
+                FfiConverterString.write(value.`password`, buf)
+                FfiConverterString.write(value.`method`, buf)
+                Unit
+            }
+            is AppUpdate.StoreKeysetCreatedProfile -> {
+                buf.putInt(26)
+                FfiConverterString.write(value.`profileId`, buf)
+                FfiConverterString.write(value.`label`, buf)
+                FfiConverterString.write(value.`shortId`, buf)
+                FfiConverterByteArray.write(value.`material`, buf)
+                FfiConverterSequenceString.write(value.`relays`, buf)
+                Unit
+            }
+            is AppUpdate.StartKeysetSignerRuntime -> {
+                buf.putInt(27)
+                FfiConverterString.write(value.`profileId`, buf)
+                FfiConverterString.write(value.`label`, buf)
+                Unit
+            }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
     }
 }
@@ -6400,6 +7570,236 @@ public object FfiConverterTypeDashboardTab: FfiConverterRustBuffer<DashboardTab>
     override fun allocationSize(value: DashboardTab) = 4UL
 
     override fun write(value: DashboardTab, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * Per-share distribution status (VAL-CREATE-017). Each share form owns a
+ * status chip recording the most recent distribution method (`copied`, `qr`,
+ * or `saved`). Last-action-wins so re-using an action overwrites the chip.
+ */
+
+enum class DistributeStatus {
+    
+    /**
+     * No distribution attempt yet.
+     */
+    PENDING,
+    /**
+     * Copy-to-clipboard succeeded.
+     */
+    COPIED,
+    /**
+     * QR display modal opened.
+     */
+    QR,
+    /**
+     * Save-to-file succeeded.
+     */
+    SAVED;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeDistributeStatus: FfiConverterRustBuffer<DistributeStatus> {
+    override fun read(buf: ByteBuffer) = try {
+        DistributeStatus.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: DistributeStatus) = 4UL
+
+    override fun write(value: DistributeStatus, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * Wizard mode selected on the CreateKeysetEntry screen.
+ *
+ * VAL-CREATE-002 requires the Generate form to expose a mode selector
+ * (new keyset vs rotate). VAL-ROTATE-* lives in the rotate-share feature
+ * and is out of scope here; this wizard plans for both modes but only the
+ * `Create` path is implemented end-to-end in this feature.
+ */
+
+enum class KeysetFlowMode {
+    
+    /**
+     * Generate a fresh keyset from a new signing key.
+     */
+    CREATE,
+    /**
+     * Rotate an existing keyset (preserve the group public key).
+     */
+    ROTATE;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeKeysetFlowMode: FfiConverterRustBuffer<KeysetFlowMode> {
+    override fun read(buf: ByteBuffer) = try {
+        KeysetFlowMode.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: KeysetFlowMode) = 4UL
+
+    override fun write(value: KeysetFlowMode, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * Progress step for the wizard. Drives UI label and gating on Restart
+ * / Abandon / Finish actions.
+ *
+ * - `Idle`: Initial state before the user enters the wizard.
+ */
+
+enum class KeysetFlowStep {
+    
+    /**
+     * Initial state — no action taken, the user is on the entry screen.
+     */
+    IDLE,
+    /**
+     * Generation work in flight on the FFI thread (Argon2id dealer).
+     * VAL-CREATE-022 requires visible busy feedback during heavy keygen.
+     */
+    GENERATING,
+    /**
+     * Generation produced a valid bundle — wizard is on the Device Profile
+     * step with the share picker available.
+     */
+    DEVICE_PROFILE,
+    /**
+     * Wizard advanced to the Review step (read-only summary).
+     */
+    REVIEW,
+    /**
+     * Wizard advanced to the Distribute step (per-share forms + status chips).
+     */
+    DISTRIBUTE,
+    /**
+     * Generation failed — the wizard stays on the Generate screen and the
+     * failure is recoverable by editing inputs and re-tapping Generate.
+     */
+    GENERATION_FAILED;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeKeysetFlowStep: FfiConverterRustBuffer<KeysetFlowStep> {
+    override fun read(buf: ByteBuffer) = try {
+        KeysetFlowStep.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: KeysetFlowStep) = 4UL
+
+    override fun write(value: KeysetFlowStep, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * Validation errors surfaced from the Generate step.
+ *
+ * The arg name `KeysetValidationError` keeps the parity-oracle's
+ * `validateKeysetShape` vocabulary visible to mobile validators and locks in
+ * the four rejection branches the contract pins:
+ *
+ * - `ThresholdGreaterThanCount` (4-of-3)
+ * - `ThresholdZero` or `CountZero` (zero / cleared)
+ * - `ThresholdOne` (core requires threshold >= 2)
+ * - `EmptyGroupName`
+ */
+
+enum class KeysetValidationError {
+    
+    /**
+     * `threshold > count` (e.g. 4-of-3).
+     */
+    THRESHOLD_GREATER_THAN_COUNT,
+    /**
+     * User typed `0` or cleared the threshold field.
+     */
+    THRESHOLD_ZERO,
+    /**
+     * User typed `0` or cleared the count field.
+     */
+    COUNT_ZERO,
+    /**
+     * User typed `1` for threshold (core requires `>= 2`).
+     */
+    THRESHOLD_ONE,
+    /**
+     * Group name field is empty after trimming.
+     */
+    EMPTY_GROUP_NAME;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeKeysetValidationError: FfiConverterRustBuffer<KeysetValidationError> {
+    override fun read(buf: ByteBuffer) = try {
+        KeysetValidationError.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: KeysetValidationError) = 4UL
+
+    override fun write(value: KeysetValidationError, buf: ByteBuffer) {
         buf.putInt(value.ordinal + 1)
     }
 }
@@ -7301,6 +8701,38 @@ public object FfiConverterOptionalByteArray: FfiConverterRustBuffer<kotlin.ByteA
 /**
  * @suppress
  */
+public object FfiConverterOptionalTypeKeysetBundleRecord: FfiConverterRustBuffer<KeysetBundleRecord?> {
+    override fun read(buf: ByteBuffer): KeysetBundleRecord? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeKeysetBundleRecord.read(buf)
+    }
+
+    override fun allocationSize(value: KeysetBundleRecord?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeKeysetBundleRecord.allocationSize(value)
+        }
+    }
+
+    override fun write(value: KeysetBundleRecord?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeKeysetBundleRecord.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterOptionalTypeLoadProfileResolved: FfiConverterRustBuffer<LoadProfileResolved?> {
     override fun read(buf: ByteBuffer): LoadProfileResolved? {
         if (buf.get().toInt() == 0) {
@@ -7451,6 +8883,38 @@ public object FfiConverterOptionalTypeTestSignResultData: FfiConverterRustBuffer
         } else {
             buf.put(1)
             FfiConverterTypeTestSignResultData.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeKeysetValidationError: FfiConverterRustBuffer<KeysetValidationError?> {
+    override fun read(buf: ByteBuffer): KeysetValidationError? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeKeysetValidationError.read(buf)
+    }
+
+    override fun allocationSize(value: KeysetValidationError?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeKeysetValidationError.allocationSize(value)
+        }
+    }
+
+    override fun write(value: KeysetValidationError?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeKeysetValidationError.write(value, buf)
         }
     }
 }
@@ -7659,6 +9123,62 @@ public object FfiConverterSequenceString: FfiConverterRustBuffer<List<kotlin.Str
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterString.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeDistributeShareRecord: FfiConverterRustBuffer<List<DistributeShareRecord>> {
+    override fun read(buf: ByteBuffer): List<DistributeShareRecord> {
+        val len = buf.getInt()
+        return List<DistributeShareRecord>(len) {
+            FfiConverterTypeDistributeShareRecord.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<DistributeShareRecord>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeDistributeShareRecord.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<DistributeShareRecord>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeDistributeShareRecord.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeGeneratedShare: FfiConverterRustBuffer<List<GeneratedShare>> {
+    override fun read(buf: ByteBuffer): List<GeneratedShare> {
+        val len = buf.getInt()
+        return List<GeneratedShare>(len) {
+            FfiConverterTypeGeneratedShare.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<GeneratedShare>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeGeneratedShare.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<GeneratedShare>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeGeneratedShare.write(it, buf)
         }
     }
 }

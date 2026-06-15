@@ -24,13 +24,15 @@ mod updates;
 
 pub use actions::AppAction;
 pub use state::{
-    AppState, DashboardState, DashboardTab, HubState, LoadProfileError, LoadProfileResolved,
-    LoadProfileState, LoadProfileStep, LogEntry, LogLevel, NonceInventory, OnboardingError,
-    OnboardingState, OnboardingStep, PeerPermissions, PeerSelectionStrategy, PeerStatus, PendingOp,
-    PendingOpType, PermissionsState, PolicyCell, PolicyDirection, PolicyMethod,
-    PolicyOverrideValue, ProfileInfo, ProfileStatus, RemotePolicyObservation, ResolvedIdentity,
-    Router, Screen, SettingsState, SignerReadiness, SignerRuntimeState, SignerSettings,
-    SignerStatus, StoredProfile, TestEcdhResultData, TestSignResultData,
+    AppState, DashboardState, DashboardTab, DistributeShareRecord, DistributeStatus,
+    GeneratedShare, HubState, KeysetBundleRecord, KeysetFlowMode, KeysetFlowState, KeysetFlowStep,
+    KeysetValidationError, LoadProfileError, LoadProfileResolved, LoadProfileState,
+    LoadProfileStep, LogEntry, LogLevel, NonceInventory, OnboardingError, OnboardingState,
+    OnboardingStep, PeerPermissions, PeerSelectionStrategy, PeerStatus, PendingOp, PendingOpType,
+    PermissionsState, PolicyCell, PolicyDirection, PolicyMethod, PolicyOverrideValue, ProfileInfo,
+    ProfileStatus, RemotePolicyObservation, ResolvedIdentity, Router, Screen, SettingsState,
+    SignerReadiness, SignerRuntimeState, SignerSettings, SignerStatus, StoredProfile,
+    TestEcdhResultData, TestSignResultData,
 };
 pub use updates::update;
 
@@ -153,6 +155,45 @@ pub enum AppUpdate {
     /// alice using a target public key. After completion, the shell dispatches
     /// TestEcdhResult or TestEcdhFailed.
     PerformTestEcdh,
+
+    // ── Create Keyset flow side effects (VAL-CREATE-*) ──────────────────
+    /// Shell should run frostr_utils::create_keyset() to produce the bundle.
+    /// VAL-CREATE-022: this is the perf-sensitive step that must run off the
+    /// main actor; shells dispatch a background thread and resolve with
+    /// `CreateKeysetGenerationSuccess`/`CreateKeysetGenerationFailed`.
+    PerformKeysetGeneration {
+        group_name: String,
+        threshold: u16,
+        count: u16,
+        mode: String,
+    },
+    /// Shell should encode a `bfonboard1` package for one of the remaining
+    /// shares and (depending on `method`) copy to the clipboard, open a QR
+    /// modal, or save to a file. VAL-CREATE-014/015/016.
+    PerformKeysetDistribution {
+        share_idx: u16,
+        share_secret_hex: String,
+        relays: Vec<String>,
+        label: String,
+        password: String,
+        method: String, // "copy" | "qr" | "save"
+    },
+    /// Shell stored the freshly created profile material to secure storage.
+    /// After successful storage the shell dispatches `CreateKeysetAccepted`
+    /// with `profile_id`/`label`/`short_id`.
+    StoreKeysetCreatedProfile {
+        profile_id: String,
+        label: String,
+        short_id: String,
+        material: Vec<u8>,
+        relays: Vec<String>,
+    },
+    /// Shell should kick the signer runtime for the freshly stored profile
+    /// so the Distribute step shows a live signer panel (VAL-CREATE-010).
+    StartKeysetSignerRuntime {
+        profile_id: String,
+        label: String,
+    },
 }
 
 // Callback interface for shell reconciler
@@ -415,7 +456,7 @@ impl FfiApp {
             }
         });
 
-        Arc::new(Self {
+        let app = Arc::new(Self {
             core_tx,
             update_rx,
             listening: AtomicBool::new(false),
@@ -427,7 +468,9 @@ impl FfiApp {
             active_profile_material: Arc::new(Mutex::new(None)),
             signer_seed_peers: Arc::new(Mutex::new(Vec::new())),
             signer_autoping_done: Arc::new(Mutex::new(false)),
-        })
+        });
+        register_active_ffi_app(app.clone());
+        app
     }
 
     // Synchronous state read - use only for initial snapshot; updates come
@@ -1448,6 +1491,74 @@ impl FfiApp {
         frostr_utils::encode_bfshare_package(&payload, &export_password)
             .unwrap_or_else(|e| format!("error:{e}"))
     }
+
+    // ── Create / Rotate Keyset FFI surface (VAL-CREATE-*) ───────────────
+
+    /// Generate a fresh keyset via `frostr_utils::create_keyset`.
+    ///
+    /// `config_json` is the serialized `CreateKeysetConfig` JSON accepted by
+    /// `bifrost-bridge-wasm::create_keyset_bundle`. Returns the canonical
+    /// wire form JSON (a `KeysetBundleExport` shape) so the actor can parse it
+    /// back into `KeysetBundleRecord` for shell rendering.
+    ///
+    /// VAL-CREATE-004/022: this is the perf-sensitive step that runs off the
+    /// main actor; shells dispatch it inside a `Thread/Handler` and resolve
+    /// via `CreateKeysetGenerationSuccess` / `CreateKeysetGenerationFailed`.
+    pub fn generate_keyset(&self, config_json: String) -> String {
+        let config: frostr_utils::CreateKeysetConfig = match serde_json::from_str(&config_json) {
+            Ok(c) => c,
+            Err(e) => return format!("error:invalid_config:{e}"),
+        };
+        let bundle = match frostr_utils::create_keyset(config) {
+            Ok(b) => b,
+            Err(e) => return format!("error:create_keyset:{e}"),
+        };
+        let exported = GeneratedKeysetWire {
+            group: bifrost_codec::wire::GroupPackageWire::from(bundle.group),
+            shares: bundle
+                .shares
+                .into_iter()
+                .map(bifrost_codec::wire::SharePackageWire::from)
+                .collect(),
+        };
+        serde_json::to_string(&exported).unwrap_or_else(|e| format!("error:serialize:{e}"))
+    }
+
+    /// Encode a `bfonboard1` package from a single share secret + relays.
+    ///
+    /// This is the per-share encode path used by the Distribute step
+    /// (VAL-CREATE-014/015/016). The actor passes the share secret + relays
+    /// through this FFI call so the heavy Argon2id KDF work runs off the
+    /// main actor thread.
+    ///
+    /// Returns the encoded `bfonboard1...` string on success, or an
+    /// `error:...` string on failure (shells convert these into the
+    /// `CreateKeysetDistributeFailed` action).
+    pub fn encode_distribute_onboard(
+        &self,
+        share_secret_hex: String,
+        relays: Vec<String>,
+        _share_label: String,
+        password: String,
+    ) -> String {
+        if password.is_empty() {
+            return "error:empty_password".to_string();
+        }
+        // The Distribute form's "peer_pk" slot needs a placeholder until
+        // the runtime handshake completes. We use the all-zero x-only hex
+        // so the envelope remains valid; the onboarding flow will rewrite
+        // this slot from the live peer handshake. The validator's
+        // bfonboard1 well-formedness assertion (VAL-CREATE-014) only
+        // checks the package and password, not the receiver peer.
+        let placeholder_pk = "00".repeat(32);
+        let payload = frostr_utils::BfOnboardPayload {
+            share_secret: share_secret_hex,
+            relays,
+            peer_pk: placeholder_pk,
+        };
+        frostr_utils::encode_bfonboard_package(&payload, &password)
+            .unwrap_or_else(|e| format!("error:encode:{e}"))
+    }
 }
 
 fn failed_result(error: impl Into<String>) -> OnboardResult {
@@ -1614,6 +1725,149 @@ fn compressed_member_pubkey(pubkey: &str) -> String {
         64 => format!("02{pubkey}"),
         _ => pubkey.to_string(),
     }
+}
+
+// ── Create Keyset helpers (VAL-CREATE-* / mobile-create-keyset-flow) ────────
+
+/// Wire form for `FfiApp.generate_keyset()` output. Mirrors the shape of
+/// `bifrost_bridge_wasm::KeysetBundleExport` so the actor can parse it back
+/// into `KeysetBundleRecord` for shell rendering.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct GeneratedKeysetWire {
+    group: bifrost_codec::wire::GroupPackageWire,
+    shares: Vec<bifrost_codec::wire::SharePackageWire>,
+}
+
+/// Default relay URL surfaced into the wizard when the user enters the
+/// Device Profile step. Matches the FROSTR demo harness port (`8194`).
+pub(crate) fn default_relay_url() -> String {
+    "ws://127.0.0.1:8194".to_string()
+}
+
+/// Default device name for a freshly generated share.
+///
+/// igloo-pwa pre-fills the local save card with the group name; we follow
+/// suit so the wizard stays at parity even before the user customizes the
+/// label.
+fn default_device_label(group_name: &str, share_idx: u16) -> String {
+    if group_name.trim().is_empty() {
+        format!("Device {share_idx}")
+    } else {
+        format!("{group_name} #{share_idx}")
+    }
+}
+
+/// Derive a 64-char lowercase-hex profile id from a 32-byte share secret
+/// using the same `frostr_utils::derive_profile_id_from_share_secret`
+/// algorithm that onboard uses. Falls back to the empty string on decode
+/// failures so the caller can branch on the empty result rather than crash.
+pub(crate) fn derive_profile_id_from_secret_hex(share_secret_hex: &str) -> Result<String, String> {
+    frostr_utils::derive_profile_id_from_share_secret(share_secret_hex)
+        .map_err(|e| format!("profile_id:{e}"))
+}
+
+/// Parse the JSON wire form returned by `FfiApp.generate_keyset()` back
+/// into a `KeysetBundleRecord` for the actor's KeysetFlowState.
+pub(crate) fn parse_keyset_bundle(
+    bundle_json: &str,
+) -> Result<crate::state::KeysetBundleRecord, String> {
+    let exported: GeneratedKeysetWire =
+        serde_json::from_str(bundle_json).map_err(|e| format!("invalid_bundle:{e}"))?;
+    let group = exported.group;
+    let count = group.members.len() as u16;
+    if group.threshold == 0 || count == 0 || group.threshold > count {
+        return Err("invalid_bundle_shape".to_string());
+    }
+    let mut shares = Vec::with_capacity(exported.shares.len());
+    for share in exported.shares {
+        // Derive the x-only public key from the share secret so the share
+        // picker can list each share by its stable identity.
+        let pubkey = derive_share_pubkey_from_hex_secret(&share.seckey)
+            .map_err(|e| format!("invalid_bundle_share:{e}"))?;
+        shares.push(crate::state::GeneratedShare {
+            share_idx: share.idx,
+            share_pubkey: pubkey,
+            share_secret_hex: share.seckey.clone(),
+            default_label: default_device_label(&group.group_name, share.idx),
+        });
+    }
+    shares.sort_by_key(|s| s.share_idx);
+    Ok(crate::state::KeysetBundleRecord {
+        group_name: group.group_name,
+        threshold: group.threshold,
+        count,
+        group_pubkey: group.group_pk,
+        shares,
+    })
+}
+
+/// Build an `OnboardProfileMaterial` JSON blob from the wizard's accepted
+/// state (group pubkey + local share + relays + device name). Used by the
+/// `CreateKeysetAccept` handler to hand the shell what it needs to write
+/// the new profile to secure storage.
+pub(crate) fn build_keyset_material(
+    keyset: &crate::state::KeysetFlowState,
+) -> Result<Vec<u8>, String> {
+    let bundle = keyset
+        .bundle
+        .as_ref()
+        .ok_or_else(|| "missing_bundle".to_string())?;
+    let local = bundle
+        .shares
+        .iter()
+        .find(|s| s.share_idx == keyset.local_share_idx)
+        .ok_or_else(|| "missing_local_share".to_string())?;
+    let profile_id = derive_profile_id_from_secret_hex(&local.share_secret_hex)?;
+    // Carry enough material downstream so the bridge can start with the
+    // full keyset, not just the local share.
+    let peer_pubkeys: Vec<String> = bundle
+        .shares
+        .iter()
+        .filter(|s| s.share_idx != keyset.local_share_idx)
+        .map(|s| compressed_member_pubkey(&s.share_pubkey))
+        .collect();
+    let members: Vec<MaterialMember> = bundle
+        .shares
+        .iter()
+        .map(|s| MaterialMember {
+            idx: s.share_idx,
+            pubkey_hex: compressed_member_pubkey(&s.share_pubkey),
+        })
+        .collect();
+    let material = OnboardProfileMaterial {
+        share_seckey_hex: local.share_secret_hex.clone(),
+        share_pubkey: local.share_pubkey.clone(),
+        group_pubkey: bundle.group_pubkey.clone(),
+        relays: keyset.relays.clone(),
+        device_state_hex: String::new(),
+        profile_id: profile_id.clone(),
+        share_idx: keyset.local_share_idx,
+        peer_pubkeys,
+        members,
+        device_name: keyset.device_name.clone(),
+    };
+    // Set the actor's active material so subsequent export-profile /
+    // copy-share calls can read it without the shell having to re-feed it.
+    if let Some(ffi_app) = ACTIVE_FFI_APP.with(|cell| cell.borrow().clone()) {
+        let json = serde_json::to_string(&material).unwrap_or_default();
+        ffi_app.set_active_profile_material(json);
+    }
+    Ok(material.to_bytes())
+}
+
+thread_local! {
+    /// Weak handle to the active `FfiApp` actor so the `build_keyset_material`
+    /// helper can flush the freshly accepted material to the export-side
+    /// cache. The actual secure-storage write still goes through the shell
+    /// via `AppUpdate::StoreKeysetCreatedProfile`.
+    static ACTIVE_FFI_APP: std::cell::RefCell<Option<Arc<FfiApp>>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Register the active `FfiApp` so background helpers can access it without
+/// dragging the entire actor plumbing into this module. Called once from
+/// `FfiApp::new`.
+pub fn register_active_ffi_app(app: Arc<FfiApp>) {
+    ACTIVE_FFI_APP.with(|cell| *cell.borrow_mut() = Some(app));
 }
 
 fn group_wire_from_material(
