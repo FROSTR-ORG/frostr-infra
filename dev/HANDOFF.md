@@ -58,6 +58,12 @@ igloo-shared `8fccc0b`, igloo-pwa `b958ee5`, igloo-chrome `3e2713f` → parent
 - **Socket test (igloo-shell `eb4c421`):** fake-daemon sockets bind under a short
   `/tmp` root so the `sun_path`-limited `typed_daemon_helpers_decode_mutation_results`
   runs on macOS/long-`$TMPDIR` (was Linux-CI-only green).
+- **Hardening follow-up (bifrost-rs `c53b331` → parent `300e598`):** the ECDH
+  Lagrange weighting now derives each member's polynomial x-coordinate from the same
+  `frost::Identifier` mapping signing uses, instead of a hand-rolled `Scalar::from(idx)`,
+  so the ECDH basis can't silently drift from the signing identifier encoding again
+  (the root cause class of the dropped-Lagrange bug). Behavior-identical; @live + the
+  2-of-3 / cross-quorum tests stay green. Blobs re-vendored + re-stamped.
 
 **Verified:** bifrost-rs `cargo test --workspace` + clippy `-D warnings` + fmt;
 igloo-shared 151 units (incl. padding + interop regressions); chrome 98 + pwa 65;
