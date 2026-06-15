@@ -29,6 +29,10 @@ test.describe('igloo-pwa bfonboard onboarding @live', () => {
     test.setTimeout(LIVE_TEST_TIMEOUT_MS);
     const relay = await startLocalRelay();
     const recorder = startRelayEventRecorder(relay.url);
+    // Gate on the subscription being live (EOSE) before any handshake traffic —
+    // bifrost events are ephemeral, so a request published while the recorder's
+    // REQ is still in flight would be missed (the flaky race under parallel load).
+    await recorder.waitReady();
     let secondaryContext;
     try {
       const generated = await createGeneratedBrowserArtifacts({

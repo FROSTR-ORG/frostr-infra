@@ -73,20 +73,19 @@ Group by area. When an item is finished, move a one-line summary to
   can't be tuned at runtime. Low value (fixed 300s default is fine) — deferred. (The sibling
   "Always allow" atomicity concern was verified resolved 2026-06-14: all three clients surface
   a partial-failure via their error paths, and resolve-first ordering is correct.)
-- [ ] (effort: S) **Dedupe the runtime wire types redeclared in igloo-ui.**
-  `igloo-ui/src/adapters/runtime-view-models.ts` hand-redeclares `RuntimePeerStatusInput`
-  / `RuntimeStatusSummaryInput` (kept decoupled from `igloo-shared` on purpose), so the
-  telemetry pass had to add the same fields in **two** repos — a real drift risk. Decide:
-  import the wire types from `igloo-shared` (or a types-only shared module), or add a
-  contract test that fails when the shapes diverge. The pwa-local `PwaRuntimePeerStatus`/
-  `PwaRuntimeStatus` minimal mirrors are part of the same smell (surfaced 2026-06-13). The
-  approval pass (2026-06-14) made it worse: `pending_approvals` / `'ask'` had to be added in
-  igloo-shared **and** the igloo-ui adapter **and** chrome's `runtime-types.ts` mirror.
-- [ ] (effort: S) **Remove or repurpose the dead `runtimeStatusToSignerDashboardView`.**
-  After the peer→row consolidation it is exported + test-only (no client consumes it; all
-  three dashboards build rows via `buildPeerReadinessRows`). Either delete it (+ its
-  DesignAdapters test) or fold it onto the shared builder so it stops being a second,
-  live-only peer-mapping path — igloo-ui (surfaced 2026-06-13).
+- [x] (effort: S) **Wire-type drift guard — DONE (2026-06-15).** Kept igloo-ui
+  decoupled from igloo-shared (it deliberately copies test setup rather than depend on
+  it) and added a compile-time contract instead: igloo-chrome — the one repo that
+  depends on both — hosts `src/extension/runtime-types.contract.ts`, which fails
+  `tsc --noEmit` when a canonical igloo-shared wire field is not mirrored by chrome's
+  local `RuntimeStatusSummary` or igloo-ui's adapter input types (now exported for the
+  check). Key-coverage only; intentional skips (chrome's camelCase `StoredPeerPolicy`,
+  `onboarding_statuses`) are spelled out as `Omit<>`. The pwa-local minimal mirrors
+  remain a smaller smell (not covered).
+- [x] (effort: S) **Removed the dead `runtimeStatusToSignerDashboardView` — DONE
+  (2026-06-15).** Deleted (no client consumed it; all dashboards use
+  `buildPeerReadinessRows`) along with its orphaned `pendingOperationToRow` helper and
+  the two DesignAdapters tests.
 - [x] (effort: M) **Refactor the onboard→signer handoff to remove the
   capture-then-reinit seam — PWA done (2026-06-13).** The PWA onboard flow now keeps
   the live onboarding node running and *adopts* it as the durable signer (the
@@ -126,25 +125,29 @@ Group by area. When an item is finished, move a one-line summary to
   `configured_relays` (Tokio + browser bridges). Mixed presentation: loading &
   load-failed full-panel; the other three are banners over a usable dashboard.
   Follow-ups below.
-- [ ] (effort: M) **Dashboard load-failed: client hard-error source.** The
-  load-failed full-panel is wired but currently only fires on a host-surfaced
-  `status.last_load_error`, which no client populates yet — pwa/home hard restore
-  failures surface *before* the dashboard (connect()/daemon-start throws, no
-  runtime to read) and chrome's `runtime_unavailable` is a soft in-panel state.
-  Capture a genuine on-dashboard hard load error per client into the
-  `deriveDashboardState` `loadError` input where one is reachable.
+- [x] (effort: M) **Dashboard load-failed now reachable in pwa + home — DONE
+  (2026-06-15).** A signer-start failure is captured into a `dashboardLoadError`
+  state (pwa store / home App) and routes to the dashboard so the full-panel
+  load-failed screen shows (Retry / Clear); cleared on success/stop. chrome's
+  `runtime_unavailable` stays a soft in-panel state by design. (Native daemon-start
+  failures are home-frontend; the `status.last_load_error` wire field is still
+  bridge-unfilled — see next item.)
 - [ ] (effort: M) **Native `last_load_error` enrichment.** bifrost-bridge-tokio
   leaves `last_load_error` None (native restore failures are host-bootstrap, not a
-  running runtime). If a native host gains a live-runtime load-error signal, fill
-  it so igloo-home can show the load-failed screen.
-- [ ] (effort: M) **Live relay-health tracking (browser bridge).** `connected_relays`
-  reflects bootstrap-time connectivity (set only in `connectActiveRelays`); relays
-  that drop *after* start aren't tracked, so all-relays-offline won't fire post-boot
-  in pwa/chrome. Track live relay connect/disconnect to keep the signal current.
-- [ ] (effort: M) **`@live` e2e for the dashboard states.** Drive all-relays-offline
-  (kill the relay), signing-blocked (deny-all policy / no online peers), and
-  signing-failed (induce a sign failure) and assert the banners; loading/load-failed
-  too where reachable.
+  running runtime; home now drives load-failed from its own start-error state). If a
+  native host ever gains a live-runtime load-error signal, fill it.
+- [x] (effort: M) **Live relay-health re-probe (browser bridge) — DONE (2026-06-15).**
+  `refreshRelayHealth()` re-probes on a ~30s interval (started in connect, cleared in
+  shutdown), recomputing `connected_relays` so all-relays-offline fires on post-boot
+  relay drops/recoveries; pumps a runtime-status event only on change.
+- [x] (effort: M) **`@live` e2e for the dashboard banners — DONE (2026-06-15).**
+  `test/igloo-pwa/specs/dashboard-states.spec.ts` drives **signing-blocked** (deny the
+  peer's request.sign → sign_ready drops) then **all-relays-offline** (close the relay →
+  re-probe empties connected_relays; the banner flips, exploiting their precedence).
+- [ ] (effort: M) **`@live` e2e for the signing-failed banner.** Not covered above:
+  signing-failed needs the *local* node to record a `Sign` failure, which the
+  responder-only PWA dashboard can't initiate. Needs a PWA-initiated (or
+  timeout-induced) failing sign to exercise `last_sign_failure` end to end.
 - [ ] (effort: S, unsure) Make the Settings dirty-check structural rather than
   `JSON.stringify` of relays/signerSettings, if those shapes grow.
 - [ ] (effort: S) Decide the fate of the redundant `RelayInput`
@@ -256,6 +259,109 @@ Group by area. When an item is finished, move a one-line summary to
   narrow window where an initiator signs *before* receiving that ping, have the responder
   return its current generation + fresh nonces on a `NonceUnavailable` miss so the initiator
   prunes-and-retries immediately instead of waiting for the ping — bifrost-rs.
+
+## Code-health audit (2026-06-13)
+
+Curated from the 2026-06-13 workspace code-health audit (full 81 findings —
+18H/38M/25L — in the `audit/` run dated 2026-06-13; entry point
+`audit/.../workspace-audit-synthesis-2026-06-13.md`). All High findings were
+adversarially re-verified before landing here: severity-inflated items were
+reframed and one false-rationale item (the NIP-44 "wrong KDF" claim) was
+corrected. The remaining Medium/Low findings stay in the per-target reports.
+
+### Correctness / CI (highest confidence)
+
+- [ ] (effort: S) **`release-validation.yml` never fires on merge.** Its `push`
+  trigger targets `main`, but the repo's default branch is `master`, so the full
+  release matrix runs only on PRs, not post-merge. One-line fix — frostr-infra ·
+  audit 2026-06-13.
+- [ ] (effort: S) **bifrost-rs CI tests nonexistent crates.** `ci.yml` runs
+  `cargo test -p bifrost-node / bifrost-transport-ws / bifrost-dev`; none exist
+  (the real crate is `bifrost-devtools`), so those steps error out. Fix the crate
+  names — bifrost-rs · audit 2026-06-13.
+
+### Crypto / secret seam
+
+- [ ] (effort: M) **Adjudicate + KAT-test the NIP-44 conversation-key seam.** The
+  messaging path (`nip44Encrypt/Decrypt` → `deriveConversationKeyFromSharedSecret`)
+  derives the key from the threshold-ECDH secret (`SHA256(point)` out of
+  `combine_ecdh_packages`), while the onboarding path uses the library's
+  raw-X-coordinate `getConversationKey` — **different IKM**. (The audit's
+  "HMAC instead of HKDF-Extract" framing is wrong: `HMAC(salt, IKM)` *is*
+  HKDF-Extract.) Confirm which derivation is NIP-44-interop-correct, then pin
+  known-answer vectors at the NIP-44 + FROST seams so a self-consistent-but-wrong
+  derivation can't pass — igloo-shared + bifrost-rs · audit 2026-06-13.
+- [ ] (effort: M) **Unit/KAT tests for the NIP-44 + bridge cipher path.**
+  `nip44Encrypt`/`nip44Decrypt` and the `BrowserBridgeNode` connect/sign/ECDH path
+  have no unit-level tests (only cross-repo e2e). This is the seam that hid the
+  KDF question above — igloo-shared · audit 2026-06-13.
+
+### Secret hygiene ("decide once, propagate")
+
+- [ ] (effort: S) **Zeroize `GeneratedKeyset.nsec`.** It's a plain `String` while
+  the sibling `RecoveredGroupKey` is `ZeroizeOnDrop` with a redacted `Debug`; the
+  `generatedKeyset` React state is also never nulled on view-exit (unlike
+  `recoveredKey`). Thread the existing pattern to both — igloo-home ·
+  audit 2026-06-13.
+- [ ] (effort: M) **Apply the `Secret<T>` wrapper in production.** `Secret<T>` /
+  `SecretBytes` are exported but used only in tests; every production
+  share-secret / seckey is a bare `string`. Thread the wrapper (or the branded
+  `ShareSecretHex`/`Passphrase` aliases) to consumers for leak-greppability and
+  type hygiene — igloo-shared (and likely the pwa/chrome consumers) ·
+  audit 2026-06-13.
+
+### Trust boundaries
+
+- [ ] (effort: M) **Replace `window.postMessage('*')` page bridge.** The content
+  bridge broadcasts signed events / encryption results with target origin `'*'`
+  and a spoofable envelope (`EXTENSION_SOURCE` + a `Date.now()/random` id), so a
+  cross-origin frame can sniff results and a page script can forge a
+  `provider_response`. Use a MessageChannel handshake (or at minimum
+  `window.location.origin`) — igloo-chrome · audit 2026-06-13.
+- [ ] (effort: S) **Redact the runtime-log suffix on thrown errors.**
+  `connectOnboardingPackageAndCaptureProfile`'s catch appends the last 20 runtime
+  log lines (verbatim `error_message`) to the thrown error, which reaches the UI
+  banner. Latent secret leak if bifrost ever emits key material there — allow-list
+  / redact before surfacing — igloo-pwa · audit 2026-06-13.
+
+### UI correctness
+
+- [ ] (effort: S) **`activeView` dead branches render a blank pane.**
+  `'create-choice'` and `'settings'` are members of the `PwaView` union but have
+  no branch in the `App.tsx` `activeView` dispatch; the live trigger is a
+  mid-create reload bounce-back (`store.tsx:412`). Add the render branches or
+  remove the members from the union — igloo-pwa · audit 2026-06-13.
+
+### Demo / test hardening (low prod risk, factual)
+
+- [ ] (effort: S) **Harden the demo harness secret handling.** `entrypoint.sh`
+  passes the shell passphrase as `--passphrase <value>` on argv (visible in
+  `/proc/<pid>/cmdline`) and does `chmod 0777` / `chmod -R a+rwX` on
+  secret-bearing dirs. The shell already supports stdin / `--passphrase-file`;
+  switch to it and tighten the perms — frostr-infra · audit 2026-06-13.
+
+### Code health (large / cross-cutting)
+
+- [ ] (effort: L) **Break up the per-host god files.** Each control plane is a
+  named coordination bottleneck: bifrost-signer `lib.rs` (4948 LOC), igloo-home
+  `App.tsx` (2006), igloo-pwa `store.tsx` (2073) + `App.tsx` (1741), igloo-shared
+  `BrowserBridgeNode` (1572), igloo-ui `CreateFlow.tsx` (1723). Split along
+  responsibility seams, one target at a time — all targets · audit 2026-06-13.
+- [ ] (effort: M) **Adopt a workspace TS formatter + lint gate.** No TypeScript
+  target configures Prettier/ESLint; formatting is per-author. Add Prettier +
+  ESLint (`react-hooks`) with a CI gate — this also retires the stale
+  `eslint-disable` in `CreateFlow.tsx` that suppresses a rule with no ESLint
+  present. Rust analog: a `rustfmt.toml` + `cargo fmt --check` gate for
+  igloo-shell — workspace · audit 2026-06-13 (AES-06).
+
+### Deprecation
+
+- [ ] (effort: S) **Remove or gate the NIP-04 provider surface (igloo-chrome).**
+  `nip04.encrypt`/`decrypt` are exposed, routed, and prompt the user for
+  permission, then hard-throw "NIP-04 is not planned for the v2 runtime path".
+  Drop the dead surface (or gate it before the permission prompt) so sites don't
+  get approval dialogs for a method that always fails — igloo-chrome ·
+  audit 2026-06-13.
 
 ## Open questions
 

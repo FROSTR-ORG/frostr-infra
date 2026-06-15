@@ -15,6 +15,14 @@ export type RecordedRelayEvent = {
 
 export type RelayEventRecorder = {
   events: RecordedRelayEvent[];
+  /**
+   * Resolves once the relay subscription is established (on EOSE), so callers
+   * can gate the handshake on it — bifrost events are ephemeral, so a request
+   * published before the subscription is live would be missed (the flaky race).
+   * Falls back to resolving after `timeoutMs` so a relay that never sends EOSE
+   * can't hang the test.
+   */
+  waitReady: (timeoutMs?: number) => Promise<void>;
   /** First event authored by `pubkey` (e.g. the recipient's onboard request). */
   firstFrom: (pubkey: string) => RecordedRelayEvent | undefined;
   /** First event authored by `pubkey` and #p-targeted at `target`, optionally after `afterMs`. */
@@ -34,6 +42,11 @@ export function startRelayEventRecorder(relayUrl: string): RelayEventRecorder {
   const pool = new SimplePool();
   const events: RecordedRelayEvent[] = [];
 
+  let markReady: () => void = () => {};
+  const ready = new Promise<void>((resolve) => {
+    markReady = resolve;
+  });
+
   const sub = pool.subscribeMany([relayUrl], { kinds: [BIFROST_EVENT_KIND] }, {
     onevent: (event: Event) => {
       events.push({
@@ -43,6 +56,11 @@ export function startRelayEventRecorder(relayUrl: string): RelayEventRecorder {
         created_at: event.created_at,
         p_tags: event.tags.filter(([name]) => name === 'p').map(([, value]) => value),
       });
+    },
+    // EOSE = the relay has acknowledged our REQ and flushed stored events (none,
+    // since bifrost events are ephemeral). From here the subscription is live.
+    oneose: () => {
+      markReady();
     },
   });
 
@@ -54,6 +72,16 @@ export function startRelayEventRecorder(relayUrl: string): RelayEventRecorder {
 
   return {
     events,
+    async waitReady(timeoutMs = 5_000) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      await Promise.race([
+        ready,
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, timeoutMs);
+        }),
+      ]);
+      if (timer) clearTimeout(timer);
+    },
     firstFrom(pubkey) {
       const key = pubkey.toLowerCase();
       return events.find((event) => event.pubkey.toLowerCase() === key);
