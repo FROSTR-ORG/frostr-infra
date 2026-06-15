@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -72,8 +73,10 @@ import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.frostr.igloo.AppManager
 import com.frostr.igloo.qrBitmap
 import com.frostr.igloo.rust.AppAction
@@ -92,6 +95,9 @@ import com.frostr.igloo.rust.PendingOpType
 import com.frostr.igloo.rust.ProfileInfo
 import com.frostr.igloo.rust.ProfileStatus
 import com.frostr.igloo.rust.ResolvedIdentity
+import com.frostr.igloo.rust.RotatePreviewIdentity
+import com.frostr.igloo.rust.RotateShareError
+import com.frostr.igloo.rust.RotateShareStep
 import com.frostr.igloo.rust.Screen
 import com.frostr.igloo.rust.SignerReadiness
 import com.frostr.igloo.rust.SignerRuntimeState
@@ -134,6 +140,7 @@ fun IglooMainContent(manager: AppManager) {
         Screen.CREATE_KEYSET_REVIEW -> CreateKeysetReviewScreen(manager)
         Screen.CREATE_KEYSET_DISTRIBUTE -> CreateKeysetDistributeScreen(manager)
         Screen.DASHBOARD -> DashboardScreen(manager)
+        Screen.ROTATE_SHARE -> RotateShareConnectScreen(manager)
         else -> LandingHub(manager)
     }
 }
@@ -5046,5 +5053,268 @@ fun ExportPasswordPromptDialog(
                 Text("Cancel", color = IglooColors.Slate400)
             }
         }
+    )
+}
+
+// MARK: - Rotate Share Screen (VAL-ROTATE-005..011)
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun RotateShareConnectScreen(manager: AppManager) {
+    val state = manager.state.rotateShare
+    val initialRelay = if (state.relayUrl.isEmpty()) "ws://127.0.0.1:8194" else state.relayUrl
+    var packageText by remember(state.`package`) { mutableStateOf(state.`package`) }
+    var passwordText by remember(state.password) { mutableStateOf(state.password) }
+    var relayUrl by remember(state.relayUrl) { mutableStateOf(initialRelay) }
+
+    val isLoading = state.step == RotateShareStep.HANDSHAKING
+    val canSubmit = packageText.isNotBlank() && passwordText.isNotEmpty() && relayUrl.isNotBlank() && !isLoading
+    val errMessage: String? = state.error?.let { err ->
+        when (err) {
+            RotateShareError.MALFORMED_PACKAGE -> "Invalid rotated package. Check that you copied the full string."
+            RotateShareError.WRONG_PASSWORD -> "Wrong password. Check the password that came with your rotation package."
+            RotateShareError.RELAY_UNREACHABLE -> "Relay is unreachable. Check the URL and your network."
+            RotateShareError.PROVISIONER_OFFLINE -> "The provisioning signer is offline. Try again once it restarts."
+            RotateShareError.SAME_PROFILE -> "This rotated package would not change your share."
+            RotateShareError.GROUP_MISMATCH -> "This rotated package belongs to a different group."
+            RotateShareError.UNEXPECTED -> "Rotate share failed unexpectedly. Please try again."
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(IglooColors.Gray950)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp)
+            .padding(top = 24.dp)
+    ) {
+        ScreenHeader(
+            title = "Rotate Share",
+            subtitle = "Replace this device's share",
+            onBack = { manager.rotateShareReset() }
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Active device card (VAL-ROTATE-005).
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { testTag = "rotate_card_active_device" },
+            shape = RoundedCornerShape(12.dp),
+            color = IglooColors.Slate900StrongTranslucent,
+            border = BorderStroke(1.dp, IglooColors.Blue900PanelBorder)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Current Device", color = IglooColors.Slate400, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        if (state.activeDeviceLabel.isEmpty()) "—" else state.activeDeviceLabel,
+                        color = IglooColors.Slate200,
+                        fontSize = 20.sp
+                    )
+                    Text(
+                        if (state.activeShortId.isEmpty()) "—" else state.activeShortId,
+                        color = IglooColors.Slate400,
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Package input (VAL-ROTATE-006/013).
+        Text("Rotated bfonboard1 Package", color = IglooColors.Slate400, fontSize = 14.sp)
+        Spacer(modifier = Modifier.height(4.dp))
+        OutlinedTextField(
+            value = packageText,
+            onValueChange = { newValue: String ->
+                packageText = newValue
+                manager.updateRotateSharePackage(newValue)
+            },
+            placeholder = { Text("bfonboard1...", color = IglooColors.Slate500) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 120.dp)
+                .semantics { testTag = "input_rotate_package" },
+            colors = textFieldOutlinedColors()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Password input.
+        Text("Package Password", color = IglooColors.Slate400, fontSize = 14.sp)
+        Spacer(modifier = Modifier.height(4.dp))
+        OutlinedTextField(
+            value = passwordText,
+            onValueChange = { newValue: String ->
+                passwordText = newValue
+                manager.updateRotateSharePassword(newValue)
+            },
+            placeholder = { Text("Password", color = IglooColors.Slate500) },
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { testTag = "input_rotate_password" },
+            colors = textFieldOutlinedColors()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Relay URL.
+        Text("Relay URL", color = IglooColors.Slate400, fontSize = 14.sp)
+        Spacer(modifier = Modifier.height(4.dp))
+        OutlinedTextField(
+            value = relayUrl,
+            onValueChange = { newValue: String ->
+                relayUrl = newValue
+                manager.updateRotateShareRelay(newValue)
+            },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { testTag = "input_rotate_relay" },
+            colors = textFieldOutlinedColors()
+        )
+
+        if (errMessage != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { testTag = "rotate_error_banner" },
+                shape = RoundedCornerShape(12.dp),
+                color = IglooColors.Slate900Translucent,
+                border = BorderStroke(1.dp, IglooColors.Red400)
+            ) {
+                Text(
+                    errMessage,
+                    color = IglooColors.Red400,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                manager.updateRotateSharePackage(packageText)
+                manager.updateRotateSharePassword(passwordText)
+                manager.updateRotateShareRelay(relayUrl)
+                manager.rotateShareConnect()
+            },
+            enabled = canSubmit,
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { testTag = "btn_rotate_connect" },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = IglooColors.Blue600,
+                contentColor = IglooColors.Slate200,
+                disabledContainerColor = IglooColors.Slate900Translucent,
+                disabledContentColor = IglooColors.Slate500
+            )
+        ) {
+            Text(if (isLoading) "Rotating…" else "Connect & Preview")
+        }
+
+        // Preview card (VAL-ROTATE-006/011).
+        val preview = state.preview
+        if (preview != null) {
+            Spacer(modifier = Modifier.height(24.dp))
+            RotateSharePreviewCard(manager = manager, preview = preview)
+        }
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun RotateSharePreviewCard(manager: AppManager, preview: RotatePreviewIdentity) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = IglooColors.Slate900StrongTranslucent,
+        border = BorderStroke(1.dp, IglooColors.Blue900PanelBorder)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Replacement Preview",
+                color = IglooColors.Slate200,
+                fontSize = 20.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            previewRow("Device", preview.deviceName, "rotate_preview_device", truncate = false)
+            previewRow("Group Pubkey", preview.groupPubkey, "rotate_preview_group_pubkey", truncate = true)
+            previewRow("Share Pubkey", preview.sharePubkey, "rotate_preview_share_pubkey", truncate = true)
+            previewRow("Profile ID", preview.profileId, "rotate_preview_profile_id", truncate = true)
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Same group, fresh device share. Confirming replaces your stored profile.",
+                color = IglooColors.Slate400,
+                fontSize = 12.sp
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { manager.rotateShareReset() },
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { testTag = "btn_rotate_cancel" },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = IglooColors.Slate200),
+                    border = BorderStroke(1.dp, IglooColors.Blue900PanelBorder)
+                ) {
+                    Text("Cancel")
+                }
+                Button(
+                    onClick = { manager.rotateShareReplace() },
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { testTag = "btn_rotate_replace" },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = IglooColors.Blue600,
+                        contentColor = IglooColors.Gray950
+                    )
+                ) {
+                    Text("Replace Share")
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+private fun previewRow(
+    label: String,
+    value: String,
+    testTag: String,
+    truncate: Boolean
+) {
+    val display = if (truncate && value.length > 16) {
+        value.take(8) + "…" + value.takeLast(8)
+    } else value
+    Spacer(modifier = Modifier.height(4.dp))
+    Text(label, color = IglooColors.Slate400, fontSize = 12.sp)
+    Text(
+        display,
+        color = IglooColors.Slate200,
+        fontSize = 14.sp,
+        fontFamily = FontFamily.Monospace,
+        modifier = Modifier.semantics { this.testTag = testTag }
     )
 }

@@ -5,6 +5,7 @@ mod hub;
 mod keyset;
 mod load_profile;
 mod onboarding;
+mod rotate_share;
 mod router;
 
 pub use dashboard::{
@@ -17,10 +18,13 @@ pub use dashboard::{
 pub use hub::{HubState, ProfileStatus, StoredProfile};
 pub use keyset::{
     DistributeShareRecord, DistributeStatus, GeneratedShare, KeysetBundleRecord, KeysetFlowMode,
-    KeysetFlowState, KeysetFlowStep, KeysetValidationError,
+    KeysetFlowState, KeysetFlowStep, KeysetValidationError, RotationSourceRow,
 };
 pub use load_profile::{LoadProfileError, LoadProfileResolved, LoadProfileState, LoadProfileStep};
 pub use onboarding::{OnboardingError, OnboardingState, OnboardingStep, ResolvedIdentity};
+pub use rotate_share::{
+    RotatePreviewIdentity, RotateShareError, RotateShareState, RotateShareStep,
+};
 pub use router::{Router, Screen};
 
 use serde::{Deserialize, Serialize};
@@ -40,6 +44,8 @@ pub struct AppState {
     pub load_profile: LoadProfileState,
     /// Create / Rotate Keyset wizard state (VAL-CREATE-* / VAL-ROTATE-*).
     pub keyset: KeysetFlowState,
+    /// Rotate Share flow state (VAL-ROTATE-*).
+    pub rotate_share: RotateShareState,
     /// Dashboard state for signer runtime, permissions, and settings tabs.
     pub dashboard: DashboardState,
     /// Monotonically increasing revision counter used by shells to detect
@@ -57,6 +63,7 @@ impl AppState {
             onboarding: OnboardingState::new(),
             load_profile: LoadProfileState::new(),
             keyset: KeysetFlowState::new(),
+            rotate_share: RotateShareState::new(),
             dashboard: DashboardState::empty(),
         }
     }

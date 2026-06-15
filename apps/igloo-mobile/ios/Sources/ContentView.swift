@@ -46,7 +46,7 @@ struct ContentView: View {
             case .dashboard:
                 DashboardView(manager: manager)
             case .rotateShare:
-                DashboardView(manager: manager)
+                RotateShareConnectView(manager: manager)
             @unknown default:
                 HubView(manager: manager)
             }
@@ -5149,4 +5149,283 @@ struct PasteButtonView: UIViewRepresentable {
 }
 
 #endif
+
+// MARK: - Rotate Share View (VAL-ROTATE-005..011)
+
+/// Connect-screen for the Rotate Share flow. The connect card exposes the
+/// active device identity (label + short id) so the user confirms they
+/// are rotating THIS device, then accepts a rotated bfonboard1 package,
+/// its decryption password, and the relay URL to use for the live
+/// onboarding handshake.
+struct RotateShareConnectView: View {
+    @Bindable var manager: AppManager
+
+    @State private var packageText: String = ""
+    @State private var passwordText: String = ""
+    @State private var relayUrl: String = "ws://127.0.0.1:8194"
+
+    private var rs: RotateShareState {
+        manager.state.rotateShare
+    }
+
+    private var step: RotateShareStep {
+        rs.step
+    }
+
+    private var isLoading: Bool {
+        step == .handshaking
+    }
+
+    private var canSubmit: Bool {
+        !packageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !passwordText.isEmpty &&
+        !relayUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !isLoading
+    }
+
+    private func errorMessage(for error: RotateShareError?) -> String? {
+        guard let error = error else { return nil }
+        switch error {
+        case .malformedPackage: return "Invalid rotated package. Check that you copied the full string."
+        case .wrongPassword: return "Wrong password. Check the password that came with your rotation package."
+        case .relayUnreachable: return "Relay is unreachable. Check the URL and your network."
+        case .provisionerOffline: return "The provisioning signer is offline. Try again once it restarts."
+        case .sameProfile: return "This rotated package would not change your share."
+        case .groupMismatch: return "This rotated package belongs to a different group."
+        case .unexpected: return "Rotate share failed unexpectedly. Please try again."
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: IglooSpacing.Lg) {
+                ScreenHeader(
+                    title: "Rotate Share",
+                    subtitle: "Replace this device's share",
+                    onBack: { manager.rotateShareReset() }
+                )
+
+                // Connect-card row identifying the active device.
+                VStack(alignment: .leading, spacing: IglooSpacing.Xs) {
+                    Text("Current Device")
+                        .font(IglooTypography.BodyFont)
+                        .foregroundStyle(IglooColors.Slate400)
+                    HStack {
+                        Text(rs.activeDeviceLabel.isEmpty ? "—" : rs.activeDeviceLabel)
+                            .font(IglooTypography.H3Font)
+                            .foregroundStyle(IglooColors.Slate200)
+                        Spacer()
+                        Text(rs.activeShortId.isEmpty ? "—" : rs.activeShortId)
+                            .font(IglooTypography.ValueDataFont)
+                            .foregroundStyle(IglooColors.Slate400)
+                    }
+                    .padding(IglooSpacing.Sm)
+                    .background(IglooColors.Slate900StrongTranslucent)
+                    .cornerRadius(IglooRadii.Md)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: IglooRadii.Md)
+                            .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+                    )
+                    .accessibilityIdentifier("rotate_card_active_device")
+                }
+
+                // Rotated package input.
+                VStack(alignment: .leading, spacing: IglooSpacing.Xs) {
+                    Text("Rotated bfonboard1 Package")
+                        .font(IglooTypography.BodyFont)
+                        .foregroundStyle(IglooColors.Slate400)
+                    NativeTextView(
+                        text: $packageText,
+                        placeholder: "bfonboard1...",
+                        minHeight: 120,
+                        accessibilityId: "input_rotate_package"
+                    )
+                }
+
+                // Password.
+                VStack(alignment: .leading, spacing: IglooSpacing.Xs) {
+                    Text("Package Password")
+                        .font(IglooTypography.BodyFont)
+                        .foregroundStyle(IglooColors.Slate400)
+                    SecureField("Password", text: $passwordText)
+                        .font(IglooTypography.BodyFont)
+                        .foregroundStyle(IglooColors.Slate200)
+                        .padding(IglooSpacing.Sm)
+                        .background(IglooColors.Slate900StrongTranslucent)
+                        .cornerRadius(IglooRadii.Md)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: IglooRadii.Md)
+                                .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+                        )
+                        .accessibilityIdentifier("input_rotate_password")
+                }
+
+                // Editable relay URL.
+                VStack(alignment: .leading, spacing: IglooSpacing.Xs) {
+                    Text("Relay URL")
+                        .font(IglooTypography.BodyFont)
+                        .foregroundStyle(IglooColors.Slate400)
+                    TextField("ws://127.0.0.1:8194", text: $relayUrl)
+                        .font(IglooTypography.ValueDataFont)
+                        .foregroundStyle(IglooColors.Slate200)
+                        .padding(IglooSpacing.Sm)
+                        .background(IglooColors.Slate900StrongTranslucent)
+                        .cornerRadius(IglooRadii.Md)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: IglooRadii.Md)
+                                .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+                        )
+                        .accessibilityIdentifier("input_rotate_relay")
+                        .autocorrectionDisabled(true)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                }
+
+                // Error banner (VAL-ROTATE-007/008/009/014).
+                if let error = rs.error {
+                    VStack(alignment: .leading, spacing: IglooSpacing.Xs) {
+                        Text(errorMessage(for: error) ?? "Rotate share failed.")
+                            .font(IglooTypography.SmallFont)
+                            .foregroundStyle(IglooColors.Red400)
+                            .accessibilityIdentifier("rotate_error_banner")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(IglooSpacing.Sm)
+                    .background(IglooColors.Slate900Translucent)
+                    .cornerRadius(IglooRadii.Md)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: IglooRadii.Md)
+                            .stroke(IglooColors.Red400, lineWidth: 1)
+                    )
+                }
+
+                // Connect button (VAL-ROTATE-006/013).
+                Button {
+                    // Trim package and relay before dispatch; password
+                    // is sent verbatim (no whitespace to trim).
+                    manager.updateRotateSharePackage(packageText)
+                    manager.updateRotateSharePassword(passwordText)
+                    manager.updateRotateShareRelay(relayUrl)
+                    manager.rotateShareConnect()
+                } label: {
+                    HStack {
+                        Image(systemName: isLoading ? "hourglass" : "arrow.triangle.2.circlepath")
+                        Text(isLoading ? "Rotating…" : "Connect & Preview")
+                    }
+                    .font(IglooTypography.H3Font)
+                    .foregroundStyle(IglooColors.Slate200)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, IglooSpacing.Sm)
+                    .background(IglooColors.Blue600)
+                    .cornerRadius(IglooRadii.Md)
+                }
+                .accessibilityIdentifier("btn_rotate_connect")
+                .allowsHitTesting(canSubmit || isLoading)
+
+                // Preview card (VAL-ROTATE-006).
+                if let preview = rs.preview {
+                    RotateSharePreviewCard(
+                        manager: manager,
+                        preview: preview
+                    )
+                }
+            }
+            .padding(.horizontal, IglooSpacing.Lg)
+            .padding(.top, IglooSpacing.Xl)
+        }
+        .background(IglooColors.Gray950.ignoresSafeArea())
+        .onAppear {
+            // Seed form fields from actor state once so a back-then-forward
+            // navigation preserves the user's previous entry without
+            // overwriting fresh input.
+            if packageText.isEmpty { packageText = rs.package }
+            if passwordText.isEmpty { passwordText = rs.password }
+            if relayUrl.isEmpty || relayUrl == "ws://127.0.0.1:8194" {
+                if !rs.relayUrl.isEmpty { relayUrl = rs.relayUrl }
+            }
+        }
+    }
+}
+
+/// Preview card shown after the rotate-share handshake resolves successfully.
+/// Surface the rotated identity (matching group, fresh share pubkey + new
+/// profile id) and a Replace button that drives the swap side effect
+/// (VAL-ROTATE-011).
+struct RotateSharePreviewCard: View {
+    @Bindable var manager: AppManager
+    let preview: RotatePreviewIdentity
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: IglooSpacing.Sm) {
+            Text("Replacement Preview")
+                .font(IglooTypography.H3Font)
+                .foregroundStyle(IglooColors.Slate200)
+
+            previewRow(label: "Device", value: preview.deviceName, id: "rotate_preview_device")
+            previewRow(label: "Group Pubkey", value: preview.groupPubkey, id: "rotate_preview_group_pubkey", truncate: true)
+            previewRow(label: "Share Pubkey", value: preview.sharePubkey, id: "rotate_preview_share_pubkey", truncate: true)
+            previewRow(label: "Profile ID", value: preview.profileId, id: "rotate_preview_profile_id", truncate: true)
+
+            Text("Same group, fresh device share. Confirming replaces your stored profile.")
+                .font(IglooTypography.SmallFont)
+                .foregroundStyle(IglooColors.Slate400)
+
+            HStack(spacing: IglooSpacing.Sm) {
+                Button {
+                    manager.rotateShareReset()
+                } label: {
+                    Text("Cancel")
+                        .font(IglooTypography.BodyFont)
+                        .foregroundStyle(IglooColors.Slate200)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, IglooSpacing.Sm)
+                        .background(IglooColors.Slate900Translucent)
+                        .cornerRadius(IglooRadii.Md)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: IglooRadii.Md)
+                                .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+                        )
+                }
+                .accessibilityIdentifier("btn_rotate_cancel")
+
+                Button {
+                    manager.rotateShareReplace()
+                } label: {
+                    Text("Replace Share")
+                        .font(IglooTypography.BodyFont)
+                        .foregroundStyle(IglooColors.Gray950)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, IglooSpacing.Sm)
+                        .background(IglooColors.Blue600)
+                        .cornerRadius(IglooRadii.Md)
+                }
+                .accessibilityIdentifier("btn_rotate_replace")
+            }
+        }
+        .padding(IglooSpacing.Sm)
+        .background(IglooColors.Slate900StrongTranslucent)
+        .cornerRadius(IglooRadii.Md)
+        .overlay(
+            RoundedRectangle(cornerRadius: IglooRadii.Md)
+                .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+        )
+    }
+
+    private func previewRow(label: String, value: String, id: String, truncate: Bool = false) -> some View {
+        let displayValue = truncate && value.count > 16
+            ? String(value.prefix(8)) + "…" + String(value.suffix(8))
+            : value
+        return VStack(alignment: .leading, spacing: IglooSpacing.Xs) {
+            Text(label)
+                .font(IglooTypography.SmallFont)
+                .foregroundStyle(IglooColors.Slate400)
+            Text(displayValue)
+                .font(IglooTypography.ValueDataFont)
+                .foregroundStyle(IglooColors.Slate200)
+                .lineLimit(truncate ? 1 : nil)
+                .truncationMode(.middle)
+                .accessibilityIdentifier(id)
+        }
+    }
+}
 

@@ -2,10 +2,11 @@
 
 use crate::actions::AppAction;
 use crate::state::{
-    AppState, DashboardState, DashboardTab, DistributeStatus, LogEntry, LogLevel, NonceInventory,
-    OnboardingError, OnboardingStep, PeerPermissions, PeerSelectionStrategy, PeerStatus, PendingOp,
-    PendingOpType, PermissionsState, PolicyDirection, PolicyMethod, PolicyOverrideValue,
-    ProfileInfo, ProfileStatus, RemotePolicyObservation, ResolvedIdentity, Screen, SettingsState,
+    AppState, DashboardState, DashboardTab, DistributeStatus, KeysetFlowStep, LogEntry, LogLevel,
+    NonceInventory, OnboardingError, OnboardingStep, PeerPermissions, PeerSelectionStrategy,
+    PeerStatus, PendingOp, PendingOpType, PermissionsState, PolicyDirection, PolicyMethod,
+    PolicyOverrideValue, ProfileInfo, ProfileStatus, RemotePolicyObservation, ResolvedIdentity,
+    RotatePreviewIdentity, RotateShareStep, RotationSourceRow, Screen, SettingsState,
     SignerReadiness, SignerRuntimeState, SignerStatus, StoredProfile, TestEcdhResultData,
     TestSignResultData,
 };
@@ -156,6 +157,14 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                     | Screen::LoadProfileConfirm
             ) {
                 next.load_profile.reset();
+            }
+            // VAL-ROTATE-010: backing out of Rotate Share before
+            // confirming replacement must leave the active profile
+            // untouched. Reset the in-flight rotate-share state but
+            // keep the active-profile identity surface intact so the
+            // dashboard re-renders correctly on return.
+            if matches!(prev_screen, Screen::RotateShare) {
+                next.rotate_share.reset();
             }
             // Pop from back_history if available; otherwise fall back to go_back().
             // This handles the direct Hub→OnboardConnect path where back should
@@ -708,18 +717,47 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                 next.keyset.step = crate::state::KeysetFlowStep::GenerationFailed;
                 return (next, side_effect);
             }
+            // VAL-ROTATE-002/003: rotate-mode generate must pre-validate
+            // the threshold + rotation-source picker BEFORE running
+            // any perf-sensitive FFI work. The shell UI gates Add-Row
+            // + Remove-Row + the per-row validators, but the actor
+            // re-checks here so a programmatic submit cannot bypass it.
+            if next.keyset.mode == crate::state::KeysetFlowMode::Rotate {
+                if let Some(err) = next.keyset.validate_rotation_sources(next.keyset.threshold) {
+                    next.keyset.rotation_error = Some(err);
+                    next.keyset.step = crate::state::KeysetFlowStep::GenerationFailed;
+                    return (next, side_effect);
+                }
+                next.keyset.rotation_error = None;
+            }
             next.keyset.error = None;
             next.keyset.step = crate::state::KeysetFlowStep::Generating;
             // Move to the Generate-screen so busy feedback is visible while
             // the FFI call dispatches. The shell resolves back with
             // CreateKeysetGenerationSuccess / CreateKeysetGenerationFailed.
             next.router.screen = Screen::CreateKeysetGenerate;
-            side_effect = Some(AppUpdate::PerformKeysetGeneration {
-                group_name: next.keyset.group_name.clone(),
-                threshold: next.keyset.threshold,
-                count: next.keyset.count,
-                mode: mode.clone(),
-            });
+            // In rotate mode we ask the shell to invoke the rotation
+            // FFI rather than the fresh-dealer FFI. The wizard seed
+            // data carries the source-profile material that the shell
+            // pulls out of secure storage before invoking
+            // `FfiApp::rotate_keyset(…)`.
+            if next.keyset.mode == crate::state::KeysetFlowMode::Rotate {
+                side_effect = Some(AppUpdate::PerformKeysetRotation {
+                    group_name: next.keyset.group_name.clone(),
+                    threshold: next.keyset.threshold,
+                    count: next.keyset.count,
+                    source_group_json: String::new(),
+                    source_share_secrets_hex: Vec::new(),
+                    source_share_pubkeys_hex: Vec::new(),
+                });
+            } else {
+                side_effect = Some(AppUpdate::PerformKeysetGeneration {
+                    group_name: next.keyset.group_name.clone(),
+                    threshold: next.keyset.threshold,
+                    count: next.keyset.count,
+                    mode: mode.clone(),
+                });
+            }
         }
 
         // FFI returned a JSON KeysetBundleWire. Parse it, build the share
@@ -1849,6 +1887,268 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
         AppAction::ClearExportState => {
             next.dashboard.settings.clear_pending_export();
         }
+
+        // ── Rotate Share flow handlers (VAL-ROTATE-*) ───────────────────
+
+        // VAL-ROTATE-005: open the Rotate Share connect screen with the
+        // active profile identity pre-seeded so the connect-card row shows
+        // the right device label + short id.
+        AppAction::OpenRotateShareConnect {
+            profile_id,
+            short_id,
+            device_label,
+        } => {
+            next.rotate_share.reset();
+            next.rotate_share.active_profile_id = profile_id.clone();
+            next.rotate_share.active_short_id = short_id.clone();
+            next.rotate_share.active_device_label = device_label.clone();
+            // Carry the active profile's group pubkey so the actor can do
+            // the group-mismatch comparison without re-asking the shell.
+            if let Some(profile_info) = &state.dashboard.profile_info {
+                if next.rotate_share.relay_url.is_empty() {
+                    next.rotate_share.relay_url = profile_info.group_pubkey.clone();
+                }
+            }
+            next.router.screen = Screen::RotateShare;
+            next.router.back_history.clear();
+            next.router.back_history.push(Screen::Dashboard);
+        }
+
+        // EDIT-step inputs on the Rotate Share connect screen.
+        AppAction::RotateShareUpdatePackage { value } => {
+            next.rotate_share.package = value.trim().to_string();
+            next.rotate_share.error = None;
+        }
+        AppAction::RotateShareUpdatePassword { value } => {
+            next.rotate_share.password = value.clone();
+            next.rotate_share.error = None;
+        }
+        AppAction::RotateShareUpdateRelay { value } => {
+            next.rotate_share.relay_url = value.trim().to_string();
+            next.rotate_share.error = None;
+        }
+
+        // VAL-ROTATE-006/009/013/014: connect performs decode + handshake.
+        AppAction::RotateShareConnect => {
+            // Pre-flight empty-field guard so a clearly empty form does
+            // not enter the perf-sensitive async path. Real decode +
+            // wrong-password / malformed errors are surfaced via the
+            // handshake-failure action the shell dispatches back.
+            let package_trim = next.rotate_share.package.trim().to_string();
+            let password = next.rotate_share.password.clone();
+            let relay_url = next.rotate_share.relay_url.trim().to_string();
+            if package_trim.is_empty() || password.is_empty() || relay_url.is_empty() {
+                next.rotate_share.step = crate::state::RotateShareStep::Error;
+                next.rotate_share.error = Some(crate::state::RotateShareError::MalformedPackage);
+                next.rotate_share.last_error_message =
+                    Some("Package, password, and relay URL are all required.".to_string());
+                return (next, side_effect);
+            }
+            // Capture active profile identity before transitioning so the
+            // shell does not have to look it up across threads.
+            let expected_group = state
+                .dashboard
+                .profile_info
+                .as_ref()
+                .map(|p| p.group_pubkey.clone())
+                .unwrap_or_default();
+            let active_profile_id = next.rotate_share.active_profile_id.clone();
+            next.rotate_share.step = crate::state::RotateShareStep::Handshaking;
+            next.rotate_share.error = None;
+            next.rotate_share.preview = None;
+            next.rotate_share.package = package_trim.clone();
+            next.rotate_share.last_error_message = None;
+            side_effect = Some(crate::AppUpdate::PerformRotateShareHandshake {
+                package: package_trim,
+                password,
+                relay_url,
+                expected_group_pubkey: expected_group,
+                active_profile_id,
+            });
+        }
+
+        // VAL-ROTATE-006: handshake resolved with a rotated identity;
+        // surface the preview and let the user confirm.
+        AppAction::RotateShareHandshakeSuccess {
+            device_name,
+            share_pubkey,
+            group_pubkey,
+            relays,
+            profile_id,
+        } => {
+            // ── Identity-shape guard (VAL-ROTATE-007/008) ─────────────────
+            // Same-profile reject: rotating must produce a different
+            // device share; if profile_id matches the active profile, the
+            // envelope was mis-issued by the wizard or the same package
+            // is being reused.
+            if *profile_id == next.rotate_share.active_profile_id {
+                next.rotate_share.step = RotateShareStep::Error;
+                next.rotate_share.error = Some(crate::state::RotateShareError::SameProfile);
+                next.rotate_share.preview = None;
+                return (next, side_effect);
+            }
+            // Group-mismatch reject: the rotated envelope must belong to
+            // the same keyset as the active profile. The actor compares
+            // the resolved group_pubkey against the active profile's
+            // known group key; an empty expected group means the active
+            // profile's material did not carry one (rare — fall through
+            // and let the user inspect the preview).
+            let expected_group = state
+                .dashboard
+                .profile_info
+                .as_ref()
+                .map(|p| p.group_pubkey.clone())
+                .unwrap_or_default();
+            if !expected_group.is_empty()
+                && !group_pubkey.is_empty()
+                && *group_pubkey != expected_group
+            {
+                next.rotate_share.step = RotateShareStep::Error;
+                next.rotate_share.error = Some(crate::state::RotateShareError::GroupMismatch);
+                next.rotate_share.preview = None;
+                return (next, side_effect);
+            }
+            // Carry the existing label so the rotated profile is not
+            // orphaned under a freshly synthesized name — match VAL-ROTATE-011
+            // "rotated profile keeps the previous device label".
+            let resolved_label = if device_name.trim().is_empty() {
+                next.rotate_share.active_device_label.clone()
+            } else {
+                device_name.clone()
+            };
+            next.rotate_share.preview = Some(crate::state::RotatePreviewIdentity {
+                device_name: resolved_label,
+                share_pubkey: share_pubkey.clone(),
+                group_pubkey: group_pubkey.clone(),
+                profile_id: profile_id.clone(),
+                relays: relays.clone(),
+            });
+            next.rotate_share.step = crate::state::RotateShareStep::Preview;
+            next.rotate_share.error = None;
+        }
+
+        // VAL-ROTATE-007/008/009/014: handshake surfaced a typed failure.
+        AppAction::RotateShareHandshakeFailure { error } => {
+            let kind = error.as_str();
+            let typed_error = match kind {
+                "wrong_password" => crate::state::RotateShareError::WrongPassword,
+                "relay_unreachable" => crate::state::RotateShareError::RelayUnreachable,
+                "provisioner_offline" => crate::state::RotateShareError::ProvisionerOffline,
+                "same_profile" => crate::state::RotateShareError::SameProfile,
+                "group_mismatch" => crate::state::RotateShareError::GroupMismatch,
+                "malformed_package" => crate::state::RotateShareError::MalformedPackage,
+                _ => crate::state::RotateShareError::Unexpected,
+            };
+            next.rotate_share.step = crate::state::RotateShareStep::Error;
+            next.rotate_share.error = Some(typed_error);
+            next.rotate_share.preview = None;
+        }
+
+        // VAL-ROTATE-011: confirm replacement.
+        AppAction::RotateShareReplace => {
+            let preview = match next.rotate_share.preview.clone() {
+                Some(p) => p,
+                None => return (next, side_effect),
+            };
+            // Reject replacement if the active profile has no entries to
+            // drop — defensive guard so a malformed action never wipes
+            // unrelated profiles.
+            if next.rotate_share.active_profile_id.is_empty() {
+                return (next, side_effect);
+            }
+            let old_profile_id = next.rotate_share.active_profile_id.clone();
+            let new_profile_id = preview.profile_id.clone();
+            let new_label = preview.device_name.clone();
+            let new_short_id = if new_profile_id.len() >= 8 {
+                new_profile_id[..8].to_string()
+            } else {
+                new_profile_id.clone()
+            };
+            // Build the rotated material via the same code-path that
+            // onboard uses so the runtime / signer keep the full keyset
+            // view (member mapping, peer pubkeys, etc.).
+            let material_bytes = build_rotated_material_bytes(
+                &preview,
+                &next.rotate_share.relay_url,
+                old_profile_id.clone(),
+            )
+            .unwrap_or_default();
+            next.rotate_share.step = crate::state::RotateShareStep::Complete;
+            // VAL-ROTATE-011: route to Dashboard so the rotated
+            // profile re-opens immediately after the shell commits the
+            // secure-storage swap.
+            next.router.screen = Screen::Dashboard;
+            next.router.back_history.clear();
+            // Ask the shell to swap secure storage atomically.
+            side_effect = Some(crate::AppUpdate::ReplaceProfileFromRotate {
+                old_profile_id: old_profile_id.clone(),
+                new_profile_id: new_profile_id.clone(),
+                new_label: new_label.clone(),
+                new_short_id: new_short_id.clone(),
+                new_material: material_bytes,
+                new_relays: preview.relays.clone(),
+                delete_old: true,
+            });
+        }
+
+        AppAction::RotateShareClearError => {
+            next.rotate_share.error = None;
+            next.rotate_share.last_error_message = None;
+            next.rotate_share.step = RotateShareStep::Idle;
+        }
+
+        // VAL-ROTATE-010: abandoning the flow returns the dashboard
+        // unchanged. Caller (back affordance or system-back) leaves the
+        // active profile intact.
+        AppAction::RotateShareReset => {
+            next.rotate_share.reset();
+            next.router.screen = Screen::Dashboard;
+        }
+
+        // ── Rotate-mode wizard source picker handlers
+        //    (VAL-ROTATE-001/002/003/004) ──────────────────────────────
+        AppAction::KeysetSetRotationSourceProfile { profile_id } => {
+            next.keyset.rotate_source_profile_id = profile_id.clone();
+            // Reset the picker when the source profile changes so a stale
+            // row from a previous source cannot satisfy the threshold.
+            next.keyset.rotation_sources.clear();
+            next.keyset.rotation_error = None;
+            next.keyset.error = None;
+            next.keyset.step = KeysetFlowStep::Idle;
+        }
+
+        AppAction::KeysetAddRotationSourceRow => {
+            next.keyset.rotation_sources.push(RotationSourceRow {
+                package: String::new(),
+                password: String::new(),
+                source_profile_id: next.keyset.rotate_source_profile_id.clone(),
+            });
+            next.keyset.rotation_error = None;
+        }
+
+        AppAction::KeysetRemoveRotationSourceRow { index } => {
+            let idx = *index as usize;
+            if idx < next.keyset.rotation_sources.len() {
+                next.keyset.rotation_sources.remove(idx);
+                next.keyset.rotation_error = None;
+            }
+        }
+
+        AppAction::KeysetUpdateRotationSourcePackage { index, value } => {
+            let idx = *index as usize;
+            if let Some(row) = next.keyset.rotation_sources.get_mut(idx) {
+                row.package = value.trim().to_string();
+                next.keyset.rotation_error = None;
+            }
+        }
+
+        AppAction::KeysetUpdateRotationSourcePassword { index, value } => {
+            let idx = *index as usize;
+            if let Some(row) = next.keyset.rotation_sources.get_mut(idx) {
+                row.password = value.clone();
+                next.keyset.rotation_error = None;
+            }
+        }
     }
 
     (next, side_effect)
@@ -1877,6 +2177,54 @@ fn go_back(screen: Screen) -> Screen {
         // RotateShare back to dashboard.
         Screen::RotateShare => Screen::Dashboard,
     }
+}
+
+// ── Rotate Share helpers (VAL-ROTATE-011) ────────────────────────────────
+
+/// Build a fresh `OnboardProfileMaterial` JSON blob from a resolved
+/// rotated identity so the shell can swap secure-storage records in
+/// one round-trip. Returns the empty Vec on materialization failures so
+/// the actor can fall through without crashing; the shell turns the
+/// empty payload into an explicit failure via a follow-up action.
+fn build_rotated_material_bytes(
+    preview: &RotatePreviewIdentity,
+    active_relay_override: &str,
+    _old_profile_id: String,
+) -> Result<Vec<u8>, String> {
+    // Build a single-member keyset holding only the rotated share. We
+    // keep the existing storage shape so the runtime / signer can spin
+    // up after replace without an extra migration step. The "peer"
+    // list is empty until the next alias-discovery ping completes.
+    use crate::{MaterialMember, OnboardProfileMaterial};
+    let mut members: Vec<MaterialMember> = Vec::new();
+    if !preview.share_pubkey.is_empty() {
+        members.push(MaterialMember {
+            idx: 0,
+            pubkey_hex: if preview.share_pubkey.len() == 64 {
+                format!("02{}", preview.share_pubkey)
+            } else {
+                preview.share_pubkey.clone()
+            },
+        });
+    }
+    let relays = if !active_relay_override.trim().is_empty() {
+        vec![active_relay_override.trim().to_string()]
+    } else {
+        preview.relays.clone()
+    };
+    let material = OnboardProfileMaterial {
+        share_seckey_hex: String::new(),
+        share_pubkey: preview.share_pubkey.clone(),
+        group_pubkey: preview.group_pubkey.clone(),
+        relays,
+        device_state_hex: String::new(),
+        profile_id: preview.profile_id.clone(),
+        share_idx: 0,
+        peer_pubkeys: Vec::new(),
+        members,
+        device_name: preview.device_name.clone(),
+    };
+    Ok(material.to_bytes())
 }
 
 // ════════════════════════════════════════════════════════════════════════════

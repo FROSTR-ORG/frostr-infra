@@ -5,9 +5,8 @@ use serde::{Deserialize, Serialize};
 /// Wizard mode selected on the CreateKeysetEntry screen.
 ///
 /// VAL-CREATE-002 requires the Generate form to expose a mode selector
-/// (new keyset vs rotate). VAL-ROTATE-* lives in the rotate-share feature
-/// and is out of scope here; this wizard plans for both modes but only the
-/// `Create` path is implemented end-to-end in this feature.
+/// (new keyset vs rotate). VAL-ROTATE-001..004 toggle the rotation
+/// source picker; both modes share the same wizard chrome.
 #[derive(uniffi::Enum, Clone, Debug, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum KeysetFlowMode {
     /// Generate a fresh keyset from a new signing key.
@@ -76,6 +75,28 @@ impl KeysetValidationError {
             Self::EmptyGroupName => "Group name is required.",
         }
     }
+}
+
+/// One row in the rotation-source picker (VAL-ROTATE-001).
+///
+/// Each row accepts a `bfshare1` package text plus its password; the
+/// wizard validates them as the user edits. Persisted in
+/// `KeysetFlowState::rotation_sources` so the picker survives back
+/// navigation (VAL-CREATE-009 parity).
+#[derive(uniffi::Record, Clone, Debug, Serialize, Deserialize)]
+pub struct RotationSourceRow {
+    /// Trimmed bfshare1 package text. Empty means the row is a blank
+    /// widget waiting for the user to paste; non-empty means it has
+    /// been claimed and re-fills on back navigation.
+    pub package: String,
+    /// bfshare1 password as entered (validated, not persisted).
+    pub password: String,
+    /// Whitelisted profile id this rotation source targets. Set when
+    /// the source-profile picker binds the row to a stored profile.
+    /// Empty means the row is unknown-profile until the shell resolves
+    /// it.
+    #[serde(default)]
+    pub source_profile_id: String,
 }
 
 /// One share produced by keygen, surfaced for the share picker (VAL-CREATE-004,
@@ -207,6 +228,24 @@ pub struct KeysetFlowState {
     /// Used by the Distribute step's embedded dashboard header on iOS.
     #[serde(default)]
     pub accepted_short_id: Option<String>,
+    /// Rotation-mode source picker (VAL-ROTATE-001..004).
+    ///
+    /// Populated only when `mode == KeysetFlowMode::Rotate`. Each row
+    /// accepts a `bfshare1` + password pair; absolute source-profile
+    /// picker state is recorded via `rotate_source_profile_id` so the
+    /// wizard can perform the under-threshold check
+    /// (VAL-ROTATE-002) against the right stored profile.
+    #[serde(default)]
+    pub rotation_sources: Vec<RotationSourceRow>,
+    /// Profile id the rotation source picker binds to (VAL-ROTATE-001).
+    /// Empty means the picker is showing the placeholder.
+    #[serde(default)]
+    pub rotate_source_profile_id: String,
+    /// Surface error for the rotation-source stage. Mirrors the
+    /// typed `error` slot so the same inline-error UI handles both
+    /// shape rejections (VAL-ROTATE-002, VAL-ROTATE-003).
+    #[serde(default)]
+    pub rotation_error: Option<String>,
 }
 
 impl KeysetFlowState {
@@ -228,6 +267,9 @@ impl KeysetFlowState {
             relays: Vec::new(),
             distribute: Vec::new(),
             accepted_short_id: None,
+            rotation_sources: Vec::new(),
+            rotate_source_profile_id: String::new(),
+            rotation_error: None,
         }
     }
 
@@ -307,6 +349,65 @@ impl KeysetFlowState {
     /// `step == Distribute` and at least one share remains.
     pub fn has_distribute(&self) -> bool {
         self.step == KeysetFlowStep::Distribute && !self.distribute.is_empty()
+    }
+
+    /// Number of valid rotation sources (both package and password set).
+    /// Used by `validate_rotation_sources` for the under-threshold gate
+    /// (VAL-ROTATE-002). Counts each non-empty, non-duplicate
+    /// bfshare1 + password pair.
+    pub fn valid_rotation_source_count(&self) -> usize {
+        let mut seen_packages: Vec<&str> = Vec::new();
+        let mut count: usize = 0;
+        for row in &self.rotation_sources {
+            let pkg = row.package.trim();
+            let pw = row.password.trim();
+            if pkg.is_empty() || pw.is_empty() {
+                continue;
+            }
+            if seen_packages.contains(&pkg) {
+                continue;
+            }
+            seen_packages.push(pkg);
+            count += 1;
+        }
+        count
+    }
+
+    /// Validate the rotation-source stage (VAL-ROTATE-002, VAL-ROTATE-003).
+    ///
+    /// Returns the first encountered user-visible error message, or
+    /// `None` when all source rows are valid and at least `threshold`
+    /// distinct shares are present.
+    pub fn validate_rotation_sources(&self, threshold: u16) -> Option<String> {
+        if self.rotate_source_profile_id.trim().is_empty() {
+            return Some("Pick a source profile to rotate.".to_string());
+        }
+        if self.rotation_sources.is_empty() {
+            return Some("At least one rotation source is required.".to_string());
+        }
+        // Detect malformed + missing-password rows up-front so the
+        // user fixes them in place rather than racing the threshold
+        // check against possibly invalid rows.
+        for (idx, row) in self.rotation_sources.iter().enumerate() {
+            let pkg = row.package.trim();
+            if pkg.is_empty() {
+                return Some(format!("Rotation source {} is missing a package.", idx + 1));
+            }
+            if row.password.is_empty() {
+                return Some(format!(
+                    "Rotation source {} is missing a password.",
+                    idx + 1
+                ));
+            }
+        }
+        let valid = self.valid_rotation_source_count();
+        if (valid as u16) < threshold {
+            return Some(format!(
+                "Need at least {} valid rotation sources (have {}).",
+                threshold, valid
+            ));
+        }
+        None
     }
 }
 
