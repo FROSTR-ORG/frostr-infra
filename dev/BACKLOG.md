@@ -32,8 +32,6 @@ Group by area. When an item is finished, move a one-line summary to
   to match the runtime `OperatorSignerPanel` card (the runtime card already exists)
   — `igloo-paper`. (The runtime "Diagnostics" card was renamed → **Event Log** to
   match Paper on 2026-06-13.)
-- [ ] (effort: S) Confirm whether `Export Profile`/`Export Share` should keep a
-  quick unencrypted copy-to-clipboard alongside the password modal — product call.
 - [ ] (effort: S) **Sync the Pending Approvals card + tri-state permissions to Paper.**
   The approval queue shipped 2026-06-14: the Pending Approvals card is now interactive
   (Deny / Allow once / Always allow) and the permissions toggle is tri-state
@@ -108,11 +106,11 @@ Group by area. When an item is finished, move a one-line summary to
   snapshot (it adopts the live node), so chrome is the sole remaining producer/consumer
   of onboard snapshots. Must stay back-compatible (treat un-versioned snapshots as
   restorable) — igloo-shared + the chrome snapshot write sites (surfaced 2026-06-13).
-- [ ] (effort: S) **Remaining router Ping-sentinels.** The inbound-request failure
-  path is now correctly typed, but `BridgeCore::tick`'s expire-tick failure and
-  `fail_request_and_dispatch`'s internal failure still hardcode
-  `PendingOpType::Ping` (`bifrost-router` ~257, ~519). Type them where the op is
-  known; expire is a background tick so Ping may stay (surfaced 2026-06-13).
+- [ ] (effort: S) **Remaining router Ping-sentinels.** `BridgeCore::tick`'s
+  expire-tick failure (`bifrost-router` ~294) and `fail_request_and_dispatch`'s
+  internal failure (~580) hardcode `PendingOpType::Ping` — and the inbound-request
+  failure path (~311) still does too. Type them where the op is known; expire is a
+  background tick so Ping may stay (surfaced 2026-06-13; line refs re-verified 2026-06-15).
 
 ## igloo-pwa
 
@@ -152,13 +150,13 @@ Group by area. When an item is finished, move a one-line summary to
   `JSON.stringify` of relays/signerSettings, if those shapes grow.
 - [ ] (effort: S) Decide the fate of the redundant `RelayInput`
   (`igloo-ui/src/components/ui/relay-input.tsx`) vs the newer `RelayList`.
-- [ ] (effort: S) **Onboard-save relay field is cosmetic.** `renderOnboardSave`
-  renders an editable relay list (`CreateFlowProfileSetup`), but
-  `finalizeOnboardedDevice` ignores `onboardSaveForm.relayUrls` — the profile's
-  relays come from the onboarding package (the e2e helper notes "relays stay
-  locked"). Either lock the field in the UI or honor edits. Relevant now that the
-  onboard flow *adopts* the live node (which is connected to the package relays),
-  so honoring a relay edit at save would require a different path (surfaced 2026-06-13).
+- [ ] (effort: S) **Onboard-save relay field — vestigial `onRelaysChange` cleanup.**
+  The "lock vs honor" decision landed on **lock**: `renderOnboardSave` passes
+  `lockIdentity={true}`, so the relay list renders read-only and
+  `finalizeOnboardedDevice` (correctly) ignores relay edits — the profile's relays
+  come from the onboarding package. Remaining cleanup: a now-pointless
+  `onRelaysChange` callback is still wired at `igloo-pwa` `App.tsx:1193`; drop it
+  (surfaced 2026-06-13; rescoped 2026-06-15).
 
 - [ ] (effort: S) Rich device labeling/renaming in the instance registry UI
   (initial impl shows the id prefix + null label).
@@ -211,16 +209,16 @@ Group by area. When an item is finished, move a one-line summary to
   (deny → fails; approve → completes a verifiable signature). Optionally add an ergonomic
   `runtime approvals` list (today operators read `pending_approvals` from `runtime status`
   JSON). Surfaced 2026-06-14.
-- [ ] (effort: S) **igloo-home visual/desktop lanes are Linux-only** — `test/visual/run.mjs`
+- [ ] (effort: S) **igloo-home visual/desktop lanes are Linux-only** — `repos/igloo-home/test/visual/run.mjs`
   hardcodes `/usr/bin`/`/snap` chromium paths and the desktop lane needs `xvfb-run` +
   ImageMagick `identify` + X11 `xwininfo`, so neither runs on macOS (homebrew chromium at
   `/opt/homebrew/bin`, no ImageMagick). Probe the homebrew path and degrade gracefully when
   `identify` is absent so local macOS dev can at least capture screenshots (surfaced
   2026-06-13; the `recover-key` visual scenario is registered and CI/Linux will screenshot it).
 - [ ] (effort: S) **Desktop smoke for recover-key** — once the desktop lane runs (CI/Linux),
-  add a `test/desktop` step that dispatches `recover_group_key` and screenshots the
-  recover-key view; today it's covered by Rust unit + a vitest behavioral test only
-  (`igloo-home`; surfaced 2026-06-13).
+  add a `repos/igloo-home/test/desktop` step that dispatches `recover_group_key` and
+  screenshots the recover-key view; today it's covered by Rust unit + a vitest
+  behavioral test only (`igloo-home`; surfaced 2026-06-13).
 - [ ] (effort: M) **Behavioral test for the resilient-restore fallback.** Phase-1.2
   added a re-bootstrap-from-packages fallback when a persisted snapshot fails WASM
   restore; only the package-carrying half (`createBrowserRuntimeNodeInit`) is
@@ -238,13 +236,13 @@ Group by area. When an item is finished, move a one-line summary to
   still prints.
 - [ ] (effort: S) Add a small regression test for
   `repos/igloo-paper/scripts/update_usage_coverage.py`.
-- [ ] (effort: S) **Harden `.tsx`-only vitest include globs.** igloo-pwa's
-  `vitest.config.ts` matched only `*.test.tsx`, so the non-JSX
-  `test/frontend/session-controller.test.ts` had **never run** (fixed 2026-06-13 →
-  `*.test.{ts,tsx}`). **igloo-ui** has the same `test/**/*.test.tsx`-only glob — no
+- [ ] (effort: S) **Harden `.tsx`-only vitest include globs (igloo-ui).** igloo-pwa
+  was fixed 2026-06-13 (`vitest.config.ts` now `*.test.{ts,tsx}`). **igloo-ui** still
+  has the `test/**/*.test.tsx`-only glob (`repos/igloo-ui/vitest.config.ts`) — no
   `.ts` test today, but a future one would be silently dropped. Broaden it to
-  `{ts,tsx}` and consider a workspace guard (e.g. `check-shared-test-setup.sh`) that
-  flags a committed `*.test.ts` that no project glob matches (surfaced 2026-06-13).
+  `{ts,tsx}` and consider a workspace guard (e.g. extend `check-shared-test-setup.sh`)
+  that flags a committed `*.test.ts` no project glob matches (surfaced 2026-06-13;
+  pwa half resolved, rescoped to igloo-ui 2026-06-15).
 - [ ] (effort: M) **`pwa-home-pairing` is effectively dead** — it's `@cross-client`
   (runs in NO CI lane), DISPLAY-gated, and until 2026-06-11 read the runtime
   snapshot from localStorage where it is never persisted. It now uses the corrected
