@@ -117,11 +117,15 @@ demo-smoke:
 # Fast gate that the pinned bifrost-rs + igloo-shell submodule pair compiles
 # together (igloo-shell path-depends on bifrost-rs, so an API change can break it
 # with no version bump). Front-runs the slower in-Docker demo build in CI.
+# Uses `--all-targets` (not just `--bin`) so it also compiles the submodules'
+# `#[cfg(test)]` modules: a bin-only check misses test-fixture drift (e.g. a
+# bifrost-rs struct gaining fields rots igloo-shell-core's struct-literal
+# fixtures), which is exactly the rot this gate now exists to catch.
 demo-pair-check:
-	@echo "==> Checking bifrost-devtools compiles (repos/bifrost-rs)"
-	@cargo check --locked --manifest-path "$(ROOT_DIR)/repos/bifrost-rs/Cargo.toml" -p bifrost-devtools --bin bifrost-devtools
-	@echo "==> Checking igloo-shell compiles against the pinned bifrost-rs (repos/igloo-shell)"
-	@cargo check --locked --manifest-path "$(ROOT_DIR)/repos/igloo-shell/Cargo.toml" -p igloo-shell-cli --bin igloo-shell
+	@echo "==> Checking bifrost-devtools compiles (repos/bifrost-rs, all targets)"
+	@cargo check --locked --all-targets --manifest-path "$(ROOT_DIR)/repos/bifrost-rs/Cargo.toml" -p bifrost-devtools
+	@echo "==> Checking igloo-shell compiles against the pinned bifrost-rs (repos/igloo-shell, all targets)"
+	@cargo check --locked --all-targets --manifest-path "$(ROOT_DIR)/repos/igloo-shell/Cargo.toml"
 
 compose-start:
 	@if [[ -z "$(strip $(SERVICES))" ]]; then echo 'error: compose-start requires SERVICES="<service> [service...]"' >&2; exit 1; fi

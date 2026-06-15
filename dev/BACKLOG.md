@@ -205,20 +205,14 @@ Group by area. When an item is finished, move a one-line summary to
   runs; passes in isolation and on a fresh run). A wait-hardening already shipped
   (parent `626a696`) but is insufficient under load. Make `exportProfileWithPassword`
   fill-and-poll the confirm value (or raise its wait) so it's robust under contention.
-- [ ] (effort: S) **The cross-repo `demo-pair-check` guard misses igloo-shell test
-  drift.** `make demo-pair-check` runs `cargo check --bin igloo-shell` — bin-only,
-  no `--all-targets` — so it does not compile igloo-shell-core/cli **test fixtures**.
-  bifrost-rs struct-field additions then rot the shell's struct-literal fixtures
-  silently: the 2026-06-13 telemetry pass left `igloo-shell-core`'s runtime-status
-  fixture missing `PeerStatus` fields, only caught 2026-06-14 by a local
-  `clippy --all-targets`. Strengthen the guard to `cargo clippy --all-targets`
-  (or `cargo test --no-run`) for igloo-shell (and bifrost-devtools) so fixture/test
-  drift is caught at pointer-bump time, not later (surfaced 2026-06-14). **Recurred
-  2026-06-15:** the dashboard-states `RuntimeStatusSummary` field additions
-  (last_sign_failure / connected_relays / configured_relays / last_load_error) rotted
-  the shell's `sample_runtime_status` fixture the same silent way; re-fixed in
-  igloo-shell `f3db913`. The guard itself is still bin-only — this item stays open
-  until the guard is strengthened.
+- [x] (effort: S) **DONE (2026-06-15).** The cross-repo `demo-pair-check` guard
+  missed igloo-shell test drift: it ran `cargo check --bin` (bin-only), so it never
+  compiled igloo-shell-core/cli **test fixtures**. bifrost-rs struct-field additions
+  silently rotted the shell's struct-literal fixtures twice (2026-06-13 `PeerStatus`,
+  2026-06-15 the four `RuntimeStatusSummary` host/bridge fields). Strengthened the
+  `Makefile` `demo-pair-check` target to `cargo check --locked --all-targets` for the
+  whole igloo-shell workspace (and bifrost-devtools), so test/bench targets compile at
+  pointer-bump time. Verified it catches a dropped fixture field and passes clean.
 - [ ] (effort: M) **igloo-shell full approval round-trip integration test.** The shell
   path's approval coverage is only smoke-level today (`policy_integration.rs`: an `ask`
   override persists; `runtime resolve-approval` on an unknown id is a no-op success). Add
@@ -325,14 +319,23 @@ corrected. The remaining Medium/Low findings stay in the per-target reports.
   both directions. WASM rebuilt + re-stamped + re-vendored (shared/pwa/chrome). A real
   `@live` provider-vs-nostr-tools behavioral check remains a (non-blocking) follow-up.
   — bifrost-rs + igloo-shared.
-- [ ] (effort: M) **`@live` NIP-44 interop behavioral test (gold-standard for the
-  raw-X fix).** The raw-X unification (above) is covered by a bifrost-core source test
-  + an igloo-shared `nostr-tools` unit test, but nothing drives the *real* provider
-  end-to-end. Add an `@live` flow that encrypts via `window.nostr.nip44.encrypt`
-  through the chrome/pwa provider (a running threshold group) and decrypts the
-  ciphertext with a standard `nostr-tools` client (and vice versa). Needs a live
-  provider + threshold group, hence deferred from the fix itself — test/ + igloo-pwa
-  or igloo-chrome · surfaced 2026-06-15.
+- [x] (effort: M) **DONE (2026-06-15).** `@live` NIP-44 interop behavioral test
+  (gold-standard for the raw-X fix) — added to
+  `test/igloo-chrome/specs/provider-live-nip44.spec.ts`: a live 2-of-3 group encrypts
+  via `window.nostr.nip44.encrypt` and a standard `nostr-tools` client decrypts it
+  (and vice versa), against an external non-member counterparty. **It caught two more
+  real interop bugs that the unit/source tests could not, both now fixed:**
+  (1) app-facing `nip44Encrypt` emitted *unpadded* base64 (strict standard decoders
+  reject it) — fixed in igloo-shared `8fccc0b`; (2) the threshold ECDH was missing
+  Lagrange interpolation, so for any t-of-n with t>1 the combined secret was
+  `(Σ shares)·C` not `group_secret·C` — undecryptable by a standard peer. FROSTR V1
+  (`@vbyte/frost`) applies `calc_lagrange_coeff`; the Rust port had dropped it (the
+  `members` quorum was threaded in but unused). Restored in bifrost-rs `d8264a4`
+  (+ cross-quorum test `38bbba3`); WASM rebuilt + re-stamped + re-vendored.
+  **Net:** app-facing NIP-44 now interoperates with standard nostr clients for real
+  threshold groups, not just threshold-1. NIP-44 is chrome-extension-only (the PWA has
+  no app-facing nip44 surface), so the test is chrome-only. — test/igloo-chrome +
+  bifrost-rs + igloo-shared.
 
 ### Secret hygiene ("decide once, propagate")
 
