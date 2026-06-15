@@ -739,6 +739,7 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                     last_test_sign: None,
                     test_ecdh_in_progress: false,
                     last_test_ecdh: None,
+                    runtime_observed_events_len: 0,
                 },
                 // VAL-PERM-002: permissions tab renders a matrix for each peer (alice, carol).
                 permissions: PermissionsState::with_demo_peers(),
@@ -810,6 +811,12 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
         // VAL-SIGNER-006/007/008/009: peer list updated on each poll.
         // VAL-SIGNER-012/013: event log live-updates.
         // VAL-SIGNER-014: pending ops section updated.
+        // `mobile-create-keyset-flow` events_len contract: when the
+        // shell-supplied `events_len` advances past the actor's last
+        // observation, prepend exactly one safe INFO log entry with an
+        // RFC-3339 timestamp. Unchanged / recovered counts never
+        // duplicate the row, and the prior `dashboard.signer.events`
+        // entries stay intact (newest-first ordering preserved).
         AppAction::SignerStatusUpdate {
             relay_connected,
             readiness,
@@ -823,7 +830,7 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
             pending_op_types,
             pending_op_started_at,
             last_refresh_secs,
-            events_len: _,
+            events_len,
         } => {
             let readiness = match readiness.as_str() {
                 "restoring" => SignerReadiness::Restoring,
@@ -835,6 +842,35 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
             next.dashboard.signer.relay_connected = *relay_connected;
             next.dashboard.signer.readiness = readiness;
             next.dashboard.signer.last_refresh_secs = *last_refresh_secs;
+
+            // Record the actor's view of the runtime event count and,
+            // on advancement, append a single safe INFO row to keep the
+            // dashboard event log truthful even when the bridge only
+            // surfaces a monotonic count (no per-event payload). The
+            // tracked value follows the count down on bridge restarts
+            // so the post-recovery next advancement still emits.
+            let observed = state.dashboard.signer.runtime_observed_events_len;
+            let incoming = u64::from(*events_len);
+            if incoming > observed {
+                next.dashboard.signer.events.insert(
+                    0,
+                    LogEntry {
+                        level: LogLevel::Info,
+                        timestamp: display_timestamp_rfc3339(),
+                        message: format!(
+                            "Runtime event count advanced to {} (bridge-supplied)",
+                            incoming
+                        ),
+                    },
+                );
+                next.dashboard.signer.runtime_observed_events_len = incoming;
+            } else {
+                // Unchanged or recovery (e.g. bridge restarted and its
+                // internal counter reset). No row appended, but the
+                // tracked value still tracks the latest observation so
+                // the next advancement past this baseline emits.
+                next.dashboard.signer.runtime_observed_events_len = incoming;
+            }
 
             // Build peer status list from the poll data, preserving prior
             // liveness when a transient poll lacks last_seen evidence.

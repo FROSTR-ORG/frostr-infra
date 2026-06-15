@@ -299,7 +299,23 @@ struct SignerStatusCache {
     /// `pending_ops_json` string.
     pending_ops: Vec<CachedPendingOp>,
     last_refresh_secs: Option<i64>,
-    events_len: usize,
+    /// Monotonic counter incremented every time the polling task
+    /// observes a runtime metadata fingerprint that differs from the
+    /// previous poll. The actor deduplicates against this value via
+    /// `SignerStatusUpdate.events_len` and emits one safe INFO row on
+    /// each advance (`mobile-create-keyset-flow` events_len contract).
+    /// The bifrost-bridge-tokio bridge does not expose a per-event
+    /// stream; this fingerprint-based mirror is the local substitute
+    /// that keeps the actor's runtime event log truthful without
+    /// fabricating payload-bearing rows.
+    events_len: u64,
+    /// Fingerprint of the last observed (readiness, peers, pending_ops)
+    /// tuple. `None` before the first observation under the current
+    /// bridge instance (`stop_signer` clears it). Resetting the
+    /// fingerprint on stop means the next `start_signer` triggers an
+    /// advancement regardless of whether the runtime metadata reset to
+    /// its starting defaults.
+    last_obs_fingerprint: Option<String>,
 }
 
 impl Default for SignerStatusCache {
@@ -312,6 +328,7 @@ impl Default for SignerStatusCache {
             pending_ops: Vec::new(),
             last_refresh_secs: None,
             events_len: 0,
+            last_obs_fingerprint: None,
         }
     }
 }
@@ -825,11 +842,54 @@ impl FfiApp {
                                         let mut cache = status_cache.lock().unwrap();
                                         cache.running = true;
                                         cache.relay_connected = relay_connected;
-                                        cache.readiness = readiness_str;
-                                        cache.peers = final_peers;
-                                        cache.pending_ops = pending_ops;
+                                        cache.readiness = readiness_str.clone();
+                                        cache.peers = final_peers.clone();
+                                        cache.pending_ops = pending_ops.clone();
                                         cache.last_refresh_secs = Some(now_secs);
-                                        cache.events_len = 0;
+                                        // Compute a fingerprint of the observable
+                                        // runtime metadata (readiness, connected
+                                        // flag, peer-online map, pending-ops count)
+                                        // so the bridge-supplied count advances on
+                                        // every visible state transition even when
+                                        // bifrost-bridge-tokio doesn't surface a
+                                        // per-event payload stream. The actor
+                                        // compares this against the previous
+                                        // `SignerStatusUpdate.events_len` to dedupe
+                                        // and emit at most one INFO log row per
+                                        // advancement (`mobile-create-keyset-flow`
+                                        // events_len contract).
+                                        let mut peer_sig_parts: Vec<String> = final_peers
+                                            .iter()
+                                            .map(|p| {
+                                                format!(
+                                                    "{}:{}:{}",
+                                                    p.alias,
+                                                    p.online,
+                                                    p.last_seen_secs.unwrap_or(0)
+                                                )
+                                            })
+                                            .collect();
+                                        peer_sig_parts.sort();
+                                        let pending_ops_sig = match pending_ops.len() {
+                                            0 => "0".to_string(),
+                                            n => format!("gt0:{}", n),
+                                        };
+                                        let peer_sig = format!(
+                                            "{}|{}",
+                                            pending_ops_sig,
+                                            peer_sig_parts.join(",")
+                                        );
+                                        let fingerprint =
+                                            format!("{}|{}|{}", readiness_str, relay_connected, peer_sig);
+                                        let changed = cache
+                                            .last_obs_fingerprint
+                                            .as_ref()
+                                            .map(|prev| prev != &fingerprint)
+                                            .unwrap_or(true);
+                                        if changed {
+                                            cache.events_len = cache.events_len.saturating_add(1);
+                                            cache.last_obs_fingerprint = Some(fingerprint);
+                                        }
                                     }
 
                                     // Auto-ping bootstrap: the moment the bridge
