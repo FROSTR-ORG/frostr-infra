@@ -130,10 +130,13 @@ Group by area. When an item is finished, move a one-line summary to
   `runtime_unavailable` stays a soft in-panel state by design. (Native daemon-start
   failures are home-frontend; the `status.last_load_error` wire field is still
   bridge-unfilled — see next item.)
-- [ ] (effort: M) **Native `last_load_error` enrichment.** bifrost-bridge-tokio
-  leaves `last_load_error` None (native restore failures are host-bootstrap, not a
-  running runtime; home now drives load-failed from its own start-error state). If a
-  native host ever gains a live-runtime load-error signal, fill it.
+- [x] (effort: M) **Native `last_load_error` enrichment — WON'T BUILD (2026-06-15).**
+  Architecturally moot: a native restore failure aborts daemon startup
+  (`store.load()?` in bifrost-app bootstrap → daemon never starts), so there is no
+  running runtime to query — `runtime_status().last_load_error` is unreachable.
+  Home correctly drives load-failed from its own start-error state. The wire field
+  is kept as a documented reserved slot (a future host that surfaces a load error
+  from a *running* runtime could fill it). Comment on the field corrected.
 - [x] (effort: M) **Live relay-health re-probe (browser bridge) — DONE (2026-06-15).**
   `refreshRelayHealth()` re-probes on a ~30s interval (started in connect, cleared in
   shutdown), recomputing `connected_relays` so all-relays-offline fires on post-boot
@@ -142,10 +145,13 @@ Group by area. When an item is finished, move a one-line summary to
   `test/igloo-pwa/specs/dashboard-states.spec.ts` drives **signing-blocked** (deny the
   peer's request.sign → sign_ready drops) then **all-relays-offline** (close the relay →
   re-probe empties connected_relays; the banner flips, exploiting their precedence).
-- [ ] (effort: M) **`@live` e2e for the signing-failed banner.** Not covered above:
-  signing-failed needs the *local* node to record a `Sign` failure, which the
-  responder-only PWA dashboard can't initiate. Needs a PWA-initiated (or
-  timeout-induced) failing sign to exercise `last_sign_failure` end to end.
+- [x] (effort: M) **`@live` e2e for the signing-failed banner — WON'T BUILD
+  (2026-06-15).** Only the sign *initiator* holds a pending `Sign` op that can fail
+  (responders answer immediately, no pending op), so the responder-only PWA dashboard
+  can never populate its own `last_sign_failure` without becoming an initiator or a
+  test mock. The banner's derivation + render are already covered by the igloo-ui unit
+  test (`DashboardStates.test.tsx`). Revisit only if/when a client gains a
+  self-initiated sign surface.
 - [ ] (effort: S, unsure) Make the Settings dirty-check structural rather than
   `JSON.stringify` of relays/signerSettings, if those shapes grow.
 - [ ] (effort: S) Decide the fate of the redundant `RelayInput`
@@ -192,6 +198,14 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## Test harness / CI
 
+- [ ] (effort: S) **Export-package `@live` e2e still flakes under load.** The
+  `profile-import.spec.ts › exports an encrypted profile package` test intermittently
+  times out on `expect(getByTestId('export-confirm')).toHaveValue(...)` — the
+  ExportPackageModal controlled-input value doesn't land within 10s under resource
+  contention (observed 2026-06-15 on the 2nd of two back-to-back `make test-live`
+  runs; passes in isolation and on a fresh run). A wait-hardening already shipped
+  (parent `626a696`) but is insufficient under load. Make `exportProfileWithPassword`
+  fill-and-poll the confirm value (or raise its wait) so it's robust under contention.
 - [ ] (effort: S) **The cross-repo `demo-pair-check` guard misses igloo-shell test
   drift.** `make demo-pair-check` runs `cargo check --bin igloo-shell` — bin-only,
   no `--all-targets` — so it does not compile igloo-shell-core/cli **test fixtures**.
