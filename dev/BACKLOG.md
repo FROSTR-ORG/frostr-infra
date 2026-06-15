@@ -120,11 +120,34 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: L) Adopt a real router for the dashboard pages — header nav still
   drives `store.activeDashboardTab`; URL deep-linking / back-button is a separate
   refactor with route-guard considerations for sensitive unlocked states.
-- [ ] (effort: L) Deferred dashboard screens: error/empty states (loading,
-  load-failed, all-relays-offline, signing-blocked, signing-failed). A multi-screen
-  UI build; brushes the plan's "big L-effort feature builds out of scope" boundary.
-  (The Clear Credentials modal `3b` + its destructive "clear this device" store
-  action shipped 2026-06-13.)
+- [x] (effort: L) **DONE (2026-06-15).** Dashboard error/empty states (loading,
+  load-failed, all-relays-offline, signing-blocked, signing-failed) — reusable
+  igloo-ui screens (`DashboardLoadingScreen` / `DashboardLoadFailedScreen` /
+  `DashboardConditionBanner`) + a `deriveDashboardState` selector consumed by all
+  three clients (pwa / chrome / home). First-class signals: `last_sign_failure`
+  (bifrost-signer, true core field) + bridge-enriched `connected_relays` /
+  `configured_relays` (Tokio + browser bridges). Mixed presentation: loading &
+  load-failed full-panel; the other three are banners over a usable dashboard.
+  Follow-ups below.
+- [ ] (effort: M) **Dashboard load-failed: client hard-error source.** The
+  load-failed full-panel is wired but currently only fires on a host-surfaced
+  `status.last_load_error`, which no client populates yet — pwa/home hard restore
+  failures surface *before* the dashboard (connect()/daemon-start throws, no
+  runtime to read) and chrome's `runtime_unavailable` is a soft in-panel state.
+  Capture a genuine on-dashboard hard load error per client into the
+  `deriveDashboardState` `loadError` input where one is reachable.
+- [ ] (effort: M) **Native `last_load_error` enrichment.** bifrost-bridge-tokio
+  leaves `last_load_error` None (native restore failures are host-bootstrap, not a
+  running runtime). If a native host gains a live-runtime load-error signal, fill
+  it so igloo-home can show the load-failed screen.
+- [ ] (effort: M) **Live relay-health tracking (browser bridge).** `connected_relays`
+  reflects bootstrap-time connectivity (set only in `connectActiveRelays`); relays
+  that drop *after* start aren't tracked, so all-relays-offline won't fire post-boot
+  in pwa/chrome. Track live relay connect/disconnect to keep the signal current.
+- [ ] (effort: M) **`@live` e2e for the dashboard states.** Drive all-relays-offline
+  (kill the relay), signing-blocked (deny-all policy / no online peers), and
+  signing-failed (induce a sign failure) and assert the banners; loading/load-failed
+  too where reachable.
 - [ ] (effort: S, unsure) Make the Settings dirty-check structural rather than
   `JSON.stringify` of relays/signerSettings, if those shapes grow.
 - [ ] (effort: S) Decide the fate of the redundant `RelayInput`
