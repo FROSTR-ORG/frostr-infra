@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/backup_publication_and_recovery.rs (/Users/plebdev/Desktop/Projects/frostr-infra/apps/igloo-mobile/target/debug/deps/backup_publication_and_recovery-666b9ccbc9fd4a63)
+
+running 3 tests
+test live_relay_is_reachable_diagnostic ... ok
+test live_relay_publish_backup_creates_kind_10000_event_with_share_author ... ok
+test live_relay_published_backup_round_trips_via_bfshare_recovery ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 17.85s
+

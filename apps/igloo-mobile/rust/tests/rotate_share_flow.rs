@@ -298,9 +298,12 @@ fn rotate_share_clear_error_returns_to_idle() {
     assert!(next.rotate_share.error.is_none());
 }
 
-// VAL-ROTATE-011: confirm replacement emits the swap side effect with
-// the new profile id, label, short_id, material, and relays, and routes
-// the user to the rotated profile's dashboard.
+// VAL-ROTATE-011: confirm replacement emits the swap-and-publish side
+// effect with the new profile id, label, short_id, material, and
+// relays, and routes the user to the rotated profile's dashboard.
+// VAL-BACKUP-004: the combined side-effect also carries the
+// `source = "rotate"` stamp so the shell knows to publish a fresh
+// kind-10000 backup under the rotated share's derived author pubkey.
 #[test]
 fn rotate_share_replace_emits_swap_side_effect_and_routes_dashboard() {
     let state = preview_state(
@@ -316,7 +319,8 @@ fn rotate_share_replace_emits_swap_side_effect_and_routes_dashboard() {
     assert_eq!(next.router.screen, Screen::Dashboard);
 
     match side_effect {
-        Some(AppUpdate::ReplaceProfileFromRotate {
+        Some(AppUpdate::ReplaceProfileFromRotateAndPublishBackup {
+            source,
             old_profile_id,
             new_profile_id,
             new_label,
@@ -325,6 +329,10 @@ fn rotate_share_replace_emits_swap_side_effect_and_routes_dashboard() {
             new_relays,
             delete_old,
         }) => {
+            assert_eq!(
+                source, "rotate",
+                "rotate path must carry source=rotate for VAL-BACKUP-004 correlation"
+            );
             assert_eq!(old_profile_id, "aabbccdd11223344");
             assert_eq!(new_profile_id, "ff".repeat(32));
             assert_eq!(
@@ -337,7 +345,7 @@ fn rotate_share_replace_emits_swap_side_effect_and_routes_dashboard() {
             assert!(delete_old, "rotate_replace must replace the old record");
         }
         other => panic!(
-            "expected ReplaceProfileFromRotate side effect, got {:?}",
+            "expected ReplaceProfileFromRotateAndPublishBackup side effect, got {:?}",
             other
         ),
     }

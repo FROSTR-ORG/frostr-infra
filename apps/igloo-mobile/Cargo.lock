@@ -1232,6 +1232,7 @@ dependencies = [
  "bifrost-signer",
  "flume",
  "frostr-utils",
+ "futures-util",
  "hex",
  "k256",
  "nostr",
@@ -1239,6 +1240,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tokio-tungstenite 0.24.0",
  "uniffi",
 ]
 

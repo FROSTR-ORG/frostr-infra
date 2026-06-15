@@ -377,6 +377,10 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
 
         // Shell reported the profile was stored successfully.
         // Add to hub and navigate to dashboard (VAL-ONBOARD-011).
+        // VAL-BACKUP-002: also fire `AppUpdate::PublishProfileBackup`
+        // so the freshly stored profile publishes a kind-10000 backup
+        // event to its relays. The shell reads the material from secure
+        // storage by `profile_id` and re-publishes from `FfiApp`.
         AppAction::OnboardStored { profile_id } => {
             if let Some(resolved) = &next.onboarding.resolved {
                 // Add to hub if not already present (VAL-ONBOARD-015 dedupe).
@@ -405,6 +409,16 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
             // Reset onboarding and navigate to dashboard.
             next.onboarding.reset();
             next.router.screen = Screen::Dashboard;
+            // Fire backup publication side-effect (VAL-BACKUP-002). The
+            // shell owns secure storage so it reads the material by
+            // `profile_id`; `material_json` is empty here because the
+            // post-onboard state only carries the resolved identity
+            // fields, not the share secret.
+            side_effect = Some(AppUpdate::PublishProfileBackup {
+                source: "onboard".to_string(),
+                profile_id: profile_id.clone(),
+                material_json: String::new(),
+            });
         }
 
         // Shell reported a duplicate profile_id was rejected.
@@ -602,7 +616,21 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
 
         // Shell reported the loaded profile was stored successfully.
         // VAL-LOAD-007/014: add to hub and navigate to dashboard.
+        // VAL-BACKUP-006: every materialization (import or recover)
+        // re-publishes a kind-10000 backup so the freshly added hub
+        // row carries a relay-side recovery anchor. The shell reads
+        // the material from secure storage by `profile_id`, calls
+        // `FfiApp::publish_backup`, and forwards the result back via
+        // `BackupPublishCompleted`.
         AppAction::LoadProfileStored { profile_id } => {
+            // VAL-BACKUP-006: derive `source` from the resolved flow
+            // so validators can correlate the published event with the
+            // originating materialization path.
+            let publish_source = match next.load_profile.path.as_str() {
+                "recover" => "recover",
+                _ => "import",
+            }
+            .to_string();
             if let Some(resolved) = &next.load_profile.resolved {
                 if !next
                     .hub
@@ -628,6 +656,11 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
             }
             next.load_profile.reset();
             next.router.screen = Screen::Dashboard;
+            side_effect = Some(AppUpdate::PublishProfileBackup {
+                source: publish_source,
+                profile_id: profile_id.clone(),
+                material_json: String::new(),
+            });
         }
 
         // Shell reported duplicate profile_id was rejected.
@@ -898,6 +931,11 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
         // Mirror into the dashboard identity surface so the embedded
         // signer panel on the Distribute step reads the right info
         // (VAL-CREATE-010 requires a live signer panel on this step).
+        // VAL-BACKUP-001: also fire backup publication so the
+        // freshly-created keyset writes a kind-10000 backup to its
+        // relays. The combined side-effect carries both responsibilities
+        // so the actor's single-side-effect invariant holds — the shell
+        // reads `profile_id`'s stored material to publish the backup.
         AppAction::CreateKeysetAccepted {
             profile_id,
             label,
@@ -931,9 +969,12 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                 profile_id: profile_id.clone(),
             });
             next.keyset.accepted_short_id = Some(short_id.clone());
-            // Ask the shell to kick the runtime for the freshly stored
-            // profile so the Distribute step shows a live signer panel.
-            side_effect = Some(AppUpdate::StartKeysetSignerRuntime {
+            // Combined side effect: kick the runtime AND ask the shell
+            // to publish a kind-10000 backup (VAL-CREATE-010 +
+            // VAL-BACKUP-001). The shell owns secure storage so it
+            // reads the freshly written material by `profile_id`.
+            side_effect = Some(AppUpdate::StartKeysetSignerRuntimeAndPublishBackup {
+                source: "create".to_string(),
                 profile_id: profile_id.clone(),
                 label: label.clone(),
             });
@@ -1191,6 +1232,7 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                     group_pubkey: group_pubkey.clone(),
                     profile_id: profile_id.clone(),
                 }),
+                last_backup_publish: None,
             };
             next.router.screen = Screen::Dashboard;
         }
@@ -2079,8 +2121,14 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
             // secure-storage swap.
             next.router.screen = Screen::Dashboard;
             next.router.back_history.clear();
-            // Ask the shell to swap secure storage atomically.
-            side_effect = Some(crate::AppUpdate::ReplaceProfileFromRotate {
+            // Combined side-effect: swap secure storage AND publish a
+            // fresh kind-10000 backup under the rotated share's
+            // derived author pubkey (VAL-ROTATE-011 + VAL-BACKUP-004).
+            // The shell reads the freshly written material from secure
+            // storage to perform the publish, so the relay author is
+            // always the new (post-rotate) share.
+            side_effect = Some(crate::AppUpdate::ReplaceProfileFromRotateAndPublishBackup {
+                source: "rotate".to_string(),
                 old_profile_id: old_profile_id.clone(),
                 new_profile_id: new_profile_id.clone(),
                 new_label: new_label.clone(),
@@ -2148,6 +2196,40 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                 row.password = value.clone();
                 next.keyset.rotation_error = None;
             }
+        }
+
+        // VAL-BACKUP-001/002/004/006: shell forwarded the publish
+        // result. We mirror it into `dashboard.last_backup_publish` so
+        // validators can read a relay-side filtered proof directly from
+        // a fresh `AppState` snapshot — without needing shell-side
+        // telemetry or a separate service-control log. The actor only
+        // stores the result; the side-effect path that produced it
+        // stays intact (we do not retry the publish here).
+        AppAction::BackupPublishCompleted {
+            source,
+            success,
+            event_id,
+            author_pubkey,
+            content_length,
+            content_redacted,
+            group_pubkey,
+            relays_attempted,
+            relays_published_to,
+            error,
+        } => {
+            next.dashboard.last_backup_publish = Some(crate::state::BackupPublishStatus {
+                source: source.clone(),
+                success: *success,
+                event_id: event_id.clone(),
+                author_pubkey: author_pubkey.clone(),
+                content_length: *content_length,
+                content_redacted: content_redacted.clone(),
+                group_pubkey: group_pubkey.clone(),
+                relays_attempted: relays_attempted.clone(),
+                relays_published_to: relays_published_to.clone(),
+                error: error.clone(),
+                recorded_at_secs: now_epoch_secs(),
+            });
         }
     }
 

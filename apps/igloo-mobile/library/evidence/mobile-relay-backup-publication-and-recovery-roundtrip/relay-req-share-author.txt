@@ -1,0 +1,3 @@
+matched_events=8
+most_recent: id=a6e4af927211… pubkey=4f355bdcb7cc… kind=10000 created_at=1781565694
+(there are 7 older matching events on the relay; use --mode=ids or --mode=count to inspect)

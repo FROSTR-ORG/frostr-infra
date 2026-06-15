@@ -607,6 +607,42 @@ pub struct ProfileInfo {
     pub profile_id: String,
 }
 
+/// One kind-10000 backup publish result recorded by the actor. Used as
+/// shell-facing proof of the materialization side-effect so validators
+/// can correlate the last publish with a hub row / materialization and
+/// confirm the relay author filter holds. Production shells clear or
+/// roll this slot as they re-import the same profile; tests inspect it
+/// for the relay-side filtered proof in
+/// `apps/igloo-mobile/library/evidence/mobile-relay-backup-publication-and-recovery-roundtrip/`.
+#[derive(uniffi::Record, Clone, Debug, Serialize, Deserialize)]
+pub struct BackupPublishStatus {
+    /// Materialization path that produced this event
+    /// ("create" | "onboard" | "rotate" | "import" | "recover").
+    pub source: String,
+    /// Whether the publish hit at least one relay.
+    pub success: bool,
+    /// Hex-encoded Nostr event id when `success` is true.
+    pub event_id: Option<String>,
+    /// Hex-encoded Nostr author pubkey (derivative of the share secret,
+    /// the canonical relay-side filter for VAL-BACKUP-001/002/004/006).
+    pub author_pubkey: Option<String>,
+    /// Number of bytes inside the encrypted `content` field.
+    pub content_length: u32,
+    /// Truncated prefix + length of the encrypted `content` field —
+    /// never the raw ciphertext.
+    pub content_redacted: String,
+    /// Group public key the backup was published for.
+    pub group_pubkey: Option<String>,
+    /// Concatenated list of relay URLs the publish tried.
+    pub relays_attempted: Vec<String>,
+    /// Subset whose `["OK", …]` acks we observed.
+    pub relays_published_to: Vec<String>,
+    /// Error string when `success` is false.
+    pub error: Option<String>,
+    /// Unix timestamp the actor recorded this status at.
+    pub recorded_at_secs: i64,
+}
+
 /// Dashboard state: active tab, signer runtime, permissions, settings, and profile identity.
 /// Displayed when the user opens a stored profile from the hub.
 #[derive(uniffi::Record, Clone, Debug, Serialize, Deserialize, Default)]
@@ -621,6 +657,11 @@ pub struct DashboardState {
     pub settings: SettingsState,
     /// Identity block data for the active profile.
     pub profile_info: Option<ProfileInfo>,
+    /// Latest recorded kind-10000 backup publish result for this
+    /// profile (VAL-BACKUP-001..006). `None` until the shell forwards
+    /// `BackupPublishCompleted`. Replaced on every subsequent publish.
+    #[serde(default)]
+    pub last_backup_publish: Option<BackupPublishStatus>,
 }
 
 impl DashboardState {
@@ -632,11 +673,15 @@ impl DashboardState {
             permissions: PermissionsState::default(),
             settings: SettingsState::default(),
             profile_info: Some(profile_info),
+            last_backup_publish: None,
         }
     }
 
     /// Reset to empty dashboard (used when no profile is active).
     pub fn empty() -> Self {
-        Self::default()
+        Self {
+            last_backup_publish: None,
+            ..Self::default()
+        }
     }
 }
