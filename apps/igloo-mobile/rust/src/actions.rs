@@ -434,6 +434,43 @@ pub enum AppAction {
     },
     ClearExportState,
 
+    // ── Diagnostics: igloo://test-create-keyset URL scheme ─────────────
+    /// DEBUG + diagnostics-gated action that drives the entire Create
+    /// Keyset wizard to completion with pre-filled inputs, bypassing
+    /// SwiftUI TextField/Button affordance taps that Maestro 2.6.0
+    /// cannot reliably trigger on iOS Simulator 26.5.
+    ///
+    /// The Swift layer parses `igloo://test-create-keyset?group_name=&threshold=&count=&device_name=&relay=`
+    /// into this action. The actor:
+    ///   1. Validates inputs (same `validate_generate()` rules as the
+    ///      normal UI path so malformed input is rejected identically).
+    ///   2. Runs `frostr_utils::create_keyset()` inline to produce a
+    ///      real, parseable bundle (no shell FFI round-trip).
+    ///   3. Sets `keyset.bundle`, `local_share_idx=0`, builds Distribute
+    ///      rows, and routes the wizard directly to `Distribute` so the
+    ///      URL scheme does not depend on the DeviceProfile or Review
+    ///      SwiftUI affordances.
+    ///   4. Populates `dashboard.profile_info` for the embedded signer
+    ///      panel and inserts the new profile row on the hub marked
+    ///      Active.
+    ///   5. Emits `AppUpdate::StoreKeysetCreatedProfile` so the Swift
+    ///      shell writes the decrypted material to Keychain. After the
+    ///      shell dispatches `CreateKeysetAccepted`, the diagnostic
+    ///      gate on the Swift side auto-dispatches
+    ///      `CreateKeysetDistributeFinish` to land on the Dashboard.
+    ///
+    /// Gating: `DEBUG` build AND `IGLOO_KEYSET_DIAGNOSTICS=1` env var
+    /// on the Swift side (matched before dispatching). Release builds
+    /// never expose the URL scheme, so this variant is unreachable in
+    /// production but kept available for test-suite re-use.
+    DiagnosticsCreateKeysetRun {
+        group_name: String,
+        threshold: u16,
+        count: u16,
+        device_name: String,
+        relay: String,
+    },
+
     // ── Kind-10000 encrypted profile backup publication (VAL-BACKUP-*) ──
     /// Shell forwarded the result of `FfiApp::publish_backup`. Each
     /// materialization path (create / onboard / rotate / import /

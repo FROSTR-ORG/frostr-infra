@@ -1,0 +1,11 @@
+[keyset-diagnostics] EVENT[test_create_keyset: group=<redacted> threshold=2 count=3 device=ScriptDevice-223346 relay=ws://127.0.0.1:8194] count=1
+
+# Notes:
+#   - group_name, threshold, count, device_name, relay query parameters are
+#     captured by AppManager.testCreateKeyset() and forwarded to the Rust
+#     actor as DiagnosticsCreateKeysetRun.
+#   - macOS privacy redaction redacts group_name in OSLog by default
+#     (private_marker on Swift String interpolation).
+#   - relay URL is the local dev relay (ws://127.0.0.1:8194), not a secret.
+#   - device_name is a per-run script tag (ScriptDevice-HHMMSS), not a
+#     real FROSTR device identity.

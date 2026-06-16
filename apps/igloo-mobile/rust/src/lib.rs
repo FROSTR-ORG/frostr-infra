@@ -2193,7 +2193,7 @@ fn compressed_member_pubkey(pubkey: &str) -> String {
 /// `bifrost_bridge_wasm::KeysetBundleExport` so the actor can parse it back
 /// into `KeysetBundleRecord` for shell rendering.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct GeneratedKeysetWire {
+pub(crate) struct GeneratedKeysetWire {
     group: bifrost_codec::wire::GroupPackageWire,
     shares: Vec<bifrost_codec::wire::SharePackageWire>,
 }

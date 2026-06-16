@@ -46,6 +46,15 @@ final class AppManager: AppReconciler {
     /// Decrypted profile material awaiting save from load profile confirm.
     var pendingLoadProfileMaterial: Data?
 
+    /// Diagnostics flag set when the igloo://test-create-keyset URL
+    /// scheme drives the wizard. When true, `storeKeysetCreatedProfile`
+    /// auto-dispatches `CreateKeysetDistributeFinish` after the shell
+    /// emits `CreateKeysetAccepted` so an end-to-end Maestro flow can
+    /// land on the Dashboard without invoking any SwiftUI button-tap.
+    /// Cleared after the auto-finish dispatch so subsequent normal
+    /// user-driven runs return to the explicit Finish button.
+    private var keysetDiagnosticAutoFinish: Bool = false
+
     private let storage = ProfileStorageManager.shared
 
     init() {
@@ -469,6 +478,20 @@ final class AppManager: AppReconciler {
             label: label,
             shortId: shortId
         ))
+
+        // ── Diagnostic auto-finish (mobile-ios-keyset-debug-url-scheme) ──
+        // When the igloo://test-create-keyset URL scheme drove this run,
+        // the actor pinned `accepted_profile_id` and the wizard is on
+        // the Distribute screen waiting for the Finish tap. Without a
+        // real SwiftUI Finish button tap, the URL scheme would never
+        // reach the Dashboard — Maestro 2.6.0 cannot reliably trigger
+        // Button actions on iOS Simulator 26.5. So when the URL-scheme
+        // driver set `keysetDiagnosticAutoFinish`, auto-dispatch the
+        // Finish action once the storage + Accept round-trip settled.
+        if keysetDiagnosticAutoFinish {
+            keysetDiagnosticAutoFinish = false
+            dispatch(.createKeysetDistributeFinish)
+        }
     }
 
     // ── Diagnostic helpers (redacted labels, no sensitive data) ──────────────────
@@ -1117,6 +1140,69 @@ final class AppManager: AppReconciler {
             let len = trimmed?.count ?? -1
             OnboardDiagnostics.shared.recordEvent(
                 "test_save_to_dashboard: device_name_hint_len=\(len)"
+            )
+        }
+        #endif
+    }
+
+    /// Debug + diagnostics-gated Create Keyset driver (mobile-ios-keyset-debug-url-scheme).
+    ///
+    /// Invokes `AppAction::DiagnosticsCreateKeysetRun` with pre-filled inputs
+    /// so the iOS shell can run the entire Create Keyset wizard to completion
+    /// without relying on SwiftUI TextField/Button taps that Maestro 2.6.0
+    /// cannot reliably trigger on iOS Simulator 26.5. This is the
+    /// URL-scheme counterpart to `testOnboardSaveToDashboard` and follows
+    /// the same gating pattern: `#if DEBUG` + `isKeysetDiagnosticsEnabled`
+    /// env var, so release builds and unflagged DEBUG builds never expose
+    /// this affordance.
+    ///
+    /// The Rust actor runs frostr_utils::create_keyset() inline, builds
+    /// the OnboardProfileMaterial, populates `dashboard.profile_info`,
+    /// inserts a new Active hub row pinned by `keyset.accepted_profile_id`,
+    /// and emits `AppUpdate::StoreKeysetCreatedProfile`. The shell writes
+    /// the material to Keychain via `storeKeysetCreatedProfile`, which
+    /// then auto-dispatches `CreateKeysetAccepted` + `CreateKeysetDistributeFinish`
+    /// (gated on `keysetDiagnosticAutoFinish`) so the URL scheme lands on
+    /// the Dashboard without any SwiftUI affordance tap.
+    ///
+    /// No-op without `DEBUG` build OR without `IGLOO_KEYSET_DIAGNOSTICS=1`
+    /// env var. Invalid inputs (blank group_name / device_name / relay,
+    /// threshold <= 1, threshold > count) are no-op'd by the actor.
+    func testCreateKeyset(
+        groupName: String,
+        threshold: UInt16,
+        count: UInt16,
+        deviceName: String,
+        relay: String
+    ) {
+        #if DEBUG
+        guard isKeysetDiagnosticsEnabled else { return }
+        let trimmedGroup = groupName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedDevice = deviceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedRelay = relay.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedGroup.isEmpty,
+              !trimmedDevice.isEmpty,
+              !trimmedRelay.isEmpty,
+              threshold >= 2,
+              count >= 2,
+              threshold <= count
+        else { return }
+        // Set the diagnostic auto-finish flag BEFORE dispatch so the
+        // async reconciler callback picks it up when the actor emits
+        // `StoreKeysetCreatedProfile`. `storeKeysetCreatedProfile`
+        // clears it after the auto-finish dispatch so a normal user
+        // path is unaffected.
+        keysetDiagnosticAutoFinish = true
+        let _ = dispatch(.diagnosticsCreateKeysetRun(
+            groupName: trimmedGroup,
+            threshold: threshold,
+            count: count,
+            deviceName: trimmedDevice,
+            relay: trimmedRelay
+        ))
+        if isKeysetDiagnosticsEnabled {
+            KeysetDiagnostics.shared.recordEvent(
+                "test_create_keyset: group=\(trimmedGroup) threshold=\(threshold) count=\(count) device=\(trimmedDevice) relay=\(sanitizedRelay(trimmedRelay))"
             )
         }
         #endif

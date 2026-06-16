@@ -59,6 +59,50 @@ struct IglooMobileApp: App {
                             .value
                         manager.testOnboardSaveToDashboard(deviceName: deviceName)
                     }
+
+                    // Test automation URL scheme for Create Keyset
+                    // (mobile-ios-keyset-debug-url-scheme):
+                    //   igloo://test-create-keyset?group_name=<urlencoded>&threshold=<N>&count=<N>&device_name=<urlencoded>&relay=<urlencoded>
+                    //
+                    // Maestro 2.6.0 cannot reliably fill TextFields or
+                    // trigger Button actions on iOS Simulator 26.5. This
+                    // URL scheme drives the entire Create Keyset wizard
+                    // to completion through `AppAction::DiagnosticsCreateKeysetRun`,
+                    // bypassing Generate/Generate-submit/DeviceProfile/Review/Distribute
+                    // SwiftUI affordance taps. The shell writes the
+                    // freshly-built profile to Keychain via the existing
+                    // `storeKeysetCreatedProfile` handler, then
+                    // auto-dispatches `CreateKeysetDistributeFinish` so a
+                    // focused gate can land on the Dashboard with a single
+                    // `xcrun simctl openurl` call.
+                    //
+                    // Gating: DEBUG build AND `IGLOO_KEYSET_DIAGNOSTICS=1`
+                    // env var (parallel to `IGLOO_ONBOARD_DIAGNOSTICS=1`).
+                    // Release builds AND unflagged DEBUG builds never
+                    // dispatch the action, so production user flows are
+                    // unchanged. The Rust actor no-ops on invalid inputs
+                    // (blank group/device/relay, threshold < 2,
+                    // threshold > count) so a malformed URL cannot
+                    // corrupt state.
+                    if url.scheme == "igloo" && url.host == "test-create-keyset" {
+                        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+                            let gi = { (k: String) -> String? in
+                                components.queryItems?.first(where: { $0.name == k })?.value
+                            }
+                            let groupName = gi("group_name") ?? ""
+                            let deviceName = gi("device_name") ?? "diagnostic-device"
+                            let relay = gi("relay") ?? "ws://127.0.0.1:8194"
+                            let threshold = UInt16(gi("threshold") ?? "2") ?? 2
+                            let count = UInt16(gi("count") ?? "3") ?? 3
+                            manager.testCreateKeyset(
+                                groupName: groupName,
+                                threshold: threshold,
+                                count: count,
+                                deviceName: deviceName,
+                                relay: relay
+                            )
+                        }
+                    }
                 }
         }
     }
