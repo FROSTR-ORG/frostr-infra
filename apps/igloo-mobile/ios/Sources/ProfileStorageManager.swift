@@ -87,7 +87,25 @@ final class ProfileStorageManager {
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
 
-        guard status == errSecSuccess else { return nil }
+        guard status == errSecSuccess else {
+            // mobile-signer-runtime-validation-followup: on iOS Simulator
+            // (DEBUG-only), `storeProfile` falls back to a file-based store
+            // when SecItemAdd returns errSecMissingEntitlement. The matching
+            // load path must also consult the fallback store, otherwise the
+            // URL-scheme save followed by Start signer (the only reliable
+            // path on iOS 26.5 / Maestro 2.6) silently fails to load the
+            // stored material and `performStartSigner` early-returns without
+            // invoking `FfiApp.start_signer`. Production iOS device builds
+            // never reach this branch because the Keychain entitlement is
+            // applied to the device binary end-to-end.
+            #if DEBUG && targetEnvironment(simulator)
+            let fallbackURL = makeFallbackURL(for: profileId)
+            if let data = try? Data(contentsOf: fallbackURL) {
+                return data
+            }
+            #endif
+            return nil
+        }
         return result as? Data
     }
 
@@ -102,7 +120,31 @@ final class ProfileStorageManager {
         ]
 
         let status = SecItemDelete(query as CFDictionary)
-        return status == errSecSuccess || status == errSecItemNotFound
+        let keychainOk = status == errSecSuccess || status == errSecItemNotFound
+
+        // mobile-signer-runtime-validation-followup: clean up the file-based
+        // fallback used on iOS Simulator (DEBUG-only) so a duplicate
+        // onboard after a failed upload does not surface stale material.
+        #if DEBUG && targetEnvironment(simulator)
+        let cachedStatus = status
+        let fallbackURL = makeFallbackURL(for: profileId)
+        let fileRemoved = (try? FileManager.default.removeItem(at: fallbackURL)) != nil
+            || !FileManager.default.fileExists(atPath: fallbackURL.path)
+        if !keychainOk {
+            return fileRemoved
+        }
+        // If Keychain deletion reported success but the fallback file is
+        // still present, surface the partial-delete to the caller via
+        // diagnostic logging so we can spot unmatched writes.
+        if !fileRemoved {
+            print(
+                "[igloo-mobile] deleteProfileMaterial: keychain=ok file_fallback_still_present profile=\(profileId) cached_status=\(cachedStatus)"
+            )
+        }
+        return keychainOk
+        #else
+        return keychainOk
+        #endif
     }
 
     /// Get all stored profile IDs from Keychain.

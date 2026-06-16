@@ -3093,9 +3093,23 @@ struct SignerStatusCard: View {
                     .fill(statusColor)
                     .frame(width: 10, height: 10)
 
+                // mobile-signer-runtime-validation-followup: the visible
+                // "Signer Stopped" / "Signer Running" status text owns the
+                // `signer_status_card` accessibility identifier. On iOS 26.5
+                // / Maestro 2.6.0 placing that identifier on the outer VStack
+                // leaked it into the inner Button and shadowed the Button's
+                // own `btn_start_signer` / `btn_stop_signer` identifier with
+                // the parent's value, leaving the action handler un-fired
+                // even when `tapOn id: btn_start_signer` was issued. Putting
+                // the identifier on the visible status text means Maestro
+                // runs that used `scrollUntilVisible id: signer_status_card`
+                // still locate the card while the Button gets its own
+                // independent identifier.
                 Text(statusText)
                     .font(IglooTypography.H3Font)
                     .foregroundStyle(IglooColors.Slate200)
+                    .accessibilityIdentifier("signer_status_card")
+                    .accessibilityLabel(statusText)
 
                 Spacer()
 
@@ -3128,11 +3142,24 @@ struct SignerStatusCard: View {
                     .font(IglooTypography.H3Font)
                     .foregroundStyle(IglooColors.Gray950)
                     .frame(maxWidth: .infinity)
-                    .padding(IglooSpacing.Sm)
+                    .padding(IglooSpacing.Md)
                     .background(status == .stopped ? IglooColors.Blue400 : IglooColors.Red600)
                     .cornerRadius(IglooRadii.Md)
+                    .contentShape(RoundedRectangle(cornerRadius: IglooRadii.Md))
             }
+            // mobile-signer-runtime-validation-followup: place
+            // `.accessibilityIdentifier(...)` *before* `.buttonStyle(.plain)`
+            // (matching the working pattern in ProfileRow:
+            // `.accessibilityIdentifier("profile_row_...").buttonStyle(.plain)`).
+            // The inner Button owns a stable identifier independent of the
+            // outer card identifier so SwiftUI's UA element renders with the
+            // right resource-id on iOS 26.5 / Maestro 2.6.0 — a previous
+            // outer `.accessibilityIdentifier("signer_status_card")` on the
+            // VStack leaked into the Button and shadowed btn_start_signer /
+            // btn_stop_signer with the parent's identifier, leaving the
+            // Button action handler un-fired even when `tapOn id:` matched.
             .accessibilityIdentifier(status == .stopped ? "btn_start_signer" : "btn_stop_signer")
+            .buttonStyle(.plain)
         }
         .padding(IglooSpacing.Md)
         .background(IglooColors.Slate900StrongTranslucent)
@@ -3141,7 +3168,6 @@ struct SignerStatusCard: View {
             RoundedRectangle(cornerRadius: IglooRadii.Lg)
                 .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
         )
-        .accessibilityIdentifier("signer_status_card")
     }
 }
 
