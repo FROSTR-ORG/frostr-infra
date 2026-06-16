@@ -178,12 +178,7 @@ for tag in rs+5s rs+15s rs+30s rs+45s rs+60s; do
   snapshot "android-${tag}"
 done
 
-# 9. Scroll to the peer rows / event log so they appear in the hierarchy.
-adb -s emulator-5554 shell input swipe 540 2000 540 400 600 || true
-sleep 2
-snapshot "post-scroll-event-log"
-
-# 10. Maestro 04 — Assert Sign Ready visible (the blocker condition).
+# 9. Maestro 04 — Assert Sign Ready visible while the status card is still on screen.
 cat > "$FLOW_DIR/04-android-assert-sign-ready.yaml" <<EOF
 appId: $APP_ID
 name: 04 android assert Sign Ready within 60s of Start tap
@@ -203,6 +198,11 @@ maestro --device emulator-5554 test "$FLOW_DIR/04-android-assert-sign-ready.yaml
 MAESTRO_04_EXIT=${PIPESTATUS[0]}
 echo "[$(date +%H:%M:%S)] maestro 04 exit=${MAESTRO_04_EXIT} (0 means Sign Ready reached)"
 snapshot "post-sign-ready"
+
+# 10. Scroll to the peer rows / event log so they appear in the hierarchy.
+adb -s emulator-5554 shell input swipe 540 2000 540 400 600 || true
+sleep 2
+snapshot "post-scroll-event-log"
 
 # 11. Concatenate hierarchy snapshots and grep for key strings.
 echo "================================================================"
@@ -225,10 +225,10 @@ echo "[RESULT] snapshots containing 'Restoring...' (expected >= 1): $RESTORING"
 SIGN_READY=$(grep -lE 'text="Sign Ready"' "$EVIDENCE_DIR"/hierarchy-*.xml 2>/dev/null | wc -l | tr -d ' ')
 echo "[RESULT] snapshots containing 'Sign Ready' (expected >= 1 in the last 2): $SIGN_READY"
 
-# Snapshots showing Online (peer row) - proves the autoping bootstrap round
+# Snapshots showing Live (peer row) - proves the autoping bootstrap round
 # brought alice Online.
-ONLINE=$(grep -lE 'text="Online"' "$EVIDENCE_DIR"/hierarchy-*.xml 2>/dev/null | wc -l | tr -d ' ')
-echo "[RESULT] snapshots containing 'Online' rows (expected >= 1): $ONLINE"
+ONLINE=$(grep -lE 'text="Live"' "$EVIDENCE_DIR"/hierarchy-*.xml 2>/dev/null | wc -l | tr -d ' ')
+echo "[RESULT] snapshots containing 'Live' rows (expected >= 1): $ONLINE"
 
 # Validator exit code.
 if [ "$MAESTRO_04_EXIT" -ne 0 ]; then
