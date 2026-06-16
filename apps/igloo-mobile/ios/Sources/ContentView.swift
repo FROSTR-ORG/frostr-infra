@@ -2880,10 +2880,18 @@ struct DashboardHeader: View {
                 Text(title)
                     .font(IglooTypography.H3Font)
                     .foregroundStyle(IglooColors.Slate200)
+                    // Stable identifiers so posture-restart / VAL-CROSS-002
+                    // validators can confirm post-onboard identity through
+                    // the full hierarchy without scrolling (orchestrator
+                    // note after onboarding-and-runtime user-testing round 1).
+                    .accessibilityIdentifier("dashboard_header_title")
+                    .accessibilityLabel(title)
 
                 Text(subtitle)
                     .font(IglooTypography.MonoLabelFont)
                     .foregroundStyle(IglooColors.Slate500)
+                    .accessibilityIdentifier("dashboard_header_subtitle")
+                    .accessibilityLabel(subtitle)
             }
 
             Spacer()

@@ -1,0 +1,142 @@
+appId: com.frostr.igloo.dev
+name: Cross-Parity Android System-Back Parity
+
+# Android-only VAL-SHELL-014 companion. Mirrors the in-app `btn_back`
+# affordance across every named flow entry tile (create-generate,
+# load-choice, onboard-connect). This flow only runs on Android emulators;
+# iOS validators MUST NOT execute `pressKey: back` because iOS relies on
+# the in-app chevron button and has no system-back control in test
+# aperture.
+#
+# Pair with `cross-parity-16-view-reachability.yaml` (run on iOS) and
+# the named Android specific flows. Do NOT concatenate this file inline
+# to a Maestro flow used on iOS simulators; `pressKey: back` on iOS is
+# unused at best and unbound at worst.
+
+# Valley invariant: from every flow entry screen, system back lands on
+# the same screen as the in-app `btn_back`. Never terminate the app
+# from inside a flow when the in-app affordance would not.
+
+---
+# Force a clean device — uninstall/reinstall before this flow so the
+# empty hub is the starting state.
+- launchApp:
+    clearState: true
+    clearKeychain: true
+    appId: com.frostr.igloo.dev
+
+- waitForAnimationToEnd
+
+# Empty hub baseline (VAL-SHELL-002 holds).
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "No profiles stored yet"
+
+# ── Tile 1: Create / Rotate Keyset → entry → system-back → hub ──────────
+- tapOn:
+    text: "Create / Rotate Keyset"
+- assertVisible:
+    text: "Choose an action"
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "Create / Rotate Keyset"
+
+# Drill into Create New Keyset → Generate → back-twice returns through
+# the entry screen, mirroring the in-app chevron button.
+- tapOn:
+    text: "Create / Rotate Keyset"
+- tapOn:
+    text: "Create New Keyset"
+- assertVisible:
+    text: "Step 1 of 4"
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Choose an action"
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+
+# ── Tile 2: Load Profile → entry → system-back → hub ─────────────────────
+- tapOn:
+    text: "Load Profile"
+- assertVisible:
+    text: "Choose how to load a profile"
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "Load Profile"
+
+# Drill into Import → back returns to load-choice.
+- tapOn:
+    text: "Load Profile"
+- tapOn:
+    text: "Import Profile"
+- assertVisible:
+    text: "Paste your bfprofile1 package"
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Choose how to load a profile"
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+
+# Drill into Recover → back returns to load-choice.
+- tapOn:
+    text: "Load Profile"
+- tapOn:
+    text: "Recover Profile"
+- assertVisible:
+    text: "Paste your bfshare1 package"
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Choose how to load a profile"
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+
+# ── Tile 3: Onboard Device → entry → connect → system-back → entry ─────
+- tapOn:
+    text: "Onboard Device"
+- assertVisible:
+    text: "Connect with a bfonboard1 package from another device"
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "Onboard Device"
+
+# Drill into the connect form, then system-back returns to the entry.
+- tapOn:
+    text: "Onboard Device"
+- tapOn:
+    text: "Connect"
+- assertVisible:
+    id: "input_package"
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Connect with a bfonboard1 package from another device"
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+
+# Final assertion: the app NEVER exited during any of the system-back
+# presses within a flow. Presence of `Igloo` after every press confirms
+# the AppCompat / BackHandler is wired to the Rust router stack rather
+# than to the default Activity.onBackPressed path.
+- assertVisible:
+    text: "Igloo"
