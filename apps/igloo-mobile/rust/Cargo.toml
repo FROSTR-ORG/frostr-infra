@@ -28,6 +28,7 @@ rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1"
+async-trait = "0.1"
 
 # WebSocket publishing — used by `FfiApp::publish_backup` to deliver the
 # kind-10000 encrypted profile backup to the configured Nostr relays. The
@@ -35,3 +36,15 @@ anyhow = "1"
 # a single copy in the lockfile.
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 futures-util = { version = "0.3", features = ["std", "sink"] }
+
+# RUST_LOG-aware logging for the signing-path NostrSdkAdapter
+# (`mobile-android-signer-restoring-readiness-fix`). tracing-subscriber's
+# `EnvFilter` honours the `RUST_LOG` environment variable so flow scripts
+# can switch between silent (default) and `RUST_LOG=debug` logcat
+# captures by setting the var through the shell profile or by piping
+# through ADB's `prop set` on debug builds.
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-log = "0.2"
+android_logger = "0.15"
+log = { version = "0.4", features = ["std"] }
