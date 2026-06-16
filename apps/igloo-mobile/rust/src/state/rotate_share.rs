@@ -100,6 +100,15 @@ pub struct RotatePreviewIdentity {
     /// Relay list in effect for the rotated profile (carried verbatim
     /// from the rotated package so round-tripping is lossless).
     pub relays: Vec<String>,
+    /// 64-char lowercase-hex share secret of the rotated share.
+    /// Carried through from the live handshake so the actor can build
+    /// a fully usable material blob for the secure-storage swap
+    /// (`build_rotated_material_bytes`); the shell must never render
+    /// this field and must leave it untouched when forwarding the
+    /// preview back into a confirm-replace dispatch. Stored only on the
+    /// in-memory preview; cleared by `RotateShareReset` and after each
+    /// replace so secret lifetime matches the rotate flow.
+    pub share_seckey_hex: String,
 }
 
 /// The full Rotate Share flow state, owned by `AppState.rotate_share`.

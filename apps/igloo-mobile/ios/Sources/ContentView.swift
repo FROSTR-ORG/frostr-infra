@@ -4421,7 +4421,15 @@ struct SettingsView: View {
 
                             // Rotate share (VAL-ROTATE-005)
                             Button {
-                                manager.navigateToRotateShare()
+                                if let info = manager.state.dashboard.profileInfo {
+                                    manager.openRotateShareConnect(
+                                        profileId: info.profileId,
+                                        shortId: String(info.profileId.prefix(8)),
+                                        deviceLabel: info.deviceName
+                                    )
+                                } else {
+                                    manager.navigateToRotateShare()
+                                }
                             } label: {
                                 HStack {
                                     Image(systemName: "arrow.triangle.2.circlepath")

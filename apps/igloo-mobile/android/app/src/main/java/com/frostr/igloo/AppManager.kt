@@ -89,7 +89,8 @@ class AppManager private constructor(context: Context) : AppReconciler {
                         refreshInProgress = false
                     ),
                     profileInfo = null,
-                    settings = defaultSettingsState()
+                    settings = defaultSettingsState(),
+                    lastBackupPublish = null
                 ), rev = 0UL),
     )
         private set
@@ -555,13 +556,21 @@ class AppManager private constructor(context: Context) : AppReconciler {
                         val result = rust.onboard(`package` = pkg, password = pwd, relayUrl = relayUrl)
                         mainHandler.post {
                             if (result.success) {
+                                // Extract rotated share secret from the
+                                // FFI material blob so the actor can build
+                                // a fully usable material record on
+                                // confirm-replace. The secret is forwarded
+                                // verbatim to Rust and must never be
+                                // rendered, logged, or persisted.
+                                val shareSeckeyHex = extractShareSeckeyHex(result.material)
                                 dispatch(
                                     AppAction.RotateShareHandshakeSuccess(
                                         deviceName = result.deviceName ?: "Rotated Device",
                                         sharePubkey = result.sharePubkey ?: "",
                                         groupPubkey = result.groupPubkey ?: "",
                                         relays = result.relays ?: emptyList(),
-                                        profileId = result.profileId ?: ""
+                                        profileId = result.profileId ?: "",
+                                        shareSeckeyHex = shareSeckeyHex ?: ""
                                     )
                                 )
                             } else {
@@ -594,6 +603,49 @@ class AppManager private constructor(context: Context) : AppReconciler {
                             profileId = update.newProfileId,
                             active = true
                         )
+                    )
+                }
+                is AppUpdate.ReplaceProfileFromRotateAndPublishBackup -> {
+                    // VAL-ROTATE-011 + VAL-BACKUP-004: combined variant
+                    // emitted by the rotate-share replace path. Run the
+                    // secure-storage swap locally and forward the post-
+                    // publish result via BackupPublishCompleted so the
+                    // actor mirrors it into `dashboard.last_backup_publish`.
+                    if (update.deleteOld) {
+                        storage.deleteProfile(update.oldProfileId)
+                    }
+                    val newMaterial = update.newMaterial
+                    if (newMaterial.isNotEmpty()) {
+                        storage.storeProfile(
+                            profileId = update.newProfileId,
+                            label = update.newLabel,
+                            shortId = update.newShortId,
+                            material = newMaterial
+                        )
+                        val materialJson = String(newMaterial, Charsets.UTF_8)
+                        performPublishBackup(
+                            source = update.source,
+                            materialJson = materialJson
+                        )
+                    }
+                    dispatch(
+                        AppAction.UpdateHubStatus(
+                            profileId = update.newProfileId,
+                            active = true
+                        )
+                    )
+                }
+                is AppUpdate.PublishProfileBackup -> {
+                    // VAL-BACKUP-001..006: regular backup publication
+                    // path used by create / onboard / import / recover.
+                    // The rotated flow uses the combined
+                    // ReplaceProfileFromRotateAndPublishBackup variant
+                    // above; this case handles the other materialization
+                    // paths and forwards the result back via
+                    // BackupPublishCompleted.
+                    performPublishBackup(
+                        source = update.source,
+                        materialJson = update.materialJson
                     )
                 }
                 else -> {
@@ -1131,6 +1183,22 @@ class AppManager private constructor(context: Context) : AppReconciler {
         dispatch(AppAction.NavigateToRotateShare)
     }
 
+    /**
+     * Open the Rotate Share connect screen with the active profile
+     * identity pre-seeded on `state.rotate_share`. Mirrors the iOS
+     * helper so both shells drive the actor with the same active
+     * profile context (VAL-ROTATE-005).
+     */
+    fun openRotateShareConnect(profileId: String, shortId: String, deviceLabel: String) {
+        dispatch(
+            AppAction.OpenRotateShareConnect(
+                profileId = profileId,
+                shortId = shortId,
+                deviceLabel = deviceLabel
+            )
+        )
+    }
+
     /** Edit the rotate-share connect-screen package input (VAL-ROTATE-005). */
     fun updateRotateSharePackage(value: String) {
         dispatch(AppAction.RotateShareUpdatePackage(value = value))
@@ -1388,6 +1456,55 @@ class AppManager private constructor(context: Context) : AppReconciler {
                 dispatch(AppAction.SignerStopped)
             }
         }.start()
+    }
+
+    /** Publish a kind-10000 encrypted backup (VAL-BACKUP-001..006).
+     *
+     *  Mirrors the create / onboard / rotate / import / recover
+     *  publication path. The FFI handles NIP-44 encryption and the
+     *  per-relay WebSocket publish; we forward the typed
+     *  BackupPublishResult back to Rust so the actor can mirror it
+     *  into `dashboard.last_backup_publish` for validators.
+     */
+    private fun performPublishBackup(source: String, materialJson: String) {
+        if (materialJson.isEmpty()) {
+            return
+        }
+        val sourceCopy = source
+        Thread {
+            val result = rust.`publishBackup`(`source` = sourceCopy, `materialJson` = materialJson)
+            mainHandler.post {
+                dispatch(
+                    AppAction.BackupPublishCompleted(
+                        source = result.source,
+                        success = result.success,
+                        eventId = result.eventId,
+                        authorPubkey = result.authorPubkey,
+                        contentLength = result.contentLength,
+                        contentRedacted = result.contentRedacted,
+                        groupPubkey = result.groupPubkey,
+                        relaysAttempted = result.relaysAttempted,
+                        relaysPublishedTo = result.relaysPublishedTo,
+                        error = result.error
+                    )
+                )
+            }
+        }.start()
+    }
+
+    /** Decode the `OnboardProfileMaterial` JSON blob returned by
+     * `rust.onboard` and extract the `share_seckey_hex` field. Returns
+     * null on any parse error so the actor treats a missing secret as
+     * a hard failure (no silent tombstone on replace). */
+    private fun extractShareSeckeyHex(material: ByteArray?): String? {
+        if (material == null || material.isEmpty()) return null
+        return try {
+            val json = org.json.JSONObject(String(material, Charsets.UTF_8))
+            val secret = json.optString("share_seckey_hex", "").trim()
+            if (secret.isEmpty()) null else secret
+        } catch (e: Exception) {
+            null
+        }
     }
 
     /** Real FFI ping round per online peer (VAL-SIGNER-010, VAL-SIGNER-018).

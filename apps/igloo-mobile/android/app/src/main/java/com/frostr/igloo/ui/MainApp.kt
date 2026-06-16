@@ -4729,8 +4729,19 @@ fun SettingsTab(manager: AppManager) {
                     Spacer(modifier = Modifier.height(IglooSpacing.md.dp))
 
                     // Rotate share (VAL-ROTATE-005)
+                    val rotateProfile = manager.state.dashboard.profileInfo
                     OutlinedButton(
-                        onClick = { manager.navigateToRotateShare() },
+                        onClick = {
+                            if (rotateProfile != null) {
+                                manager.openRotateShareConnect(
+                                    profileId = rotateProfile.profileId,
+                                    shortId = rotateProfile.profileId.take(8),
+                                    deviceLabel = rotateProfile.deviceName
+                                )
+                            } else {
+                                manager.navigateToRotateShare()
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .semantics { testTag = "btn_rotate_share" },

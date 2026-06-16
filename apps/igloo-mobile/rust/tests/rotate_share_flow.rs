@@ -158,6 +158,7 @@ fn rotate_share_handshake_success_with_new_share_lands_on_preview() {
             group_pubkey: "b".repeat(64),
             relays: vec!["ws://127.0.0.1:8194".into()],
             profile_id: "ff".repeat(32),
+            share_seckey_hex: "c".repeat(64),
         },
     );
     assert_eq!(next.rotate_share.step, RotateShareStep::Preview);
@@ -166,6 +167,11 @@ fn rotate_share_handshake_success_with_new_share_lands_on_preview() {
     assert_eq!(preview.group_pubkey, "b".repeat(64));
     assert_eq!(preview.profile_id, "ff".repeat(32));
     assert_eq!(preview.device_name, "bob");
+    assert_eq!(
+        preview.share_seckey_hex,
+        "c".repeat(64),
+        "actor must persist the rotated share secret on the preview (VAL-ROTATE-006 + share-secret preservation)"
+    );
     assert!(next.rotate_share.error.is_none());
 }
 
@@ -183,6 +189,7 @@ fn rotate_share_handshake_success_with_different_group_surfaces_group_mismatch()
             group_pubkey: "c".repeat(64),
             relays: vec!["ws://127.0.0.1:8194".into()],
             profile_id: "ff".repeat(32),
+            share_seckey_hex: "c".repeat(64),
         },
     );
     assert_eq!(
@@ -209,6 +216,7 @@ fn rotate_share_handshake_success_with_same_profile_id_surfaces_same_profile() {
             group_pubkey: "b".repeat(64),
             relays: vec!["ws://127.0.0.1:8194".into()],
             profile_id: "aabbccdd11223344".into(),
+            share_seckey_hex: "c".repeat(64),
         },
     );
     assert_eq!(next.rotate_share.step, RotateShareStep::Error);
@@ -304,6 +312,10 @@ fn rotate_share_clear_error_returns_to_idle() {
 // VAL-BACKUP-004: the combined side-effect also carries the
 // `source = "rotate"` stamp so the shell knows to publish a fresh
 // kind-10000 backup under the rotated share's derived author pubkey.
+// Share-secret preservation: the material blob must carry a non-empty
+// 64-hex `share_seckey_hex` so the runtime can spawn a SigningDevice
+// after replace. Empty/short share secrets are rejected explicitly
+// (see build_rotated_material_bytes error variants).
 #[test]
 fn rotate_share_replace_emits_swap_side_effect_and_routes_dashboard() {
     let state = preview_state(
@@ -325,7 +337,7 @@ fn rotate_share_replace_emits_swap_side_effect_and_routes_dashboard() {
             new_profile_id,
             new_label,
             new_short_id,
-            new_material: _,
+            new_material,
             new_relays,
             delete_old,
         }) => {
@@ -343,12 +355,57 @@ fn rotate_share_replace_emits_swap_side_effect_and_routes_dashboard() {
             assert_eq!(&new_short_id[..], "ffffffff");
             assert_eq!(new_relays, vec!["ws://127.0.0.1:8194".to_string()]);
             assert!(delete_old, "rotate_replace must replace the old record");
+            assert!(
+                !new_material.is_empty(),
+                "material blob must be non-empty (rotate-share-secret preservation)"
+            );
+            let material_json = std::str::from_utf8(&new_material).expect("material is UTF-8 JSON");
+            assert!(
+                material_json.contains("share_seckey_hex"),
+                "material JSON must include share_seckey_hex field; got {material_json}"
+            );
+            // The helper sets share_seckey_hex to "c" * 64 → present verbatim.
+            let expected_secret_marker =
+                "\"share_seckey_hex\":\"".to_string() + &"c".repeat(64) + "\"";
+            assert!(
+                material_json.contains(&expected_secret_marker),
+                "rotated material must carry the rotated share secret (64 hex chars); got {material_json}"
+            );
         }
         other => panic!(
             "expected ReplaceProfileFromRotateAndPublishBackup side effect, got {:?}",
             other
         ),
     }
+}
+
+// Replace without a share secret is rejected explicitly — the actor
+// refuses to emit a side effect with an empty material blob (which
+// would silently tombstone the secure-storage record).
+#[test]
+fn rotate_share_replace_without_share_secret_emits_no_side_effect() {
+    let state = preview_state(
+        "aabbccdd11223344",
+        "bob",
+        &"b".repeat(64),
+        &"ff".repeat(32),
+        &"a".repeat(64),
+    );
+    // Pinch the secret to simulate a malformed handshake success that
+    // dropped the secret — the rotated flow must not silently proceed.
+    let mut state = state.clone();
+    if let Some(p) = state.rotate_share.preview.as_mut() {
+        p.share_seckey_hex.clear();
+    }
+    let (next, side_effect) = dispatch_and_capture(&state, AppAction::RotateShareReplace);
+    assert!(
+        side_effect.is_none(),
+        "missing share secret must not emit side effect; got {:?}",
+        side_effect
+    );
+    // Router stays on RotateShare (no jump to Dashboard) so the user
+    // can retry from the connect screen.
+    assert_eq!(next.router.screen, Screen::RotateShare);
 }
 
 // VAL-ROTATE-011: confirm replacement without a preview state is a
@@ -641,6 +698,7 @@ fn preview_state(
         group_pubkey: active_group.into(),
         relays: vec!["ws://127.0.0.1:8194".into()],
         profile_id: new_profile_id.into(),
+        share_seckey_hex: "c".repeat(64),
     });
     state
 }
