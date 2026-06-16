@@ -187,6 +187,9 @@ final class AppManager: AppReconciler {
 
         // ── Signer runtime console (VAL-SIGNER-001 through VAL-SIGNER-018) ────
         case .startSignerRuntime:
+            #if DEBUG
+            NSLog("[igloo-mobile] apply: received startSignerRuntime side effect")
+            #endif
             // Rust calls into the shell — actually invoke FfiApp.startSigner()
             // with the active profile material loaded from Keychain. The
             // previous handler dispatched AppAction::SignerStart recursively
@@ -1257,6 +1260,15 @@ final class AppManager: AppReconciler {
 
     /// Start the signer runtime (VAL-SIGNER-002).
     func startSigner() {
+        // mobile-signer-runtime-validation-followup: emit a debug line so we
+        // can correlate a Maestro iOS tap that completes against actual
+        // sign-on-tap action propagation. Useful the first time after the
+        // signer button identifier fix lands because iOS 26.5 / Maestro 2.6
+        // can register a tap without firing the SwiftUI Button action.
+        #if DEBUG
+        NSLog("[igloo-mobile] startSigner invoked (profileId=%@)",
+              state.dashboard.profileInfo?.profileId ?? "<none>")
+        #endif
         // Dispatch SignerStart; Rust handles bridge lifecycle and dispatches
         // SignerStarted/SignerStatusUpdate on completion.
         dispatch(.signerStart)
@@ -1393,12 +1405,21 @@ final class AppManager: AppReconciler {
                 return (pid, data)
             }
             guard let profileId = profileId, !profileId.isEmpty else {
+                #if DEBUG
+                NSLog("[igloo-mobile] performStartSigner: missing profileId (early return)")
+                #endif
                 return
             }
             guard let materialBytes = materialBytes,
                   !materialBytes.isEmpty else {
+                #if DEBUG
+                NSLog("[igloo-mobile] performStartSigner: missing materialBytes (early return) profileId=%@", profileId)
+                #endif
                 return
             }
+            #if DEBUG
+            NSLog("[igloo-mobile] performStartSigner: invoking FfiApp.startSigner material_len=%d", materialBytes.count)
+            #endif
 
             // ProfileStorageManager.loadProfileMaterial returns the
             // original Base64-decoded OnboardProfileMaterial JSON bytes
@@ -1416,7 +1437,13 @@ final class AppManager: AppReconciler {
             // build / start the bridge.
             rust.setActiveProfileMaterial(materialJson: materialJson)
             let started = rust.startSigner(materialJson: materialJson)
+            #if DEBUG
+            NSLog("[igloo-mobile] performStartSigner: rust.startSigner returned %@", started ? "true" : "false")
+            #endif
             if !started {
+                #if DEBUG
+                NSLog("[igloo-mobile] performStartSigner: start failed, dispatching SignerStopped")
+                #endif
                 _ = await MainActor.run {
                     self.dispatch(.signerStopped)
                 }
