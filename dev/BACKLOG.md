@@ -301,6 +301,20 @@ corrected. The remaining Medium/Low findings stay in the per-target reports.
 
 ### Crypto / secret seam
 
+- [x] (effort: M) **DONE (2026-06-15).** Hand-rolled-crypto port audit + ECDH KATs.
+  Prompted by the threshold-ECDH Lagrange regression (a silent TS→Rust porting
+  divergence), audited every EC/scalar operation in the core crates for the same risk.
+  **Conclusion:** `bifrost-core/src/ecdh.rs` was the ONLY hand-rolled elliptic-curve
+  math (now fixed + consolidated onto `frost::Identifier`); everything else delegates
+  to vetted primitives — signing → `frost::round2::sign`/`aggregate`, nonces →
+  `frost::round1::commit`, cosigner-message ECDH → `k256::ecdh::diffie_hellman`, NIP-44
+  cipher → ChaCha20/HMAC/HKDF (pinned by `nip44_kat.rs`/`nip44_protocol_kat.rs` against
+  the official vectors), event signing → k256 Schnorr, package encryption →
+  XChaCha20Poly1305/Argon2 (pinned by `package_kats.rs`). No refactor needed. Locked
+  the ECDH surface with spec-anchored + frost-anchored KATs (bifrost-rs `50e729a`):
+  a pinned fixed-input→raw-X vector cross-checked by independent k256, asserted across
+  quorums; and a reconstruct-anchored check over (2,3)/(3,5)/(3,4). Tests only — no
+  blob change (stamp re-written, blobs untouched). — bifrost-rs.
 - [x] (effort: M) **DONE (2026-06-15).** Unified app-facing NIP-44 on the standard
   raw-X derivation (it was a real interop bug). bifrost-core `combine_ecdh_packages`
   now returns the raw X-coordinate of the combined threshold point instead of

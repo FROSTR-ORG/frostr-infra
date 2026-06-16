@@ -1,4 +1,4 @@
-# Hand-off: L-task program — … + NIP-44 standard interop (raw-X + padding + Lagrange) DONE; pick the next L item
+# Hand-off: L-task program — … + NIP-44 standard interop (raw-X + padding + Lagrange) + crypto-port audit/KATs DONE; pick the next L item
 
 _Last updated: 2026-06-15_
 
@@ -25,6 +25,33 @@ _Last updated: 2026-06-15_
 > Lagrange in threshold ECDH), so app-facing `window.nostr.nip44` now interoperates
 > with standard nostr clients for **real t-of-n groups**, not just threshold-1. No
 > NIP-44 residue remains.
+
+## ✅ Done: hand-rolled-crypto port audit + ECDH KATs (drift-proofing)
+
+**Landed (submodule-then-pointer):** bifrost-rs `50e729a` → parent (pointer + stamp +
+docs). **Tests only — no `src`/behavior change, so the compiled WASM is unchanged;** the
+stamp was re-written (it hashes crate git-trees) but the `public/wasm` blobs were NOT
+rebuilt or re-vendored (no client commits). Plan: `plans/vivid-swinging-pony.md`.
+
+- **Audit (conclusion).** The Lagrange regression was a silent TS→Rust porting
+  divergence, so every EC/scalar op in the core was audited for the same risk.
+  `bifrost-core/src/ecdh.rs` was the **only** hand-rolled elliptic-curve math (now fixed
+  + consolidated onto `frost::Identifier`). Everything else delegates to vetted
+  primitives: signing → `frost::round2::sign`/`aggregate`; nonces →
+  `frost::round1::commit`; cosigner-message ECDH → `k256::ecdh::diffie_hellman`; NIP-44
+  cipher → ChaCha20/HMAC/HKDF (pinned by `nip44_kat.rs` + `nip44_protocol_kat.rs` vs the
+  official vectors); event signing → k256 Schnorr; package encryption →
+  XChaCha20Poly1305/Argon2 (pinned by `package_kats.rs`). **No refactor** — the
+  delegating code is correct.
+- **KATs (the executable record).** `ecdh_threshold_kat` (bifrost-core): fixed
+  polynomial shares + fixed counterparty → a pinned raw-X secret, cross-checked in-test
+  by an independent k256 group-key ECDH and asserted across quorums {1,2}/{1,3}/{2,3}.
+  `ecdh_matches_frost_reconstructed_group_key_across_thresholds` (frostr-utils):
+  reconstructs the group secret via frost's own Lagrange (`frost::keys::reconstruct` /
+  `recover_key`) and asserts the threshold combine matches, plus quorum-independence,
+  over (2,3)/(3,5)/(3,4).
+- **Verified:** `cargo test --workspace` + clippy `-D warnings` + fmt; wasm stamp guard
+  green; `git status` confirms no client blob changes.
 
 ## ✅ Done: NIP-44 standard interop completed — Lagrange + padding + @live test (+ guard/socket hardening)
 
