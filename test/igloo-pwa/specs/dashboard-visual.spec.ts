@@ -60,22 +60,6 @@ function buildDashboardProfile() {
   };
 }
 
-// A running runtime snapshot so the merged card shows "Signer Running".
-function buildRunningSnapshot() {
-  return {
-    active: true,
-    readiness: {
-      runtime_ready: true,
-      restore_complete: true,
-      sign_ready: true,
-      ecdh_ready: true,
-      threshold: 2,
-    },
-    runtime_status: { metadata: { peers: ['02'.repeat(32), '04'.repeat(32)] } },
-    runtime_log_lines: [],
-  };
-}
-
 async function seedState(page: Page, state: unknown) {
   await page.goto('/');
   await page.evaluate(applyPwaSeed, pwaSeedPayload(state));
@@ -88,7 +72,11 @@ async function capture(page: Page, fileName: string) {
 }
 
 test.describe('igloo-pwa Paper Dashboard visual harness @visual', () => {
-  test('captures the signer dashboard with the merged identity card', async ({ page }) => {
+  // The runtime snapshot is in-memory only (never persisted), so a storage-seeded
+  // dashboard renders the Paper "stopped" layout: the merged identity/status card
+  // plus the Readiness + Next Step cards. Capturing the running layout (peers /
+  // approvals / event log) needs a runtime-injection seam (tracked follow-up).
+  test('captures the stopped signer dashboard with the merged identity card', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1080 });
 
     const profile = buildDashboardProfile();
@@ -99,21 +87,20 @@ test.describe('igloo-pwa Paper Dashboard visual harness @visual', () => {
         selectedProfileId: profile.id,
         activeView: 'dashboard',
         activeDashboardTab: 'signer',
-        runtimeSnapshot: buildRunningSnapshot(),
       }),
     );
 
     const dashboard = pages(page).dashboard;
     // Header nav: Dashboard active (pill), Permissions, Settings.
     await dashboard.expectNavLinks();
-    // Merged card: both keys shown as deterministic npub displays, split copy present.
+    // Merged status card: both keys shown as deterministic npub displays, split copy present.
     await dashboard.expectKeyDisplays(
       npubDisplay(DETERMINISTIC_GROUP_KEY.npub),
       npubDisplay(DETERMINISTIC_SHARE_KEY.npub),
     );
     await dashboard.expectKeyCopyControls();
-    // Pending Approvals empty-state shell (deferred behavior).
-    await dashboard.expectPendingApprovalsEmpty();
+    // Stopped state: Readiness + Next Step cards.
+    await dashboard.expectStopped();
 
     await capture(page, '01-signer-dashboard.png');
   });

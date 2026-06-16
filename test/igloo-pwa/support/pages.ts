@@ -330,6 +330,13 @@ export class DashboardPage extends BasePage {
   async expectPendingApprovalsEmpty(): Promise<void> {
     await expect(this.tid(TID.dashboardPendingApprovals)).toContainText('No pending approvals');
   }
+  // Stopped-state signer dashboard (Paper: 2-stopped): the runtime snapshot is
+  // in-memory only and never persisted, so a storage-seeded dashboard renders
+  // the stopped layout with the Readiness + Next Step cards.
+  async expectStopped(): Promise<void> {
+    await expect(this.tid(TID.dashboardRoot)).toContainText('Start signer to restore connectivity.');
+    await expect(this.tid(TID.dashboardRoot)).toContainText('Start when ready.');
+  }
   // --- Pending Approvals card (the `ask` disposition) --------------------
   // The decision buttons render test-ids composed off the registered
   // dashboard-pending-approvals base; build raw locators like peerPolicyToggle

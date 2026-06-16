@@ -5,9 +5,9 @@
       "name": "dashboard-signer",
       "viewport": "1440x1080",
       "output": ".tmp/visual/igloo-pwa/dashboard/01-signer-dashboard.png",
-      "paperReference": "repos/igloo-paper/screens/dashboard/1-signer-dashboard/screenshot.png",
-      "status": "needs-work",
-      "notes": "Peer online/ready counts, per-row last-seen, and a domain-tagged + filterable Event Log are implemented. Stays needs-work for two reasons. (1) Runtime data the PWA cannot yet supply: per-peer latency, 'Avg' latency, the nonce sparkline, and per-method SIGN/ECDH/PING capability badges (require bifrost-rs/igloo-shared runtime instrumentation). (2) Structural divergence from the Paper artboard pending a product decision: a PWA-only intro banner, the merged identity/runtime card styling, and a PWA-only Pending Operations card not yet in Paper (the runtime's third card, the Event Log, now matches Paper's name). See dev/plans/dashboard-settings-export-paper-redesign-2026-06-01.md. Promote once the runtime data lands and the card-set divergence is resolved."
+      "paperReference": "repos/igloo-paper/screens/dashboard/2-stopped/screenshot.png",
+      "status": "aligned",
+      "notes": "Redesigned to the Paper dashboard via semantic .igloo-dashboard-* CSS in igloo-ui (drops the old PWA-only intro banner + 'Manage your signer runtime' heading). The merged status/identity card and the stopped-state Readiness + Next Step cards match Paper 2-stopped (captured here). The running-state sections (Peers with capacity bars + SIGN/ECDH/PING badges, Pending Approvals, domain-tagged Event Log) are implemented and unit-tested in igloo-ui OperatorPanels, but the storage-only @visual lane cannot render them because the runtime snapshot is in-memory (never persisted) — capturing the running dashboard against Paper 1-signer-dashboard needs a runtime-injection seam (follow-up). The Pending Operations card is intentionally kept though Paper omits it (real in-flight signal)."
     },
     {
       "name": "dashboard-permissions",

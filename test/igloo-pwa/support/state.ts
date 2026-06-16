@@ -1,23 +1,32 @@
 import type { PwaStoredProfileSeed } from '../../shared/browser-artifacts';
 
-export const PWA_STORAGE_KEY = 'igloo-pwa.state.v2';
-
-// igloo-pwa now partitions persisted state per browser tab by an instance id
-// kept in sessionStorage (so tabs are isolated instances). Tests pin a fixed
-// instance id and seed the matching partition so seeding stays deterministic.
+// igloo-pwa stores the device list in a GLOBAL store shared across tabs and the
+// per-tab UI/session state in a partition keyed by an instance id kept in
+// sessionStorage. Tests pin a fixed instance id and seed both stores so seeding
+// stays deterministic.
+export const PWA_GLOBAL_STORE_KEY = 'igloo-pwa.profiles.v1';
+export const PWA_SESSION_STORE_KEY = 'igloo-pwa.session.v1';
 export const PWA_TEST_INSTANCE_ID = 'e2e';
 export const PWA_INSTANCE_ID_KEY = 'igloo-pwa.instanceId';
+
+// Legacy pre-split keys, retained only for specs that still write the old
+// partition directly (they migrate into the global store on first boot).
+export const PWA_STORAGE_KEY = 'igloo-pwa.state.v2';
 export const PWA_INSTANCE_REGISTRY_KEY = 'igloo-pwa.instances.v1';
 
 export function pwaPartitionKey(instanceId: string = PWA_TEST_INSTANCE_ID): string {
   return `${PWA_STORAGE_KEY}::${instanceId}`;
 }
 
+export function pwaSessionKey(instanceId: string = PWA_TEST_INSTANCE_ID): string {
+  return `${PWA_SESSION_STORE_KEY}::${instanceId}`;
+}
+
 export type PwaSeedPayload = {
   instanceIdKey: string;
   instanceId: string;
-  partitionKey: string;
-  registryKey: string;
+  globalKey: string;
+  sessionKey: string;
   state: unknown;
 };
 
@@ -29,28 +38,38 @@ export function pwaSeedPayload(
   return {
     instanceIdKey: PWA_INSTANCE_ID_KEY,
     instanceId,
-    partitionKey: pwaPartitionKey(instanceId),
-    registryKey: PWA_INSTANCE_REGISTRY_KEY,
+    globalKey: PWA_GLOBAL_STORE_KEY,
+    sessionKey: pwaSessionKey(instanceId),
     state,
   };
 }
 
 /**
  * Runs inside the browser (via page.addInitScript / page.evaluate): pins the
- * instance id and writes the seeded blob to its partition + a registry record,
- * matching the app's per-tab storage layout.
+ * instance id and splits the combined seed blob across the app's two stores —
+ * profiles + settings into the GLOBAL store, the selection/view/drafts into this
+ * tab's SESSION partition.
  */
 export function applyPwaSeed(payload: PwaSeedPayload): void {
   window.sessionStorage.setItem(payload.instanceIdKey, payload.instanceId);
-  window.localStorage.setItem(payload.partitionKey, JSON.stringify(payload.state));
-  const profiles = (payload.state as { profiles?: unknown[] } | null)?.profiles;
-  const profileCount = Array.isArray(profiles) ? profiles.length : 0;
-  const now = Date.now();
+  const state = (payload.state ?? {}) as Record<string, unknown>;
   window.localStorage.setItem(
-    payload.registryKey,
-    JSON.stringify([
-      { id: payload.instanceId, label: null, createdAt: now, updatedAt: now, profileCount },
-    ]),
+    payload.globalKey,
+    JSON.stringify({
+      schemaVersion: 1,
+      profiles: Array.isArray(state.profiles) ? state.profiles : [],
+      settings: state.settings,
+    }),
+  );
+  window.localStorage.setItem(
+    payload.sessionKey,
+    JSON.stringify({
+      schemaVersion: 1,
+      selectedProfileId: state.selectedProfileId ?? '',
+      activeView: state.activeView ?? 'landing',
+      activeDashboardTab: state.activeDashboardTab ?? 'signer',
+      drafts: state.drafts ?? {},
+    }),
   );
 }
 

@@ -113,6 +113,29 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## igloo-pwa
 
+- [ ] (effort: M) **Finish the Paper dashboard alignment.** The 2026-06-16 pass
+  aligned the **signer tab** (running + stopped) to Paper via semantic
+  `.igloo-dashboard-*` CSS in igloo-ui + a restructured `OperatorSignerPanel`.
+  Remaining Paper dashboard surfaces are unchanged: the **Permissions** and
+  **Settings** tab bodies, the shared status-header across all three tabs, the
+  condition banners, the loading/load-failed state screens, and the export /
+  clear-credentials / unsaved-changes / signer-policy-prompt modals — igloo-ui +
+  igloo-pwa.
+- [ ] (effort: M) **Runtime-injection seam for dashboard @visual capture.** The
+  signer dashboard's *running* layout (Peers + capacity bars, Pending Approvals,
+  Event Log) can't be captured by the storage-only `@visual` lane because the
+  runtime snapshot is in-memory (never persisted), so `dashboard-visual.spec.ts`
+  captures the *stopped* state. Add a test seam (like igloo-home's
+  `currentVisualScenario`) so the running dashboard can be seeded + captured
+  against Paper `1-signer-dashboard`. The running layout is already unit-tested in
+  `repos/igloo-ui/test/OperatorPanels.test.tsx` — test/igloo-pwa.
+- [ ] (effort: S) **Update e2e specs that seed the old PWA partition directly.**
+  The 2026-06-16 global-profile-store move retargeted the shared seed helper
+  (`test/igloo-pwa/support/state.ts`) to the two-store model, but a few specs
+  still write `igloo-pwa.state.v2::<id>` directly (`app-shell.spec.ts` via
+  `pwaPartitionKey`, `chrome-pwa-pairing.spec.ts` via `PWA_STORAGE_KEY`). They
+  migrate on boot, but app-shell's resume / multi-instance assertions exercise the
+  removed per-tab-partition behavior and need rework — test/.
 - [ ] (effort: M) **Cross-tab single-active-signer lock.** The 2026-06-16 move to
   a global profile list (shared `igloo-pwa.profiles.v1`, per-tab session in
   `igloo-pwa.session.v1::<id>`) removed the storage partition that *implicitly*
