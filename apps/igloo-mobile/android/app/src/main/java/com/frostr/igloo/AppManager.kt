@@ -53,6 +53,7 @@ class AppManager private constructor(context: Context) : AppReconciler {
                     relays = emptyList(),
                     distribute = emptyList(),
                     acceptedShortId = null,
+                    acceptedProfileId = "",
                     rotationSources = emptyList(),
                     rotateSourceProfileId = "",
                     rotationError = null

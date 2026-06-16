@@ -918,6 +918,13 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                 0,
                 StoredProfile::new(label.clone(), profile_id.clone(), ProfileStatus::Active),
             );
+            // Pin the just-accepted profile_id in the wizard state so the
+            // Distribute-step Finish handler can target the correct
+            // profile even if `hub.profiles.first()` doesn't agree with
+            // list-order reality (e.g. multiple stored profiles, restore
+            // ordering, the shell racing a ProfileRestored onto the hub,
+            // or any future action that mutates hub order).
+            next.keyset.accepted_profile_id = profile_id.clone();
             side_effect = Some(AppUpdate::StoreKeysetCreatedProfile {
                 profile_id: profile_id.clone(),
                 label: label.clone(),
@@ -969,6 +976,11 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                 profile_id: profile_id.clone(),
             });
             next.keyset.accepted_short_id = Some(short_id.clone());
+            // Defensive: re-pin the accepted profile_id from the shell's
+            // reply so any future divergence between the actor's profile_id
+            // derivation and the shell's identity reconciliation cannot
+            // make DistributeFinish route to the wrong profile.
+            next.keyset.accepted_profile_id = profile_id.clone();
             // Combined side effect: kick the runtime AND ask the shell
             // to publish a kind-10000 backup (VAL-CREATE-010 +
             // VAL-BACKUP-001). The shell owns secure storage so it
@@ -1085,22 +1097,42 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
         // - reset the keyset wizard state so a re-entry starts fresh.
         // - route to the new profile's dashboard.
         AppAction::CreateKeysetDistributeFinish => {
-            // Find the profile we just accepted.
-            let target_id = next
-                .hub
-                .profiles
-                .first()
-                .map(|p| p.profile_id.clone())
-                .unwrap_or_default();
+            // Pin the target profile from the keyset flow state, NOT from
+            // `hub.profiles.first()`. When multiple stored profiles are
+            // already on the device, list-order assumptions break: the
+            // first row may not be the keyset the user just built (e.g.
+            // a previously-restored profile, a rotate-share accept, or
+            // any future action that mutates hub order). The keyset
+            // flow's `accepted_profile_id` is the only authoritative
+            // reference to the freshly-created keyset's profile id — it
+            // is set in both `CreateKeysetAccept` (actor-derived) and
+            // `CreateKeysetAccepted` (shell-reported) so they cannot
+            // diverge.
+            let target_id = next.keyset.accepted_profile_id.clone();
             if !target_id.is_empty() {
+                let mut matched = false;
                 for p in next.hub.profiles.iter_mut() {
                     if p.profile_id == target_id {
                         p.status = ProfileStatus::Active;
+                        matched = true;
                     }
+                }
+                if !matched {
+                    // Defensive: CreateKeysetAccept should have already
+                    // inserted the new profile at the front of hub.profiles,
+                    // but if the hub list was rebuilt between Accept and
+                    // Finish, the row may have been lost. Re-add it so the
+                    // hub still reflects the freshly-accepted keyset.
+                    let label = next.keyset.device_name.clone();
+                    next.hub.profiles.push(StoredProfile::new(
+                        label,
+                        target_id.clone(),
+                        ProfileStatus::Active,
+                    ));
                 }
                 next.router.screen = Screen::Dashboard;
             } else {
-                // Defensive: fall back to the hub.
+                // Defensive: Accept never tracked a profile id, fall back to the hub.
                 next.router.screen = Screen::Hub;
             }
             // VAL-CREATE-021: reset the wizard so a re-entry starts fresh.
