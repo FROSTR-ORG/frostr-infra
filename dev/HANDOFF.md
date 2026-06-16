@@ -1,6 +1,6 @@
 # Hand-off: L-task program — … + NIP-44 standard interop (raw-X + padding + Lagrange) + crypto-port audit/KATs DONE; pick the next L item
 
-_Last updated: 2026-06-15_
+_Last updated: 2026-06-16_
 
 > **Read this first.** Entry point for a new session in the `frostr-infra`
 > workspace. The **MED+ remediation program (Phases 1–6) is complete and pushed**.
@@ -20,12 +20,41 @@ _Last updated: 2026-06-15_
 > also carries **pre-existing, unrelated WIP** (`dev/audit/*`) that is NOT ours —
 > leave it; commit only explicit paths.
 >
-> **▶ NEXT: pick the next L item** from `BACKLOG.md`. NIP-44 standard interop is now
-> **fully done** — the `@live` interop test (see the new `✅ Done` section) drove out
-> and fixed two further bugs beyond the raw-X work (unpadded base64; a missing
-> Lagrange in threshold ECDH), so app-facing `window.nostr.nip44` now interoperates
-> with standard nostr clients for **real t-of-n groups**, not just threshold-1. No
-> NIP-44 residue remains.
+> **▶ NEXT: pick the next L item** from `BACKLOG.md`. The most recent batch
+> **(2026-06-16)** landed four follow-ups — see the top `✅ Done` section: zeroize
+> `GeneratedKeyset` (igloo-home), `Secret<T>` through the top secret flows
+> (igloo-shared+pwa+chrome), the igloo-shell approval round-trip test, and the
+> export-package `@live` de-flake. One follow-up logged: the **remaining `Secret<T>`
+> sweep** (message types / session controllers / other call chains).
+
+## ✅ Done: secret-hygiene + approval-test + flake-fix batch (4 items)
+
+**Landed (submodule-then-pointer):** igloo-home `7498e15`, igloo-shared `e247473`,
+igloo-pwa `3a2f6b0`, igloo-chrome `561cb49`, igloo-shell `5a3ede3` → parent (pointers +
+`test/` harness + docs). **No bifrost-rs / WASM / stamp changes** (igloo-shared is TS,
+not the WASM Rust source) — no blob churn. Plan: `plans/vivid-swinging-pony.md`.
+
+- **356 — zeroize `GeneratedKeyset` (igloo-home).** `GeneratedKeyset` +
+  `GeneratedKeysetShare` now `Zeroize`/`ZeroizeOnDrop` + redacted `Debug` (mirroring
+  `RecoveredGroupKey`), scrubbing the group `nsec` + each share's `share_package_json`;
+  the `generatedKeyset` React state is nulled on create-view exit. + redaction unit test.
+- **361 — `Secret<T>` for the top secret flows (bounded, end-to-end).** Threaded
+  `Passphrase` (profile-package password) and `ShareSecretHex` (onboarding shareSecret)
+  from the call sites to `.expose()` at the WASM boundary, across igloo-shared + the
+  direct pwa/chrome callers. The wrappers were prod-exported but test-only before. The
+  **broader sweep** (chrome message types, pwa session controllers, other chains) is
+  logged as a follow-up.
+- **216 — igloo-shell approval round-trip test.** New
+  `tests/approval_roundtrip.rs`: two daemons, `ask`-gated sign parks, deny → sign
+  fails, approve → verified Schnorr signature (concurrent blocking-sign + resolve via
+  `std::thread::scope`; onboarding handshake seeds mutual sign-readiness).
+- **200 — export-package `@live` de-flake.** `exportProfileWithPassword` re-fills +
+  polls the confirm value at `LIVE_EXPECT_TIMEOUT_MS` (20s) before enabling/clicking.
+
+**Verified:** igloo-home `cargo test` (redaction) + frontend typecheck + 25 units;
+igloo-shared `tsc` + 151 units; chrome 98 + pwa 65; full test-harness typecheck;
+`make test-fast` (17); the igloo-shell approval round-trip test; the export `@live`
+spec green.
 
 ## ✅ Done: hand-rolled-crypto port audit + ECDH KATs (drift-proofing)
 

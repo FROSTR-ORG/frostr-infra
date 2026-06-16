@@ -15,6 +15,7 @@ import {
   type BrowserGroupPackageMember,
   type BrowserProfilePackagePayload,
 } from '../../repos/igloo-shared/src/profile-package';
+import { Secret } from '../../repos/igloo-shared/src/secret';
 
 export const DEFAULT_BROWSER_PASSWORD = 'playwright-passphrase';
 
@@ -222,7 +223,7 @@ export async function createGeneratedBrowserArtifacts(input?: {
         shareSecret,
         profileId,
       });
-      const { profileString, shareString } = await createProfilePackagePair(profilePayload, password);
+      const { profileString, shareString } = await createProfilePackagePair(profilePayload, Secret.of(password));
       return {
         memberIdx: share.idx,
         shareSecret,
@@ -313,7 +314,7 @@ export async function createRotatedBrowserArtifacts(input: {
         shareSecret,
         profileId,
       });
-      const { profileString, shareString } = await createProfilePackagePair(profilePayload, password);
+      const { profileString, shareString } = await createProfilePackagePair(profilePayload, Secret.of(password));
       return {
         memberIdx: share.idx,
         shareSecret,
@@ -350,7 +351,7 @@ export async function createOnboardingPackage(input: {
       relays: input.relays,
       peerPubkey: input.peerPubkey,
     } satisfies BrowserOnboardPackagePayload,
-    input.password ?? DEFAULT_BROWSER_PASSWORD,
+    Secret.of(input.password ?? DEFAULT_BROWSER_PASSWORD),
   );
 }
 

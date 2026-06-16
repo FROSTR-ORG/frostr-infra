@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { LIVE_EXPECT_TIMEOUT_MS } from '../../shared/playwright-config';
 
 import { TID, type CriticalE2ETestId } from './ui';
 
@@ -377,16 +378,25 @@ export class DashboardPage extends BasePage {
   async exportProfileWithPassword(password: string): Promise<string> {
     await this.openExportProfile();
     await this.expectExportModalEntry();
-    await this.tid(TID.exportPassword).fill(password);
+    const passwordField = this.tid(TID.exportPassword);
     const confirm = this.tid(TID.exportConfirm);
-    await confirm.fill(password);
-    // The Export button enables only once both fields match. Under load the
-    // ExportPackageModal's controlled-input onChange can lag the click, leaving a
-    // click on the still-disabled button that then waits out the result timeout.
-    // Wait for the confirm value to land AND the button to enable before clicking.
-    await expect(confirm).toHaveValue(password);
+    // The Export button enables only once both fields match. Under back-to-back-run
+    // CPU contention the ExportPackageModal's controlled-input onChange can lag well
+    // past the default 10s expect timeout, so a single fill + toHaveValue flakes.
+    // Re-fill both fields and poll the confirm value at the live timeout until it
+    // lands, then wait for the button to enable before clicking.
+    await expect
+      .poll(
+        async () => {
+          await passwordField.fill(password);
+          await confirm.fill(password);
+          return confirm.inputValue();
+        },
+        { timeout: LIVE_EXPECT_TIMEOUT_MS, intervals: [100, 250, 500, 1000] },
+      )
+      .toBe(password);
     const submit = this.tid(TID.exportSubmit);
-    await expect(submit).toBeEnabled();
+    await expect(submit).toBeEnabled({ timeout: LIVE_EXPECT_TIMEOUT_MS });
     await submit.click();
     const result = this.tid(TID.exportResult);
     await expect(result).toBeVisible({ timeout: 30_000 });

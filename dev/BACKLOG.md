@@ -197,14 +197,12 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## Test harness / CI
 
-- [ ] (effort: S) **Export-package `@live` e2e still flakes under load.** The
-  `profile-import.spec.ts › exports an encrypted profile package` test intermittently
-  times out on `expect(getByTestId('export-confirm')).toHaveValue(...)` — the
-  ExportPackageModal controlled-input value doesn't land within 10s under resource
-  contention (observed 2026-06-15 on the 2nd of two back-to-back `make test-live`
-  runs; passes in isolation and on a fresh run). A wait-hardening already shipped
-  (parent `626a696`) but is insufficient under load. Make `exportProfileWithPassword`
-  fill-and-poll the confirm value (or raise its wait) so it's robust under contention.
+- [x] (effort: S) **DONE (2026-06-16).** Export-package `@live` flake under load.
+  `exportProfileWithPassword` (`test/igloo-pwa/support/pages.ts`) now re-fills both
+  password fields and polls the confirm value via `expect.poll` at
+  `LIVE_EXPECT_TIMEOUT_MS` (20s) before waiting for the Export button to enable —
+  robust against the controlled-input onChange lagging past the default 10s under
+  back-to-back-run CPU contention. Test-harness-only.
 - [x] (effort: S) **DONE (2026-06-15).** The cross-repo `demo-pair-check` guard
   missed igloo-shell test drift: it ran `cargo check --bin` (bin-only), so it never
   compiled igloo-shell-core/cli **test fixtures**. bifrost-rs struct-field additions
@@ -213,15 +211,24 @@ Group by area. When an item is finished, move a one-line summary to
   `Makefile` `demo-pair-check` target to `cargo check --locked --all-targets` for the
   whole igloo-shell workspace (and bifrost-devtools), so test/bench targets compile at
   pointer-bump time. Verified it catches a dropped fixture field and passes clean.
-- [ ] (effort: M) **igloo-shell full approval round-trip integration test.** The shell
-  path's approval coverage is only smoke-level today (`policy_integration.rs`: an `ask`
-  override persists; `runtime resolve-approval` on an unknown id is a no-op success). Add
-  the shell analog of `test/igloo-pwa/specs/approval-queue.spec.ts`: two daemons, one
-  initiates a sign against an `ask`-gated peer so it parks, then `runtime resolve-approval`
-  (deny → fails; approve → completes a verifiable signature). Optionally add an ergonomic
-  `runtime approvals` list (today operators read `pending_approvals` from `runtime status`
-  JSON). Surfaced 2026-06-14.
-- [ ] (effort: S) **igloo-home visual/desktop lanes are Linux-only** — `repos/igloo-home/test/visual/run.mjs`
+- [x] (effort: M) **DONE (2026-06-16).** igloo-shell full approval round-trip
+  integration test — `crates/igloo-shell-cli/tests/approval_roundtrip.rs`. Two daemons
+  over a relay (alice invites bob via bfonboard so the handshake seeds mutual
+  sign-readiness); bob gates alice with `respond.sign = ask`; the deny path makes
+  alice's blocking `runtime sign` fail, the approve path completes with a verified
+  Schnorr signature. Concurrent blocking-sign + resolve driven via
+  `std::thread::scope`; `request_id` read from `pending_approvals` (no new CLI — the
+  optional `runtime approvals` list was skipped to keep the cut tight). Surfaced
+  2026-06-14.
+- [ ] (effort: S) **Pre-existing selectors-guard violation in `dashboard-states.spec.ts`.**
+  `npm --prefix test run test:guards` (the `test:guards:selectors` lane) is red:
+  `dashboard-states.spec.ts` calls `page.getByTestId(...)` directly at three sites
+  (the `dashboard-banner-signing-blocked` / `dashboard-banner-all-relays-offline`
+  assertions, ~lines 90/104/107) instead of routing through `support/pages` page
+  objects. Latent since the 2026-06-15 dashboard-states sweep (the full guards lane
+  wasn't re-run after). Add the banner assertions as `DashboardPage` methods and
+  route the spec through them. Not introduced by the 2026-06-16 batch · surfaced
+  2026-06-16.
   hardcodes `/usr/bin`/`/snap` chromium paths and the desktop lane needs `xvfb-run` +
   ImageMagick `identify` + X11 `xwininfo`, so neither runs on macOS (homebrew chromium at
   `/opt/homebrew/bin`, no ImageMagick). Probe the homebrew path and degrade gracefully when
@@ -353,17 +360,23 @@ corrected. The remaining Medium/Low findings stay in the per-target reports.
 
 ### Secret hygiene ("decide once, propagate")
 
-- [ ] (effort: S) **Zeroize `GeneratedKeyset.nsec`.** It's a plain `String` while
-  the sibling `RecoveredGroupKey` is `ZeroizeOnDrop` with a redacted `Debug`; the
-  `generatedKeyset` React state is also never nulled on view-exit (unlike
-  `recoveredKey`). Thread the existing pattern to both — igloo-home ·
-  audit 2026-06-13.
-- [ ] (effort: M) **Apply the `Secret<T>` wrapper in production.** `Secret<T>` /
-  `SecretBytes` are exported but used only in tests; every production
-  share-secret / seckey is a bare `string`. Thread the wrapper (or the branded
-  `ShareSecretHex`/`Passphrase` aliases) to consumers for leak-greppability and
-  type hygiene — igloo-shared (and likely the pwa/chrome consumers) ·
-  audit 2026-06-13.
+- [x] (effort: S) **DONE (2026-06-16).** Zeroize `GeneratedKeyset` (igloo-home).
+  `GeneratedKeyset` + `GeneratedKeysetShare` now derive `Zeroize`/`ZeroizeOnDrop`
+  with a redacted `Debug` (mirroring `RecoveredGroupKey`), scrubbing the group `nsec`
+  and each share's `share_package_json`; the `generatedKeyset` React state + its
+  secret-bearing form drafts are nulled on create-view exit (mirroring the
+  recover-key cleanup). + a Debug-redaction unit test. — igloo-home `7498e15`.
+- [x] (effort: M) **PARTIAL/DONE (2026-06-16) — top flows; broader sweep remains.**
+  Applied `Secret<T>` in production for the two highest-value flows end-to-end:
+  profile-package decrypt/encrypt password (`Passphrase`) and onboarding shareSecret
+  (`ShareSecretHex`), wrapped at the call sites and `.expose()`d only at the WASM
+  boundary (igloo-shared `e247473`; pwa `3a2f6b0`; chrome `561cb49`). Bounded
+  deliberately to those flows.
+  - [ ] (effort: M) **Remaining `Secret<T>` sweep.** Thread the wrappers through the
+    rest of the bare-`string` secret sites — chrome extension message types
+    (`ProfilesUnlock/Import/ExportPackage`, `Onboarding*`), pwa session controllers,
+    and the other package/onboarding call chains — for full leak-greppability ·
+    surfaced 2026-06-16.
 
 ### Trust boundaries
 
