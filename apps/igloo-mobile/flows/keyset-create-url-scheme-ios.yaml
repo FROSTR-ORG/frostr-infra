@@ -1,0 +1,55 @@
+appId: com.frostr.igloo.dev
+name: Keyset Create URL Scheme - iOS
+
+# mobile-ios-keyset-debug-url-scheme: focused Maestro flow that exercises
+# the igloo://test-create-keyset URL scheme on iOS Simulator. Maestro 2.6.0
+# cannot reliably fill TextFields or trigger Button actions on iOS 26.5,
+# so the script companion
+# (`apps/igloo-mobile/scripts/run-focus-ios-keyset-debug-url-scheme.sh`)
+# issues `xcrun simctl openurl` directly and this Maestro flow asserts
+# the post-injection Dashboard identity card.
+#
+# DEVICE_NAME / GROUP_NAME must be supplied via `maestro test -e KEY=VAL`
+# (a YAML `env:` block wins over CLI `-e` overrides, so we keep the
+# YAML free of static defaults). The script sets both flags per run.
+#
+# The pre-injection hub-empty assertion lives in the companion script
+# (screenshot 01-pre-injection-hub.png) and is not replayed here because
+# Maestro's `launchApp` lands on the Dashboard left over from the script's
+# xcrun simctl openurl (the wizard already completed).
+
+---
+# Note: do NOT call launchApp here. The script companion
+# (`scripts/run-focus-ios-keyset-debug-url-scheme.sh`) leaves the app
+# foregrounded on the freshly-built Dashboard after `xcrun simctl openurl`,
+# so Maestro's only job is to assert the cached surfaced state without
+# terminating/relaunching the process.
+- waitForAnimationToEnd
+
+# After the script-side xcrun simctl openurl, the actor has driven the
+# wizard to completion: CreateKeysetDistributeFinish → Screen::Dashboard,
+# `dashboard.profile_info` populated with ${DEVICE_NAME}, and the
+# freshly-stored profile on the hub. Verify the dashboard identity block.
+- assertVisible:
+    text: "${DEVICE_NAME}"
+- assertVisible:
+    text: "Identity"
+
+# Verify the identity pubkey rows render (Share / Group prefixes, truncated).
+- assertVisible:
+    text: "Share Pubkey"
+- assertVisible:
+    text: "Group Pubkey"
+
+# Verify the Signer tab is selected (default Dashboard tab after Finish).
+- assertVisible:
+    text: "Signer"
+- assertVisible:
+    text: "Permissions"
+- assertVisible:
+    text: "Settings"
+
+# The freshly-created keyset starts the signer in Stopped baseline (matches
+# normal Create Keyset UX — running the bridge requires explicit Start).
+- assertVisible:
+    text: "Signer Stopped"

@@ -6109,6 +6109,49 @@ sealed class AppAction {
     
     
     /**
+     * DEBUG + diagnostics-gated action that drives the entire Create
+     * Keyset wizard to completion with pre-filled inputs, bypassing
+     * SwiftUI TextField/Button affordance taps that Maestro 2.6.0
+     * cannot reliably trigger on iOS Simulator 26.5.
+     *
+     * The Swift layer parses `igloo://test-create-keyset?group_name=&threshold=&count=&device_name=&relay=`
+     * into this action. The actor:
+     * 1. Validates inputs (same `validate_generate()` rules as the
+     * normal UI path so malformed input is rejected identically).
+     * 2. Runs `frostr_utils::create_keyset()` inline to produce a
+     * real, parseable bundle (no shell FFI round-trip).
+     * 3. Sets `keyset.bundle`, `local_share_idx=0`, builds Distribute
+     * rows, and routes the wizard directly to `Distribute` so the
+     * URL scheme does not depend on the DeviceProfile or Review
+     * SwiftUI affordances.
+     * 4. Populates `dashboard.profile_info` for the embedded signer
+     * panel and inserts the new profile row on the hub marked
+     * Active.
+     * 5. Emits `AppUpdate::StoreKeysetCreatedProfile` so the Swift
+     * shell writes the decrypted material to Keychain. After the
+     * shell dispatches `CreateKeysetAccepted`, the diagnostic
+     * gate on the Swift side auto-dispatches
+     * `CreateKeysetDistributeFinish` to land on the Dashboard.
+     *
+     * Gating: `DEBUG` build AND `IGLOO_KEYSET_DIAGNOSTICS=1` env var
+     * on the Swift side (matched before dispatching). Release builds
+     * never expose the URL scheme, so this variant is unreachable in
+     * production but kept available for test-suite re-use.
+     */
+    data class DiagnosticsCreateKeysetRun(
+        val `groupName`: kotlin.String, 
+        val `threshold`: kotlin.UShort, 
+        val `count`: kotlin.UShort, 
+        val `deviceName`: kotlin.String, 
+        val `relay`: kotlin.String) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
      * Shell forwarded the result of `FfiApp::publish_backup`. Each
      * materialization path (create / onboard / rotate / import /
      * recover) fires this after the publish settles so the actor can
@@ -6497,7 +6540,14 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 FfiConverterString.read(buf),
                 )
             115 -> AppAction.ClearExportState
-            116 -> AppAction.BackupPublishCompleted(
+            116 -> AppAction.DiagnosticsCreateKeysetRun(
+                FfiConverterString.read(buf),
+                FfiConverterUShort.read(buf),
+                FfiConverterUShort.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                )
+            117 -> AppAction.BackupPublishCompleted(
                 FfiConverterString.read(buf),
                 FfiConverterBoolean.read(buf),
                 FfiConverterOptionalString.read(buf),
@@ -7358,6 +7408,17 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 4UL
             )
         }
+        is AppAction.DiagnosticsCreateKeysetRun -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`groupName`)
+                + FfiConverterUShort.allocationSize(value.`threshold`)
+                + FfiConverterUShort.allocationSize(value.`count`)
+                + FfiConverterString.allocationSize(value.`deviceName`)
+                + FfiConverterString.allocationSize(value.`relay`)
+            )
+        }
         is AppAction.BackupPublishCompleted -> {
             // Add the size for the Int that specifies the variant plus the size needed for all fields
             (
@@ -7992,8 +8053,17 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 buf.putInt(115)
                 Unit
             }
-            is AppAction.BackupPublishCompleted -> {
+            is AppAction.DiagnosticsCreateKeysetRun -> {
                 buf.putInt(116)
+                FfiConverterString.write(value.`groupName`, buf)
+                FfiConverterUShort.write(value.`threshold`, buf)
+                FfiConverterUShort.write(value.`count`, buf)
+                FfiConverterString.write(value.`deviceName`, buf)
+                FfiConverterString.write(value.`relay`, buf)
+                Unit
+            }
+            is AppAction.BackupPublishCompleted -> {
+                buf.putInt(117)
                 FfiConverterString.write(value.`source`, buf)
                 FfiConverterBoolean.write(value.`success`, buf)
                 FfiConverterOptionalString.write(value.`eventId`, buf)

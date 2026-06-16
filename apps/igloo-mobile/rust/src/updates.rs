@@ -2,17 +2,17 @@
 
 use crate::actions::AppAction;
 use crate::state::{
-    AppState, DashboardState, DashboardTab, DistributeStatus, KeysetFlowStep, LogEntry, LogLevel,
-    NonceInventory, OnboardingError, OnboardingStep, PeerPermissions, PeerSelectionStrategy,
-    PeerStatus, PendingOp, PendingOpType, PermissionsState, PolicyDirection, PolicyMethod,
-    PolicyOverrideValue, ProfileInfo, ProfileStatus, RemotePolicyObservation, ResolvedIdentity,
-    RotatePreviewIdentity, RotateShareStep, RotationSourceRow, Screen, SettingsState,
-    SignerReadiness, SignerRuntimeState, SignerStatus, StoredProfile, TestEcdhResultData,
-    TestSignResultData,
+    AppState, DashboardState, DashboardTab, DistributeStatus, KeysetFlowMode, KeysetFlowStep,
+    LogEntry, LogLevel, NonceInventory, OnboardingError, OnboardingStep, PeerPermissions,
+    PeerSelectionStrategy, PeerStatus, PendingOp, PendingOpType, PermissionsState, PolicyDirection,
+    PolicyMethod, PolicyOverrideValue, ProfileInfo, ProfileStatus, RemotePolicyObservation,
+    ResolvedIdentity, RotatePreviewIdentity, RotateShareStep, RotationSourceRow, Screen,
+    SettingsState, SignerReadiness, SignerRuntimeState, SignerStatus, StoredProfile,
+    TestEcdhResultData, TestSignResultData,
 };
 use crate::{
     build_keyset_material, default_relay_url, derive_profile_id_from_secret_hex,
-    parse_keyset_bundle, AppUpdate,
+    parse_keyset_bundle, AppUpdate, GeneratedKeysetWire,
 };
 
 /// Current UTC Unix epoch in whole seconds (i64).
@@ -1156,6 +1156,228 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
         AppAction::CreateKeysetAbandon => {
             next.keyset.reset();
             next.router.screen = Screen::Hub;
+        }
+
+        // ── DiagnosticsCreateKeysetRun ──────────────────────────────────
+        // mobile-ios-keyset-debug-url-scheme: the iOS shell exposes a
+        // debug URL scheme `igloo://test-create-keyset?...` that
+        // dispatches this action with pre-filled inputs to bypass
+        // SwiftUI TextField/Button affordance taps Maestro 2.6.0
+        // cannot reliably trigger on iOS Simulator 26.5.
+        //
+        // The handler runs the full wizard in one update cycle:
+        //   - validate inputs (same `validate_generate()` rules as the
+        //     normal UI path so a blank/short group_name, threshold>count,
+        //     or threshold==1 is rejected without side effects);
+        //   - run frostr_utils::create_keyset() inline to produce a real
+        //     bundle (the actor has frostr-utils as a workspace dep so we
+        //     can keep the keygen path deterministic for tests + URL
+        //     scheme flows without depending on shell FFI);
+        //   - parse the bundle wire form into a KeysetBundleRecord;
+        //   - skip the DeviceProfile + Review UI screens by jumping
+        //     straight to Distribute — the URL scheme must not require
+        //     SwiftUI affordance taps;
+        //   - build distribute rows (one per non-local share), build
+        //     the OnboardProfileMaterial, populate the dashboard
+        //     identity block, and insert a new Active hub row pinned
+        //     by `keyset.accepted_profile_id`.
+        //   - emit AppUpdate::StoreKeysetCreatedProfile so the Swift
+        //     shell writes the decrypted material to Keychain via the
+        //     existing `storeKeysetCreatedProfile` handler. After the
+        //     shell dispatches `CreateKeysetAccepted`, the diagnostic
+        //     gate on the Swift side auto-dispatches
+        //     `CreateKeysetDistributeFinish` to land on Dashboard.
+        AppAction::DiagnosticsCreateKeysetRun {
+            group_name,
+            threshold,
+            count,
+            device_name,
+            relay,
+        } => {
+            // Step 1: shape validation. Same contract as a real user
+            // submitting the Generate form so the diagnostic path
+            // cannot be used to bypass validation. Inputs that fail the
+            // regex are silently no-op'd with no side effect — the
+            // Swift gate (DEBUG build + env flag) is the primary
+            // control, but defense-in-depth here means a mis-fired
+            // dispatch cannot corrupt state.
+            let trimmed_group = group_name.trim();
+            let trimmed_device = device_name.trim();
+            let trimmed_relay = relay.trim();
+            if trimmed_group.is_empty()
+                || trimmed_device.is_empty()
+                || trimmed_relay.is_empty()
+                || *threshold == 0
+                || *count == 0
+                || *threshold < 2
+                || *threshold > *count
+            {
+                // Invalid input — leave state untouched, no side
+                // effect. Keep `step = Idle` so subsequent normal
+                // Create Keyset wizard entries start fresh.
+                next.keyset.reset();
+                next.router.screen = Screen::Hub;
+                return (next, side_effect);
+            }
+
+            // Step 2: inline keygen. Same frostr_utils call the shell-side
+            // FFI invokes — running it here lets the URL scheme produce a
+            // real, parseable bundle without depending on a shell thread
+            // round-trip. Result is the canonical `KeysetBundleExport`
+            // wire form, serialized as JSON so we can hand it back through
+            // `parse_keyset_bundle()` for the same KeysetBundleRecord the
+            // normal UI flow receives.
+            let config = frostr_utils::CreateKeysetConfig::new(
+                trimmed_group.to_string(),
+                *threshold,
+                *count,
+            );
+            let bundle = match frostr_utils::create_keyset(config) {
+                Ok(b) => b,
+                Err(_) => {
+                    // frostr-utils rejected the config (already validate-
+                    // gated above, but be defensive). Leave state at Idle
+                    // and emit no side effect.
+                    next.keyset.reset();
+                    next.router.screen = Screen::Hub;
+                    return (next, side_effect);
+                }
+            };
+            let exported = GeneratedKeysetWire {
+                group: bifrost_codec::wire::GroupPackageWire::from(bundle.group),
+                shares: bundle
+                    .shares
+                    .into_iter()
+                    .map(bifrost_codec::wire::SharePackageWire::from)
+                    .collect(),
+            };
+            let bundle_json = match serde_json::to_string(&exported) {
+                Ok(j) => j,
+                Err(_) => {
+                    next.keyset.reset();
+                    next.router.screen = Screen::Hub;
+                    return (next, side_effect);
+                }
+            };
+
+            // Step 3: parse the wire bundle, populate wizard state. We
+            // intentionally skip Generate → DeviceProfile → Review UI
+            // transitions — the URL scheme is a single-shot trigger that
+            // lands the user on Distribute after Keychain storage so a
+            // Maestro flow can assertVisible the freshly-built profile
+            // row on the hub or the resulting Dashboard.
+            let parsed_bundle = match parse_keyset_bundle(&bundle_json) {
+                Ok(b) => b,
+                Err(_) => {
+                    next.keyset.reset();
+                    next.router.screen = Screen::Hub;
+                    return (next, side_effect);
+                }
+            };
+            next.keyset.mode = KeysetFlowMode::Create;
+            next.keyset.group_name = trimmed_group.to_string();
+            next.keyset.threshold = *threshold;
+            next.keyset.count = *count;
+            next.keyset.device_name = trimmed_device.to_string();
+            next.keyset.relays = vec![trimmed_relay.to_string()];
+            // Pick the lowest-existing share_idx in the bundle as the
+            // local device's slot. FROST identifiers start at 1 by
+            // convention (so idx=0 is rare); using the lowest avoids a
+            // runtime panic when frostr-utils produces bundles keyed by
+            // 1..count instead of 0..count-1.
+            next.keyset.local_share_idx = parsed_bundle
+                .shares
+                .iter()
+                .map(|s| s.share_idx)
+                .min()
+                .unwrap_or(0);
+            next.keyset.bundle = Some(parsed_bundle.clone());
+            next.keyset.error = None;
+            next.keyset.last_error_message = None;
+            // Build per-share Distribute rows for the non-local shares
+            // so the side-effect shell handler can immediately encode
+            // bfonboard1 envelopes if a downstream test needs them.
+            next.keyset.build_distribute_rows();
+            // Jump straight to Distribute — the URL scheme bypasses the
+            // DeviceProfile share picker and the Review Accept button.
+            next.keyset.step = KeysetFlowStep::Distribute;
+            next.router.screen = Screen::CreateKeysetDistribute;
+
+            // Step 4: derive profile_id, build OnboardProfileMaterial,
+            // populate the dashboard identity block, and insert a new
+            // Active hub row pinned by `accepted_profile_id`. We accept
+            // the freshly-built keyset immediately so the shell-side
+            // StoreKeysetCreatedProfile handler emits
+            // CreateKeysetAccepted on top of an already-correct state.
+            //
+            // We avoid `.expect()`/`.unwrap()` here because a panic in
+            // the actor thread surfaces as a Swift `_assertionFailure`
+            // trap (see mobile-ios-keyset-debug-url-scheme crash trace)
+            // and exits the iOS app entirely, defeating the URL-scheme
+            // diagnostic intent. Instead, every failure path resets
+            // the wizard and routes to the hub so a subsequent normal
+            // user run sees no stale residue.
+            let local_share = parsed_bundle
+                .shares
+                .iter()
+                .find(|s| s.share_idx == next.keyset.local_share_idx);
+            let local_share = match local_share {
+                Some(s) => s,
+                None => {
+                    next.keyset.reset();
+                    next.router.screen = Screen::Hub;
+                    return (next, side_effect);
+                }
+            };
+            let profile_id = match derive_profile_id_from_secret_hex(&local_share.share_secret_hex)
+            {
+                Ok(id) => id,
+                Err(_) => {
+                    next.keyset.reset();
+                    next.router.screen = Screen::Hub;
+                    return (next, side_effect);
+                }
+            };
+            let short_id = if profile_id.len() >= 8 {
+                profile_id[..8].to_string()
+            } else {
+                profile_id.clone()
+            };
+            let material_bytes = match build_keyset_material(&next.keyset) {
+                Ok(b) => b,
+                Err(_) => {
+                    next.keyset.reset();
+                    next.router.screen = Screen::Hub;
+                    return (next, side_effect);
+                }
+            };
+            let label = trimmed_device.to_string();
+            next.keyset.accepted_profile_id = profile_id.clone();
+            next.keyset.accepted_short_id = Some(short_id.clone());
+            next.dashboard.profile_info = Some(ProfileInfo {
+                device_name: label.clone(),
+                share_pubkey: local_share.share_pubkey.clone(),
+                group_pubkey: parsed_bundle.group_pubkey.clone(),
+                profile_id: profile_id.clone(),
+            });
+            next.hub.profiles.insert(
+                0,
+                StoredProfile::new(label.clone(), profile_id.clone(), ProfileStatus::Active),
+            );
+
+            // Step 5: emit StoreKeysetCreatedProfile side effect so the
+            // Swift shell writes the decrypted material to Keychain via
+            // its existing storeKeysetCreatedProfile handler. The shell
+            // dispatches CreateKeysetAccepted next, and the diagnostic
+            // gate on the Swift side auto-dispatches
+            // CreateKeysetDistributeFinish to land on Dashboard.
+            side_effect = Some(AppUpdate::StoreKeysetCreatedProfile {
+                profile_id,
+                label,
+                short_id,
+                material: material_bytes,
+                relays: next.keyset.relays.clone(),
+            });
         }
 
         // ── Profile management ───────────────────────────────────────────

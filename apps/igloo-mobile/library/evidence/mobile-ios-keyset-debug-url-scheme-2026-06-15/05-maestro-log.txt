@@ -1,0 +1,11 @@
+Running on RMP iPhone 15 - iOS 26.5 - 4EB37CCF-B55C-4DD4-A4EE-F3AA623BA5C0
+ > Flow Keyset Create URL Scheme - iOS
+Wait for animation to end... COMPLETED
+Assert that "${DEVICE_NAME}" is visible... COMPLETED
+Assert that "Identity" is visible... COMPLETED
+Assert that "Share Pubkey" is visible... COMPLETED
+Assert that "Group Pubkey" is visible... COMPLETED
+Assert that "Signer" is visible... COMPLETED
+Assert that "Permissions" is visible... COMPLETED
+Assert that "Settings" is visible... COMPLETED
+Assert that "Signer Stopped" is visible... COMPLETED
