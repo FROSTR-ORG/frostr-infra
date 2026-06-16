@@ -1,0 +1,77 @@
+appId: com.frostr.igloo.dev
+name: Onboard Connect Gate - Capture State After Connect
+
+# Focused gate: tap btn_connect and immediately capture UI state.
+# Does NOT wait for the full handshake to complete.
+# Captures: hierarchy, screenshot to prove loading state or hang.
+
+---
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+
+- waitForAnimationToEnd
+
+# Navigate to OnboardConnect
+- tapOn:
+    text: "Onboard Device"
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+- tapOn:
+    id: "btn_connect_entry"
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 20000
+
+# Fill form
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "ws://127.0.0.1:8194"
+
+- tapOn:
+    id: "input_package"
+- eraseText: 1000
+- setClipboard: "${ONBOARD_PACKAGE}"
+- tapOn:
+    id: "btn_paste_package"
+- waitForAnimationToEnd
+
+- scrollUntilVisible:
+    element:
+      id: "input_password"
+    timeout: 10000
+
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- setClipboard: "${ONBOARD_PASSWORD}"
+- pasteText
+
+# Tap Connect
+- waitForAnimationToEnd
+- tapOn:
+    id: "btn_connect"
+
+# IMMEDIATELY capture state - within 3 seconds of tap
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# Capture screenshot to see UI state
+- screenshot
+
+# Capture hierarchy to see current screen elements
+- runFlow:
+    file: launch://hierarchy
+
+# Check what's visible: loading OR connect button still visible
+- checkElement:
+    id: "onboard_loading_indicator"
+- assertVisible:
+    id: "onboard_loading_indicator"

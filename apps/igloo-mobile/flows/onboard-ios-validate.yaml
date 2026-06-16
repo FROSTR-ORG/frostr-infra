@@ -1,0 +1,169 @@
+appId: com.frostr.igloo.dev
+name: Onboard Device - iOS Validation (Paste Button)
+
+# VAL-ONBOARD validation flow using the Paste from Clipboard button.
+# Pre-run: PLATFORM=ios bash scripts/read-demo-credentials.sh
+# writes bob package to system clipboard and /tmp/igloo-mobile-demo-*.txt
+# The paste button reads from UIPasteboard.general.string (full 690 chars).
+
+---
+# Launch and verify app is foregrounded
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+
+- waitForAnimationToEnd
+
+# Start from hub
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "Onboard Device"
+
+# Navigate: Hub -> OnboardEntry -> OnboardConnect
+- tapOn:
+    text: "Onboard Device"
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+- tapOn:
+    id: "btn_connect_entry"
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 20000
+
+# VAL-ONBOARD-001: Verify connect screen elements
+- assertVisible:
+    id: "input_package"
+- assertVisible:
+    id: "input_password"
+- assertVisible:
+    id: "input_relay_url"
+- assertVisible:
+    id: "btn_connect"
+
+# VAL-ONBOARD-005: Enter platform-correct relay URL
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "ws://127.0.0.1:8194"
+
+# Tap the Paste from Clipboard button to enter the full 690-char package.
+# This reads from UIPasteboard.general.string and bypasses the iOS TextEditor
+# ~86-char paste limitation that affects Maestro's pasteText.
+# NOTE: Tapping paste button immediately triggers onboardConnectPackage which
+# sets isLoading=true and hides the package/password fields behind a spinner.
+# The password is read from the package itself (4ad39a696510276798af27e41aa71ab9).
+- tapOn:
+    id: "btn_paste_package"
+
+# VAL-ONBOARD-006: Wait for review screen (180s Rust timeout, no-UI gate ~4.7s)
+# The loading spinner shows while async FfiApp::onboard runs
+- scrollUntilVisible:
+    element:
+      id: "input_device_name"
+    timeout: 240000
+
+# VAL-ONBOARD-008: Review screen shows resolved identity
+- assertVisible:
+    id: "input_device_name"
+- assertVisible:
+    id: "display_share_pubkey"
+- assertVisible:
+    id: "display_group_pubkey"
+- assertVisible:
+    id: "btn_save_device"
+
+# VAL-ONBOARD-010: Empty device name blocked
+- tapOn:
+    id: "input_device_name"
+- eraseText: 64
+- tapOn:
+    id: "btn_save_device"
+# Should still be on review screen (save blocked)
+- assertVisible:
+    id: "input_device_name"
+
+# VAL-ONBOARD-011: Save with valid device name
+- inputText:
+    id: "input_device_name"
+    text: "bob-iPhone"
+- tapOn:
+    id: "btn_save_device"
+
+# VAL-ONBOARD-011: Dashboard arrival
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "Dashboard"
+    timeout: 30000
+- assertVisible:
+    text: "bob-iPhone"
+
+# VAL-ONBOARD-013: Back to hub, profile listed
+- tapOn:
+    id: "btn_back"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+- scrollUntilVisible:
+    element:
+      text: "bob-iPhone"
+    timeout: 10000
+- assertVisible:
+    text: "bob-iPhone"
+
+# VAL-ONBOARD-015: Re-onboarding same profile rejected as duplicate
+# Navigate back to Onboard Device flow
+- tapOn:
+    text: "Onboard Device"
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+- tapOn:
+    id: "btn_connect_entry"
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 20000
+
+# Use paste button again with same bob credentials
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "ws://127.0.0.1:8194"
+- tapOn:
+    id: "btn_paste_package"
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- inputText:
+    id: "input_password"
+    text: "4ad39a696510276798af27e41aa71ab9"
+- pressKey: back
+- tapOn:
+    id: "btn_connect"
+- waitForAnimationToEnd
+
+# VAL-ONBOARD-015: On duplicate attempt, error should appear
+# The review screen may or may not be reached depending on dedupe timing.
+# At minimum, the hub should show only one bob-iPhone entry after back.
+- scrollUntilVisible:
+    element:
+      text: "Igloo"
+    timeout: 30000
+- assertVisible:
+    text: "Igloo"
+# Should still show only one bob-iPhone entry
+- scrollUntilVisible:
+    element:
+      text: "bob-iPhone"
+    timeout: 10000

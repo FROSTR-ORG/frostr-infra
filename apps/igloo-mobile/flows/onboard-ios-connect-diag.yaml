@@ -1,0 +1,99 @@
+appId: com.frostr.igloo.dev
+name: iOS Connect Diagnostic
+
+# Focused diagnostic: capture UI state immediately after btn_connect tap
+# to classify the iOS onboarding hang.
+#
+# Credentials (sanitized - package is public bech32, password redacted in logs):
+#   maestro --device iPhone-17-Pro test flows/onboard-ios-connect-diag.yaml \
+#     -e ONBOARD_PACKAGE="$(cat .tmp/test-harness/onboard-bob.txt | tr -d '\r\n')" \
+#     -e ONBOARD_PASSWORD="$(cat .tmp/test-harness/onboard-bob.password.txt | tr -d '\r\n')"
+
+---
+# Launch app (keep existing state if any)
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+
+- waitForAnimationToEnd
+
+# Navigate to OnboardConnect
+- tapOn:
+    text: "Onboard Device"
+
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+
+- tapOn:
+    id: "btn_connect_entry"
+
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 20000
+
+# Enter relay URL
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "ws://127.0.0.1:8194"
+
+# Enter package via paste button
+- tapOn:
+    id: "input_package"
+- eraseText: 1000
+- setClipboard: "${ONBOARD_PACKAGE}"
+- tapOn:
+    id: "btn_paste_package"
+
+# Enter password
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- setClipboard: "${ONBOARD_PASSWORD}"
+- pasteText
+
+# Verify input state before tap
+# Record package field text length (redacted in diagnostic output)
+- tapOn:
+    id: "input_package"
+
+# Tap Connect and capture state after
+- scrollUntilVisible:
+    element:
+      id: "btn_connect"
+    timeout: 10000
+
+- tapOn:
+    id: "btn_connect"
+
+# Wait 5 seconds for potential UI update
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# Check current state: is loading indicator visible?
+# The loading indicator contains text "Connecting..." 
+- scrollUntilVisible:
+    element:
+      text: "Connecting..."
+    timeout: 10000
+
+# If "Connecting..." is visible, the loading state is working
+# If not, the UI is not updating after btn_connect tap
+# Take a screenshot by letting the flow "fail" on the next assertion
+- assertVisible:
+    text: "Connecting..."
+
+# Final check: does review screen appear within 30s?
+- scrollUntilVisible:
+    element:
+      id: "input_device_name"
+    timeout: 30000
+
+- assertVisible:
+    id: "input_device_name"

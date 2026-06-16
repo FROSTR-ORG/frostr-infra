@@ -1,0 +1,108 @@
+appId: com.frostr.igloo.dev
+name: iOS Onboard Diagnostic - 60s Hang Check (prelaunched app)
+
+# Minimal diagnostic to capture rust.onboard state at 60s after btn_connect.
+# Captures the full diagnostic matrix to determine if rust.onboard returns
+# within the bounded timeout or still hangs.
+---
+# Step 1: Verify hub visible
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "Onboard Device"
+
+# Step 2: Navigate to OnboardConnect
+- tapOn:
+    text: "Onboard Device"
+
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+- tapOn:
+    id: "btn_connect_entry"
+
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 20000
+
+# Step 3: Verify screen and enter inputs
+- assertVisible:
+    id: "input_relay_url"
+- assertVisible:
+    id: "input_package"
+- assertVisible:
+    id: "input_password"
+- assertVisible:
+    id: "btn_connect"
+
+# Step 4: Enter relay URL
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "ws://127.0.0.1:8194"
+
+# Step 5: Enter package via paste
+- tapOn:
+    id: "input_package"
+- eraseText: 1000
+- setClipboard: "${ONBOARD_PACKAGE}"
+- tapOn:
+    id: "btn_paste_package"
+- waitForAnimationToEnd
+
+# Step 6: Enter password
+- scrollUntilVisible:
+    element:
+      id: "input_password"
+    timeout: 10000
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- setClipboard: "${ONBOARD_PASSWORD}"
+- pasteText
+- waitForAnimationToEnd
+
+# Step 7: Read diagnostic panel BEFORE btn_connect (baseline)
+- scrollUntilVisible:
+    element:
+      id: "debug_onboard_diagnostics"
+    timeout: 5000
+
+# Step 8: Tap btn_connect
+- tapOn:
+    id: "btn_connect"
+
+# Step 9: Immediately read diagnostic panel (post-dispatch state)
+- scrollUntilVisible:
+    element:
+      id: "debug_onboard_diagnostics"
+    timeout: 5000
+
+# Step 10: Wait 60 seconds and read diagnostic panel again (hang detection)
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# Read diagnostic panel at 60s mark (captures rust.onboard progress/watchdog state)
+- scrollUntilVisible:
+    element:
+      id: "debug_onboard_diagnostics"
+    timeout: 5000
+
+# Step 11: Take screenshot of diagnostic panel state at 60s
+# If still on OnboardConnect with rust.onboard showing no-return,
+# we capture the evidence and stop rather than waiting the full 240s.
+
+# Step 12: Try to read OnboardReview as a positive check
+# If visible within 60s, onboarding succeeded
+- assertVisible:
+    id: "input_device_name"
+    timeout: 10000
+
+# If we reached here, onboarding completed within 60s
+- takeScreenshot:
+    filename: "onboard_review_60s.png"

@@ -42,6 +42,7 @@ export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-${IGLOO_SHELL_DEMO_XDG_ROOT}/data}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-${IGLOO_SHELL_DEMO_STATE_LINK}}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-${IGLOO_SHELL_DEMO_RUNTIME_DIR}}"
+mkdir -p "${XDG_RUNTIME_DIR}"
 # The daemon's XDG_STATE_HOME socket path (.../profiles/<64-hex>/daemon.sock)
 # is exactly 100 bytes even via the short `/w` link, which the C.4 daemon
 # hardening rejects (sun_path budget is <100), so the daemon uses its

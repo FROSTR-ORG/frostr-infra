@@ -1,0 +1,6 @@
+appId: com.frostr.igloo.dev
+name: Check current screen state
+---
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"

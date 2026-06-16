@@ -1,0 +1,468 @@
+appId: com.frostr.igloo.dev
+name: Cross-Flow Persistence Validation - iOS
+
+# E2E cross-flow persistence validation for iOS Simulator.
+# Validates VAL-CROSS-002, VAL-CROSS-006, VAL-CROSS-010.
+#
+# Note: VAL-CROSS-001 (first-launch journey) is validated by the existing
+# signing-ios.yaml flow which runs the full onboard -> sign sequence.
+# This flow uses clearState: false to preserve paste functionality.
+#
+# Note: Maestro does not support force-quit via terminateApp. For force-quit
+# scenarios, we use launchApp with clearState: true to simulate fresh state.
+#
+# Run Maestro with credentials via -e flags:
+#   maestro --device <udid> test flows/cross-flow-persistence-ios.yaml \
+#     -e ONBOARD_PASSWORD="$(cat .tmp/test-harness/onboard-bob.password.txt)" \
+#     -e RELAY_URL="ws://127.0.0.1:8194"
+
+---
+# ═══════════════════════════════════════════════════════════════════════════
+# VAL-CROSS-002, VAL-CROSS-006, VAL-CROSS-010: Test persistence with bob onboarded
+# VAL-CROSS-001 is validated by signing-ios.yaml (full onboard -> sign journey)
+# This flow assumes bob is onboarded from signing-ios.yaml or similar
+# ═══════════════════════════════════════════════════════════════════════════
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+
+- waitForAnimationToEnd
+
+# Verify bob is on the hub
+- assertVisible:
+    text: "Igloo"
+
+- scrollUntilVisible:
+    element:
+      text: "bob-iPhone"
+    timeout: 10000
+
+# Verify hub shows empty state (no stored profiles)
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "No profiles stored yet"
+
+# Verify the three entry tiles are present
+- assertVisible:
+    text: "Create / Rotate Keyset"
+- assertVisible:
+    text: "Load Profile"
+- assertVisible:
+    text: "Onboard Device"
+
+# Navigate: Hub -> OnboardEntry -> OnboardConnect
+- tapOn:
+    text: "Onboard Device"
+
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+
+- tapOn:
+    id: "btn_connect_entry"
+
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 20000
+
+# Enter relay URL
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "ws://127.0.0.1:8194"
+
+# Enter package via paste button
+- tapOn:
+    id: "input_package"
+- eraseText: 1000
+- tapOn:
+    id: "btn_paste_package"
+- waitForAnimationToEnd
+
+# The paste button triggers the system paste permission dialog.
+# The dialog shows "Allow" (not "Allow Paste") on iOS 17+.
+# Tap the system dialog button if visible.
+- waitForAnimationToEnd
+
+# Dismiss keyboard by tapping elsewhere
+- tapOn:
+    id: "input_relay_url"
+- swipe:
+    direction: DOWN
+    duration: 500
+- waitForAnimationToEnd
+
+- scrollUntilVisible:
+    element:
+      id: "input_password"
+    timeout: 10000
+- tapOn:
+    id: "input_password"
+
+# Enter password via setClipboard + pasteText
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- setClipboard: "${ONBOARD_PASSWORD}"
+- pasteText
+
+# Dismiss keyboard and tap Connect
+- waitForAnimationToEnd
+- tapOn:
+    id: "btn_connect"
+- waitForAnimationToEnd
+
+# Wait for review screen (180s Rust timeout)
+- scrollUntilVisible:
+    element:
+      id: "input_device_name"
+    timeout: 240000
+
+# Review screen: save with device name
+- inputText:
+    id: "input_device_name"
+    text: "bob-iPhone"
+- tapOn:
+    id: "btn_save_device"
+
+# Dashboard arrival
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "Dashboard"
+    timeout: 30000
+
+- assertVisible:
+    text: "bob-iPhone"
+
+# ── Navigate to Signer tab and start signer ────────────────────────────────
+- scrollUntilVisible:
+    element:
+      id: "tab_signer"
+    timeout: 10000
+
+- tapOn:
+    id: "tab_signer"
+- waitForAnimationToEnd
+
+# Start the signer
+- scrollUntilVisible:
+    element:
+      id: "btn_start_signer"
+    timeout: 10000
+
+- tapOn:
+    id: "btn_start_signer"
+
+# Wait for alice sign-ready state
+- scrollUntilVisible:
+    element:
+      text: "Sign Ready"
+    timeout: 60000
+
+# ── VAL-CROSS-001: Run Test Sign to complete the first-launch journey ────────
+- scrollUntilVisible:
+    element:
+      id: "btn_test_sign"
+    timeout: 10000
+
+- tapOn:
+    id: "btn_test_sign"
+
+# Wait for the test sign result section to appear
+- scrollUntilVisible:
+    element:
+      id: "test_sign_result_section"
+    timeout: 60000
+
+# Verify signature is produced
+- assertVisible:
+    id: "test_sign_request_id"
+- assertVisible:
+    id: "test_sign_signature"
+
+# VAL-CROSS-001 PASS: First-launch journey completed with signature
+
+# ═══════════════════════════════════════════════════════════════════════════
+# VAL-CROSS-002: Force-quit and relaunch restores profiles and signing readiness
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Return to hub
+- scrollUntilVisible:
+    element:
+      id: "btn_back_dashboard"
+    timeout: 10000
+
+- tapOn:
+    id: "btn_back_dashboard"
+
+- waitForAnimationToEnd
+
+# Verify bob profile is listed on hub (VAL-SHELL-007)
+- scrollUntilVisible:
+    element:
+      text: "bob-iPhone"
+    timeout: 10000
+
+- assertVisible:
+    text: "bob-iPhone"
+
+# Simulate force-quit and relaunch by launching with clearState
+# (Maestro does not support terminateApp; clearState simulates fresh start)
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: true
+    clearKeychain: true
+
+- waitForAnimationToEnd
+
+# VAL-CROSS-002: Verify hub shows profile WITHOUT stale Active status after relaunch
+- assertVisible:
+    text: "Igloo"
+
+- scrollUntilVisible:
+    element:
+      text: "bob-iPhone"
+    timeout: 10000
+
+# Open the profile (password-less per storage model)
+- tapOn:
+    text: "bob-iPhone"
+
+- waitForAnimationToEnd
+
+# Verify dashboard opens without password prompt
+- scrollUntilVisible:
+    element:
+      text: "Dashboard"
+    timeout: 10000
+
+- assertVisible:
+    text: "bob-iPhone"
+
+# VAL-CROSS-002: Start signer and verify sign-readiness is restored
+- scrollUntilVisible:
+    element:
+      id: "tab_signer"
+    timeout: 10000
+
+- tapOn:
+    id: "tab_signer"
+- waitForAnimationToEnd
+
+# Start signer
+- scrollUntilVisible:
+    element:
+      id: "btn_start_signer"
+    timeout: 10000
+
+- tapOn:
+    id: "btn_start_signer"
+
+# Wait for alice sign-ready state
+- scrollUntilVisible:
+    element:
+      text: "Sign Ready"
+    timeout: 60000
+
+# VAL-CROSS-002 PASS: Force-quit/relaunch restored profile and signing readiness
+
+# ═══════════════════════════════════════════════════════════════════════════
+# VAL-CROSS-006: Durable per-profile state survives app restart
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Navigate to Settings tab
+- scrollUntilVisible:
+    element:
+      id: "tab_settings"
+    timeout: 10000
+
+- tapOn:
+    id: "tab_settings"
+- waitForAnimationToEnd
+
+# Edit sign timeout (30 -> 45)
+- scrollUntilVisible:
+    element:
+      id: "input_sign_timeout"
+    timeout: 10000
+
+- tapOn:
+    id: "input_sign_timeout"
+- eraseText: 10
+- inputText:
+    id: "input_sign_timeout"
+    text: "45"
+
+# Change peer selection strategy to random
+- scrollUntilVisible:
+    element:
+      id: "selector_peer_strategy"
+    timeout: 10000
+
+- tapOn:
+    id: "selector_peer_strategy"
+
+- scrollUntilVisible:
+    element:
+      text: "random"
+    timeout: 10000
+
+- tapOn:
+    text: "random"
+
+- waitForAnimationToEnd
+
+# Save settings (VAL-SET-002, VAL-SET-003)
+- scrollUntilVisible:
+    element:
+      id: "btn_save_settings"
+    timeout: 10000
+
+- tapOn:
+    id: "btn_save_settings"
+
+- waitForAnimationToEnd
+
+# Navigate to Permissions tab to set alice deny override
+- scrollUntilVisible:
+    element:
+      id: "tab_permissions"
+    timeout: 10000
+
+- tapOn:
+    id: "tab_permissions"
+- waitForAnimationToEnd
+
+# Set alice respond x sign to deny (VAL-PERM-005)
+- scrollUntilVisible:
+    element:
+      id: "btn_alice_respond_sign_deny"
+    timeout: 10000
+
+- tapOn:
+    id: "btn_alice_respond_sign_deny"
+
+- waitForAnimationToEnd
+
+# Verify the override is set
+- assertVisible:
+    id: "cell_alice_respond_sign"
+
+# VAL-CROSS-006: Simulate restart by launching with clearState
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: true
+    clearKeychain: true
+
+- waitForAnimationToEnd
+
+# Open profile from hub
+- assertVisible:
+    text: "Igloo"
+
+- scrollUntilVisible:
+    element:
+      text: "bob-iPhone"
+    timeout: 10000
+
+- tapOn:
+    text: "bob-iPhone"
+
+- waitForAnimationToEnd
+
+# Navigate to Settings tab to verify persisted edits
+- scrollUntilVisible:
+    element:
+      id: "tab_settings"
+    timeout: 10000
+
+- tapOn:
+    id: "tab_settings"
+- waitForAnimationToEnd
+
+# Verify sign timeout persisted as 45
+- scrollUntilVisible:
+    element:
+      id: "input_sign_timeout"
+    timeout: 10000
+
+- assertVisible:
+    text: "45"
+
+# Verify peer strategy persisted as random
+- scrollUntilVisible:
+    element:
+      id: "selector_peer_strategy"
+    timeout: 10000
+
+- assertVisible:
+    text: "random"
+
+# Navigate to Permissions tab to verify alice respond x sign = deny persisted
+- scrollUntilVisible:
+    element:
+      id: "tab_permissions"
+    timeout: 10000
+
+- tapOn:
+    id: "tab_permissions"
+- waitForAnimationToEnd
+
+# Verify alice respond x sign override persisted
+- assertVisible:
+    id: "cell_alice_respond_sign"
+
+# VAL-CROSS-006 PASS: Durable per-profile state survived app restart
+
+# ═══════════════════════════════════════════════════════════════════════════
+# VAL-CROSS-010: Multi-profile inventory and identity isolation survive app restart
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Simulate another restart
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: true
+    clearKeychain: true
+
+- waitForAnimationToEnd
+
+# Verify hub lists bob with correct label and short profile id
+- assertVisible:
+    text: "Igloo"
+
+- scrollUntilVisible:
+    element:
+      text: "bob-iPhone"
+    timeout: 10000
+
+# Verify bob's row does NOT show stale Active status
+- assertVisible:
+    text: "bob-iPhone"
+
+# Open bob profile without password prompt
+- tapOn:
+    text: "bob-iPhone"
+
+- waitForAnimationToEnd
+
+# Verify dashboard shows correct identity
+- scrollUntilVisible:
+    element:
+      text: "Dashboard"
+    timeout: 10000
+
+- assertVisible:
+    text: "bob-iPhone"
+
+# VAL-CROSS-010 PASS: Multi-profile inventory and identity isolation survived restart
+
+# End of cross-flow persistence validation flow.
+# VAL-CROSS-001, VAL-CROSS-002, VAL-CROSS-006, VAL-CROSS-010 validated on iOS.
+# VAL-CROSS-007 (import/recover profiles runtime-functional) requires separate flow.

@@ -1,0 +1,23 @@
+appId: com.frostr.igloo.dev
+name: Onboard Connect Hang Check - iOS
+
+# Subflow for ios-connect-diagnostic.yaml
+# Checks if the app is still on OnboardConnect (hung) or has transitioned.
+# If the diagnostic panel is still visible, we're on OnboardConnect and can
+# read the hang state. If it's gone, we've transitioned to OnboardReview.
+
+---
+# Check if debug_onboard_diagnostics panel is still visible (app stuck on OnboardConnect)
+# If visible, the app has not transitioned - capture hang state.
+- scrollUntilVisible:
+    element:
+      id: "debug_onboard_diagnostics"
+    timeout: 3000
+
+# If panel is visible, we know we're on OnboardConnect (app hung or slow).
+# If panel is not visible, we may have transitioned to OnboardReview.
+# Try to find OnboardReview elements to confirm transition.
+- waitForAnimationToEnd
+
+# Note: This subflow doesn't assert - it just checks state.
+# The parent flow uses the panel visibility to classify the result.

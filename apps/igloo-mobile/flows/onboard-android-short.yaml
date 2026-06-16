@@ -1,0 +1,58 @@
+appId: com.frostr.igloo.dev
+name: Onboard Device - Android Short Test
+
+# Test if inputText works for the package field
+---
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "Onboard Device"
+- tapOn:
+    text: "Onboard Device"
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+- tapOn:
+    id: "btn_connect_entry"
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 20000
+
+# Test: Use inputText for the package field (short test value)
+- tapOn:
+    id: "input_package"
+- eraseText: 1000
+- inputText:
+    id: "input_package"
+    text: "bfonboard1-test-short"
+
+# Enter relay URL
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "ws://10.0.2.2:8194"
+
+# Enter password via setClipboard + pasteText
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- setClipboard: "${ONBOARD_PASSWORD}"
+- pasteText
+
+# Check if btn_connect is enabled (proving inputText worked for package)
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- assertVisible:
+    id: "btn_connect"
+- tapOn:
+    id: "btn_connect"
+- waitForAnimationToEnd

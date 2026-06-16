@@ -1,0 +1,102 @@
+appId: com.frostr.igloo.dev
+name: Hub Validation
+
+---
+# Launch the Igloo app before any assertions
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+
+- waitForAnimationToEnd
+
+# VAL-SHELL-002: First-run hub shows explicit empty stored-profiles state
+- assertVisible:
+    text: Igloo
+- assertVisible:
+    text: No profiles stored yet
+- assertVisible:
+    text: Choose an entry path above to get started
+
+# VAL-SHELL-003: Landing hub presents the three entry tiles
+- assertVisible:
+    text: Create / Rotate Keyset
+- assertVisible:
+    text: Load Profile
+- assertVisible:
+    text: Onboard Device
+
+# VAL-SHELL-004: Create / Rotate Keyset tile opens its flow and back returns to hub
+# Proof uses tapOn id:btn_back (in-app back affordance) after statusBarsPadding fix.
+- tapOn:
+    text: Create / Rotate Keyset
+- assertVisible:
+    text: "Choose an action"
+    waitUntilVisible: true
+- assertNotVisible:
+    text: No profiles stored yet
+- assertVisible:
+    id: "btn_back"
+- tapOn:
+    id: "btn_back"
+- waitForAnimationToEnd
+- assertVisible:
+    text: Igloo
+- assertVisible:
+    text: Create / Rotate Keyset
+
+# VAL-SHELL-005: Load Profile tile opens its flow and back returns to hub
+# Proof uses tapOn id:btn_back (in-app back affordance) after statusBarsPadding fix.
+- tapOn:
+    text: Load Profile
+- scrollUntilVisible:
+    element:
+      text: "Choose how to load a profile"
+- assertNotVisible:
+    text: No profiles stored yet
+- assertVisible:
+    id: "btn_back"
+- tapOn:
+    id: "btn_back"
+- waitForAnimationToEnd
+- assertVisible:
+    text: Igloo
+- assertVisible:
+    text: Load Profile
+
+# VAL-SHELL-006: Onboard Device tile opens its flow and back returns to hub
+# Proof uses tapOn id:btn_back (in-app back affordance) after statusBarsPadding fix.
+- tapOn:
+    text: Onboard Device
+- scrollUntilVisible:
+    element:
+      text: "Connect with a bfonboard1 package from another device"
+- assertNotVisible:
+    text: No profiles stored yet
+- assertVisible:
+    id: "btn_back"
+- tapOn:
+    id: "btn_back"
+- waitForAnimationToEnd
+- assertVisible:
+    text: Igloo
+- assertVisible:
+    text: Onboard Device
+
+# VAL-SHELL-014: Android system back mirrors in-app back inside flows
+# System back correctly navigates from CreateKeysetEntry to Hub
+# NOTE: This is Android-only (VAL-SHELL-014). On iOS, pressKey back is not applicable.
+# This step should run in an Android-specific flow, not in the shared hub-validation.
+# Skipping for iOS run; Android validation should include this in an Android flow.
+
+# VAL-SHELL-010: Hub interactive elements expose stable accessibility identifiers
+# btn_back works reliably after statusBarsPadding fix (center y 247, below status bar).
+- scrollUntilVisible:
+    element:
+      text: Create / Rotate Keyset
+- scrollUntilVisible:
+    element:
+      text: Load Profile
+- scrollUntilVisible:
+    element:
+      text: Onboard Device
