@@ -123,9 +123,9 @@ snapshot "04-dashboard-pre-start"
 # outer `.accessibilityIdentifier("signer_status_card")` to the visible
 # "Signer Stopped" / "Signer Running" status Text and reorders the Button
 # modifier chain so the inner identifier lands on the Button unambiguously.
-# We attempt id + text + coordinate selectors (the focused iOS proof
-# succeeded with coordinate-tap alone, see
-# library/evidence/mobile-ios-signer-peer-refresh-liveness-proof).
+# Use a single id selector. The previous fallback chain (id + text + coordinate)
+# caused duplicate start_signer invocations on iOS, which raced on the bridge
+# cache and left the dashboard stuck at "Restoring..." (VAL-SIGNER-004).
 cat > "$EVIDENCE_DIR/tap-start-and-wait.yaml" <<EOF
 appId: $APP_ID
 ---
@@ -133,29 +133,13 @@ appId: $APP_ID
     element:
       id: "signer_status_card"
     timeout: 15000
-- runFlow:
-    when:
-      visible:
-        id: "btn_start_signer"
-    commands:
-      - tapOn:
-          id: "btn_start_signer"
-- runFlow:
-    when:
-      visible:
-        text: "Start"
-    commands:
-      - tapOn:
-          text: "Start"
-- runFlow:
-    when:
-      visible:
-        id: "btn_start_signer"
-    commands:
-      - tapOn:
-          point: 196,290
-- scrollUntilVisible:
-    element:
+- assertVisible:
+    id: "btn_start_signer"
+- tapOn:
+    id: "btn_start_signer"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
       text: "Sign Ready"
     timeout: 90000
 - assertVisible:
@@ -222,10 +206,10 @@ SIGN_READY_SEEN=0
 RUNNING_SEEN=0
 ONBOARD_ERROR_SEEN=0
 for f in "$EVIDENCE_DIR"/hierarchy-*.json; do
-  if grep -q '"text" *: *"Sign Ready"' "$f" 2>/dev/null; then
+  if grep -qE '"(text|accessibilityText)" *: *"Sign Ready"' "$f" 2>/dev/null; then
     SIGN_READY_SEEN=1
   fi
-  if grep -q '"text" *: *"Signer Running"' "$f" 2>/dev/null; then
+  if grep -qE '"(text|accessibilityText)" *: *"Signer Running"' "$f" 2>/dev/null; then
     RUNNING_SEEN=1
   fi
   if grep -q '"onboard_error"' "$f" 2>/dev/null; then
@@ -233,10 +217,10 @@ for f in "$EVIDENCE_DIR"/hierarchy-*.json; do
   fi
 done
 
-if [ "$SIGN_READY_SEEN" -eq 1 ] && [ "$RUNNING_SEEN" -eq 1 ]; then
+if [ "$MAESTRO_EXIT" -eq 0 ] && [ "$SIGN_READY_SEEN" -eq 1 ] && [ "$RUNNING_SEEN" -eq 1 ]; then
   echo "[RESULT $(date +%H:%M:%S)] SUCCESS: Signer Running + Sign Ready observed after btn_start_signer tap"
   FINAL_RC=0
-elif [ "$RUNNING_SEEN" -eq 1 ] && [ "$SIGN_READY_SEEN" -eq 0 ]; then
+elif [ "$MAESTRO_EXIT" -eq 0 ] && [ "$RUNNING_SEEN" -eq 1 ] && [ "$SIGN_READY_SEEN" -eq 0 ]; then
   echo "[RESULT $(date +%H:%M:%S)] PARTIAL: Signer Running reached but Sign Ready missing"
   FINAL_RC=2
 elif [ "$ONBOARD_ERROR_SEEN" -eq 1 ]; then

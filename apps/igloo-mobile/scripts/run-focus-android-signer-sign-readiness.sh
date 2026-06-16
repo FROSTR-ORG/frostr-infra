@@ -222,10 +222,17 @@ sleep 2
 snapshot "post-scroll-event-log"
 
 # 10. Maestro 04 — Assert Sign Ready visible in the 60 s envelope.
+# The previous adb scroll-down left the status header off-screen, so scroll
+# back up (direction: UP) until the Sign Ready text is visible before asserting.
 cat > "$FLOW_DIR/04-android-assert-sign-ready.yaml" <<EOF
 appId: $APP_ID
 name: 04 android assert Sign Ready within 60s of Start tap
 ---
+- scrollUntilVisible:
+    element:
+      text: "Sign Ready"
+    direction: UP
+    timeout: 15000
 - extendedWaitUntil:
     visible:
       text: "Sign Ready"
@@ -243,21 +250,38 @@ echo "[$(date +%H:%M:%S)] maestro 04 exit=${MAESTRO_04_EXIT} (0 means Sign Ready
 snapshot "post-sign-ready"
 
 # 11. Stop -> Start cycle rearm (VAL-SIGNER-016).
+# The signer console may be scrolled down from the previous peer/event-log
+# capture, so scroll back up to the top controls before each tap.
 cat > "$FLOW_DIR/05-android-stop-start-rearm.yaml" <<EOF
 appId: $APP_ID
 name: 05 android stop then start -> Sign Ready within second 60s
 ---
+- scrollUntilVisible:
+    element:
+      id: "btn_stop_signer"
+    direction: UP
+    timeout: 15000
 - tapOn:
     id: "btn_stop_signer"
 - extendedWaitUntil:
     visible:
       text: "Signer Stopped"
     timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: "btn_start_signer"
+    direction: UP
+    timeout: 15000
 - tapOn:
     id: "btn_start_signer"
 - extendedWaitUntil:
     visible:
       text: "Signer Running"
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      text: "Sign Ready"
+    direction: UP
     timeout: 15000
 - extendedWaitUntil:
     visible:

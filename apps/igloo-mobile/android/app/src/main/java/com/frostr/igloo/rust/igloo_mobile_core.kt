@@ -926,7 +926,7 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_listen_for_updates() != 64558.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_onboard() != 53874.toShort()) {
+    if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_onboard() != 63800.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_ping_peer() != 8388.toShort()) {

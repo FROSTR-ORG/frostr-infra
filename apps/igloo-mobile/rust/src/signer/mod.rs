@@ -140,7 +140,28 @@ impl VerifiedNostrSdkAdapter {
         }
         #[cfg(not(target_os = "android"))]
         {
-            (relay_count, relays)
+            // iOS Simulator / macOS: canonicalize `ws://localhost:*` to the
+            // IPv4 loopback. Docker-mapped demo relay is on 127.0.0.1, while
+            // resolving `localhost` on modern Apple stacks can yield ::1,
+            // leaving the signing path connected but unable to carry traffic.
+            let rewritten: Vec<String> = relays
+                .into_iter()
+                .map(|url| {
+                    if let Some(stripped) = url.strip_prefix("ws://localhost:") {
+                        let canonical = format!("ws://127.0.0.1:{}", stripped);
+                        info!(
+                            old_url = %url,
+                            new_url = %canonical,
+                            "VerifiedNostrSdkAdapter::for_signing: \
+                             localhost canonicalized to 127.0.0.1"
+                        );
+                        canonical
+                    } else {
+                        url
+                    }
+                })
+                .collect();
+            (relay_count, rewritten)
         }
     }
 }

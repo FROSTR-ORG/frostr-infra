@@ -1195,3 +1195,61 @@ fn signer_status_update_recovers_when_events_len_drops_then_advances_again() {
         "tracked count must follow the recovered advancement"
     );
 }
+
+// ── Concurrent start guard (mobile-signer-runtime-validation-followup) ─────
+//
+// A double Start tap (e.g., iOS Maestro fallback selectors) used to invoke
+// FfiApp::start_signer twice while the first bridge was still connecting.
+// The second call replaced the bridge and left the status cache stuck at
+// "restoring". The signer_starting atomic guard prevents a second call from
+// entering the long build path while the first is in progress.
+
+#[test]
+#[ignore = "requires live demo relay on 127.0.0.1:8194; run via cargo test -- --ignored"]
+fn concurrent_start_signer_rejected_while_first_runtime_starts() {
+    use std::sync::Arc;
+    use std::thread;
+
+    let material = demo_material();
+    let app = Arc::new(igloo_mobile_core::FfiApp::new(
+        std::env::temp_dir().to_string_lossy().to_string(),
+    ));
+
+    // Precondition: the demo relay is reachable.
+    let relay_addr = std::net::SocketAddr::from(([127, 0, 0, 1], 8194));
+    let reachable =
+        std::net::TcpStream::connect_timeout(&relay_addr, std::time::Duration::from_secs(2))
+            .is_ok();
+    assert!(
+        reachable,
+        "demo relay on 127.0.0.1:8194 must be reachable for this live test"
+    );
+
+    let material_json = serde_json::to_string(&material).expect("serialize demo material");
+    let app1 = app.clone();
+    let app2 = app.clone();
+    let json1 = material_json.clone();
+    let json2 = material_json;
+
+    let handle1 = thread::spawn(move || app1.start_signer(json1));
+
+    // Allow the first thread to acquire the starting guard before the second
+    // call. The first call takes several seconds (tokio runtime + adapter
+    // settle windows), so this short yield is enough for the guard to be held.
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
+    let result2 = app2.start_signer(json2);
+
+    let result1 = handle1
+        .join()
+        .expect("first start_signer thread must not panic");
+
+    assert!(
+        result1,
+        "first start_signer call must succeed against the live relay"
+    );
+    assert!(
+        !result2,
+        "second concurrent start_signer call must be rejected by the guard"
+    );
+}

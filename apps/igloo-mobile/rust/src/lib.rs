@@ -667,6 +667,11 @@ pub struct FfiApp {
     // reachable within the 60 s envelope of VAL-SIGNER-004 instead of
     // waiting for an explicit user-driven Test Ping tap.
     signer_autoping_done: Arc<Mutex<bool>>,
+    // Guards against concurrent start_signer invocations. A double Start tap
+    // (e.g., iOS Maestro fallback selectors) would otherwise replace the bridge
+    // while the first runtime is still connecting, leaving the status cache
+    // stuck at "restoring" after a successful autoping round.
+    signer_starting: AtomicBool,
 }
 
 #[uniffi::export]
@@ -731,6 +736,7 @@ impl FfiApp {
             active_profile_material: Arc::new(Mutex::new(None)),
             signer_seed_peers: Arc::new(Mutex::new(Vec::new())),
             signer_autoping_done: Arc::new(Mutex::new(false)),
+            signer_starting: AtomicBool::new(false),
         });
         register_active_ffi_app(app.clone());
         app
@@ -818,6 +824,31 @@ impl FfiApp {
         } else {
             tracing::warn!("start_signer material_json did not decode as OnboardProfileMaterial");
         }
+
+        // Guard against concurrent start_signer calls. A double Start tap
+        // (e.g., iOS Maestro fallback selectors) would otherwise replace the
+        // bridge while the first runtime is still connecting, leaving the status
+        // cache stuck at "restoring" after a successful autoping round.
+        //
+        // Set the flag first, then check the running cache. If already running,
+        // the guard clears the flag on the early return so the next legitimate
+        // stop/start cycle is not blocked.
+        if self.signer_starting.swap(true, Ordering::SeqCst) {
+            tracing::warn!("start_signer rejected: already starting");
+            return false;
+        }
+        struct StartingGuard<'a> {
+            flag: &'a AtomicBool,
+        }
+        impl<'a> Drop for StartingGuard<'a> {
+            fn drop(&mut self) {
+                self.flag.store(false, Ordering::SeqCst);
+            }
+        }
+        let _starting_guard = StartingGuard {
+            flag: &self.signer_starting,
+        };
+
         // Check if signer is already running.
         {
             let cache = self.signer_status_cache.lock().unwrap();
@@ -1550,7 +1581,7 @@ impl FfiApp {
     /// - "wrong_password": package password incorrect
     /// - "relay_unreachable": relay connection timed out
     /// - "provisioner_offline": provisioner did not respond
-    pub fn onboard(&self, package: String, password: String, _relay_url: String) -> OnboardResult {
+    pub fn onboard(&self, package: String, password: String, relay_url: String) -> OnboardResult {
         // ── Step 1: Local package decode and validation ──────────────────
         // VAL-ONBOARD-003: malformed/truncated/wrong-type package rejected at decode.
         // VAL-ONBOARD-004: wrong password fails decryption and is recoverable.
@@ -1610,7 +1641,15 @@ impl FfiApp {
         // from the profile metadata. Use a default that the user can edit on
         // the review screen (VAL-ONBOARD-010).
         let device_name = "Onboarded Device".to_string();
-        let relays = decoded.relays.clone();
+        // Honor the caller-supplied relay URL (e.g., the platform-correct URL
+        // from the shell's relay input) so stored profiles do not keep the
+        // package-embedded `ws://localhost:*` alias that fails on iOS Simulator.
+        let relay_input = relay_url.trim();
+        let relays = if relay_input.is_empty() {
+            decoded.relays.clone()
+        } else {
+            vec![relay_input.to_string()]
+        };
 
         // Convert share_secret from hex to bytes.
         let share_secret_bytes = match hex_to_bytes(&decoded.share_secret) {
