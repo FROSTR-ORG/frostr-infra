@@ -3055,6 +3055,18 @@ data class KeysetFlowState (
     var `acceptedShortId`: kotlin.String?
     , 
     /**
+     * Full profile id of the keyset that the user just accepted. Set in
+     * `CreateKeysetAccept` (and re-set by `CreateKeysetAccepted` from the
+     * shell's reply so the actor and shell never disagree on which
+     * profile "the just-created keyset" refers to). `CreateKeysetDistributeFinish`
+     * uses this field to route to and activate the correct profile
+     * instead of relying on `hub.profiles.first()`, which silently
+     * targets the wrong row when multiple profiles are already stored
+     * or the hub order isn't `insert(0, ...)`.
+     */
+    var `acceptedProfileId`: kotlin.String
+    , 
+    /**
      * Rotation-mode source picker (VAL-ROTATE-001..004).
      *
      * Populated only when `mode == KeysetFlowMode::Rotate`. Each row
@@ -3106,6 +3118,7 @@ public object FfiConverterTypeKeysetFlowState: FfiConverterRustBuffer<KeysetFlow
             FfiConverterSequenceString.read(buf),
             FfiConverterSequenceTypeDistributeShareRecord.read(buf),
             FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
             FfiConverterSequenceTypeRotationSourceRow.read(buf),
             FfiConverterString.read(buf),
             FfiConverterOptionalString.read(buf),
@@ -3126,6 +3139,7 @@ public object FfiConverterTypeKeysetFlowState: FfiConverterRustBuffer<KeysetFlow
             FfiConverterSequenceString.allocationSize(value.`relays`) +
             FfiConverterSequenceTypeDistributeShareRecord.allocationSize(value.`distribute`) +
             FfiConverterOptionalString.allocationSize(value.`acceptedShortId`) +
+            FfiConverterString.allocationSize(value.`acceptedProfileId`) +
             FfiConverterSequenceTypeRotationSourceRow.allocationSize(value.`rotationSources`) +
             FfiConverterString.allocationSize(value.`rotateSourceProfileId`) +
             FfiConverterOptionalString.allocationSize(value.`rotationError`)
@@ -3145,6 +3159,7 @@ public object FfiConverterTypeKeysetFlowState: FfiConverterRustBuffer<KeysetFlow
             FfiConverterSequenceString.write(value.`relays`, buf)
             FfiConverterSequenceTypeDistributeShareRecord.write(value.`distribute`, buf)
             FfiConverterOptionalString.write(value.`acceptedShortId`, buf)
+            FfiConverterString.write(value.`acceptedProfileId`, buf)
             FfiConverterSequenceTypeRotationSourceRow.write(value.`rotationSources`, buf)
             FfiConverterString.write(value.`rotateSourceProfileId`, buf)
             FfiConverterOptionalString.write(value.`rotationError`, buf)

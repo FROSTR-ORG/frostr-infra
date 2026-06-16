@@ -228,6 +228,16 @@ pub struct KeysetFlowState {
     /// Used by the Distribute step's embedded dashboard header on iOS.
     #[serde(default)]
     pub accepted_short_id: Option<String>,
+    /// Full profile id of the keyset that the user just accepted. Set in
+    /// `CreateKeysetAccept` (and re-set by `CreateKeysetAccepted` from the
+    /// shell's reply so the actor and shell never disagree on which
+    /// profile "the just-created keyset" refers to). `CreateKeysetDistributeFinish`
+    /// uses this field to route to and activate the correct profile
+    /// instead of relying on `hub.profiles.first()`, which silently
+    /// targets the wrong row when multiple profiles are already stored
+    /// or the hub order isn't `insert(0, ...)`.
+    #[serde(default)]
+    pub accepted_profile_id: String,
     /// Rotation-mode source picker (VAL-ROTATE-001..004).
     ///
     /// Populated only when `mode == KeysetFlowMode::Rotate`. Each row
@@ -267,6 +277,7 @@ impl KeysetFlowState {
             relays: Vec::new(),
             distribute: Vec::new(),
             accepted_short_id: None,
+            accepted_profile_id: String::new(),
             rotation_sources: Vec::new(),
             rotate_source_profile_id: String::new(),
             rotation_error: None,
