@@ -1,0 +1,19 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running tests/cross_platform_keyset_interop.rs (/Users/plebdev/Desktop/Projects/frostr-infra/apps/igloo-mobile/target/debug/deps/cross_platform_keyset_interop-9dbe87f4c3e0f2ce)
+
+running 9 tests
+test android_created_bfonboard_decodes_on_ios_path_with_same_group_pubkey ... ok
+test bfonboard1_round_trips_across_rust_paths_with_identical_group_identity ... ok
+test bfonboard_decode_rejects_wrong_password_on_cross_platform_path ... ok
+test ios_created_bfonboard_decodes_on_android_path_with_same_group_pubkey ... ok
+test pre_rotation_shares_do_not_verify_against_rotated_group_and_rotated_shares_do ... ok
+test rotated_bfonboard_decodes_through_share_relay_path ... ok
+test rotated_bfonboard_round_trips_and_verifies_against_rotated_group ... ok
+test rotated_threshold_sign_surface_preserves_group_and_share_verification ... ok
+test rotation_preserves_group_pubkey_and_replaces_every_share_pubkey ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 74.98s
+

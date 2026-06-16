@@ -1,0 +1,40 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling igloo-mobile-core v0.1.0 (/Users/plebdev/Desktop/Projects/frostr-infra/apps/igloo-mobile/rust)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
+     Running tests/rotate_share_flow.rs (/Users/plebdev/Desktop/Projects/frostr-infra/apps/igloo-mobile/target/debug/deps/rotate_share_flow-715dd438b1808b30)
+
+running 28 tests
+test keyset_add_rotation_source_row_appends_blank_row ... ok
+test rotate_share_handshake_failure_malformed_package_maps_to_typed_error ... ok
+test keyset_select_rotate_resets_to_idle_and_clears_inputs ... ok
+test rotate_share_connect_with_empty_password_surfaces_malformed ... ok
+test navigate_back_from_rotate_share_returns_to_dashboard ... ok
+test keyset_rotation_sources_only_populated_in_rotate_mode ... ok
+test keyset_set_rotation_source_profile_records_picker_value ... ok
+test rotate_share_connect_emits_perform_handshake_for_valid_inputs ... ok
+test empty_rotation_source_row_blocks_generation ... ok
+test open_rotate_share_connect_seeds_active_profile_identity ... ok
+test rotate_share_clear_error_returns_to_idle ... ok
+test rotate_share_connect_with_empty_package_surfaces_malformed ... ok
+test keyset_remove_rotation_source_row_drops_row ... ok
+test navigate_to_rotate_share_surfaces_rotate_share_screen ... ok
+test rotate_share_handshake_failure_provisioner_offline_maps_to_typed_error ... ok
+test keyset_remove_rotation_source_row_ignores_out_of_range_index ... ok
+test at_threshold_rotation_sources_pass_validation ... ok
+test rotate_share_connect_can_be_dispatched_twice_with_corrected_input ... ok
+test rotate_share_handshake_failure_relay_unreachable_maps_to_typed_error ... ok
+test rotate_share_handshake_failure_wrong_password_maps_to_typed_error ... ok
+test rotate_share_handshake_success_with_different_group_surfaces_group_mismatch ... ok
+test rotate_share_handshake_success_with_same_profile_id_surfaces_same_profile ... ok
+test rotate_share_handshake_success_with_new_share_lands_on_preview ... ok
+test rotate_share_replace_without_preview_is_a_no_op ... ok
+test rotate_share_state_initial_is_idle ... ok
+test rotate_share_reset_returns_to_dashboard_with_hub_intact ... ok
+test under_threshold_rotation_sources_fail_validation ... ok
+test rotate_share_replace_emits_swap_side_effect_and_routes_dashboard ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
