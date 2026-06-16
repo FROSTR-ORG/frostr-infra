@@ -21,3 +21,7 @@ android/local.properties
 # Mobile worker hygiene: do not leave untracked run noise in the worktree.
 .maestro/
 
+# Evidence directories contain generated test artifacts (screenshots, hierarchy
+# dumps, extracted identities) that are regenerated per validation run.
+library/evidence/
+
