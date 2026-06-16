@@ -269,6 +269,8 @@ export class RecoverPage extends BasePage {
   }
 }
 
+export type DashboardBannerKind = 'signing-blocked' | 'all-relays-offline' | 'signing-failed';
+
 export class DashboardPage extends BasePage {
   async expectDashboard(profileLabel?: string): Promise<void> {
     await expect(this.tid(TID.dashboardRoot)).toBeVisible();
@@ -285,6 +287,19 @@ export class DashboardPage extends BasePage {
           ? TID.dashboardTabPermissions
           : TID.dashboardTabSettings;
     await this.tid(id).click();
+  }
+  // Dashboard condition banners (`DashboardConditionBanner`) render with a
+  // `dashboard-banner-<kind>` test id built from the runtime condition. The id is
+  // composed dynamically, so it isn't a static TID-registry entry; the locator lives
+  // here in the page object (specs route through these helpers).
+  conditionBanner(kind: DashboardBannerKind): Locator {
+    return this.page.getByTestId(`dashboard-banner-${kind}`);
+  }
+  async expectConditionBanner(kind: DashboardBannerKind, opts?: { timeout?: number }): Promise<void> {
+    await expect(this.conditionBanner(kind)).toBeVisible({ timeout: opts?.timeout });
+  }
+  async expectNoConditionBanner(kind: DashboardBannerKind): Promise<void> {
+    await expect(this.conditionBanner(kind)).toHaveCount(0);
   }
   get autoOpenToggle(): Locator {
     return this.tid(TID.settingsAutoOpenToggle);

@@ -220,15 +220,12 @@ Group by area. When an item is finished, move a one-line summary to
   `std::thread::scope`; `request_id` read from `pending_approvals` (no new CLI — the
   optional `runtime approvals` list was skipped to keep the cut tight). Surfaced
   2026-06-14.
-- [ ] (effort: S) **Pre-existing selectors-guard violation in `dashboard-states.spec.ts`.**
-  `npm --prefix test run test:guards` (the `test:guards:selectors` lane) is red:
-  `dashboard-states.spec.ts` calls `page.getByTestId(...)` directly at three sites
-  (the `dashboard-banner-signing-blocked` / `dashboard-banner-all-relays-offline`
-  assertions, ~lines 90/104/107) instead of routing through `support/pages` page
-  objects. Latent since the 2026-06-15 dashboard-states sweep (the full guards lane
-  wasn't re-run after). Add the banner assertions as `DashboardPage` methods and
-  route the spec through them. Not introduced by the 2026-06-16 batch · surfaced
-  2026-06-16.
+- [x] (effort: S) **DONE (2026-06-16).** Pre-existing selectors-guard violation in
+  `dashboard-states.spec.ts` (it called `page.getByTestId(...)` directly at three
+  banner-assertion sites). Added `DashboardPage.conditionBanner` /
+  `expectConditionBanner` / `expectNoConditionBanner` (over the dynamic
+  `dashboard-banner-<kind>` id) and routed the spec through them. Full
+  `npm --prefix test run test:guards` is green again; the `@live` spec still passes.
   hardcodes `/usr/bin`/`/snap` chromium paths and the desktop lane needs `xvfb-run` +
   ImageMagick `identify` + X11 `xwininfo`, so neither runs on macOS (homebrew chromium at
   `/opt/homebrew/bin`, no ImageMagick). Probe the homebrew path and degrade gracefully when

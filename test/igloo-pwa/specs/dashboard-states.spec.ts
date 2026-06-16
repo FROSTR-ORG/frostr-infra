@@ -87,9 +87,7 @@ test.describe('igloo-pwa dashboard condition banners @live', () => {
       await p.dashboard.expectPeerPolicyOverride(SIGN_REQUEST, 'deny');
 
       await p.dashboard.openTab('signer');
-      await expect(page.getByTestId('dashboard-banner-signing-blocked')).toBeVisible({
-        timeout: 15_000,
-      });
+      await p.dashboard.expectConditionBanner('signing-blocked', { timeout: 15_000 });
 
       // Stop the co-signer cleanly while the relay is still up — a `daemon stop`
       // against a dead relay can hang.
@@ -101,10 +99,8 @@ test.describe('igloo-pwa dashboard condition banners @live', () => {
       // flips (all-relays-offline supersedes signing-blocked).
       await relay.close();
       relayClosed = true;
-      await expect(page.getByTestId('dashboard-banner-all-relays-offline')).toBeVisible({
-        timeout: 45_000,
-      });
-      await expect(page.getByTestId('dashboard-banner-signing-blocked')).toHaveCount(0);
+      await p.dashboard.expectConditionBanner('all-relays-offline', { timeout: 45_000 });
+      await p.dashboard.expectNoConditionBanner('signing-blocked');
     } finally {
       await shell?.close();
       // The test closes the relay during the all-relays-offline step. Don't
