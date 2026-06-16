@@ -378,12 +378,19 @@ pub enum AppAction {
     /// Live handshake completed; resolution shares the active group's
     /// pubkey but yields a fresh share pubkey + profile id
     /// (VAL-ROTATE-006, VAL-ROTATE-011).
+    ///
+    /// `share_seckey_hex` is the rotated share's 32-byte hex secret
+    /// extracted from the FFI handshake result's `material` blob. The
+    /// shell forwards the secret verbatim so the actor can build a fully
+    /// usable `OnboardProfileMaterial` for the secure-storage swap; the
+    /// shell must never render, log, or persist it on its own.
     RotateShareHandshakeSuccess {
         device_name: String,
         share_pubkey: String,
         group_pubkey: String,
         relays: Vec<String>,
         profile_id: String,
+        share_seckey_hex: String,
     },
     /// Live handshake failed — the actor maps the shell's error_kind
     /// string into a typed `RotateShareError` and stays on the connect

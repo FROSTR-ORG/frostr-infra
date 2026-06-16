@@ -682,6 +682,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Short
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_ping_peer(
     ): Short
+    external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_publish_backup(
+    ): Short
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_recover_profile(
     ): Short
     external fun uniffi_igloo_mobile_core_checksum_method_ffiapp_rotate_keyset(
@@ -753,6 +755,8 @@ external fun uniffi_igloo_mobile_core_fn_method_ffiapp_onboard(`ptr`: Long,`pack
 ): RustBuffer.ByValue
 external fun uniffi_igloo_mobile_core_fn_method_ffiapp_ping_peer(`ptr`: Long,`peerAlias`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): Byte
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_publish_backup(`ptr`: Long,`source`: RustBuffer.ByValue,`materialJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
 external fun uniffi_igloo_mobile_core_fn_method_ffiapp_recover_profile(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun uniffi_igloo_mobile_core_fn_method_ffiapp_rotate_keyset(`ptr`: Long,`groupJson`: RustBuffer.ByValue,`threshold`: Short,`count`: Short,`shareSecretsHex`: RustBuffer.ByValue,`sharePubkeysHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -926,6 +930,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_ping_peer() != 8388.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_publish_backup() != 28588.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_recover_profile() != 34514.toShort()) {
@@ -1562,6 +1569,31 @@ public interface FfiAppInterface {
      */
     fun `pingPeer`(`peerAlias`: kotlin.String): kotlin.Boolean
     
+    /**
+     * Publish a kind-10000 encrypted profile backup to every relay
+     * embedded in the freshly materialized profile. Returns a
+     * `BackupPublishResult` describing which relays accepted the event
+     * and the published event's metadata.
+     *
+     * `material_json` is the serialized `OnboardProfileMaterial` JSON
+     * the shell stored under the profile id. The material carries the
+     * share secret, the full group + member list, the relay list, and
+     * the device name needed to build the canonical `BfProfilePayload`
+     * that `frostr_utils::create_encrypted_profile_backup` /
+     * `frostr-utils::build_profile_backup_event` consume.
+     *
+     * `source` is `"create" | "onboard" | "rotate" | "import" |
+     * "recover"` — passed through so validators can correlate which
+     * materialization produced a given event.
+     *
+     * VAL-BACKUP-001 / VAL-BACKUP-002 / VAL-BACKUP-004 / VAL-BACKUP-006:
+     * the actor invokes this after each storage confirmation. The
+     * publish work happens on a dedicated Tokio runtime spawned by the
+     * call so the actor's update loop is never blocked on a relay
+     * round-trip.
+     */
+    fun `publishBackup`(`source`: kotlin.String, `materialJson`: kotlin.String): BackupPublishResult
+    
     fun `recoverProfile`(`package`: kotlin.String, `password`: kotlin.String): OnboardResult
     
     /**
@@ -2001,6 +2033,42 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     
 
+    
+    /**
+     * Publish a kind-10000 encrypted profile backup to every relay
+     * embedded in the freshly materialized profile. Returns a
+     * `BackupPublishResult` describing which relays accepted the event
+     * and the published event's metadata.
+     *
+     * `material_json` is the serialized `OnboardProfileMaterial` JSON
+     * the shell stored under the profile id. The material carries the
+     * share secret, the full group + member list, the relay list, and
+     * the device name needed to build the canonical `BfProfilePayload`
+     * that `frostr_utils::create_encrypted_profile_backup` /
+     * `frostr-utils::build_profile_backup_event` consume.
+     *
+     * `source` is `"create" | "onboard" | "rotate" | "import" |
+     * "recover"` — passed through so validators can correlate which
+     * materialization produced a given event.
+     *
+     * VAL-BACKUP-001 / VAL-BACKUP-002 / VAL-BACKUP-004 / VAL-BACKUP-006:
+     * the actor invokes this after each storage confirmation. The
+     * publish work happens on a dedicated Tokio runtime spawned by the
+     * call so the actor's update loop is never blocked on a relay
+     * round-trip.
+     */override fun `publishBackup`(`source`: kotlin.String, `materialJson`: kotlin.String): BackupPublishResult {
+            return FfiConverterTypeBackupPublishResult.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_igloo_mobile_core_fn_method_ffiapp_publish_backup(
+        it,
+        FfiConverterString.lower(`source`),FfiConverterString.lower(`materialJson`),_status)
+}
+    }
+    )
+    }
+    
+
     override fun `recoverProfile`(`package`: kotlin.String, `password`: kotlin.String): OnboardResult {
             return FfiConverterTypeOnboardResult.lift(
     callWithHandle {
@@ -2314,6 +2382,264 @@ public object FfiConverterTypeAppState: FfiConverterRustBuffer<AppState> {
 
 
 /**
+ * Outcome of publishing a kind-10000 encrypted profile backup to the
+ * configured Nostr relays (VAL-BACKUP-001..006).
+ *
+ * `content_redacted` is the first `min(content_len, 24)` chars of the
+ * NIP-44 ciphertext plus the byte length so validators and tests can
+ * confirm the event content is opaque base64 without ever logging the
+ * full ciphertext or any plaintext secret. The `content` field on the
+ * event itself is NIP-44 content, not plaintext JSON, and must not
+ * contain the device name, share secret hex, or relay URL in
+ * cleartext (VAL-BACKUP-003).
+ */
+data class BackupPublishResult (
+    var `success`: kotlin.Boolean
+    , 
+    /**
+     * "create" | "onboard" | "rotate" | "import" | "recover" — passed
+     * back from the actor's `AppUpdate::PublishProfileBackup` so the
+     * shell can correlate which path produced this event.
+     */
+    var `source`: kotlin.String
+    , 
+    /**
+     * Hex-encoded Nostr event id once the relay confirmed receipt.
+     * `None` if the publish did not reach any relay or if the parsed
+     * event never landed on a watched relay.
+     */
+    var `eventId`: kotlin.String?
+    , 
+    /**
+     * Hex-encoded Nostr pubkey of the event author (derived from the
+     * profile's share secret). This is the same value as the share
+     * pubkey and the only stable filter for the relay-side proof in
+     * VAL-BACKUP-001/002/004/006.
+     */
+    var `authorPubkey`: kotlin.String?
+    , 
+    /**
+     * Number of bytes inside the encrypted `content` field.
+     */
+    var `contentLength`: kotlin.UInt
+    , 
+    /**
+     * First 24 chars (truncated form) of the encrypted NIP-44
+     * `content` plus the total length; never the raw ciphertext.
+     */
+    var `contentRedacted`: kotlin.String
+    , 
+    /**
+     * Group public key the backup was published for (`None` if the
+     * material lacked a valid group pubkey).
+     */
+    var `groupPubkey`: kotlin.String?
+    , 
+    /**
+     * Concatenated list of relay URLs the publish tried.
+     */
+    var `relaysAttempted`: List<kotlin.String>
+    , 
+    /**
+     * Subset of `relays_attempted` whose `["OK", true, …]` ack we
+     * observed before the relay closed or timed out. Empty when the
+     * publish failed at every relay.
+     */
+    var `relaysPublishedTo`: List<kotlin.String>
+    , 
+    /**
+     * Error string when `success == false`. Distinct from the OK
+     * streams above so a partial publish (one relay OK, two failed)
+     * can still be surfaced with the failed relay URLs.
+     */
+    var `error`: kotlin.String?
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeBackupPublishResult: FfiConverterRustBuffer<BackupPublishResult> {
+    override fun read(buf: ByteBuffer): BackupPublishResult {
+        return BackupPublishResult(
+            FfiConverterBoolean.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterUInt.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterOptionalString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: BackupPublishResult) = (
+            FfiConverterBoolean.allocationSize(value.`success`) +
+            FfiConverterString.allocationSize(value.`source`) +
+            FfiConverterOptionalString.allocationSize(value.`eventId`) +
+            FfiConverterOptionalString.allocationSize(value.`authorPubkey`) +
+            FfiConverterUInt.allocationSize(value.`contentLength`) +
+            FfiConverterString.allocationSize(value.`contentRedacted`) +
+            FfiConverterOptionalString.allocationSize(value.`groupPubkey`) +
+            FfiConverterSequenceString.allocationSize(value.`relaysAttempted`) +
+            FfiConverterSequenceString.allocationSize(value.`relaysPublishedTo`) +
+            FfiConverterOptionalString.allocationSize(value.`error`)
+    )
+
+    override fun write(value: BackupPublishResult, buf: ByteBuffer) {
+            FfiConverterBoolean.write(value.`success`, buf)
+            FfiConverterString.write(value.`source`, buf)
+            FfiConverterOptionalString.write(value.`eventId`, buf)
+            FfiConverterOptionalString.write(value.`authorPubkey`, buf)
+            FfiConverterUInt.write(value.`contentLength`, buf)
+            FfiConverterString.write(value.`contentRedacted`, buf)
+            FfiConverterOptionalString.write(value.`groupPubkey`, buf)
+            FfiConverterSequenceString.write(value.`relaysAttempted`, buf)
+            FfiConverterSequenceString.write(value.`relaysPublishedTo`, buf)
+            FfiConverterOptionalString.write(value.`error`, buf)
+    }
+}
+
+
+
+/**
+ * One kind-10000 backup publish result recorded by the actor. Used as
+ * shell-facing proof of the materialization side-effect so validators
+ * can correlate the last publish with a hub row / materialization and
+ * confirm the relay author filter holds. Production shells clear or
+ * roll this slot as they re-import the same profile; tests inspect it
+ * for the relay-side filtered proof in
+ * `apps/igloo-mobile/library/evidence/mobile-relay-backup-publication-and-recovery-roundtrip/`.
+ */
+data class BackupPublishStatus (
+    /**
+     * Materialization path that produced this event
+     * ("create" | "onboard" | "rotate" | "import" | "recover").
+     */
+    var `source`: kotlin.String
+    , 
+    /**
+     * Whether the publish hit at least one relay.
+     */
+    var `success`: kotlin.Boolean
+    , 
+    /**
+     * Hex-encoded Nostr event id when `success` is true.
+     */
+    var `eventId`: kotlin.String?
+    , 
+    /**
+     * Hex-encoded Nostr author pubkey (derivative of the share secret,
+     * the canonical relay-side filter for VAL-BACKUP-001/002/004/006).
+     */
+    var `authorPubkey`: kotlin.String?
+    , 
+    /**
+     * Number of bytes inside the encrypted `content` field.
+     */
+    var `contentLength`: kotlin.UInt
+    , 
+    /**
+     * Truncated prefix + length of the encrypted `content` field —
+     * never the raw ciphertext.
+     */
+    var `contentRedacted`: kotlin.String
+    , 
+    /**
+     * Group public key the backup was published for.
+     */
+    var `groupPubkey`: kotlin.String?
+    , 
+    /**
+     * Concatenated list of relay URLs the publish tried.
+     */
+    var `relaysAttempted`: List<kotlin.String>
+    , 
+    /**
+     * Subset whose `["OK", …]` acks we observed.
+     */
+    var `relaysPublishedTo`: List<kotlin.String>
+    , 
+    /**
+     * Error string when `success` is false.
+     */
+    var `error`: kotlin.String?
+    , 
+    /**
+     * Unix timestamp the actor recorded this status at.
+     */
+    var `recordedAtSecs`: kotlin.Long
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeBackupPublishStatus: FfiConverterRustBuffer<BackupPublishStatus> {
+    override fun read(buf: ByteBuffer): BackupPublishStatus {
+        return BackupPublishStatus(
+            FfiConverterString.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterUInt.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterLong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: BackupPublishStatus) = (
+            FfiConverterString.allocationSize(value.`source`) +
+            FfiConverterBoolean.allocationSize(value.`success`) +
+            FfiConverterOptionalString.allocationSize(value.`eventId`) +
+            FfiConverterOptionalString.allocationSize(value.`authorPubkey`) +
+            FfiConverterUInt.allocationSize(value.`contentLength`) +
+            FfiConverterString.allocationSize(value.`contentRedacted`) +
+            FfiConverterOptionalString.allocationSize(value.`groupPubkey`) +
+            FfiConverterSequenceString.allocationSize(value.`relaysAttempted`) +
+            FfiConverterSequenceString.allocationSize(value.`relaysPublishedTo`) +
+            FfiConverterOptionalString.allocationSize(value.`error`) +
+            FfiConverterLong.allocationSize(value.`recordedAtSecs`)
+    )
+
+    override fun write(value: BackupPublishStatus, buf: ByteBuffer) {
+            FfiConverterString.write(value.`source`, buf)
+            FfiConverterBoolean.write(value.`success`, buf)
+            FfiConverterOptionalString.write(value.`eventId`, buf)
+            FfiConverterOptionalString.write(value.`authorPubkey`, buf)
+            FfiConverterUInt.write(value.`contentLength`, buf)
+            FfiConverterString.write(value.`contentRedacted`, buf)
+            FfiConverterOptionalString.write(value.`groupPubkey`, buf)
+            FfiConverterSequenceString.write(value.`relaysAttempted`, buf)
+            FfiConverterSequenceString.write(value.`relaysPublishedTo`, buf)
+            FfiConverterOptionalString.write(value.`error`, buf)
+            FfiConverterLong.write(value.`recordedAtSecs`, buf)
+    }
+}
+
+
+
+/**
  * Dashboard state: active tab, signer runtime, permissions, settings, and profile identity.
  * Displayed when the user opens a stored profile from the hub.
  */
@@ -2342,6 +2668,13 @@ data class DashboardState (
      * Identity block data for the active profile.
      */
     var `profileInfo`: ProfileInfo?
+    , 
+    /**
+     * Latest recorded kind-10000 backup publish result for this
+     * profile (VAL-BACKUP-001..006). `None` until the shell forwards
+     * `BackupPublishCompleted`. Replaced on every subsequent publish.
+     */
+    var `lastBackupPublish`: BackupPublishStatus?
     
 ){
     
@@ -2363,6 +2696,7 @@ public object FfiConverterTypeDashboardState: FfiConverterRustBuffer<DashboardSt
             FfiConverterTypePermissionsState.read(buf),
             FfiConverterTypeSettingsState.read(buf),
             FfiConverterOptionalTypeProfileInfo.read(buf),
+            FfiConverterOptionalTypeBackupPublishStatus.read(buf),
         )
     }
 
@@ -2371,7 +2705,8 @@ public object FfiConverterTypeDashboardState: FfiConverterRustBuffer<DashboardSt
             FfiConverterTypeSignerRuntimeState.allocationSize(value.`signer`) +
             FfiConverterTypePermissionsState.allocationSize(value.`permissions`) +
             FfiConverterTypeSettingsState.allocationSize(value.`settings`) +
-            FfiConverterOptionalTypeProfileInfo.allocationSize(value.`profileInfo`)
+            FfiConverterOptionalTypeProfileInfo.allocationSize(value.`profileInfo`) +
+            FfiConverterOptionalTypeBackupPublishStatus.allocationSize(value.`lastBackupPublish`)
     )
 
     override fun write(value: DashboardState, buf: ByteBuffer) {
@@ -2380,6 +2715,7 @@ public object FfiConverterTypeDashboardState: FfiConverterRustBuffer<DashboardSt
             FfiConverterTypePermissionsState.write(value.`permissions`, buf)
             FfiConverterTypeSettingsState.write(value.`settings`, buf)
             FfiConverterOptionalTypeProfileInfo.write(value.`profileInfo`, buf)
+            FfiConverterOptionalTypeBackupPublishStatus.write(value.`lastBackupPublish`, buf)
     }
 }
 
@@ -3864,6 +4200,18 @@ data class RotatePreviewIdentity (
      * from the rotated package so round-tripping is lossless).
      */
     var `relays`: List<kotlin.String>
+    , 
+    /**
+     * 64-char lowercase-hex share secret of the rotated share.
+     * Carried through from the live handshake so the actor can build
+     * a fully usable material blob for the secure-storage swap
+     * (`build_rotated_material_bytes`); the shell must never render
+     * this field and must leave it untouched when forwarding the
+     * preview back into a confirm-replace dispatch. Stored only on the
+     * in-memory preview; cleared by `RotateShareReset` and after each
+     * replace so secret lifetime matches the rotate flow.
+     */
+    var `shareSeckeyHex`: kotlin.String
     
 ){
     
@@ -3885,6 +4233,7 @@ public object FfiConverterTypeRotatePreviewIdentity: FfiConverterRustBuffer<Rota
             FfiConverterString.read(buf),
             FfiConverterString.read(buf),
             FfiConverterSequenceString.read(buf),
+            FfiConverterString.read(buf),
         )
     }
 
@@ -3893,7 +4242,8 @@ public object FfiConverterTypeRotatePreviewIdentity: FfiConverterRustBuffer<Rota
             FfiConverterString.allocationSize(value.`sharePubkey`) +
             FfiConverterString.allocationSize(value.`groupPubkey`) +
             FfiConverterString.allocationSize(value.`profileId`) +
-            FfiConverterSequenceString.allocationSize(value.`relays`)
+            FfiConverterSequenceString.allocationSize(value.`relays`) +
+            FfiConverterString.allocationSize(value.`shareSeckeyHex`)
     )
 
     override fun write(value: RotatePreviewIdentity, buf: ByteBuffer) {
@@ -3902,6 +4252,7 @@ public object FfiConverterTypeRotatePreviewIdentity: FfiConverterRustBuffer<Rota
             FfiConverterString.write(value.`groupPubkey`, buf)
             FfiConverterString.write(value.`profileId`, buf)
             FfiConverterSequenceString.write(value.`relays`, buf)
+            FfiConverterString.write(value.`shareSeckeyHex`, buf)
     }
 }
 
@@ -5620,13 +5971,20 @@ sealed class AppAction {
      * Live handshake completed; resolution shares the active group's
      * pubkey but yields a fresh share pubkey + profile id
      * (VAL-ROTATE-006, VAL-ROTATE-011).
+     *
+     * `share_seckey_hex` is the rotated share's 32-byte hex secret
+     * extracted from the FFI handshake result's `material` blob. The
+     * shell forwards the secret verbatim so the actor can build a fully
+     * usable `OnboardProfileMaterial` for the secure-storage swap; the
+     * shell must never render, log, or persist it on its own.
      */
     data class RotateShareHandshakeSuccess(
         val `deviceName`: kotlin.String, 
         val `sharePubkey`: kotlin.String, 
         val `groupPubkey`: kotlin.String, 
         val `relays`: List<kotlin.String>, 
-        val `profileId`: kotlin.String) : AppAction()
+        val `profileId`: kotlin.String, 
+        val `shareSeckeyHex`: kotlin.String) : AppAction()
         
     {
         
@@ -5734,6 +6092,34 @@ sealed class AppAction {
     
     object ClearExportState : AppAction()
     
+    
+    /**
+     * Shell forwarded the result of `FfiApp::publish_backup`. Each
+     * materialization path (create / onboard / rotate / import /
+     * recover) fires this after the publish settles so the actor can
+     * surface the relay-side proof in state and tests/validators can
+     * correlate events. The actor keeps the latest record attached to
+     * `AppState::signer_recent_backup` (or a future dedicated slot)
+     * but every retry of a materialization path bumps the rev guard
+     * on the snapshot.
+     */
+    data class BackupPublishCompleted(
+        val `source`: kotlin.String, 
+        val `success`: kotlin.Boolean, 
+        val `eventId`: kotlin.String?, 
+        val `authorPubkey`: kotlin.String?, 
+        val `contentLength`: kotlin.UInt, 
+        val `contentRedacted`: kotlin.String, 
+        val `groupPubkey`: kotlin.String?, 
+        val `relaysAttempted`: List<kotlin.String>, 
+        val `relaysPublishedTo`: List<kotlin.String>, 
+        val `error`: kotlin.String?) : AppAction()
+        
+    {
+        
+
+        companion object
+    }
     
 
     
@@ -6066,6 +6452,7 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 FfiConverterString.read(buf),
                 FfiConverterSequenceString.read(buf),
                 FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
                 )
             104 -> AppAction.RotateShareHandshakeFailure(
                 FfiConverterString.read(buf),
@@ -6095,6 +6482,18 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 FfiConverterString.read(buf),
                 )
             115 -> AppAction.ClearExportState
+            116 -> AppAction.BackupPublishCompleted(
+                FfiConverterString.read(buf),
+                FfiConverterBoolean.read(buf),
+                FfiConverterOptionalString.read(buf),
+                FfiConverterOptionalString.read(buf),
+                FfiConverterUInt.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterOptionalString.read(buf),
+                FfiConverterSequenceString.read(buf),
+                FfiConverterSequenceString.read(buf),
+                FfiConverterOptionalString.read(buf),
+                )
             else -> throw RuntimeException("invalid enum value, something is very wrong!!")
         }
     }
@@ -6860,6 +7259,7 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 + FfiConverterString.allocationSize(value.`groupPubkey`)
                 + FfiConverterSequenceString.allocationSize(value.`relays`)
                 + FfiConverterString.allocationSize(value.`profileId`)
+                + FfiConverterString.allocationSize(value.`shareSeckeyHex`)
             )
         }
         is AppAction.RotateShareHandshakeFailure -> {
@@ -6941,6 +7341,22 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
             // Add the size for the Int that specifies the variant plus the size needed for all fields
             (
                 4UL
+            )
+        }
+        is AppAction.BackupPublishCompleted -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`source`)
+                + FfiConverterBoolean.allocationSize(value.`success`)
+                + FfiConverterOptionalString.allocationSize(value.`eventId`)
+                + FfiConverterOptionalString.allocationSize(value.`authorPubkey`)
+                + FfiConverterUInt.allocationSize(value.`contentLength`)
+                + FfiConverterString.allocationSize(value.`contentRedacted`)
+                + FfiConverterOptionalString.allocationSize(value.`groupPubkey`)
+                + FfiConverterSequenceString.allocationSize(value.`relaysAttempted`)
+                + FfiConverterSequenceString.allocationSize(value.`relaysPublishedTo`)
+                + FfiConverterOptionalString.allocationSize(value.`error`)
             )
         }
     }
@@ -7501,6 +7917,7 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 FfiConverterString.write(value.`groupPubkey`, buf)
                 FfiConverterSequenceString.write(value.`relays`, buf)
                 FfiConverterString.write(value.`profileId`, buf)
+                FfiConverterString.write(value.`shareSeckeyHex`, buf)
                 Unit
             }
             is AppAction.RotateShareHandshakeFailure -> {
@@ -7558,6 +7975,20 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
             }
             is AppAction.ClearExportState -> {
                 buf.putInt(115)
+                Unit
+            }
+            is AppAction.BackupPublishCompleted -> {
+                buf.putInt(116)
+                FfiConverterString.write(value.`source`, buf)
+                FfiConverterBoolean.write(value.`success`, buf)
+                FfiConverterOptionalString.write(value.`eventId`, buf)
+                FfiConverterOptionalString.write(value.`authorPubkey`, buf)
+                FfiConverterUInt.write(value.`contentLength`, buf)
+                FfiConverterString.write(value.`contentRedacted`, buf)
+                FfiConverterOptionalString.write(value.`groupPubkey`, buf)
+                FfiConverterSequenceString.write(value.`relaysAttempted`, buf)
+                FfiConverterSequenceString.write(value.`relaysPublishedTo`, buf)
+                FfiConverterOptionalString.write(value.`error`, buf)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
@@ -7906,6 +8337,26 @@ sealed class AppUpdate {
     }
     
     /**
+     * Combined variant used by the Create Keyset acceptance path so
+     * backup publication (VAL-BACKUP-001) and runtime kick
+     * (VAL-CREATE-010) reach the shell in one update — keeps the
+     * actor's single-side-effect invariant while chaining both
+     * post-storage actions into one ordered handoff. The shell reads
+     * the profile's stored material by `profile_id`, then forwards
+     * the publish result back via `BackupPublishCompleted`.
+     */
+    data class StartKeysetSignerRuntimeAndPublishBackup(
+        val `source`: kotlin.String, 
+        val `profileId`: kotlin.String, 
+        val `label`: kotlin.String) : AppUpdate()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
      * Shell should perform the real Nostr onboarding handshake for a
      * rotated `bfonboard1` package (VAL-ROTATE-006). The connector
      * mirrors `PerformOnboardHandshake` so the shell can re-use the
@@ -7945,6 +8396,63 @@ sealed class AppUpdate {
          * hub row's "available later" UX matches what the shell stored.
          */
         val `deleteOld`: kotlin.Boolean) : AppUpdate()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * Combined variant used by the rotate-share replacement path so
+     * backup publication (VAL-BACKUP-004, by the new share) and
+     * secure-storage swap (VAL-ROTATE-011) reach the shell in one
+     * update. The shell swaps storage, then reads the freshly written
+     * material to publish a kind-10000 event under the new share's
+     * derived author pubkey. The backup publish appears after the
+     * storage swap so the relay's author check happens against the
+     * new (post-rotate) share, not the pre-rotation one.
+     */
+    data class ReplaceProfileFromRotateAndPublishBackup(
+        val `source`: kotlin.String, 
+        val `oldProfileId`: kotlin.String, 
+        val `newProfileId`: kotlin.String, 
+        val `newLabel`: kotlin.String, 
+        val `newShortId`: kotlin.String, 
+        val `newMaterial`: kotlin.ByteArray, 
+        val `newRelays`: List<kotlin.String>, 
+        val `deleteOld`: kotlin.Boolean) : AppUpdate()
+        
+    {
+        
+
+        companion object
+    }
+    
+    /**
+     * Shell should publish a kind-10000 encrypted profile backup to
+     * every relay embedded in the freshly materialized profile.
+     * The actor dispatches this side effect after each
+     * materialization confirmation (StoreKeysetCreatedProfile,
+     * OnboardStored, ReplaceProfileFromRotate, LoadProfileStored).
+     * `source` is one of "create" | "onboard" | "rotate" | "import" |
+     * "recover" so validators can correlate which materialization
+     * path produced the new event.
+     *
+     * VAL-BACKUP-001 through VAL-BACKUP-006: the actor fires the
+     * publish via this side effect so the shell publishes an
+     * encrypted kind-10000 Nostr event to each relay embedded in the
+     * freshly materialized profile. The shell owns secure storage,
+     * so it reads the profile's stored material by `profile_id` and
+     * calls `FfiApp.publish_backup(source, material_json)`. The
+     * result is then forwarded back via
+     * `AppAction::BackupPublishCompleted` so the actor can mirror it
+     * into `dashboard.last_backup_publish` for validators and tests.
+     */
+    data class PublishProfileBackup(
+        val `source`: kotlin.String, 
+        val `profileId`: kotlin.String, 
+        val `materialJson`: kotlin.String) : AppUpdate()
         
     {
         
@@ -8094,14 +8602,19 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 )
-            28 -> AppUpdate.PerformRotateShareHandshake(
+            28 -> AppUpdate.StartKeysetSignerRuntimeAndPublishBackup(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                )
+            29 -> AppUpdate.PerformRotateShareHandshake(
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 )
-            29 -> AppUpdate.ReplaceProfileFromRotate(
+            30 -> AppUpdate.ReplaceProfileFromRotate(
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
@@ -8110,7 +8623,22 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 FfiConverterSequenceString.read(buf),
                 FfiConverterBoolean.read(buf),
                 )
-            30 -> AppUpdate.PerformKeysetRotation(
+            31 -> AppUpdate.ReplaceProfileFromRotateAndPublishBackup(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterByteArray.read(buf),
+                FfiConverterSequenceString.read(buf),
+                FfiConverterBoolean.read(buf),
+                )
+            32 -> AppUpdate.PublishProfileBackup(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                )
+            33 -> AppUpdate.PerformKeysetRotation(
                 FfiConverterString.read(buf),
                 FfiConverterUShort.read(buf),
                 FfiConverterUShort.read(buf),
@@ -8333,6 +8861,15 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 + FfiConverterString.allocationSize(value.`label`)
             )
         }
+        is AppUpdate.StartKeysetSignerRuntimeAndPublishBackup -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`source`)
+                + FfiConverterString.allocationSize(value.`profileId`)
+                + FfiConverterString.allocationSize(value.`label`)
+            )
+        }
         is AppUpdate.PerformRotateShareHandshake -> {
             // Add the size for the Int that specifies the variant plus the size needed for all fields
             (
@@ -8355,6 +8892,29 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 + FfiConverterByteArray.allocationSize(value.`newMaterial`)
                 + FfiConverterSequenceString.allocationSize(value.`newRelays`)
                 + FfiConverterBoolean.allocationSize(value.`deleteOld`)
+            )
+        }
+        is AppUpdate.ReplaceProfileFromRotateAndPublishBackup -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`source`)
+                + FfiConverterString.allocationSize(value.`oldProfileId`)
+                + FfiConverterString.allocationSize(value.`newProfileId`)
+                + FfiConverterString.allocationSize(value.`newLabel`)
+                + FfiConverterString.allocationSize(value.`newShortId`)
+                + FfiConverterByteArray.allocationSize(value.`newMaterial`)
+                + FfiConverterSequenceString.allocationSize(value.`newRelays`)
+                + FfiConverterBoolean.allocationSize(value.`deleteOld`)
+            )
+        }
+        is AppUpdate.PublishProfileBackup -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`source`)
+                + FfiConverterString.allocationSize(value.`profileId`)
+                + FfiConverterString.allocationSize(value.`materialJson`)
             )
         }
         is AppUpdate.PerformKeysetRotation -> {
@@ -8529,8 +9089,15 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 FfiConverterString.write(value.`label`, buf)
                 Unit
             }
-            is AppUpdate.PerformRotateShareHandshake -> {
+            is AppUpdate.StartKeysetSignerRuntimeAndPublishBackup -> {
                 buf.putInt(28)
+                FfiConverterString.write(value.`source`, buf)
+                FfiConverterString.write(value.`profileId`, buf)
+                FfiConverterString.write(value.`label`, buf)
+                Unit
+            }
+            is AppUpdate.PerformRotateShareHandshake -> {
+                buf.putInt(29)
                 FfiConverterString.write(value.`package`, buf)
                 FfiConverterString.write(value.`password`, buf)
                 FfiConverterString.write(value.`relayUrl`, buf)
@@ -8539,7 +9106,7 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 Unit
             }
             is AppUpdate.ReplaceProfileFromRotate -> {
-                buf.putInt(29)
+                buf.putInt(30)
                 FfiConverterString.write(value.`oldProfileId`, buf)
                 FfiConverterString.write(value.`newProfileId`, buf)
                 FfiConverterString.write(value.`newLabel`, buf)
@@ -8549,8 +9116,27 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 FfiConverterBoolean.write(value.`deleteOld`, buf)
                 Unit
             }
+            is AppUpdate.ReplaceProfileFromRotateAndPublishBackup -> {
+                buf.putInt(31)
+                FfiConverterString.write(value.`source`, buf)
+                FfiConverterString.write(value.`oldProfileId`, buf)
+                FfiConverterString.write(value.`newProfileId`, buf)
+                FfiConverterString.write(value.`newLabel`, buf)
+                FfiConverterString.write(value.`newShortId`, buf)
+                FfiConverterByteArray.write(value.`newMaterial`, buf)
+                FfiConverterSequenceString.write(value.`newRelays`, buf)
+                FfiConverterBoolean.write(value.`deleteOld`, buf)
+                Unit
+            }
+            is AppUpdate.PublishProfileBackup -> {
+                buf.putInt(32)
+                FfiConverterString.write(value.`source`, buf)
+                FfiConverterString.write(value.`profileId`, buf)
+                FfiConverterString.write(value.`materialJson`, buf)
+                Unit
+            }
             is AppUpdate.PerformKeysetRotation -> {
-                buf.putInt(30)
+                buf.putInt(33)
                 FfiConverterString.write(value.`groupName`, buf)
                 FfiConverterUShort.write(value.`threshold`, buf)
                 FfiConverterUShort.write(value.`count`, buf)
@@ -9858,6 +10444,38 @@ public object FfiConverterOptionalByteArray: FfiConverterRustBuffer<kotlin.ByteA
         } else {
             buf.put(1)
             FfiConverterByteArray.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeBackupPublishStatus: FfiConverterRustBuffer<BackupPublishStatus?> {
+    override fun read(buf: ByteBuffer): BackupPublishStatus? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeBackupPublishStatus.read(buf)
+    }
+
+    override fun allocationSize(value: BackupPublishStatus?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeBackupPublishStatus.allocationSize(value)
+        }
+    }
+
+    override fun write(value: BackupPublishStatus?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeBackupPublishStatus.write(value, buf)
         }
     }
 }

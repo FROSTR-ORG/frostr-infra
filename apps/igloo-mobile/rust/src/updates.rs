@@ -2017,6 +2017,7 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
             group_pubkey,
             relays,
             profile_id,
+            share_seckey_hex,
         } => {
             // ── Identity-shape guard (VAL-ROTATE-007/008) ─────────────────
             // Same-profile reject: rotating must produce a different
@@ -2064,6 +2065,7 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                 group_pubkey: group_pubkey.clone(),
                 profile_id: profile_id.clone(),
                 relays: relays.clone(),
+                share_seckey_hex: share_seckey_hex.clone(),
             });
             next.rotate_share.step = crate::state::RotateShareStep::Preview;
             next.rotate_share.error = None;
@@ -2108,13 +2110,26 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
             };
             // Build the rotated material via the same code-path that
             // onboard uses so the runtime / signer keep the full keyset
-            // view (member mapping, peer pubkeys, etc.).
-            let material_bytes = build_rotated_material_bytes(
+            // view (member mapping, peer pubkeys, etc.). A missing or
+            // malformed share secret is treated as a hard failure: emit
+            // an explicit error step and stay on the connect screen so
+            // the user can retry — never silently tombstone the
+            // secure-storage record.
+            let material_bytes = match build_rotated_material_bytes(
                 &preview,
                 &next.rotate_share.relay_url,
                 old_profile_id.clone(),
-            )
-            .unwrap_or_default();
+            ) {
+                Ok(bytes) => bytes,
+                Err(reason) => {
+                    next.rotate_share.step = crate::state::RotateShareStep::Error;
+                    next.rotate_share.error = Some(crate::state::RotateShareError::Unexpected);
+                    next.rotate_share
+                        .last_error_message
+                        .clone_from(&Some(reason));
+                    return (next, side_effect);
+                }
+            };
             next.rotate_share.step = crate::state::RotateShareStep::Complete;
             // VAL-ROTATE-011: route to Dashboard so the rotated
             // profile re-opens immediately after the shell commits the
@@ -2268,6 +2283,13 @@ fn go_back(screen: Screen) -> Screen {
 /// one round-trip. Returns the empty Vec on materialization failures so
 /// the actor can fall through without crashing; the shell turns the
 /// empty payload into an explicit failure via a follow-up action.
+///
+/// The rotated share secret MUST be carried in `preview.share_seckey_hex`
+/// (set via `AppAction::RotateShareHandshakeSuccess`); without it the
+/// runtime cannot spawn a SigningDevice and the secret-storage record
+/// becomes a tombstone. We enforce that here as well — a missing secret
+/// returns `Err("missing_share_secret")` so the actor surfaces a typed
+/// failure instead of silently dropping the secret.
 fn build_rotated_material_bytes(
     preview: &RotatePreviewIdentity,
     active_relay_override: &str,
@@ -2278,6 +2300,13 @@ fn build_rotated_material_bytes(
     // up after replace without an extra migration step. The "peer"
     // list is empty until the next alias-discovery ping completes.
     use crate::{MaterialMember, OnboardProfileMaterial};
+    let trimmed_secret = preview.share_seckey_hex.trim().to_string();
+    if trimmed_secret.is_empty() {
+        return Err("missing_share_secret".to_string());
+    }
+    if trimmed_secret.len() != 64 {
+        return Err("invalid_share_secret_length".to_string());
+    }
     let mut members: Vec<MaterialMember> = Vec::new();
     if !preview.share_pubkey.is_empty() {
         members.push(MaterialMember {
@@ -2295,7 +2324,7 @@ fn build_rotated_material_bytes(
         preview.relays.clone()
     };
     let material = OnboardProfileMaterial {
-        share_seckey_hex: String::new(),
+        share_seckey_hex: trimmed_secret,
         share_pubkey: preview.share_pubkey.clone(),
         group_pubkey: preview.group_pubkey.clone(),
         relays,

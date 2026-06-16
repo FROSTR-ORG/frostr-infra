@@ -340,6 +340,37 @@ final class AppManager: AppReconciler {
                 deleteOld: deleteOld
             )
 
+        case .replaceProfileFromRotateAndPublishBackup(
+            let source,
+            let oldProfileId,
+            let newProfileId,
+            let newLabel,
+            let newShortId,
+            let newMaterial,
+            let newRelays,
+            let deleteOld
+        ):
+            // VAL-ROTATE-011 + VAL-BACKUP-004: identical secure-storage
+            // swap path as the legacy variant, but the actor emits the
+            // combined side-effect so the shell can publish a fresh
+            // kind-10000 backup under the rotated share's derived
+            // author pubkey after the swap. The `source` label is
+            // forwarded back via the publish result dispatcher.
+            performReplaceProfileFromRotate(
+                oldProfileId: oldProfileId,
+                newProfileId: newProfileId,
+                newLabel: newLabel,
+                newShortId: newShortId,
+                newMaterial: newMaterial,
+                newRelays: newRelays,
+                deleteOld: deleteOld
+            )
+            publishRotatedBackupIfPossible(
+                source: source,
+                newProfileId: newProfileId,
+                newMaterial: newMaterial
+            )
+
         // PerformOnboardHandshake is handled directly in onboardConnect() to ensure
         // the async FFI call starts immediately without relying on the reconciler
         // callback path. Other unhandled cases are silently ignored.
@@ -1639,37 +1670,28 @@ final class AppManager: AppReconciler {
     /// Submit the connect form. Drives VAL-ROTATE-006/013/014 on
     /// success and surfaces the typed failure kind back to the actor
     /// when the underlying async handshake errors.
+    ///
+    /// The shell dispatches the action only; the Rust actor emits
+    /// `AppUpdate::PerformRotateShareHandshake` after validation, and
+    /// the reconciler kicks `performRotateShareHandshake` in turn.
+    /// Calling the FFI helper directly here would race the actor's
+    /// own emit and produce duplicate handshakes.
     func rotateShareConnect() {
         dispatch(.rotateShareConnect)
-        let package = state.rotateShare.package
-        let password = state.rotateShare.password
-        let relayUrl = state.rotateShare.relayUrl
-        let expectedGroup = state.dashboard.profileInfo?.groupPubkey ?? ""
-        let activeProfileId = state.rotateShare.activeProfileId
-        performRotateShareHandshake(
-            package: package,
-            password: password,
-            relayUrl: relayUrl,
-            expectedGroup: expectedGroup,
-            activeProfileId: activeProfileId
-        )
     }
 
     /// Confirm replacement of the active profile with the rotated
     /// identity (VAL-ROTATE-011).
+    ///
+    /// The shell dispatches the action only; the Rust actor emits
+    /// `AppUpdate::ReplaceProfileFromRotateAndPublishBackup` with the
+    /// properly built material blob, and the reconciler handler runs
+    /// the keychain swap there. Directly calling
+    /// `performReplaceProfileFromRotate` here would bypass the
+    /// actor's emitted blob and stash an empty `Data()` into secure
+    /// storage.
     func rotateShareReplace() {
         dispatch(.rotateShareReplace)
-        if let preview = state.rotateShare.preview {
-            performReplaceProfileFromRotate(
-                oldProfileId: state.rotateShare.activeProfileId,
-                newProfileId: preview.profileId,
-                newLabel: preview.deviceName,
-                newShortId: String(preview.profileId.prefix(8)),
-                newMaterial: Data(),
-                newRelays: preview.relays,
-                deleteOld: true
-            )
-        }
     }
 
     /// Clear a typed error banner without leaving the connect screen
@@ -1835,12 +1857,19 @@ final class AppManager: AppReconciler {
                    let relays = result.relays,
                    let profileId = result.profileId
                 {
+                    // Pull the rotated share secret from the FFI material
+                    // blob so the actor can build a fully useful material
+                    // record on confirm-replace. The secret is forwarded
+                    // verbatim to Rust and must never be rendered, logged,
+                    // or persisted by the shell.
+                    let shareSeckeyHex = Self.extractShareSeckeyHex(from: result.material)
                     self.dispatch(.rotateShareHandshakeSuccess(
                         deviceName: deviceName,
                         sharePubkey: sharePubkey,
                         groupPubkey: groupPubkey,
                         relays: relays,
-                        profileId: profileId
+                        profileId: profileId,
+                        shareSeckeyHex: shareSeckeyHex ?? ""
                     ))
                 } else {
                     let errorKind = result.error ?? "unexpected"
@@ -1849,6 +1878,23 @@ final class AppManager: AppReconciler {
             }
         }
         thread.start()
+    }
+
+    /// Decode the `OnboardProfileMaterial` JSON blob returned by
+    /// `rust.onboard` and extract the `share_seckey_hex` field. Returns
+    /// nil on any parse error so the actor treats a missing secret as
+    /// a hard failure (no silent tombstone on replace).
+    private static func extractShareSeckeyHex(from material: Data?) -> String? {
+        guard let material = material else { return nil }
+        guard let parsed = try? JSONSerialization.jsonObject(with: material) else {
+            return nil
+        }
+        guard let dict = parsed as? [String: Any] else { return nil }
+        if let s = dict["share_seckey_hex"] as? String {
+            let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+        return nil
     }
 
     /// Replace the active profile's secure-storage record with the
@@ -1870,20 +1916,13 @@ final class AppManager: AppReconciler {
             _ = storage.deleteProfileMaterial(profileId: oldProfileId)
             storage.removeProfileFromIndex(oldProfileId)
         }
-        // Persist the new material.
-        if newMaterial.isEmpty {
-            // No material in this build — synthesize a placeholder blob so
-            // the keychain query still resolves. The rotated profile's
-            // secure-storage payload is intentionally minimal in this
-            // milestone (the inner bridge starts from a stub share-secret
-            // carried alongside the connector); fully fleshed-out
-            // material byte-encoding is handled in the storage milestone.
-            let placeholder = Data([0].prefix(64))
-            _ = storage.storeProfileMaterial(
-                profileId: newProfileId,
-                material: placeholder
-            )
-        } else {
+        // Persist the new material. The blob is built by the actor
+        // (which carries the rotated share secret) and is forwarded
+        // verbatim by the bound side effect. An empty blob indicates
+        // a prior actor-side failure — fall back to index-only update
+        // so the hub still surfaces the rotated row while the keychain
+        // write is skipped to avoid an empty-tombstone record.
+        if !newMaterial.isEmpty {
             _ = storage.storeProfileMaterial(profileId: newProfileId, material: newMaterial)
         }
         // Update the profile index.
@@ -1905,5 +1944,43 @@ final class AppManager: AppReconciler {
             profiles.insert(newRow, at: 0)
         }
         dispatch(.updateHubStatus(profileId: newProfileId, active: true))
+    }
+
+    /// Fire-and-forward rotation-driven backup publication so the
+    /// rotate-share replacement path matches the combined
+    /// `ReplaceProfileFromRotateAndPublishBackup` contract used by the
+    /// other materialization paths. The FFI does the actual NIP-44
+    /// encrypt + WebSocket publish; we capture the per-field proof and
+    /// forward it back to Rust via `BackupPublishCompleted` so the
+    /// validator's `dashboard.last_backup_publish` slot is populated.
+    private func publishRotatedBackupIfPossible(
+        source: String,
+        newProfileId: String,
+        newMaterial: Data
+    ) {
+        guard !newMaterial.isEmpty else { return }
+        let materialJson = String(data: newMaterial, encoding: .utf8) ?? ""
+        guard !materialJson.isEmpty else { return }
+        let rust = self.rust
+        let sourceCopy = source
+        let profileIdCopy = newProfileId
+        Thread.detachNewThread {
+            let result = rust.publishBackup(source: sourceCopy, materialJson: materialJson)
+            DispatchQueue.main.async {
+                self.dispatch(.backupPublishCompleted(
+                    source: result.source,
+                    success: result.success,
+                    eventId: result.eventId,
+                    authorPubkey: result.authorPubkey,
+                    contentLength: result.contentLength,
+                    contentRedacted: result.contentRedacted,
+                    groupPubkey: result.groupPubkey,
+                    relaysAttempted: result.relaysAttempted,
+                    relaysPublishedTo: result.relaysPublishedTo,
+                    error: result.error
+                ))
+                _ = profileIdCopy
+            }
+        }
     }
 }
