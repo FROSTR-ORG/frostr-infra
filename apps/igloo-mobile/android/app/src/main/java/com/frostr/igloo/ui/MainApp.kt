@@ -1180,6 +1180,7 @@ fun OnboardReviewScreen(manager: AppManager) {
 }
 
 /** A row displaying a label + 64-char hex key with a copy button (VAL-ONBOARD-008). */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun CopyableKeyRow(
     label: String,
@@ -1205,7 +1206,10 @@ private fun CopyableKeyRow(
                 .background(IglooColors.Slate900StrongTranslucent, RoundedCornerShape(IglooRadii.md.dp))
                 .border(1.dp, IglooColors.Blue900PanelBorder, RoundedCornerShape(IglooRadii.md.dp))
                 .padding(IglooSpacing.sm.dp)
-                .semantics { testTag = accessibilityId },
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = accessibilityId
+                },
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1229,7 +1233,10 @@ private fun CopyableKeyRow(
                             android.widget.Toast.makeText(context, "Copied", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
-                    .semantics { testTag = "${accessibilityId}_copy" },
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "${accessibilityId}_copy"
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Text(text = "📋", color = IglooColors.Blue400)

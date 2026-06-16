@@ -3241,6 +3241,8 @@ struct CopyableKeyRow: View {
                     .font(IglooTypography.ValueDataFont)
                     .foregroundStyle(IglooColors.Slate200)
                     .lineLimit(1)
+                    .accessibilityIdentifier(accessibilityId)
+                    .accessibilityValue(value)
 
                 Spacer()
 
@@ -3259,7 +3261,6 @@ struct CopyableKeyRow: View {
             RoundedRectangle(cornerRadius: IglooRadii.Sm)
                 .stroke(IglooColors.Slate400MutedBorder, lineWidth: 1)
         )
-        .accessibilityIdentifier(accessibilityId)
     }
 }
 
