@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -229,12 +230,31 @@ fun LandingHub(manager: AppManager) {
             if (manager.state.hub.profiles.isEmpty()) {
                 EmptyProfilesState()
             } else {
+                // mobile-android-hub-profile-row-routing-fix: the Android hub
+                // previously rendered rows with a bare `for (profile in
+                // manager.state.hub.profiles)` loop. Compose's slot table
+                // keys those positional iterations, so when the hub list
+                // grows or re-orders the captured `profile` in each row's
+                // openProfile / requestDeleteProfile lambda can lag behind
+                // the actual visible profile. Tapping row A sometimes
+                // dispatched OpenProfile with row B's profile_id,
+                // producing dashboards with the wrong identity.
+                //
+                // Wrapping each `ProfileRowView` in a `key(...)
+                // { ... }` block pins the slot-table key to the actual
+                // profile_id so each row's lambda always carries that
+                // exact profile. This mirrors the iOS shell's
+                // `ForEach(manager.state.hub.profiles, id: \.profileId)`
+                // pattern and prevents the slot-table drift that was the
+                // root cause of the cross-contamination.
                 for (profile in manager.state.hub.profiles) {
-                    ProfileRowView(
-                        profile = profile,
-                        onClick = { manager.openProfile(profileId = profile.profileId) },
-                        onDelete = { manager.requestDeleteProfile(profileId = profile.profileId) }
-                    )
+                    key(profile.profileId) {
+                        ProfileRowView(
+                            profile = profile,
+                            onClick = { manager.openProfile(profileId = profile.profileId) },
+                            onDelete = { manager.requestDeleteProfile(profileId = profile.profileId) }
+                        )
+                    }
                 }
             }
         }

@@ -1,0 +1,79 @@
+appId: com.frostr.igloo.dev
+name: Hub Profile Row Routing Fix - Android
+
+# mobile-android-hub-profile-row-routing-fix validation flow.
+# Drives the live demo-harness path end-to-end on emulator-5554 with bob
+# injected as test-r2 and carol injected as test-cross-003, then walks:
+#  1) the hub listing both rows (VAL-SHELL-016),
+#  2) tapping test-r2 -> dashboard identity matches test-r2 (header
+#     title + 8-hex short id of profile_row_test-r2's shortId),
+#  3) tapping test-cross-003 -> dashboard identity matches
+#     test-cross-003,
+#  4) tapping test-r2 again -> dashboard swaps back to test-r2.
+#
+# Pre-run (out of Maestro) prepares two stored profiles on the device:
+#   bash scripts/inject-android-bob-and-carol-two-profiles.sh
+# Both profiles require live demo-stack reachable at ws://10.0.2.2:8194.
+
+---
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+- waitForAnimationToEnd
+
+# Hub header confirms we are on the Hub.
+- assertVisible:
+    text: Igloo
+- assertVisible:
+    text: Stored Profiles
+
+# Both stored profile rows are visible (precondition from helper script).
+- assertVisible:
+    text: test-r2
+- assertVisible:
+    text: test-cross-003
+
+# Step 1: tap the test-r2 row. The row's identifier is
+#   profile_row_<8-hex short-id of test-r2>, but the safe selector for
+#   Maestro is the in-row label text, which routes through Compose's
+#   clickable Row modifier carrying the row's onClick lambda.
+- tapOn:
+    text: test-r2
+- waitForAnimationToEnd
+
+# Dashboard opened for test-r2.
+- assertVisible:
+    id: "dashboard_header_title"
+    text: test-r2
+- assertVisible:
+    id: "dashboard_header_subtitle"
+
+# Step 2: back to the hub.
+- tapOn:
+    id: "btn_back_dashboard"
+- waitForAnimationToEnd
+
+# Step 3: tap the test-cross-003 row.
+- tapOn:
+    text: test-cross-003
+- waitForAnimationToEnd
+
+# Dashboard opened for test-cross-003. Identity swap must be exact.
+- assertVisible:
+    id: "dashboard_header_title"
+    text: test-cross-003
+
+# Step 4: back to the hub.
+- tapOn:
+    id: "btn_back_dashboard"
+- waitForAnimationToEnd
+
+# Step 5: tap test-r2 once more -> dashboard identity must swap back
+# to test-r2 (no cross-contamination).
+- tapOn:
+    text: test-r2
+- waitForAnimationToEnd
+- assertVisible:
+    id: "dashboard_header_title"
+    text: test-r2

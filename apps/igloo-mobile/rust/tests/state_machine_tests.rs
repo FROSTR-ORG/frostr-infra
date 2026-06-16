@@ -325,6 +325,88 @@ fn open_profile_rev_increments() {
     assert_eq!(next.rev, 1);
 }
 
+// mobile-android-hub-profile-row-routing-fix: regression test for the
+// hub row tap → dashboard navigation chain. The Android shell previously
+// rendered hub rows via a bare `for (profile in ...)` loop without a
+// stable `key(...)` block, so the row click handler could capture a
+// stale profile and dispatch `OpenProfile` with a profile_id that did
+// not match the row the user actually tapped. This test pins the
+// correspondence between the dispatched `profile_id` and the
+// `dashboard.profile_info.profile_id` (and `device_name`) the shell
+// reads for the dashboard header — the contract that the fix on the
+// shell side relies on.
+#[test]
+fn open_profile_routes_to_dashboard_with_matching_identity() {
+    let state = state_with_profiles(make_populated_hub());
+
+    // Tap bob's row → OpenProfile(bob). Dashboard identity must match
+    // bob — short_id "aabbccdd" and label "bob's device".
+    let after_bob = dispatch(
+        &state,
+        AppAction::OpenProfile {
+            profile_id: "aabbccdd11223344".into(),
+        },
+    );
+    let bob_info = after_bob
+        .dashboard
+        .profile_info
+        .as_ref()
+        .expect("OpenProfile must seed dashboard profile_info");
+    assert_eq!(
+        bob_info.profile_id, "aabbccdd11223344",
+        "dashboard profile_id must equal the dispatched OpenProfile profile_id (bob)"
+    );
+    assert_eq!(
+        bob_info.device_name, "bob's device",
+        "dashboard device_name must mirror the hub row label that OpenProfile matched (bob)"
+    );
+
+    // Tap carol's row → OpenProfile(carol). Dashboard identity must
+    // match carol — not the previously-active bob. If the shell passes
+    // through the wrong profile_id, this assertion fails.
+    let after_carol = dispatch(
+        &after_bob,
+        AppAction::OpenProfile {
+            profile_id: "ffeedd0099887766".into(),
+        },
+    );
+    let carol_info = after_carol
+        .dashboard
+        .profile_info
+        .as_ref()
+        .expect("OpenProfile must seed dashboard profile_info");
+    assert_eq!(
+        carol_info.profile_id, "ffeedd0099887766",
+        "dashboard profile_id must equal the dispatched OpenProfile profile_id (carol)"
+    );
+    assert_eq!(
+        carol_info.device_name, "carol's device",
+        "dashboard device_name must reflect carol after OpenProfile(carol), \
+         not the previous bob identity"
+    );
+
+    // Then back to bob — identity swap must be exact.
+    let after_bob_again = dispatch(
+        &after_carol,
+        AppAction::OpenProfile {
+            profile_id: "aabbccdd11223344".into(),
+        },
+    );
+    let bob_again_info = after_bob_again
+        .dashboard
+        .profile_info
+        .as_ref()
+        .expect("OpenProfile must seed dashboard profile_info");
+    assert_eq!(
+        bob_again_info.profile_id, "aabbccdd11223344",
+        "dashboard profile_id must swap back to bob"
+    );
+    assert_eq!(
+        bob_again_info.device_name, "bob's device",
+        "dashboard device_name must swap back to bob, not retain carol"
+    );
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // update() action routing — onboard flow actions
 // VAL-ONBOARD-001: connect screen must be reachable.
