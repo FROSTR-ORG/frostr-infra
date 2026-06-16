@@ -78,6 +78,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.frostr.igloo.AppManager
+import com.frostr.igloo.RelayDefaults
 import com.frostr.igloo.qrBitmap
 import com.frostr.igloo.rust.AppAction
 import com.frostr.igloo.rust.DashboardTab
@@ -598,10 +599,14 @@ fun OnboardConnectScreen(manager: AppManager) {
     }
     var relayUrl by remember {
         mutableStateOf(
+            // Platform-correct relay default. The Android emulator reaches
+            // the host's relay via the alias `10.0.2.2`; `127.0.0.1`
+            // would route to the emulator's own loopback and break the
+            // handshake. See `mobile-android-relay-url-platform-default-fix`.
             if (manager.state.onboarding.relayUrl.isNotEmpty()) {
                 manager.state.onboarding.relayUrl
             } else {
-                "ws://10.0.2.2:8194"
+                RelayDefaults.DEFAULT
             }
         )
     }
@@ -5073,7 +5078,14 @@ fun ExportPasswordPromptDialog(
 @Composable
 fun RotateShareConnectScreen(manager: AppManager) {
     val state = manager.state.rotateShare
-    val initialRelay = if (state.relayUrl.isEmpty()) "ws://127.0.0.1:8194" else state.relayUrl
+    // Platform-correct relay default: the Android emulator reaches the
+    // host's relay (port 8194) through the special alias `10.0.2.2`,
+    // not through `127.0.0.1` (which would route to the emulator's own
+    // loopback and yield an unreachable relay). Pre-filling with the
+    // iOS Simulator's `ws://127.0.0.1:8194` left every Android user on
+    // a connection-timeout path that silently broke the handshake.
+    // See `mobile-android-relay-url-platform-default-fix`.
+    val initialRelay = if (state.relayUrl.isEmpty()) RelayDefaults.DEFAULT else state.relayUrl
     var packageText by remember(state.`package`) { mutableStateOf(state.`package`) }
     var passwordText by remember(state.password) { mutableStateOf(state.password) }
     var relayUrl by remember(state.relayUrl) { mutableStateOf(initialRelay) }

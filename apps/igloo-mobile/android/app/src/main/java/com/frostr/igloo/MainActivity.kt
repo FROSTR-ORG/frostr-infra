@@ -87,6 +87,10 @@ class MainActivity : ComponentActivity() {
 
         // Default relay URL used when the test intent omits `relay`. The
         // Android emulator's host loopback is 10.0.2.2 by convention.
-        internal const val DEFAULT_RELAY_URL = "ws://10.0.2.2:8194"
+        // Sourced from RelayDefaults so this companion-object literal is
+        // not a second copy of the platform default — Compose forms and
+        // the debug intent path both point at the same single source of
+        // truth (mobile-android-relay-url-platform-default-fix).
+        internal const val DEFAULT_RELAY_URL: String = RelayDefaults.DEFAULT
     }
 }

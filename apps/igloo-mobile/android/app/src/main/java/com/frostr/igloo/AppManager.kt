@@ -748,7 +748,10 @@ class AppManager private constructor(context: Context) : AppReconciler {
     ) {
         // Trim defensively; Rust handler trims package again.
         val trimmedPackage = packageText.trim()
-        val trimmedRelay = relayUrl.trim().ifEmpty { "ws://10.0.2.2:8194" }
+        // Platform-correct Android emulator->host alias for the FROSTR dev
+        // relay. See RelayDefaults.DEFAULT and the
+        // mobile-android-relay-url-platform-default-fix feature for context.
+        val trimmedRelay = relayUrl.trim().ifEmpty { RelayDefaults.DEFAULT }
         val trimmedDevice = deviceName?.trim()?.takeIf { it.isNotEmpty() }
 
         // Order matters: NavigateOnboardConnect calls onboarding.reset()
