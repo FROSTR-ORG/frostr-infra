@@ -177,4 +177,86 @@ class RelayDefaultsTest {
         } else {
             actorRelays
         }
+
+    /**
+     * Create Keyset wizard Device Profile → Review actor sync
+     * (`mobile-android-review-step-relay-url-display-fix`).
+     *
+     * The shared Rust core pre-fills `KeysetFlowState.relays` with the
+     * iOS-Simulator localhost literal (`ws://127.0.0.1:8194`). The
+     * Android Compose `CreateKeysetDeviceProfileScreen` override
+     * rewrites that to `RelayDefaults.DEFAULT` for display, but the
+     * actor still carries the iOS prefill until a sync dispatch runs.
+     * Without the sync the Review step would render the stale iOS
+     * prefill instead of the value the user just accepted (VAL-CREATE-008
+     * parity). This helper pins the sync logic: when the display
+     * override rewrote the iOS prefill to `RelayDefaults.DEFAULT`,
+     * the next relays list the actor should carry is
+     * `[RelayDefaults.DEFAULT]`. Otherwise, the actor keeps whatever
+     * the user typed (or whatever was already there).
+     */
+    @Test
+    fun create_keyset_wizard_sync_after_device_profile_ios_prefill() {
+        val synced = relaySyncFor(listOf("ws://127.0.0.1:8194"))
+        assertArrayEquals(
+            "After Device Profile first composition the actor relays " +
+                "must match the displayed Android default so the Review " +
+                "step reads the same relay URL the user accepted.",
+            arrayOf(RelayDefaults.DEFAULT),
+            synced.toTypedArray(),
+        )
+    }
+
+    /**
+     * When the actor still has empty relays (a transient state if a
+     * future code path defers the prefill), the Device Profile screen
+     * surface default must still sync through the actor so the Review
+     * step is not blank.
+     */
+    @Test
+    fun create_keyset_wizard_sync_after_device_profile_empty_actor() {
+        val synced = relaySyncFor(emptyList())
+        assertArrayEquals(
+            "Empty actor relays must still sync to RelayDefaults.DEFAULT " +
+                "once the Device Profile override runs.",
+            arrayOf(RelayDefaults.DEFAULT),
+            synced.toTypedArray(),
+        )
+    }
+
+    /**
+     * User-typed relay lists must NOT be re-written by the sync — the
+     * override rewrote the iOS-Simulator prefill, not arbitrary user
+     * content. The sync only takes effect for the exact iOS prefill
+     * shape (empty or [ws://127.0.0.1:8194]); otherwise the actor's
+     * existing relays survive unchanged into the Review step.
+     */
+    @Test
+    fun create_keyset_wizard_sync_preserves_user_relays() {
+        val userRelays = listOf("wss://user-relay.example.com")
+        val synced = relaySyncFor(userRelays)
+        assertArrayEquals(
+            "User-typed relay list must survive the sync dispatch.",
+            arrayOf("wss://user-relay.example.com"),
+            synced.toTypedArray(),
+        )
+    }
+
+    /**
+     * Mirror of the actor-sync dispatch logic in
+     * `CreateKeysetDeviceProfileScreen` (MainApp.kt). Same rationale
+     * as `relayDisplayFor`: kept private to the test file so the
+     * Compose code stays the source of truth.
+     */
+    private fun relaySyncFor(actorRelays: List<String>): List<String> {
+        val display = relayDisplayFor(actorRelays)
+        val actorNeedsReset = actorRelays.isEmpty() ||
+            actorRelays == listOf("ws://127.0.0.1:8194")
+        val displayIsAndroidDefault = display == listOf(RelayDefaults.DEFAULT)
+        return if (actorNeedsReset && displayIsAndroidDefault) {
+            listOf(RelayDefaults.DEFAULT)
+        } else {
+            actorRelays
+        }
+    }
 }

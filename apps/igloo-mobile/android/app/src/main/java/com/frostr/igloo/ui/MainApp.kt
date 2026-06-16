@@ -2057,6 +2057,32 @@ fun CreateKeysetDeviceProfileScreen(manager: AppManager) {
         }
     }
 
+    // Sync the platform-correct display default back to the actor the
+    // first time this screen mounts so the Review step renders the
+    // same relay URL the user accepted on Device Profile
+    // (VAL-CREATE-008 parity: "each displayed value exactly matches
+    // what was entered or generated"). The displayed value is a
+    // Compose-side override applied in `initialRelays`; without this
+    // dispatch the actor's `keyset.relays` would continue to carry the
+    // shared Rust core's neutral `ws://127.0.0.1:8194` prefill, and
+    // the Review screen would render that stale iOS-Simulator
+    // localhost even though Device Profile clearly shows
+    // `ws://10.0.2.2:8194`. Run once per composition; subsequent edits
+    // propagate via the `onValueChange` dispatch on the relays
+    // OutlinedTextField. iOS Compose does not need this sync: the
+    // actor's iOS-Simulator localhost prefill IS its platform-correct
+    // value, so the dispatch stays a no-op there.
+    LaunchedEffect(Unit) {
+        val actorNeedsReset = keysetState.relays.isEmpty() ||
+            keysetState.relays == listOf("ws://127.0.0.1:8194")
+        val displayIsAndroidDefault = initialRelays == listOf(RelayDefaults.DEFAULT)
+        if (actorNeedsReset && displayIsAndroidDefault) {
+            manager.dispatch(
+                AppAction.CreateKeysetUpdateRelays(listOf(RelayDefaults.DEFAULT)),
+            )
+        }
+    }
+
     val canAdvance = deviceNameInput.isNotBlank() && relaysInput.isNotBlank()
 
     Column(
