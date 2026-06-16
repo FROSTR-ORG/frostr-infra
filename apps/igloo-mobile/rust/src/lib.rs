@@ -9,7 +9,7 @@ use std::thread;
 use std::time::Duration;
 
 use anyhow::Context as _;
-use bifrost_bridge_tokio::{Bridge, NostrSdkAdapter};
+use bifrost_bridge_tokio::Bridge;
 use bifrost_core::{GroupPackage, MemberPackage, SharePrivateKey};
 use bifrost_signer::{DeviceConfig, DeviceState, SigningDevice};
 use flume::{Receiver, Sender};
@@ -20,6 +20,7 @@ use rand::RngCore;
 uniffi::setup_scaffolding!();
 
 mod actions;
+pub mod signer;
 mod state;
 mod updates;
 
@@ -526,6 +527,118 @@ impl Default for SignerStatusCache {
 
 // FfiApp - the main UniFFI entry point
 
+/// Initialize the `tracing` subscriber behind a one-shot guard so debug
+/// logging is wired exactly once for the lifetime of the FfiApp. The
+/// `RUST_LOG` environment variable drives which events the
+/// `VerifiedNostrSdkAdapter` emits.
+///
+/// `mobile-android-signer-restoring-readiness-fix`: the previous core had
+/// no tracing subscriber at all, so the `tracing::info!` /
+/// `tracing::debug!` calls inside the `VerifiedNostrSdkAdapter` were
+/// silently dropped on Android. With this subscriber initialised, running
+/// the Android flow with the simulator process env set to
+/// `RUST_LOG=igloo_mobile_core=debug,bifrost_bridge_tokio=debug` (or
+/// `…=trace`) routes every connect/subscribe/publish/next_event breadcrumb
+/// to logcat / stderr so the next round-5 validator can prove the
+/// autoping PONG crossed the wire on Android.
+///
+/// We use `EnvFilter` so the same code path supports both the silent
+/// default (no `RUST_LOG` set, matches `warn` from the bifrost crates
+/// only) and the explicit `RUST_LOG=debug` capture from the focused
+/// scripts (`scripts/run-focus-android-signer-sign-readiness.sh`).
+/// A `MakeWriter` adapter that forwards each traced event to Android's
+/// logcat via the `log` facade. Tracing events are emitted at level
+/// `info!`/`debug!`/`warn!` etc.; they all collapse into a single
+/// `log::log!` record so that the `android_logger` global logger (set
+/// up in `init_logging_once`) receives them and writes them to
+/// `<tag>` (`igloo-mobile-rust` by default). Non-Android targets always
+/// fall back to plain stderr so `cargo run` shows the same breadcrumbs.
+#[cfg(target_os = "android")]
+struct AndroidLogWriter;
+
+#[cfg(target_os = "android")]
+impl std::io::Write for AndroidLogWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        // Emit as a single log record at INFO so it surfaces under the
+        // configured `tag` in `adb logcat`. We don't try to parse the
+        // tracing fmt output back into structured fields here: for the
+        // focused proof scripts we only need the human-readable
+        // breadcrumb to count up in `grep`.
+        let s = String::from_utf8_lossy(buf);
+        for line in s.lines() {
+            if !line.is_empty() {
+                log::info!("{}", line);
+            }
+        }
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+#[cfg(target_os = "android")]
+impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for AndroidLogWriter {
+    type Writer = AndroidLogWriter;
+    fn make_writer(&'a self) -> Self::Writer {
+        AndroidLogWriter
+    }
+}
+
+fn init_logging_once() {
+    use std::sync::Once;
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+        // Default filter levels the playing field across platforms:
+        // - igloo_mobile_core=info so the signing-path adapter breadcrumbs
+        //   (`VerifiedNostrSdkAdapter: connecting`, `…: inbound event
+        //   received from relay`, …) surface on Android logcat even when
+        //   the host hasn't propagated RUST_LOG. The user-facing dashboards
+        //   are silent because nothing else in the core emits info-level
+        //   tracing events.
+        // - bifrost_bridge_tokio=warn / bifrost_signer=warn keep the
+        //   upstream warning envelope visible without flooding logcat
+        //   with the bifrost crate's per-tick debug spew.
+        // Setting `RUST_LOG=igloo_mobile_core=debug,bifrost_bridge_tokio=debug`
+        // (or `…=trace`) overrides this default for focused proofs.
+        let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+            EnvFilter::new(
+                "warn,igloo_mobile_core=info,bifrost_bridge_tokio=warn,bifrost_signer=warn",
+            )
+        });
+
+        #[cfg(target_os = "android")]
+        {
+            // Initialize the log facade first so it exists by the time
+            // the tracing fmt::layer forwards to `log::info!`.
+            let _ = android_logger::init_once(
+                android_logger::Config::default()
+                    .with_tag("igloo-mobile-rust")
+                    .with_max_level(log::LevelFilter::Info),
+            );
+            let _ = tracing_log::LogTracer::init().ok();
+            let _ = tracing_subscriber::registry()
+                .with(filter)
+                .with(
+                    fmt::layer()
+                        .with_writer(AndroidLogWriter)
+                        .with_target(true)
+                        .with_ansi(false),
+                )
+                .try_init();
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            let _ = tracing_subscriber::registry()
+                .with(filter)
+                .with(fmt::layer().with_target(true).with_ansi(false))
+                .try_init();
+        }
+    });
+}
+
 #[derive(uniffi::Object)]
 pub struct FfiApp {
     core_tx: Sender<CoreMsg>,
@@ -684,6 +797,27 @@ impl FfiApp {
     /// Returns `true` on success. On failure returns `false`; the shell can
     /// inspect `get_signer_status()` to diagnose the error.
     pub fn start_signer(&self, material_json: String) -> bool {
+        // Install the tracing subscriber BEFORE any tracing event is
+        // emitted. Without this, info!/warn! events in the early
+        // pre-bridge construct block fall on the floor and the focused
+        // script's logcat capture never sees the material-relays or
+        // share_idx breadcrumbs that diagnose misconfigured relay
+        // URLs (Android 10.0.2.2 vs iOS 127.0.0.1 vs accidentally
+        // upstream-shipped `ws://localhost:8194`).
+        init_logging_once();
+        tracing::info!(
+            "start_signer invoked material_json_len={}",
+            material_json.len(),
+        );
+        if let Ok(material) = serde_json::from_str::<OnboardProfileMaterial>(&material_json) {
+            tracing::info!(
+                "start_signer decoded material.relays={:?} share_idx={}",
+                material.relays,
+                material.share_idx,
+            );
+        } else {
+            tracing::warn!("start_signer material_json did not decode as OnboardProfileMaterial");
+        }
         // Check if signer is already running.
         {
             let cache = self.signer_status_cache.lock().unwrap();
@@ -826,7 +960,22 @@ impl FfiApp {
         };
 
         // Create the NostrSdkAdapter with the stored relay list.
-        let adapter = NostrSdkAdapter::new(material.relays.clone());
+        //
+        // The signing-path adapter MUST be wrapped in the
+        // `VerifiedNostrSdkAdapter` shim
+        // (`mobile-android-signer-restoring-readiness-fix`). The raw adapter's
+        // `connect()` returns before the relay WebSocket is fully open, so
+        // the subsequent `subscribe()` and the autoping PING publish race
+        // with the connection task — on Android, this race lets the very
+        // first autoping PING fail to cross the wire, alice's PONG-with-
+        // nonces never enters the inbound queue, and `peer_last_seen`
+        // stays `None` despite `incoming_available=70` being populated by
+        // alice's incoming `PingRequest` handling. The shim adds an
+        // explicit 1 s / 750 ms / 750 ms settle window after each connect /
+        // subscribe / publish so the relay pool is stable before the next
+        // operation runs.
+        init_logging_once();
+        let adapter = crate::signer::VerifiedNostrSdkAdapter::for_signing(material.relays.clone());
 
         // Build the tokio runtime and start the bridge.
         let runtime = match tokio::runtime::Builder::new_multi_thread()
