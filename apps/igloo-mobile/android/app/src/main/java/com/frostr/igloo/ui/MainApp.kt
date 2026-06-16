@@ -1824,6 +1824,7 @@ fun CreateKeysetEntryScreen(manager: AppManager) {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CreateKeysetGenerateScreen(manager: AppManager) {
     val keysetState = manager.state.keyset
@@ -1900,7 +1901,10 @@ fun CreateKeysetGenerateScreen(manager: AppManager) {
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { testTag = "input_group_name" },
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = "input_group_name"
+                },
             colors = textFieldOutlinedColors()
         )
 
@@ -1919,7 +1923,10 @@ fun CreateKeysetGenerateScreen(manager: AppManager) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier
                     .weight(1f)
-                    .semantics { testTag = "input_threshold" },
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "input_threshold"
+                    },
                 colors = textFieldOutlinedColors()
             )
             OutlinedTextField(
@@ -1934,7 +1941,10 @@ fun CreateKeysetGenerateScreen(manager: AppManager) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier
                     .weight(1f)
-                    .semantics { testTag = "input_count" },
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "input_count"
+                    },
                 colors = textFieldOutlinedColors()
             )
         }
@@ -2006,6 +2016,7 @@ fun CreateKeysetGenerateScreen(manager: AppManager) {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CreateKeysetDeviceProfileScreen(manager: AppManager) {
     val keysetState = manager.state.keyset
@@ -2107,7 +2118,10 @@ fun CreateKeysetDeviceProfileScreen(manager: AppManager) {
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { testTag = "input_device_name" },
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = "input_device_name"
+                },
             colors = textFieldOutlinedColors()
         )
 
@@ -2126,7 +2140,10 @@ fun CreateKeysetDeviceProfileScreen(manager: AppManager) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(120.dp)
-                .semantics { testTag = "input_relays" },
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = "input_relays"
+                },
             colors = textFieldOutlinedColors()
         )
 
@@ -2510,6 +2527,7 @@ fun inlineKeysetErrorMessage(state: com.frostr.igloo.rust.KeysetFlowState): Stri
     return null
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun DistributeShareCard(
     row: com.frostr.igloo.rust.DistributeShareRecord,
@@ -2557,7 +2575,10 @@ fun DistributeShareCard(
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .semantics { testTag = "distribute_label_input_${row.shareIdx}" },
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "input_label_${row.shareIdx}"
+                    },
                 colors = textFieldOutlinedColors()
             )
             OutlinedTextField(
@@ -2568,7 +2589,10 @@ fun DistributeShareCard(
                 visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .semantics { testTag = "distribute_password_${row.shareIdx}" },
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "input_password_${row.shareIdx}"
+                    },
                 colors = textFieldOutlinedColors()
             )
             OutlinedTextField(
@@ -2579,7 +2603,10 @@ fun DistributeShareCard(
                 visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .semantics { testTag = "distribute_confirm_${row.shareIdx}" },
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "input_confirm_password_${row.shareIdx}"
+                    },
                 colors = textFieldOutlinedColors()
             )
 
@@ -5166,7 +5193,10 @@ fun RotateShareConnectScreen(manager: AppManager) {
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 120.dp)
-                .semantics { testTag = "input_rotate_package" },
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = "input_package"
+                },
             colors = textFieldOutlinedColors()
         )
 
@@ -5187,7 +5217,10 @@ fun RotateShareConnectScreen(manager: AppManager) {
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { testTag = "input_rotate_password" },
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = "input_password"
+                },
             colors = textFieldOutlinedColors()
         )
 
@@ -5206,7 +5239,10 @@ fun RotateShareConnectScreen(manager: AppManager) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { testTag = "input_rotate_relay" },
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = "input_relays"
+                },
             colors = textFieldOutlinedColors()
         )
 
