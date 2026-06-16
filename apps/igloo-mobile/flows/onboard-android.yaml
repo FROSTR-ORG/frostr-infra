@@ -1,0 +1,150 @@
+appId: com.frostr.igloo.dev
+name: Onboard Device - Android Final
+
+# Runtime credential loading via Maestro -e flags:
+#   maestro --device emulator-5554 test flows/onboard-android.yaml \
+#     -e ONBOARD_PACKAGE="$(cat .tmp/test-harness/onboard-carol.txt)" \
+#     -e ONBOARD_PASSWORD="$(cat .tmp/test-harness/onboard-carol.password.txt)" \
+#     -e RELAY_URL="ws://10.0.2.2:8194"
+#
+# Credentials are passed via Maestro environment variables (no hardcoded secrets).
+# Both package and password are entered via setClipboard + pasteText.
+# Android Compose text fields support full clipboard paste, unlike iOS TextEditor.
+# Android relay URL is 10.0.2.2:8194 (special alias for host loopback in emulator).
+
+---
+# Launch and verify app is foregrounded
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+
+- waitForAnimationToEnd
+
+# Start from hub
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "Onboard Device"
+
+# Navigate: Hub -> OnboardEntry -> OnboardConnect
+- tapOn:
+    text: "Onboard Device"
+
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+
+- tapOn:
+    id: "btn_connect_entry"
+
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 20000
+
+# VAL-ONBOARD-001: Verify connect screen elements
+- assertVisible:
+    id: "input_package"
+- assertVisible:
+    id: "input_password"
+- assertVisible:
+    id: "input_relay_url"
+- assertVisible:
+    id: "btn_connect"
+
+# Enter relay URL (platform-correct Android emulator value: 10.0.2.2 is host loopback)
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "ws://10.0.2.2:8194"
+
+# Enter package via setClipboard + pasteText (runtime credential loading).
+# ONBOARD_PACKAGE is passed via Maestro -e flag. Key: must tap input_package
+# to focus it BEFORE pasteText, because the Compose BasicTextField for package
+# only receives paste when focused (unlike password field which works regardless).
+# setClipboard correctly expands ${ONBOARD_PACKAGE} env var.
+- tapOn:
+    id: "input_package"
+- eraseText: 1000
+- setClipboard: "${ONBOARD_PACKAGE}"
+- pasteText
+
+# Enter password via setClipboard + pasteText (runtime credential loading)
+# ONBOARD_PASSWORD is passed via Maestro -e flag.
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- setClipboard: "${ONBOARD_PASSWORD}"
+- pasteText
+
+# Tap Connect
+- waitForAnimationToEnd
+- tapOn:
+    id: "btn_connect"
+
+# VAL-ONBOARD-006: Wait for review screen (180s Rust timeout, no-UI gate proved ~4.7s).
+# Add multiple wait steps to let Compose recompose and onboarding complete.
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# Scroll down to find input_device_name on the review screen
+- scrollUntilVisible:
+    element:
+      id: "input_device_name"
+    timeout: 240000
+
+# VAL-ONBOARD-008: Review screen shows resolved identity
+- assertVisible:
+    id: "input_device_name"
+- assertVisible:
+    id: "display_share_pubkey"
+- assertVisible:
+    id: "display_group_pubkey"
+- assertVisible:
+    id: "btn_save_device"
+
+# VAL-ONBOARD-010: Empty name blocked
+- tapOn:
+    id: "input_device_name"
+- eraseText: 64
+- tapOn:
+    id: "btn_save_device"
+- assertVisible:
+    id: "btn_save_device"
+
+# VAL-ONBOARD-011: Save with device name
+- inputText:
+    id: "input_device_name"
+    text: "carol-Android"
+- tapOn:
+    id: "btn_save_device"
+
+# VAL-ONBOARD-011/012: Dashboard arrival
+# The DashboardHeader renders the device name, not a literal "Dashboard" text.
+# Wait for the persisted profile identity (device name) with a brief settle delay
+# to avoid timing flakes on the profile-name assertion.
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "carol-Android"
+    timeout: 30000
+- assertVisible:
+    text: "carol-Android"
+
+# VAL-ONBOARD-013: Back to hub, profile listed
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+- scrollUntilVisible:
+    element:
+      text: "carol-Android"
+    timeout: 10000
+- assertVisible:
+    text: "carol-Android"

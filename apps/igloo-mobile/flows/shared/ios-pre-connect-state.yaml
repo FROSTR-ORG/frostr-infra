@@ -1,0 +1,29 @@
+appId: com.frostr.igloo.dev
+name: iOS Pre-Connect State Capture
+
+# Diagnostic sub-flow: capture input state before btn_connect
+# Validates that all required form elements are present and accessible
+# after a full 690-char package paste and before tapping Connect.
+# No credential entry - uses setClipboard + btn_paste_package for package.
+---
+- waitForAnimationToEnd
+
+# Check if input_package field is present
+- assertVisible:
+    id: "input_package"
+
+# Check relay URL field
+- assertVisible:
+    id: "input_relay_url"
+
+# Check password field is present
+- assertVisible:
+    id: "input_password"
+
+# Check btn_connect is visible
+- assertVisible:
+    id: "btn_connect"
+
+# Check btn_connect has the Connect label
+- assertVisible:
+    text: "Connect"

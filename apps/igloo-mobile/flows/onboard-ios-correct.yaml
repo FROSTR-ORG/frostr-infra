@@ -1,0 +1,165 @@
+appId: com.frostr.igloo.dev
+name: Onboard Device - iOS (Corrected)
+instruments:
+  - iOS onboarding with real bob credentials
+
+# Real bob credentials from .tmp/test-harness
+env:
+  BOB_PACKAGE: "bfonboard10v38vetjwd5k7m3z8gcjcgnsv9ehxam0wfj97etwvdhkg6twvu3r5gnndpsnydfkygkzy6t5v4exzarfdah8xg36xccrqvpsxqkzy6tkta38jar9wv3r5v359s38xctvw30ksetcygazywrpv93rsde58p3nyefk8qmrsc3j8pnxxdnpvvenydp4xqexzve3ygkzycmfwp5x2ujlw3jhsapz8g392mrfta4rqujx0p3kuurxt93524662p99qdzrfycxyjzgv5my5e6s24zk73megfexcuzng9rrydj8w30j64tptpm45ufcxcc9ynjcvf8hw3jpx96yusjntp2ky3tcfdr5y5mw2a5h55twx9jj65mjfpexjkt5wftyku3nf4zhy3342ff9gjjrg349z5newa88xaz22d2hvuedxe3yzez4tam5g6rwvagxv7ty2ajxcvzzgvc824nkd38rg46s2e9yjnzg245y6ejrvse5wcjsge0hwsj5f4jyx5ngfay9243ntym47u6n0f8xgm2hw3v9z7tr29c5zkngdeuxkn3d24jh2un3vdvyzuncfsmhw6ms2yu976z8t9ersutn8p94jcncg454ymrstankga232gcy26jvfe9h2s262c6kjvm3944k67rgt9jhzhmgv4nkxsfz05agdkv7"
+  BOB_PASSWORD: "${BOB_PASSWORD:-changeme}"
+
+---
+# Launch and verify app is foregrounded
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+
+- waitForAnimationToEnd
+
+# Verify hub is visible
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "Onboard Device"
+
+# Navigate: Hub -> OnboardEntry -> OnboardConnect
+- tapOn:
+    text: "Onboard Device"
+
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+
+- tapOn:
+    id: "btn_connect_entry"
+
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 20000
+
+# VAL-ONBOARD-001: Verify connect screen elements
+- assertVisible:
+    id: "input_package"
+- assertVisible:
+    id: "input_password"
+- assertVisible:
+    id: "input_relay_url"
+- assertVisible:
+    id: "btn_connect"
+
+# VAL-ONBOARD-002: Blocked when empty - verify Connect button is initially disabled
+# (This requires the fields to actually be populated first)
+
+# Enter package via clipboard paste
+- tapOn:
+    id: "input_package"
+- eraseText: 1000
+- setClipboard: "${BOB_PACKAGE}"
+- pasteText
+
+# Enter password via clipboard paste
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- setClipboard: "${BOB_PASSWORD}"
+- pasteText
+
+# Enter relay URL
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "ws://127.0.0.1:8194"
+
+# Dismiss keyboard and tap Connect
+- tapOn:
+    id: "btn_connect"
+
+# VAL-ONBOARD-006: Handshake shows live in-progress state
+# The Rust FfiApp.onboard() blocks for up to 180s during the handshake.
+# Wait for either:
+#   - onboard_error element (handshake failed within ~45s)
+#   - input_device_name element (handshake succeeded, review screen)
+#
+# The handshake typically completes in 4-10s per no-UI gate. We allow 200s
+# to cover the full Rust timeout (180s handshake_timeout).
+- runScript:
+    file: ../scripts/wait-for-screen.sh
+    env:
+      TIMEOUT: "200000"
+
+# After wait, check which screen we're on
+# Check for error state first (VAL-ONBOARD-007, VAL-ONBOARD-014)
+- scrollUntilVisible:
+    element:
+      id: "onboard_error"
+    timeout: 5000
+
+# If onboard_error visible, capture evidence and exit this flow path
+- assertVisible:
+    id: "onboard_error"
+
+---
+
+# Alternative path: success - review screen visible
+# This runs only if the scrollUntilVisible for onboard_error timed out
+# (Maestro runs each flow after --- independently, so we use runScript to wait)
+- runScript:
+    file: ../scripts/wait-for-review.sh
+    env:
+      TIMEOUT: "200000"
+
+- scrollUntilVisible:
+    element:
+      id: "input_device_name"
+    timeout: 5000
+
+# VAL-ONBOARD-008: Review screen shows resolved identity
+- assertVisible:
+    id: "input_device_name"
+- assertVisible:
+    id: "display_share_pubkey"
+- assertVisible:
+    id: "display_group_pubkey"
+- assertVisible:
+    id: "btn_save_device"
+
+# VAL-ONBOARD-010: Empty name blocked
+- tapOn:
+    id: "input_device_name"
+- eraseText: 64
+- tapOn:
+    id: "btn_save_device"
+- assertVisible:
+    id: "btn_save_device"
+
+# VAL-ONBOARD-011: Save with valid name
+- inputText:
+    id: "input_device_name"
+    text: "bob-iPhone"
+- tapOn:
+    id: "btn_save_device"
+
+# Dashboard arrival
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "Dashboard"
+- assertVisible:
+    text: "bob-iPhone"
+
+# VAL-ONBOARD-013: Back to hub, profile listed
+- tapOn:
+    id: "btn_back"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+- scrollUntilVisible:
+    element:
+      text: "bob-iPhone"
+- assertVisible:
+    text: "bob-iPhone"

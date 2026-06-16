@@ -1,0 +1,83 @@
+appId: com.frostr.igloo.dev
+name: Onboard Device - Android with Debug Intent Inject
+
+# Continuation Maestro flow that ASSUMES the helper script
+# `scripts/android-inject-onboard-carol.sh` or any equivalent that fires
+#   adb shell am start -a com.frostr.igloo.DEBUG_TEST_INJECT_ONBOARD \
+#     -n com.frostr.igloo.dev/com.frostr.igloo.MainActivity \
+#     --es package <bfonboard1> --es password <password> \
+#     --es relay "ws://10.0.2.2:8194" --es device_name <label>
+# has already preloaded the OnboardConnect form fields. We do not type
+# or paste the 690-character package; the inject path has done that.
+# This flow continues through btn_connect -> review/save -> dashboard
+# using only stable accessibility identifiers.
+#
+# Pre-run (out of Maestro):
+#     bash scripts/android-inject-onboard-carol.sh
+#     # OR any equivalent that issues the intent with the desired extras.
+#
+# Credentials are NOT supplied through this flow — that would defeat the
+# purpose of using the debug-inject path for long credentials.
+
+---
+# The OnboardConnect screen is already populated and on the device after
+# the helper script completes. Wait a moment for the screen to be ready
+# and assert the inputs are present (sanitized by the gate).
+
+- assertVisible:
+    id: "input_package"
+- assertVisible:
+    id: "input_password"
+- assertVisible:
+    id: "input_relay_url"
+- assertVisible:
+    id: "btn_connect"
+
+# VAL-ONBOARD-008: Submit via btn_connect. Same as the regular flow,
+# but the helper has already preloaded the credentials.
+- tapOn:
+    id: "btn_connect"
+
+# Wait long enough to allow handshake to complete. The focused Android
+# gate proved that with valid credentials the live handshake reaches
+# OnboardReview within a few seconds. Allow up to 4 minutes for slower
+# emulators.
+- extendedWaitUntil:
+    visible:
+      id: "input_device_name"
+    timeout: 240000
+
+# VAL-ONBOARD-010: Save with a device name. The inject path MAY have
+# pre-populated the device name; clear it first then enter a fresh label.
+- tapOn:
+    id: "input_device_name"
+- eraseText: 64
+- inputText:
+    id: "input_device_name"
+    text: "carol-Android"
+- assertVisible:
+    id: "btn_save_device"
+- tapOn:
+    id: "btn_save_device"
+
+# VAL-ONBOARD-011: Dashboard arrival — device name persists there.
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "carol-Android"
+    timeout: 30000
+- assertVisible:
+    text: "carol-Android"
+
+# VAL-ONBOARD-013: Hub return with stored profile row.
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+- scrollUntilVisible:
+    element:
+      text: "carol-Android"
+    timeout: 10000
+- assertVisible:
+    text: "carol-Android"

@@ -1,0 +1,164 @@
+appId: com.frostr.igloo.dev
+name: Onboard Connect iOS Focused Gate
+
+# Focused gate: capture diagnostic matrix after btn_connect
+# Package is pre-loaded to simulator clipboard by pre-flight setup script
+# (bypasses Maestro setClipboard ${VAR} expansion bug - confirmed broken in v2.6.0).
+# Password is passed as -e PASSWORD=... to Maestro and used in inputText (expands ${VAR}).
+# Relay URL has DEFAULT VALUE "ws://127.0.0.1:8194" - no need to enter it!
+
+---
+# Launch and verify app
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+
+- waitForAnimationToEnd
+
+# Verify hub
+- assertVisible:
+    text: "Igloo"
+
+# Navigate: Hub -> OnboardEntry -> OnboardConnect
+- tapOn:
+    text: "Onboard Device"
+
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+
+- tapOn:
+    id: "btn_connect_entry"
+
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 20000
+
+# Verify connect screen elements
+- assertVisible:
+    id: "input_package"
+- assertVisible:
+    id: "input_password"
+- assertVisible:
+    id: "input_relay_url"
+- assertVisible:
+    id: "btn_connect"
+
+# ═══ ENTER PASSWORD FIRST (while form is clean) ═══
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- inputText:
+    id: "input_password"
+    text: "${PASSWORD}"
+- waitForAnimationToEnd
+
+# ═══ ENTER PACKAGE via paste button ═══
+- tapOn:
+    id: "btn_paste_package"
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# ═══ DISMISS KEYBOARD by pressing Home, go to home screen ═══
+- pressKey: home
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# ═══ RE-LAUNCH and re-enter credentials ═══
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+- waitForAnimationToEnd
+
+# Navigate: Hub -> OnboardEntry -> OnboardConnect
+# (relay URL has default value "ws://127.0.0.1:8194")
+- tapOn:
+    text: "Onboard Device"
+
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+
+- tapOn:
+    id: "btn_connect_entry"
+
+# Verify connect screen
+- assertVisible:
+    id: "input_package"
+- assertVisible:
+    id: "input_password"
+- assertVisible:
+    id: "btn_connect"
+
+# ═══ ENTER PASSWORD (fresh form - clipboard still has package) ═══
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- inputText:
+    id: "input_password"
+    text: "${PASSWORD}"
+- waitForAnimationToEnd
+
+# ═══ ENTER PACKAGE via paste button (clipboard persists across launches) ═══
+- tapOn:
+    id: "btn_paste_package"
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# ═══ SCROLL TO CONNECT BUTTON ═══
+# After paste, form expanded. Use speed 100 (max) to reach Connect button.
+- scrollUntilVisible:
+    element:
+      id: "btn_connect"
+    speed: 100
+    timeout: 60000
+
+# Verify Connect is visible
+- assertVisible:
+    id: "btn_connect"
+- assertVisible:
+    text: "Connect"
+
+# ═══ TAP CONNECT ═══
+- tapOn:
+    id: "btn_connect"
+
+# ═══ WAIT AND CHECK: Does review screen (input_device_name) appear? ═══
+# Diagnostic: if scrollUntilVisible times out after 120s, we stayed on Connect
+# with no loading indicator and no error = classified as "no navigation" failure.
+
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# Check for review screen
+- scrollUntilVisible:
+    element:
+      id: "input_device_name"
+    timeout: 120000
+
+# If we reach here, onboarding succeeded
+- assertVisible:
+    id: "input_device_name"
+- assertVisible:
+    id: "display_share_pubkey"
+- assertVisible:
+    id: "display_group_pubkey"
+- assertVisible:
+    id: "btn_save_device"

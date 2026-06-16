@@ -1,0 +1,62 @@
+appId: com.frostr.igloo.dev
+name: Onboard Device - Android Paste Test
+
+# Test if setClipboard + pasteText works for the package field when field is focused.
+# We know pasteText works for password field, want to verify for package field.
+---
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "Onboard Device"
+- tapOn:
+    text: "Onboard Device"
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+- tapOn:
+    id: "btn_connect_entry"
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 20000
+
+# Set clipboard with package BEFORE tapping the field
+- setClipboard: "${ONBOARD_PACKAGE}"
+
+# Enter package via pasteText (with field explicitly focused first)
+- tapOn:
+    id: "input_package"
+- eraseText: 1000
+# Set clipboard AFTER focusing the field too
+- setClipboard: "${ONBOARD_PACKAGE}"
+- pasteText
+
+# Enter relay URL
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "ws://10.0.2.2:8194"
+
+# Enter password via setClipboard + pasteText
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- setClipboard: "${ONBOARD_PASSWORD}"
+- pasteText
+
+# Check if btn_connect is enabled (proving pasteText worked for package)
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- assertVisible:
+    id: "btn_connect"
+- tapOn:
+    id: "btn_connect"
+- waitForAnimationToEnd

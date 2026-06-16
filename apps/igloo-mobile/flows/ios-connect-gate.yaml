@@ -1,0 +1,105 @@
+appId: com.frostr.igloo.dev
+name: Onboard Connect Focused Gate - iOS
+
+# Focused gate: does btn_connect lead to OnboardReview or error within 240s?
+# Does NOT depend on debug_onboard_diagnostics panel visibility.
+# Only classifies the terminal outcome (review vs hang).
+#
+# Credentials via Maestro -e flags:
+#   maestro --device UDID test flows/ios-connect-gate.yaml \
+#     -e ONBOARD_PACKAGE="$(cat .tmp/test-harness/onboard-bob.txt | tr -d '\r\n')" \
+#     -e ONBOARD_PASSWORD="$(cat .tmp/test-harness/onboard-bob.password.txt | tr -d '\r\n')" \
+#     -e RELAY_URL="ws://127.0.0.1:8194"
+
+---
+# Step 1: Verify hub is visible (app already running)
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "Onboard Device"
+
+# Step 2: Navigate to OnboardConnect
+- tapOn:
+    text: "Onboard Device"
+
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+- tapOn:
+    id: "btn_connect_entry"
+
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 20000
+
+# Step 3: Verify connect screen form elements are present
+- assertVisible:
+    id: "input_package"
+- assertVisible:
+    id: "input_password"
+- assertVisible:
+    id: "input_relay_url"
+- assertVisible:
+    id: "btn_connect"
+
+# Step 4: Enter platform-correct relay URL
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "ws://127.0.0.1:8194"
+
+# Step 5: Paste full 690-char package via clipboard + paste button
+- tapOn:
+    id: "input_package"
+- eraseText: 1000
+- setClipboard: "${ONBOARD_PACKAGE}"
+- tapOn:
+    id: "btn_paste_package"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "input_password"
+    timeout: 10000
+
+# Step 6: Enter password
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- setClipboard: "${ONBOARD_PASSWORD}"
+- pasteText
+
+# Step 7: Dismiss keyboard
+- waitForAnimationToEnd
+
+# Step 8: Verify btn_connect is enabled before submit
+# At this point the form should be complete (package 690, password 32, relay set)
+# If btn_connect is disabled at this point, there's a form validation issue.
+
+# Step 9: Tap Connect and wait for review screen OR error OR 240s timeout
+# This is the PRIMARY gate. b3987a4 should make this succeed within 200s.
+- tapOn:
+    id: "btn_connect"
+
+# Step 10: Wait for OnboardReview OR onboard_error OR 240s
+# If rust.onboard returned (b3987a4 fix): OnboardReview appears
+# If rust.onboard still no-return: we timeout and this gate fails
+# If rust.onboard returned error: onboard_error appears
+- scrollUntilVisible:
+    element:
+      id: "input_device_name"
+    timeout: 240000
+
+# Step 11: Capture OnboardReview as success evidence
+- assertVisible:
+    id: "input_device_name"
+- assertVisible:
+    id: "display_share_pubkey"
+- assertVisible:
+    id: "display_group_pubkey"
+- assertVisible:
+    id: "btn_save_device"

@@ -1,0 +1,160 @@
+appId: com.frostr.igloo.dev
+name: Onboard Device - iOS
+
+# Runtime credential loading via Maestro -e flags:
+#   maestro --device <udid> test flows/onboard-ios.yaml \
+#     -e ONBOARD_PACKAGE="$(cat .tmp/test-harness/onboard-bob.txt | tr -d '\r\n')" \
+#     -e ONBOARD_PASSWORD="$(cat .tmp/test-harness/onboard-bob.password.txt | tr -d '\r\n')" \
+#     -e RELAY_URL="ws://127.0.0.1:8194"
+#
+# Credentials are passed via Maestro environment variables (no hardcoded secrets).
+# The package is set to Maestro clipboard before the paste button; the password
+# is entered via setClipboard + pasteText. The product-grade btn_paste_package
+# button reads directly from UIPasteboard.general.string.
+
+---
+# Launch and verify app is foregrounded
+- launchApp:
+    appId: com.frostr.igloo.dev
+    clearState: false
+    clearKeychain: false
+
+- waitForAnimationToEnd
+
+# Start from hub
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "Onboard Device"
+
+# Navigate: Hub -> OnboardEntry -> OnboardConnect
+- tapOn:
+    text: "Onboard Device"
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+- tapOn:
+    id: "btn_connect_entry"
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 20000
+
+# VAL-ONBOARD-001: Verify connect screen elements
+- assertVisible:
+    id: "input_package"
+- assertVisible:
+    id: "input_password"
+- assertVisible:
+    id: "input_relay_url"
+- assertVisible:
+    id: "btn_connect"
+
+# Enter relay URL (platform-correct iOS Simulator value)
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "ws://127.0.0.1:8194"
+
+# Enter package via paste button (reads full 690-char package from UIPasteboard)
+# The package is set to Maestro clipboard first so UIPasteboard.general.string
+# in the iOS app reads the full 690-char content, bypassing the TextEditor
+# ~86-char paste limitation that affects Maestro pasteText directly.
+- tapOn:
+    id: "input_package"
+- eraseText: 1000
+- setClipboard: "${ONBOARD_PACKAGE}"
+- tapOn:
+    id: "btn_paste_package"
+# iOS Simulator paste permission dialog: "Igloo Mobile would like to paste
+# from CoreSimulator-Bridge". The dialog may not appear if previously
+# allowed, may show "Allow Paste" or "Allow", and may be skipped entirely.
+# Handle any variant conditionally before continuing.
+- runFlow:
+    when:
+      visible: "Allow Paste"
+    commands:
+      - tapOn: "Allow Paste"
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow"
+- waitForAnimationToEnd
+
+# Enter password via setClipboard + pasteText (runtime credential loading)
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- setClipboard: "${ONBOARD_PASSWORD}"
+- pasteText
+
+# Tap Connect
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "btn_connect"
+    timeout: 10000
+- tapOn:
+    id: "btn_connect"
+
+# Wait for onboarding handshake to complete. No-UI gate proved ~4.7s but
+# mobile may be slower due to FFI overhead and UI recomposition.
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# VAL-ONBOARD-006/008: Wait for review screen (180s Rust timeout)
+- scrollUntilVisible:
+    element:
+      id: "input_device_name"
+    timeout: 240000
+- assertVisible:
+    id: "input_device_name"
+- assertVisible:
+    id: "display_share_pubkey"
+- assertVisible:
+    id: "display_group_pubkey"
+- assertVisible:
+    id: "btn_save_device"
+
+# VAL-ONBOARD-010: Empty device name blocked
+- inputText:
+    id: "input_device_name"
+    text: ""
+- tapOn:
+    id: "btn_save_device"
+- assertVisible:
+    id: "btn_save_device"
+
+# VAL-ONBOARD-011: Save with device name
+- inputText:
+    id: "input_device_name"
+    text: "bob-iPhone"
+- tapOn:
+    id: "btn_save_device"
+
+# VAL-ONBOARD-012: Dashboard arrival
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "Dashboard"
+    timeout: 30000
+- assertVisible:
+    text: "bob-iPhone"
+
+# VAL-ONBOARD-013: Back to hub, profile listed
+- tapOn:
+    id: "btn_back"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+- scrollUntilVisible:
+    element:
+      text: "bob-iPhone"
+    timeout: 10000
+- assertVisible:
+    text: "bob-iPhone"
