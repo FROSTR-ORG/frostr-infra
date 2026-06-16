@@ -3102,6 +3102,7 @@ fun DashboardScreen(manager: AppManager) {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun DashboardHeader(
     title: String,
@@ -3115,7 +3116,10 @@ fun DashboardHeader(
             .padding(horizontal = IglooSpacing.lg.dp, vertical = IglooSpacing.md.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        TextButton(onClick = onBack) {
+        TextButton(
+            onClick = onBack,
+            modifier = Modifier.semantics { testTag = "btn_back_dashboard" }
+        ) {
             Text(
                 text = "←",
                 style = IglooTypography.h3,
@@ -3126,15 +3130,31 @@ fun DashboardHeader(
         Column(
             modifier = Modifier.padding(start = IglooSpacing.md.dp)
         ) {
+            // Stable identifiers — paired with iOS
+            // `dashboard_header_title` / `dashboard_header_subtitle` —
+            // let the post-restart / VAL-CROSS-002 validator confirm
+            // post-onboard identity through the full uiautomator
+            // hierarchy without scrolling the device name (orchestrator
+            // note after onboarding-and-runtime user-testing round 1).
             Text(
                 text = title,
                 style = IglooTypography.h3,
-                color = IglooColors.Slate200
+                color = IglooColors.Slate200,
+                modifier = Modifier.semantics {
+                    testTagsAsResourceId = true
+                    testTag = "dashboard_header_title"
+                    this.contentDescription = title
+                }
             )
             Text(
                 text = subtitle,
                 style = IglooTypography.monoLabel,
-                color = IglooColors.Slate500
+                color = IglooColors.Slate500,
+                modifier = Modifier.semantics {
+                    testTagsAsResourceId = true
+                    testTag = "dashboard_header_subtitle"
+                    this.contentDescription = subtitle
+                }
             )
         }
 
@@ -4754,39 +4774,43 @@ fun SettingsTab(manager: AppManager) {
             Spacer(modifier = Modifier.height(IglooSpacing.lg.dp))
 
             // Section: Maintenance Actions
+            //
+            // Visual parity with iOS: each row uses an `IconChip` glyph
+            // (mirrors the EntryTile `[K]`/`[L]`/`[+]` iconography already
+            // present on the hub and on the load/recover choice screen)
+            // followed by the label, so Connect-Copy Profile/Copy Share/
+            // Rotate Share read as glyph + label on Android just as they
+            // do as `Image(systemName:) + Text` on iOS. Cosmetic upgrade
+            // noted by the orchestrator after `mobile-settings-and-maintenance
+            // d03071c`; functional VAL-SET/VAL-ROTATE surface unchanged.
             SettingsSection(title = "Maintenance") {
                 Column {
                     // Copy profile (VAL-SET-006, VAL-SET-007)
-                    OutlinedButton(
-                        onClick = { manager.requestCopyProfile() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .semantics { testTag = "btn_copy_profile" },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = IglooColors.Slate200),
-                        border = BorderStroke(1.dp, IglooColors.Blue900PanelBorder)
-                    ) {
-                        Text("Copy Profile")
-                    }
+                    MaintenanceRow(
+                        glyph = "[P]",
+                        label = "Copy Profile",
+                        accessibilityId = "btn_copy_profile",
+                        onClick = { manager.requestCopyProfile() }
+                    )
 
                     Spacer(modifier = Modifier.height(IglooSpacing.md.dp))
 
                     // Copy share (VAL-SET-008)
-                    OutlinedButton(
-                        onClick = { manager.requestCopyShare() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .semantics { testTag = "btn_copy_share" },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = IglooColors.Slate200),
-                        border = BorderStroke(1.dp, IglooColors.Blue900PanelBorder)
-                    ) {
-                        Text("Copy Share")
-                    }
+                    MaintenanceRow(
+                        glyph = "[S]",
+                        label = "Copy Share",
+                        accessibilityId = "btn_copy_share",
+                        onClick = { manager.requestCopyShare() }
+                    )
 
                     Spacer(modifier = Modifier.height(IglooSpacing.md.dp))
 
                     // Rotate share (VAL-ROTATE-005)
                     val rotateProfile = manager.state.dashboard.profileInfo
-                    OutlinedButton(
+                    MaintenanceRow(
+                        glyph = "[R]",
+                        label = "Rotate Share",
+                        accessibilityId = "btn_rotate_share",
                         onClick = {
                             if (rotateProfile != null) {
                                 manager.openRotateShareConnect(
@@ -4797,15 +4821,8 @@ fun SettingsTab(manager: AppManager) {
                             } else {
                                 manager.navigateToRotateShare()
                             }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .semantics { testTag = "btn_rotate_share" },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = IglooColors.Slate200),
-                        border = BorderStroke(1.dp, IglooColors.Blue900PanelBorder)
-                    ) {
-                        Text("Rotate Share")
-                    }
+                        }
+                    )
                 }
             }
 
@@ -4832,7 +4849,16 @@ fun SettingsTab(manager: AppManager) {
                         contentColor = IglooColors.Gray950
                     )
                 ) {
-                    Text("Save Settings")
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(IglooSpacing.sm.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconChip(
+                            glyph = "[V]",
+                            contentDescription = "Save Settings"
+                        )
+                        Text("Save Settings")
+                    }
                 }
             }
 
@@ -4850,7 +4876,17 @@ fun SettingsTab(manager: AppManager) {
                     contentColor = IglooColors.Red400
                 )
             ) {
-                Text("Logout")
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(IglooSpacing.sm.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconChip(
+                        glyph = "[X]",
+                        contentDescription = "Logout",
+                        tint = IglooColors.Red400
+                    )
+                    Text("Logout")
+                }
             }
 
             Spacer(modifier = Modifier.height(IglooSpacing.xl.dp))
@@ -4906,6 +4942,90 @@ fun SettingsSection(title: String, content: @Composable () -> Unit) {
             modifier = Modifier.padding(bottom = IglooSpacing.sm.dp)
         )
         content()
+    }
+}
+
+/**
+ * A square icon chip mirroring the EntryTile 40dp glyph container. Used by
+ * the Settings tab's Maintenance rows (and the Save Settings / Logout
+ * primary buttons) as the icon+text counterpart to the iOS
+ * `Image(systemName:) + Text` chevron rows.
+ *
+ * `glyph` is a short character drawn in the panel-background square; it
+ * intentionally avoids the Material-icon dependency so the Settings tab
+ * renders identically with or without the extended icon set. `tint`
+ * overrides the default `Blue400` for the destructive logout row.
+ */
+@Composable
+fun IconChip(
+    glyph: String,
+    contentDescription: String,
+    size: androidx.compose.ui.unit.Dp = 28.dp,
+    tint: Color = IglooColors.Blue400
+) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(RoundedCornerShape(IglooRadii.sm.dp))
+            .background(IglooColors.Blue900.copy(alpha = 0.3f))
+            .semantics {
+                testTag = contentDescription.lowercase().replace(' ', '_')
+                this.contentDescription = contentDescription
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = glyph, color = tint)
+    }
+}
+
+/**
+ * Maintenance row — outlined panel with leading glyph + label + trailing
+ * chevron, mirroring the iOS HStack `{ Image(systemName:); Text(...);
+ * Spacer(); Image(systemName: "chevron.right") }` layout. Vault-style
+ * surface over Slate900StrongTranslucent with the standard Blue900 hairline
+ * border so the row reads as part of the existing Settings-tab visual
+ * hierarchy.
+ *
+ * `accessibilityId` is forwarded to the visual surface (the same node
+ * owning the `Row.clickable`) so `tapOn: { id: <accessibilityId> }`
+ * works against the row in Maestro flows without conflating with the
+ * label text.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun MaintenanceRow(
+    glyph: String,
+    label: String,
+    accessibilityId: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .background(IglooColors.Slate900StrongTranslucent, RoundedCornerShape(IglooRadii.md.dp))
+            .border(1.dp, IglooColors.Blue900PanelBorder, RoundedCornerShape(IglooRadii.md.dp))
+            .padding(IglooSpacing.md.dp)
+            .semantics {
+                testTagsAsResourceId = true
+                testTag = accessibilityId
+                this.contentDescription = label
+            },
+        horizontalArrangement = Arrangement.spacedBy(IglooSpacing.md.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconChip(glyph = glyph, contentDescription = label)
+        Text(
+            text = label,
+            style = IglooTypography.body,
+            color = IglooColors.Slate200,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = ">",
+            style = IglooTypography.body,
+            color = IglooColors.Slate500
+        )
     }
 }
 
