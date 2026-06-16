@@ -1,0 +1,159 @@
+diff --git a/apps/igloo-mobile/android/app/src/main/java/com/frostr/igloo/ui/MainApp.kt b/apps/igloo-mobile/android/app/src/main/java/com/frostr/igloo/ui/MainApp.kt
+index f2dfe32..e73c470 100644
+--- a/apps/igloo-mobile/android/app/src/main/java/com/frostr/igloo/ui/MainApp.kt
++++ b/apps/igloo-mobile/android/app/src/main/java/com/frostr/igloo/ui/MainApp.kt
+@@ -2022,13 +2022,37 @@ fun CreateKeysetDeviceProfileScreen(manager: AppManager) {
+     val keysetState = manager.state.keyset
+     val localShare = keysetState.bundle?.shares?.firstOrNull { it.shareIdx == keysetState.localShareIdx }
+     var deviceNameInput by rememberSaveable { mutableStateOf(keysetState.deviceName) }
++    // Platform-correct relay default (Android-only override). The actor
++    // pre-fills `state.keyset.relays` with the iOS-Simulator localhost
++    // (`ws://127.0.0.1:8194`) from the shared Rust core; the Android
++    // emulator reaches the host's `127.0.0.1:8194` via the special
++    // `10.0.2.2` alias, so the actor's prefill silently breaks every
++    // Android handshake that does not override the form. Override the
++    // initial display value (and the back-navigation reseed) so the
++    // form always opens with `ws://10.0.2.2:8194` on Android while
++    // preserving any user-typed relay URL. iOS continues to receive
++    // `ws://127.0.0.1:8194` from its own shell — the override lives in
++    // Compose, not in the Rust actor. See the parallel fix on
++    // `RotateShareConnectScreen` and
++    // `mobile-android-relay-url-platform-default-fix`.
++    val initialRelays = if (keysetState.relays.isEmpty() ||
++        keysetState.relays == listOf("ws://127.0.0.1:8194")) {
++        listOf(RelayDefaults.DEFAULT)
++    } else {
++        keysetState.relays
++    }
+     var relaysInput by rememberSaveable {
+-        mutableStateOf(keysetState.relays.joinToString("\n"))
++        mutableStateOf(initialRelays.joinToString("\n"))
+     }
+ 
+     LaunchedEffect(keysetState.deviceName, keysetState.relays) {
+         if (deviceNameInput.isEmpty()) deviceNameInput = keysetState.deviceName
+-        if (relaysInput.isBlank() && keysetState.relays.isNotEmpty()) {
++        // Android override: do not reseed from actor state when the actor
++        // is still carrying the iOS-Simulator localhost; the user-facing
++        // default for this screen must remain the platform-correct
++        // Android alias until the user types a custom URL.
++        if (relaysInput.isBlank() && keysetState.relays.isNotEmpty() &&
++            keysetState.relays != listOf("ws://127.0.0.1:8194")) {
+             relaysInput = keysetState.relays.joinToString("\n")
+         }
+     }
+diff --git a/apps/igloo-mobile/android/app/src/test/java/com/frostr/igloo/RelayDefaultsTest.kt b/apps/igloo-mobile/android/app/src/test/java/com/frostr/igloo/RelayDefaultsTest.kt
+index 6276193..81a68f8 100644
+--- a/apps/igloo-mobile/android/app/src/test/java/com/frostr/igloo/RelayDefaultsTest.kt
++++ b/apps/igloo-mobile/android/app/src/test/java/com/frostr/igloo/RelayDefaultsTest.kt
+@@ -1,5 +1,6 @@
+ package com.frostr.igloo
+ 
++import org.junit.Assert.assertArrayEquals
+ import org.junit.Assert.assertEquals
+ import org.junit.Assert.assertNotNull
+ import org.junit.Assert.assertTrue
+@@ -77,4 +78,103 @@ class RelayDefaultsTest {
+             RelayDefaults.DEFAULT.contains("127.0.0.1"),
+         )
+     }
++
++    /**
++     * Create Keyset wizard Device Profile relay default
++     * (`mobile-android-create-keyset-wizard-relay-url-fix`).
++     *
++     * The shared Rust core pre-fills `KeysetFlowState.relays` with the
++     * iOS-Simulator localhost (`ws://127.0.0.1:8194`) so the actor is
++     * platform-neutral. The Android Compose `CreateKeysetDeviceProfileScreen`
++     * override must rewrite that prefill to `RelayDefaults.DEFAULT` so
++     * the form opens with the platform-correct alias. This test pins
++     * the override semantics: any relay list that is empty or carries
++     * the iOS-Simulator localhost must surface as `RelayDefaults.DEFAULT`,
++     * while any other relay list (a user-typed value) must be preserved
++     * verbatim so we never clobber a custom URL.
++     */
++    @Test
++    fun create_keyset_wizard_overrides_ios_localhost_with_android_default() {
++        val display = relayDisplayFor(listOf("ws://127.0.0.1:8194"))
++        assertArrayEquals(
++            "Create Keyset wizard must surface the Android emulator relay, " +
++                "not the iOS-Simulator localhost the actor pre-fills.",
++            arrayOf(RelayDefaults.DEFAULT),
++            display.toTypedArray(),
++        )
++    }
++
++    /**
++     * Empty actor relays (which the Rust core sets before
++     * `CreateKeysetGenerationSuccess` lands) must still display as
++     * `RelayDefaults.DEFAULT` so the user never sees a blank relay
++     * form on first entry.
++     */
++    @Test
++    fun create_keyset_wizard_empty_actor_relays_surface_android_default() {
++        val display = relayDisplayFor(emptyList())
++        assertArrayEquals(
++            "Empty actor relays must surface as RelayDefaults.DEFAULT.",
++            arrayOf(RelayDefaults.DEFAULT),
++            display.toTypedArray(),
++        )
++    }
++
++    /**
++     * A user-typed custom relay must survive the override; the
++     * guardian is meant to fix the iOS-Simulator-default regression,
++     * not to clobber every relay the user enters.
++     */
++    @Test
++    fun create_keyset_wizard_preserves_user_typed_relay() {
++        val userRelays = listOf("wss://user-relay.example.com")
++        val display = relayDisplayFor(userRelays)
++        assertArrayEquals(
++            "User-typed relay list must be preserved by the override logic.",
++            arrayOf("wss://user-relay.example.com"),
++            display.toTypedArray(),
++        )
++    }
++
++    /**
++     * Multi-line custom relay list with the iOS-Simulator localhost
++     * mixed in must keep the user entries and drop/rewrite the iOS
++     * value. Concretely the override is intentionally narrow — it
++     * only rewrites the actor's pure-iOS prefill — so a list of
++     * `[user, ios]` must display unchanged because the user is the
++     * authoritative editor of the field. This contract is what keeps
++     * `onValueChange`'s split/filter/map round-trip safe.
++     */
++    @Test
++    fun create_keyset_wizard_preserves_mixed_relay_list() {
++        val mixedRelays = listOf(
++            "wss://user-relay.example.com",
++            "ws://127.0.0.1:8194",
++        )
++        val display = relayDisplayFor(mixedRelays)
++        assertArrayEquals(
++            "Mixed relay list (user + iOS) must be preserved, because " +
++                "the override only fires for the actor's pure iOS prefill.",
++            arrayOf(
++                "wss://user-relay.example.com",
++                "ws://127.0.0.1:8194",
++            ),
++            display.toTypedArray(),
++        )
++    }
++
++    /**
++     * Mirror of the override logic in `CreateKeysetDeviceProfileScreen`
++     * (MainApp.kt). Kept private to the test file so the Compose code
++     * stays the source of truth — if the Compose branch changes shape,
++     * update this lambda and the Compose call site together.
++     */
++    private fun relayDisplayFor(actorRelays: List<String>): List<String> =
++        if (actorRelays.isEmpty() ||
++            actorRelays == listOf("ws://127.0.0.1:8194")
++        ) {
++            listOf(RelayDefaults.DEFAULT)
++        } else {
++            actorRelays
++        }
+ }

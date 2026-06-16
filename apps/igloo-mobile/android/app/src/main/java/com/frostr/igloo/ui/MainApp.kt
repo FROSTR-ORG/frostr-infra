@@ -2022,13 +2022,37 @@ fun CreateKeysetDeviceProfileScreen(manager: AppManager) {
     val keysetState = manager.state.keyset
     val localShare = keysetState.bundle?.shares?.firstOrNull { it.shareIdx == keysetState.localShareIdx }
     var deviceNameInput by rememberSaveable { mutableStateOf(keysetState.deviceName) }
+    // Platform-correct relay default (Android-only override). The actor
+    // pre-fills `state.keyset.relays` with the iOS-Simulator localhost
+    // (`ws://127.0.0.1:8194`) from the shared Rust core; the Android
+    // emulator reaches the host's `127.0.0.1:8194` via the special
+    // `10.0.2.2` alias, so the actor's prefill silently breaks every
+    // Android handshake that does not override the form. Override the
+    // initial display value (and the back-navigation reseed) so the
+    // form always opens with `ws://10.0.2.2:8194` on Android while
+    // preserving any user-typed relay URL. iOS continues to receive
+    // `ws://127.0.0.1:8194` from its own shell — the override lives in
+    // Compose, not in the Rust actor. See the parallel fix on
+    // `RotateShareConnectScreen` and
+    // `mobile-android-relay-url-platform-default-fix`.
+    val initialRelays = if (keysetState.relays.isEmpty() ||
+        keysetState.relays == listOf("ws://127.0.0.1:8194")) {
+        listOf(RelayDefaults.DEFAULT)
+    } else {
+        keysetState.relays
+    }
     var relaysInput by rememberSaveable {
-        mutableStateOf(keysetState.relays.joinToString("\n"))
+        mutableStateOf(initialRelays.joinToString("\n"))
     }
 
     LaunchedEffect(keysetState.deviceName, keysetState.relays) {
         if (deviceNameInput.isEmpty()) deviceNameInput = keysetState.deviceName
-        if (relaysInput.isBlank() && keysetState.relays.isNotEmpty()) {
+        // Android override: do not reseed from actor state when the actor
+        // is still carrying the iOS-Simulator localhost; the user-facing
+        // default for this screen must remain the platform-correct
+        // Android alias until the user types a custom URL.
+        if (relaysInput.isBlank() && keysetState.relays.isNotEmpty() &&
+            keysetState.relays != listOf("ws://127.0.0.1:8194")) {
             relaysInput = keysetState.relays.joinToString("\n")
         }
     }
