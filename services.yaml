@@ -1,0 +1,51 @@
+commands:
+  install: >
+    source ~/.config/frostr/rmp-mobile-env.zsh &&
+    cd /Users/plebdev/Desktop/Projects/frostr-infra &&
+    make repo-check &&
+    if [ -f apps/igloo-mobile/rmp.toml ]; then cd apps/igloo-mobile && rmp doctor; else echo "apps/igloo-mobile not scaffolded yet"; fi
+
+  typecheck: >
+    source ~/.config/frostr/rmp-mobile-env.zsh &&
+    cd /Users/plebdev/Desktop/Projects/frostr-infra &&
+    if [ -d apps/igloo-mobile/rust ]; then cd apps/igloo-mobile/rust && cargo check --workspace --all-targets; else echo "apps/igloo-mobile not scaffolded yet"; fi
+
+  lint: >
+    source ~/.config/frostr/rmp-mobile-env.zsh &&
+    cd /Users/plebdev/Desktop/Projects/frostr-infra &&
+    if [ -d apps/igloo-mobile/rust ]; then cd apps/igloo-mobile/rust && cargo fmt --check && cargo clippy --workspace --all-targets -- -D warnings; else echo "apps/igloo-mobile not scaffolded yet"; fi
+
+  test: >
+    source ~/.config/frostr/rmp-mobile-env.zsh &&
+    cd /Users/plebdev/Desktop/Projects/frostr-infra &&
+    if [ -d apps/igloo-mobile/rust ]; then cd apps/igloo-mobile/rust && cargo test --workspace -- --test-threads=9; else echo "apps/igloo-mobile not scaffolded yet"; fi
+
+  build: >
+    source ~/.config/frostr/rmp-mobile-env.zsh &&
+    cd /Users/plebdev/Desktop/Projects/frostr-infra &&
+    if [ -f apps/igloo-mobile/rmp.toml ]; then cd apps/igloo-mobile && rmp bindings --check all && xcodebuild -project ios/IglooMobile.xcodeproj -scheme IglooMobile -configuration Debug -sdk iphonesimulator -destination 'platform=iOS Simulator,name=RMP iPhone 15' CODE_SIGNING_ALLOWED=NO ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build && just android-full; else echo "apps/igloo-mobile not scaffolded yet"; fi
+
+  maestro-smoke: >
+    source ~/.config/frostr/rmp-mobile-env.zsh &&
+    cd /Users/plebdev/Desktop/Projects/frostr-infra &&
+    if [ -d apps/igloo-mobile/flows ]; then cd apps/igloo-mobile && echo "Run the feature-specific Maestro flows listed in library/user-testing.md"; else echo "Maestro flows not scaffolded yet"; fi
+
+services:
+  demo-stack:
+    start: cd /Users/plebdev/Desktop/Projects/frostr-infra && DEV_RELAY_PORT=8194 make demo-start
+    stop: cd /Users/plebdev/Desktop/Projects/frostr-infra && DEV_RELAY_PORT=8194 make demo-stop
+    healthcheck: python3 -c "import socket; s=socket.create_connection(('127.0.0.1',8194),2); s.close()"
+    port: 8194
+    depends_on: []
+
+  ios-simulator:
+    start: source ~/.config/frostr/rmp-mobile-env.zsh && (xcrun simctl boot "RMP iPhone 15" || true) && open -a Simulator
+    stop: source ~/.config/frostr/rmp-mobile-env.zsh && (xcrun simctl shutdown "RMP iPhone 15" || true) && osascript -e 'tell application "Simulator" to quit' || true
+    healthcheck: source ~/.config/frostr/rmp-mobile-env.zsh && xcrun simctl list devices booted | grep -q "RMP iPhone 15"
+    depends_on: []
+
+  android-emulator:
+    start: source ~/.config/frostr/rmp-mobile-env.zsh && (adb -s emulator-5554 get-state >/dev/null 2>&1 || (nohup emulator -avd rmp_api35 -no-snapshot-save >/tmp/igloo-mobile-rmp_api35.log 2>&1 &))
+    stop: source ~/.config/frostr/rmp-mobile-env.zsh && (adb -s emulator-5554 emu kill || true)
+    healthcheck: source ~/.config/frostr/rmp-mobile-env.zsh && adb -s emulator-5554 shell getprop sys.boot_completed | grep -q 1
+    depends_on: []
