@@ -15,7 +15,8 @@ _Last updated: 2026-06-15_
 > **NIP-44 app-facing raw-X interop fix** (the crypto-core unify task). See the
 > `✅ Done` sections below.
 >
-> **All commits are local on `dev`** across the repos (not pushed). The parent repo
+> **All `dev` branches are pushed to `origin/dev`** across all six repos (as of
+> 2026-06-15 — the full NIP-44 saga + the crypto-port audit/KATs). The parent repo
 > also carries **pre-existing, unrelated WIP** (`dev/audit/*`) that is NOT ours —
 > leave it; commit only explicit paths.
 >
