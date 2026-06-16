@@ -113,6 +113,16 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## igloo-pwa
 
+- [ ] (effort: M) **Cross-tab single-active-signer lock.** The 2026-06-16 move to
+  a global profile list (shared `igloo-pwa.profiles.v1`, per-tab session in
+  `igloo-pwa.session.v1::<id>`) removed the storage partition that *implicitly*
+  prevented the same device running in two tabs. Nothing now hard-stops two tabs
+  unlocking the same FROST share at once (nonce-reuse / double-sign risk). Add an
+  explicit `navigator.locks` per-`profileId` lock acquired **before**
+  `adapter.startSession`, with a BroadcastChannel "active in another tab — take
+  over?" handshake that stops the other tab's signer before this one starts.
+  Start sites: `loadStoredProfile`, `startSigner`, distribution/onboard
+  auto-starts; release on stop/logout/delete/unmount — igloo-pwa.
 - [x] (effort: L) **DONE (2026-06-15).** Dashboard error/empty states (loading,
   load-failed, all-relays-offline, signing-blocked, signing-failed) — reusable
   igloo-ui screens (`DashboardLoadingScreen` / `DashboardLoadFailedScreen` /
