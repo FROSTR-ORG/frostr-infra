@@ -28,6 +28,10 @@ export type PwaSeedPayload = {
   globalKey: string;
   sessionKey: string;
   state: unknown;
+  // Specs that call page.reload() set this so the seed (an addInitScript that
+  // re-runs on every load) only applies once and does not clobber state the app
+  // persisted between loads.
+  ifAbsent?: boolean;
 };
 
 /** Build the browser-context seed payload for {@link applyPwaSeed}. */
@@ -51,6 +55,7 @@ export function pwaSeedPayload(
  * tab's SESSION partition.
  */
 export function applyPwaSeed(payload: PwaSeedPayload): void {
+  if (payload.ifAbsent && window.localStorage.getItem(payload.globalKey)) return;
   window.sessionStorage.setItem(payload.instanceIdKey, payload.instanceId);
   const state = (payload.state ?? {}) as Record<string, unknown>;
   window.localStorage.setItem(

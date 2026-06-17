@@ -5,15 +5,9 @@ import { pages } from '../support/pages';
 import {
   applyPwaSeed,
   buildPwaPersistedState,
-  PWA_INSTANCE_ID_KEY,
-  PWA_TEST_INSTANCE_ID,
-  pwaPartitionKey,
+  PWA_GLOBAL_STORE_KEY,
   pwaSeedPayload,
 } from '../support/state';
-
-// igloo-pwa partitions persisted state per tab; tests pin the `e2e` instance id
-// and read/write its partition (`igloo-pwa.state.v2::e2e`).
-const STORAGE_KEY = pwaPartitionKey();
 
 function seededDashboardProfile() {
   return {
@@ -87,82 +81,20 @@ test.describe('igloo-pwa ui-first shell', () => {
   });
 
   test('persists settings across reloads', async ({ page }) => {
-    await page.addInitScript(({ storageKey, instanceIdKey, instanceId }) => {
-      window.sessionStorage.setItem(instanceIdKey, instanceId);
-      if (!window.localStorage.getItem(storageKey)) {
-        window.localStorage.setItem(
-          storageKey,
-          JSON.stringify({
-            profiles: [
-              {
-                id: 'profile-1',
-                label: 'Primary Browser Device',
-                share_public_key: 'share-pub-1',
-                group_public_key: 'group-pub-1',
-                relays: ['wss://relay.primal.net'],
-                group_package_json:
-                  '{"group_name":"Playwright Group","group_pk":"group-pub-1","threshold":2,"members":[]}',
-                // v2 schema (Bucket D): stored_password / share_package_json /
-                // profile_string / share_string are no longer persisted; the
-                // share reconstructs in-memory from encrypted_bfshare_artifact.
-                encrypted_bfshare_artifact: 'bfshare1demo',
-                member_idx: 1,
-                source: 'bfprofile',
-                relay_profile: 'browser',
-                group_ref: 'group-ref',
-                encrypted_profile_ref: 'encrypted-profile-ref',
-                state_path: '/tmp/igloo-pwa/profile-1',
-                created_at: 1700000000000,
-                signer_settings: {
-                  sign_timeout_secs: 30,
-                  ping_timeout_secs: 15,
-                  request_ttl_secs: 300,
-                  state_save_interval_secs: 30,
-                  peer_selection_strategy: 'deterministic_sorted',
-                },
-              },
-            ],
-            peerPermissionStates: [],
-            selectedProfileId: 'profile-1',
-            activeView: 'dashboard',
-            activeDashboardTab: 'settings',
-            activeSignerTab: 'signer',
-            unlockPhrase: '',
-            generatedKeyset: null,
-            selectedGeneratedShareIdx: null,
-            pendingLoadConfirmation: null,
-            pendingOnboardConnection: null,
-            distributionSession: null,
-            recoveredKey: null,
-            runtimeSnapshot: null,
-            settings: {
-              remember_browser_state: true,
-              auto_open_signer: true,
-              prefer_install_prompt: true,
-            },
-            drafts: {
-              createForm: {
-                groupName: '',
-                secretKey: '',
-                detectedFormat: null,
-                threshold: '2',
-                count: '3',
-              },
-              profileForm: {
-                label: '',
-                password: '',
-                confirmPassword: '',
-                relayUrls: 'wss://relay.primal.net',
-              },
-              distributionForms: {},
-              importProfileForm: { profileString: '', password: '' },
-              onboardConnectForm: { packageText: '', password: '' },
-              onboardSaveForm: { label: '', password: '', confirmPassword: '' },
-            },
-          }),
-        );
-      }
-    }, { storageKey: STORAGE_KEY, instanceIdKey: PWA_INSTANCE_ID_KEY, instanceId: PWA_TEST_INSTANCE_ID });
+    const profile = seededDashboardProfile();
+    // ifAbsent: this spec reloads, and addInitScript re-runs on every load — only
+    // seed when the store is absent so the reload keeps the toggle this test
+    // persists, instead of clobbering it back to the seed default.
+    const seed = pwaSeedPayload(
+      buildPwaPersistedState({
+        profiles: [profile],
+        selectedProfileId: profile.id,
+        activeView: 'dashboard',
+        activeDashboardTab: 'settings',
+      }),
+    );
+    seed.ifAbsent = true;
+    await page.addInitScript(applyPwaSeed, seed);
 
     await page.goto('/');
     const dashboard = pages(page).dashboard;
@@ -173,14 +105,15 @@ test.describe('igloo-pwa ui-first shell', () => {
 
     await dashboard.autoOpenToggle.uncheck();
     // The reconciled store persists via a debounced writer (250ms/500ms), so wait
-    // for the toggle change to land in localStorage before reloading — otherwise
-    // the reload races the pending save and reverts.
+    // for the toggle change to land in the global store (settings live there, not
+    // in the per-tab session partition) before reloading — otherwise the reload
+    // races the pending save and reverts.
     await expect
       .poll(() =>
         page.evaluate((key) => {
           const raw = window.localStorage.getItem(key);
           return raw ? (JSON.parse(raw).settings?.auto_open_signer ?? null) : null;
-        }, STORAGE_KEY),
+        }, PWA_GLOBAL_STORE_KEY),
       )
       .toBe(false);
     await page.reload();
@@ -189,82 +122,17 @@ test.describe('igloo-pwa ui-first shell', () => {
   });
 
   test('settings expose the unified actions and logout returns to landing while preserving saved profiles', async ({ page }) => {
-    await page.addInitScript(({ storageKey, instanceIdKey, instanceId }) => {
-      window.sessionStorage.setItem(instanceIdKey, instanceId);
-      if (!window.localStorage.getItem(storageKey)) {
-        window.localStorage.setItem(
-          storageKey,
-          JSON.stringify({
-            profiles: [
-              {
-                id: 'profile-1',
-                label: 'Primary Browser Device',
-                share_public_key: 'share-pub-1',
-                group_public_key: 'group-pub-1',
-                relays: ['wss://relay.primal.net'],
-                group_package_json:
-                  '{"group_name":"Playwright Group","group_pk":"group-pub-1","threshold":2,"members":[]}',
-                // v2 schema (Bucket D): stored_password / share_package_json /
-                // profile_string / share_string are no longer persisted; the
-                // share reconstructs in-memory from encrypted_bfshare_artifact.
-                encrypted_bfshare_artifact: 'bfshare1demo',
-                member_idx: 1,
-                source: 'bfprofile',
-                relay_profile: 'wss://relay.primal.net',
-                group_ref: 'group-ref',
-                encrypted_profile_ref: 'encrypted-profile-ref',
-                state_path: '/tmp/igloo-pwa/profile-1',
-                created_at: 1700000000000,
-                signer_settings: {
-                  sign_timeout_secs: 30,
-                  ping_timeout_secs: 15,
-                  request_ttl_secs: 300,
-                  state_save_interval_secs: 30,
-                  peer_selection_strategy: 'deterministic_sorted',
-                },
-              },
-            ],
-            peerPermissionStates: [],
-            selectedProfileId: 'profile-1',
-            activeView: 'dashboard',
-            activeDashboardTab: 'signer',
-            activeSignerTab: 'signer',
-            unlockPhrase: '',
-            generatedKeyset: null,
-            selectedGeneratedShareIdx: null,
-            pendingLoadConfirmation: null,
-            pendingOnboardConnection: null,
-            distributionSession: null,
-            recoveredKey: null,
-            runtimeSnapshot: null,
-            settings: {
-              remember_browser_state: true,
-              auto_open_signer: true,
-              prefer_install_prompt: true,
-            },
-            drafts: {
-              createForm: {
-                groupName: '',
-                secretKey: '',
-                detectedFormat: null,
-                threshold: '2',
-                count: '3',
-              },
-              profileForm: {
-                label: '',
-                password: '',
-                confirmPassword: '',
-                relayUrls: 'wss://relay.primal.net',
-              },
-              distributionForms: {},
-              importProfileForm: { profileString: '', password: '' },
-              onboardConnectForm: { packageText: '', password: '' },
-              onboardSaveForm: { label: '', password: '', confirmPassword: '' },
-            },
-          }),
-        );
-      }
-    }, { storageKey: STORAGE_KEY, instanceIdKey: PWA_INSTANCE_ID_KEY, instanceId: PWA_TEST_INSTANCE_ID });
+    const profile = { ...seededDashboardProfile(), id: 'profile-1', label: 'Primary Browser Device' };
+    await page.addInitScript(
+      applyPwaSeed,
+      pwaSeedPayload(
+        buildPwaPersistedState({
+          profiles: [profile],
+          selectedProfileId: profile.id,
+          activeView: 'dashboard',
+        }),
+      ),
+    );
 
     await page.goto('/');
     const p = pages(page);
