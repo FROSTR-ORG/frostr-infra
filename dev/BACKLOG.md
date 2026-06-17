@@ -156,13 +156,23 @@ Group by area. When an item is finished, move a one-line summary to
   `currentVisualScenario`) so the running dashboard can be seeded + captured
   against Paper `1-signer-dashboard`. The running layout is already unit-tested in
   `repos/igloo-ui/test/OperatorPanels.test.tsx` — test/igloo-pwa.
-- [ ] (effort: S) **Update e2e specs that seed the old PWA partition directly.**
-  The 2026-06-16 global-profile-store move retargeted the shared seed helper
-  (`test/igloo-pwa/support/state.ts`) to the two-store model, but a few specs
-  still write `igloo-pwa.state.v2::<id>` directly (`app-shell.spec.ts` via
-  `pwaPartitionKey`, `chrome-pwa-pairing.spec.ts` via `PWA_STORAGE_KEY`). They
-  migrate on boot, but app-shell's resume / multi-instance assertions exercise the
-  removed per-tab-partition behavior and need rework — test/.
+- [ ] (effort: M) **RED GATE — `app-shell.spec.ts` seeds the old PWA partition and
+  now hard-fails (`make verify`/`make test-fast` red on dev HEAD).** Confirmed
+  2026-06-17: two `@fast` specs — *persists settings across reloads* and *…preserving
+  saved profiles* — fail at `app-shell.spec.ts:276` (`dashboardRoot` not visible).
+  Both seed `localStorage` directly under the old `STORAGE_KEY`/`pwaPartitionKey`
+  partition with a v2 profile carrying a *fake* `encrypted_bfshare_artifact`
+  (`'bfshare1demo'`) + `activeView:'dashboard'`, then `goto('/')` and `expectDashboard()`.
+  After the 2026-06-16 global-profile-store move (two-store model:
+  `igloo-pwa.profiles.v1` + `igloo-pwa.session.v1::<id>`) the seeded state no longer
+  hydrates to an unlocked dashboard — boot migrates the profile but the fake artifact
+  can't reconstruct the share, so the dashboard never renders. Reproduces in a clean
+  env; **not** caused by the Thread 3 work (all submodules pristine). The other 18
+  pwa `@fast` tests pass. Fix: reseed these specs via the supported two-store helper
+  (`test/igloo-pwa/support/state.ts` `buildPwaPersistedState`/`applyPwaSeed`) — or, if
+  the dashboard genuinely must hydrate from a stored artifact, fix pwa hydration. Also
+  retarget `chrome-pwa-pairing.spec.ts` (`PWA_STORAGE_KEY`), and rework app-shell's
+  resume / multi-instance assertions that exercise the removed per-tab partition — test/.
 - [ ] (effort: M) **Cross-tab single-active-signer lock.** The 2026-06-16 move to
   a global profile list (shared `igloo-pwa.profiles.v1`, per-tab session in
   `igloo-pwa.session.v1::<id>`) removed the storage partition that *implicitly*
@@ -271,14 +281,16 @@ Group by area. When an item is finished, move a one-line summary to
   `dev/fixtures/dev-device.bfshare` and seed `igloo-pwa.profiles.v1` directly so the
   device is provisioned with zero manual import, and verify the running dashboard
   headlessly via `make screenshot`.
-- [ ] (effort: M) **Reconcile docs + nightly `test:guards:full` after the
-  2026-06-17 lean-CI cut.** `test:guards` was trimmed to `targets`+`wasm` and
-  `make verify`/`make igloo-ui-watch`/`FROSTR_NONINTERACTIVE` were added, but
-  `test:guards:full` (still run nightly) likely goes red: `check-doc-command-
-  surfaces.sh` asserts Makefile-help↔docs parity + the old guard composition, and
-  `test/README.md` + `dev/docs/WORKFLOWS.md` still describe the old guard chain /
-  visual harness. Update the docs + the command-surface guard, or formally demote
-  nightly-full to advisory.
+- [ ] (effort: S) **Decide nightly `test:guards:full` fate (premise corrected
+  2026-06-17).** Re-checked after the lean-CI cut: the doc/command-surface guards
+  actually **pass** — `check-doc-command-surfaces.sh`, `check-doc-surfaces.sh`, and
+  `check-markdown-links.mjs` are all green (even with the new `make install` /
+  `make bump-pointers` targets). The *only* thing making nightly `test:guards:full`
+  red is `check-e2e-selector-contracts.sh` flagging `agent-screenshot.spec.ts`
+  (already tracked in the igloo-pwa section). So this is no longer a docs-drift fix:
+  either exempt `@agent` tool specs from the selector contract (greens the nightly)
+  or formally demote `test:guards:full` to advisory. (The broader "delete the
+  de-gated guards" item below still stands.)
 - [ ] (effort: M) **Finish throwing out the de-gated visual + low-value guards.**
   2026-06-17 removed them from the PR gate but kept the files. Once the screenshot
   capability is recast as `make screenshot` (Thread 5b), delete
@@ -290,6 +302,13 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: S) **Make `make verify` affected-aware.** It currently runs the full
   pwa+chrome `@fast` lanes; route through `scripts/test-affected.sh` so it scales to
   the touched client.
+- [ ] (effort: S) **Playwright leaks `bifrost-devtools relay` processes.** Found
+  2026-06-17: ~16 orphaned `bifrost-devtools relay --host 127.0.0.1 --port <ephemeral>`
+  processes (PPID 1, dated back to May 31 / Jun 8) accumulating across e2e/`@live`
+  runs — a relay spawned by a spec/webServer isn't torn down when its parent dies.
+  Harmless but unbounded (port/FD pressure over time); killed this batch with
+  `pkill -f "bifrost-devtools relay"`. Find the spawn site (likely a `@live`/demo
+  fixture or webServer) and ensure relay teardown on suite end / process exit.
 - [ ] (effort: M) **WASM watch + drop committed-WASM double-maintenance.** Browser
   WASM is committed to git AND regenerated on every prepare. Add `make wasm-watch`
   (cargo-watch/watchexec) and build-on-demand for dev; the cheap stamp guard can
