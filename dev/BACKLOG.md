@@ -323,6 +323,15 @@ Group by area. When an item is finished, move a one-line summary to
   can't see *which* test failed without scraping logs. Have `scripts/verify.sh` emit
   a Playwright `--reporter=json` (and vitest / `cargo --message-format=json`)
   artifact under `.tmp/agent/` so failures are parseable — test/ + scripts/.
+- [ ] (effort: M) **Extend render-and-verify (`make screenshot`) to chrome (+ home).**
+  Added 2026-06-17. Today `make screenshot` renders only the pwa via the
+  `?__frostr_dev=<scenario>` seam → `.tmp/agent/<state>.{png,txt}` + `screenshot.json`.
+  Add a chrome equivalent (then home) so non-pwa dashboards get the same headless
+  render+verify loop: mirror the dev-scenario seam for the chrome options page and a
+  `make screenshot CLIENT=chrome STATE=…` (or `make chrome-screenshot`). Directly
+  supports the chrome `@fast` red gate — it would let an agent *see* the restructured
+  chrome dashboard DOM instead of inferring selectors. igloo-home already has a
+  `currentVisualScenario` seam to model the seam after — test/ + igloo-chrome.
 - [ ] (effort: S) **Playwright leaks `bifrost-devtools relay` processes.** Found
   2026-06-17: ~16 orphaned `bifrost-devtools relay --host 127.0.0.1 --port <ephemeral>`
   processes (PPID 1, dated back to May 31 / Jun 8) accumulating across e2e/`@live`
