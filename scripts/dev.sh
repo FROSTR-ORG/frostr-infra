@@ -34,9 +34,18 @@ if [[ ! -x "${DEVTOOLS_BIN}" || ! -x "${SHELL_BIN}" ]]; then
   bash "${ROOT_DIR}/scripts/test-prebuild.sh" sync shared >&2
 fi
 
-# Ephemeral co-signer home. XDG_RUNTIME_DIR (the daemon control socket) must be a
-# short path to fit the unix-socket sun_path limit on macOS — keep WORK_DIR shallow.
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/frostr-dev.XXXXXX")"
+# Ephemeral co-signer home. The daemon binds its control socket at
+# $XDG_RUNTIME_DIR/igloo-shell-<hash>.sock (~30 chars), which must fit the unix
+# `sun_path` limit (104 on macOS). Use TMPDIR (a user-owned dir — /var/folders on
+# macOS, not world-writable /tmp) with a short prefix, then fail loud if the path
+# budget is too tight rather than letting the daemon die with a cryptic bind error.
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/fd.XXXXXX")"
+SOCK_BUDGET=$(( ${#WORK_DIR} + 30 ))
+if [[ "${SOCK_BUDGET}" -gt 104 ]]; then
+  echo "error: TMPDIR is too deep for the daemon control socket (would be ~${SOCK_BUDGET}/104 bytes)." >&2
+  echo "       Set a shorter TMPDIR, e.g.  TMPDIR=/tmp make dev" >&2
+  exit 1
+fi
 export XDG_CONFIG_HOME="${WORK_DIR}/c" XDG_DATA_HOME="${WORK_DIR}/d" XDG_STATE_HOME="${WORK_DIR}/s" XDG_RUNTIME_DIR="${WORK_DIR}"
 
 RELAY_PID=""
