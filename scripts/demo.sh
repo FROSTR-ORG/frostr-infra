@@ -183,8 +183,14 @@ print_onboard() {
   fi
 
   IFS=',' read -r -a members <<< "${ONBOARD_MEMBERS}"
+  echo "==> Waiting for the demo signer to come online and export onboarding packages for: ${ONBOARD_MEMBERS}" >&2
+  echo "    (cold start is ~15-30s — the signer connects to the relay, then exports one package per member over it)" >&2
   local attempt=0
   while [ "${attempt}" -lt "$((TIMEOUT_SECS * 10))" ]; do
+    # Heartbeat every ~5s so the wait shows progress instead of looking hung.
+    if [ "${attempt}" -gt 0 ] && [ "$((attempt % 50))" -eq 0 ]; then
+      echo "    ...still waiting ($((attempt / 10))s elapsed)" >&2
+    fi
     local ready=1
     local raw_member member package_file password_file
     for raw_member in "${members[@]}"; do

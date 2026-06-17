@@ -19,6 +19,12 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PORT="${PORT:-8194}"
 HARNESS_DIR="${FROSTR_TEST_HARNESS_DIR:-${ROOT_DIR}/.tmp/test-harness}"
 
+# This launcher onboards a single browser device, so generate just one onboard
+# package. Each package is a relay-coordinated export (~12s in the signing core),
+# so dropping the second member (the default is bob,carol) roughly halves the
+# package-export time. Override by exporting IGLOO_SHELL_DEMO_INVITE_MEMBERS.
+export IGLOO_SHELL_DEMO_INVITE_MEMBERS="${IGLOO_SHELL_DEMO_INVITE_MEMBERS:-bob}"
+
 stopped=0
 stop_demo() {
   [[ "${stopped}" == "1" ]] && return 0

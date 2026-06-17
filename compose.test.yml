@@ -80,8 +80,12 @@ services:
       - ${FROSTR_TEST_HARNESS_DIR:-./.tmp/test-harness}:${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}:rw
     healthcheck:
       <<: *healthcheck-defaults
+      # Health = the signer daemon's control socket is bound (member-agnostic).
+      # The onboard packages are the consumer's concern (the host waits for the
+      # files in scripts/demo.sh print_onboard); gating health on hardcoded
+      # bob/carol files broke as soon as IGLOO_SHELL_DEMO_INVITE_MEMBERS changed.
       test:
         [
           "CMD-SHELL",
-          "test -s ${IGLOO_SHELL_DEMO_ARTIFACT_DIR:-${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}}/onboard-bob.txt && test -s ${IGLOO_SHELL_DEMO_ARTIFACT_DIR:-${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}}/onboard-carol.txt && test -S ${IGLOO_SHELL_DEMO_CONTROL_SOCKET:-${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}/igloo-shell-${IGLOO_SHELL_DEMO_MEMBER:-alice}.sock}"
+          "test -S ${IGLOO_SHELL_DEMO_CONTROL_SOCKET:-${FROSTR_TEST_HARNESS_CONTAINER_DIR:-/workspace/.tmp/test-harness}/igloo-shell-${IGLOO_SHELL_DEMO_MEMBER:-alice}.sock}"
         ]
