@@ -15,7 +15,7 @@ STATE ?= dashboard-running
 .PHONY: \
 	help \
 	repo-init repo-check repo-reset \
-	install \
+	install bump-pointers \
 	dev \
 	demo-start demo-foreground demo-stop demo-logs demo-onboard demo-smoke demo-pair-check \
 	compose-start compose-stop compose-restart compose-logs \
@@ -35,6 +35,7 @@ help:
 		'  make repo-check' \
 		'  make repo-reset' \
 		'  make install [INSTALL_UPDATE=1]' \
+		'  make bump-pointers [MSG="subject"] [PUSH=1] [DRY_RUN=1]' \
 		'  make demo-start [PORT=<port>]' \
 		'  make demo-foreground [PORT=<port>]' \
 		'  make demo-stop' \
@@ -112,6 +113,16 @@ repo-reset:
 # INSTALL_UPDATE=1 runs incremental `npm install` (may rewrite lockfiles).
 install:
 	@INSTALL_UPDATE="$(INSTALL_UPDATE)" "$(ROOT_DIR)/scripts/install.sh"
+
+# Commit every moved submodule pointer in one parent commit (the submodule-first
+# flow's second half). Strict by default: a submodule with uncommitted changes is
+# an error — commit inside it first. MSG sets the commit subject; PUSH=1 pushes
+# each submodule branch before bumping; DRY_RUN=1 previews without committing.
+bump-pointers:
+	@"$(ROOT_DIR)/scripts/bump-pointers.sh" \
+		$(if $(MSG),-m "$(MSG)") \
+		$(if $(filter 1,$(PUSH)),--push-submodules) \
+		$(if $(filter 1,$(DRY_RUN)),--dry-run)
 
 demo-start:
 	@BG=1 "$(ROOT_DIR)/scripts/demo.sh" start "$(PORT)"
