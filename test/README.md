@@ -61,6 +61,7 @@ npm run test:typecheck:strict-visual-specs
 From the repo root:
 
 ```bash
+make verify        # canonical gate: lean guards + typecheck + @fast (PR gate)
 make test-smoke
 make test-fast
 make test-live
@@ -70,6 +71,9 @@ make test-prep
 make test-affected
 make test-release
 ```
+
+`make verify` is the default "did I break anything" check and the PR CI gate; the
+individual `test-*` lanes below escalate from it.
 
 ## Automated Tiers
 
@@ -91,7 +95,8 @@ make test-release
   - Docker-backed browser onboarding and sign-through flow against
     `dev-relay` plus `igloo-demo`
   - command: `npm --prefix test run test:e2e:demo`
-  - required in the `release-validation` GitHub Actions workflow
+  - part of the `release-validation` GitHub Actions workflow (nightly +
+    `workflow_dispatch` since the 2026-06-17 lean-CI cut, not a per-PR gate)
 
 The canonical aggregate browser matrix is:
 

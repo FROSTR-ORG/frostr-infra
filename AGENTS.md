@@ -88,11 +88,17 @@ detail behind it — do not add ad hoc root entrypoints.
 ```bash
 make repo-init       # sync and initialize top-level submodules (non-recursive)
 make repo-check      # verify workspace prerequisites
+make install         # npm deps for every JS client (self-contained per leaf)
 make repo-reset      # repair a stale or unwritable scratch tree
 make demo-start      # start the demo stack (backgrounds by default)
 make demo-foreground # start the demo stack attached to the terminal
 make demo-onboard    # print onboarding artifacts for the running demo
 ```
+
+`make install` runs one `npm ci` per client into its own `node_modules`; the
+clients are independent projects, deliberately **not** an npm workspace (hoisting
+breaks their build scripts). Use `INSTALL_UPDATE=1` for an incremental install
+that may rewrite lockfiles.
 
 `make demo-start` auto-picks the next free relay port if the default is taken;
 override with `make demo-start PORT=<port>`. Per-client dev/build/test targets
@@ -113,9 +119,35 @@ change, run `npm --prefix test run test:guards`.
 | Affected | `make test-affected` | Minimal branch-dependent surface for the current change |
 | Release | `make test-release` | Full coordinated release matrix |
 
-Use `make test-prep` to prebuild shared Rust binaries, browser WASM artifacts,
-and demo images before a local lane that needs them. GitHub Actions runs the
-required `release-validation` workflow on PRs and `main` pushes.
+`make verify` is the canonical "did I break anything" gate — lean guards +
+typecheck + the `@fast` lane, with a clear exit code (it also mirrors the result
+into `.tmp/agent/verify.json`). It is the default pre-push check and the PR CI
+gate. `make test-prep` prebuilds shared Rust binaries, browser WASM artifacts,
+and demo images before a local lane that needs them. The full
+`release-validation` matrix runs nightly + on `workflow_dispatch` (not per-PR
+since the 2026-06-17 lean-CI cut).
+
+## Verification recipes
+
+The agent-facing subset of the command surface — the ones you reach for in a
+normal change loop. `make help` lists everything. The fast, non-interactive
+commands also write a machine-readable `.tmp/agent/<command>.json` so you can
+poll for state instead of scraping logs.
+
+- **Install everything:** `make install` (self-contained `npm ci` per client).
+- **The gate:** `make verify` — guards + typecheck + `@fast` e2e. Exit code is
+  authoritative; result also in `.tmp/agent/verify.json`.
+- **Run one test by name:** `npm --prefix test run test:e2e:igloo-pwa:fast -- -g "<title>"`
+  (swap the lane for `:chrome` / `:live`).
+- **See a screen:** `make screenshot STATE=dashboard-running` → renders a PWA
+  state headlessly to `.tmp/agent/<state>.{png,txt}` + `screenshot.json`. States:
+  `dashboard-running | dashboard-stopped | welcome-returning`.
+- **Live dev loop:** `make dev` — native relay + co-signer + vite in seconds;
+  prints `READY <url>` and writes `.tmp/agent/dev.json` when up (Ctrl-C tears
+  down). Pair with `make igloo-ui-watch` for CSS hot-reload.
+- **Bump submodule pointers:** commit inside each submodule first, then
+  `make bump-pointers` records every moved pointer in one parent commit
+  (`MSG="…"`, `PUSH=1`, `DRY_RUN=1`).
 
 ## Coding Style & Naming
 
@@ -133,7 +165,8 @@ Full workspace shell/doc/commit style lives in `dev/docs/STYLES.md`.
 - Use **non-recursive** submodule commands; avoid recursive operations from the
   parent.
 - Commit **inside the submodule first**, then commit the bumped pointer in this
-  repo.
+  repo. `make bump-pointers` records every moved pointer in one parent commit
+  (and refuses to bump a submodule with uncommitted changes).
 - In PRs, note the submodule, commit hash, and why the pointer moved.
 
 ## Commit & Pull Request Guidelines
