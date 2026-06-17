@@ -72,15 +72,7 @@ jobs:
           bash scripts/test-prebuild.sh ensure pwa-runtime
           npm --prefix test run test:guards:pwa
           npm --prefix test run test:typecheck:pwa
-          npm --prefix test run test:e2e:igloo-pwa:visual
-
-      - name: Upload PWA visual artifacts
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: igloo-pwa-visual-screenshots
-          path: .tmp/visual/igloo-pwa
-          if-no-files-found: ignore
+          npm --prefix test run test:e2e:igloo-pwa:fast
 
   chrome:
     runs-on: ubuntu-latest

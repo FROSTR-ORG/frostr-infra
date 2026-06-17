@@ -16,7 +16,7 @@ RELAY ?= 0
 	repo-init repo-check repo-reset \
 	demo-start demo-foreground demo-stop demo-logs demo-onboard demo-pwa demo-smoke demo-pair-check \
 	compose-start compose-stop compose-restart compose-logs \
-	test-smoke test-fast test-live test-demo test-e2e test-prep test-affected test-release \
+	test-smoke test-fast test-live test-demo test-e2e verify test-prep test-affected test-release \
 	pwa-multisig-demo \
 	browser-wasm-refresh browser-wasm-sync browser-wasm-check wasm-toolchain-check \
 	igloo-paper-sync igloo-paper-verify igloo-paper-usage-coverage-sync igloo-ui-paper-token-sync igloo-ui-paper-token-check \
@@ -48,6 +48,7 @@ help:
 		'  make test-live' \
 		'  make test-demo' \
 		'  make test-e2e' \
+		'  make verify' \
 		'  make test-prep' \
 		'  make test-affected' \
 		'  make test-release' \
@@ -162,6 +163,11 @@ test-demo:
 
 test-e2e:
 	@npm --prefix "$(TEST_DIR)" run test:e2e
+
+# Canonical "did I break anything" gate for humans and agents: lean guards +
+# typecheck + the render-only fast e2e lane. Deterministic, clear exit code.
+verify:
+	@npm --prefix "$(TEST_DIR)" run test:verify
 
 pwa-multisig-demo:
 	@"$(TEST_DIR)/scripts/pwa-multisig-demo.sh"
