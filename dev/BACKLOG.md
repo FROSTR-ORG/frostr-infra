@@ -240,6 +240,20 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## Test harness / CI
 
+- [ ] (effort: S) **Harden the `make dev` daemon socket path (unsure if it ever
+  overflows).** `scripts/dev.sh` puts the igloo-shell control socket under an
+  ad-hoc `mktemp -d "${TMPDIR}/frostr-dev.XXXXXX"` rather than the codebase's
+  secure path-shortener ([[daemon-socket-sunlen]]). On a deep macOS `TMPDIR`
+  (`/var/folders/...`) the resulting `.../igloo-shell-<hash>.sock` lands ~96/104 of
+  the unix-socket `sun_path` limit — it fits today but the margin is thin and it
+  bypasses the established helper.
+- [ ] (effort: M) **`make dev`: verify in-browser + zero-import auto-seed.** The
+  native loop is verified up to vite serving (HTTP 200); the in-browser
+  import-of-`dev-device.bfprofile` + signing against the native relay is unverified
+  (manual for now). Fold into Thread 5b: build the `PwaProfile` from
+  `dev/fixtures/dev-device.bfshare` and seed `igloo-pwa.profiles.v1` directly so the
+  device is provisioned with zero manual import, and verify the running dashboard
+  headlessly via `make screenshot`.
 - [ ] (effort: M) **Reconcile docs + nightly `test:guards:full` after the
   2026-06-17 lean-CI cut.** `test:guards` was trimmed to `targets`+`wasm` and
   `make verify`/`make igloo-ui-watch`/`FROSTR_NONINTERACTIVE` were added, but
