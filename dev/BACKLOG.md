@@ -313,6 +313,16 @@ Group by area. When an item is finished, move a one-line summary to
 - [ ] (effort: S) **Make `make verify` affected-aware.** It currently runs the full
   pwa+chrome `@fast` lanes; route through `scripts/test-affected.sh` so it scales to
   the touched client.
+- [ ] (effort: S) **Verify `make bump-pointers PUSH=1` against a real remote.** Added
+  2026-06-17. The stage / commit / dry-run / dirty-guard paths are tested, but the
+  `--push-submodules` path (detached-HEAD guard + `git push origin <branch>` per
+  submodule) has never run against a remote. Exercise it once before relying on it
+  for a release — frostr-infra.
+- [ ] (effort: S) **Enrich `make verify` machine output with per-test results.**
+  Added 2026-06-17. `.tmp/agent/verify.json` is only `{ok, exitCode}`, so an agent
+  can't see *which* test failed without scraping logs. Have `scripts/verify.sh` emit
+  a Playwright `--reporter=json` (and vitest / `cargo --message-format=json`)
+  artifact under `.tmp/agent/` so failures are parseable — test/ + scripts/.
 - [ ] (effort: S) **Playwright leaks `bifrost-devtools relay` processes.** Found
   2026-06-17: ~16 orphaned `bifrost-devtools relay --host 127.0.0.1 --port <ephemeral>`
   processes (PPID 1, dated back to May 31 / Jun 8) accumulating across e2e/`@live`
