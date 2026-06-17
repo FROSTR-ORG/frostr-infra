@@ -1,0 +1,15 @@
+{
+  "group_name": "Test Group",
+  "group_pk": "fc9cf63b9f02e489634850c53ef2587f714452853fb7dc6fd801f241a57314b1",
+  "threshold": 2,
+  "members": [
+    {
+      "idx": 1,
+      "pubkey": "02a9783fbaa4747fb9826f5f2da9556c9c4c7ec1840824203b608362c41b5ff669"
+    },
+    {
+      "idx": 2,
+      "pubkey": "0220d682932a2c2fbc9a6a11128421ccadfe39d64f09875742eba271d3da55c0fb"
+    }
+  ]
+}

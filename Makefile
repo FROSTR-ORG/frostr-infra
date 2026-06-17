@@ -14,7 +14,8 @@ RELAY ?= 0
 .PHONY: \
 	help \
 	repo-init repo-check repo-reset \
-	demo-start demo-foreground demo-stop demo-logs demo-onboard demo-pwa demo-smoke demo-pair-check \
+	dev \
+	demo-start demo-foreground demo-stop demo-logs demo-onboard demo-smoke demo-pair-check \
 	compose-start compose-stop compose-restart compose-logs \
 	test-smoke test-fast test-live test-demo test-e2e verify test-prep test-affected test-release \
 	pwa-multisig-demo \
@@ -36,7 +37,7 @@ help:
 		'  make demo-stop' \
 		'  make demo-logs' \
 		'  make demo-onboard' \
-		'  make demo-pwa [PORT=<relay-port>]' \
+		'  make dev [PORT=<relay-port>]' \
 		'  make demo-smoke [PORT=<port>]' \
 		'  make demo-pair-check' \
 		'  make compose-start SERVICES="<service> [service...]"' \
@@ -85,7 +86,7 @@ help:
 		'  scripts/, dev/scripts/, and test/scripts/ remain private implementation detail.' \
 		'  demo-start launches the demo stack in the background.' \
 		'  demo-foreground stays attached to the terminal.' \
-		'  demo-pwa brings up the demo relay + co-signer and the PWA dev server together (prints the onboard package); Ctrl-C stops both.' \
+		'  dev is the fast native loop: relay + igloo-shell co-signer (from dev/fixtures) + the igloo-pwa dev server. No Docker, no onboarding; Ctrl-C stops everything.' \
 		'  igloo-pwa-dev RELAY=1 starts a native local relay, points the app at it, and stops it when the dev server exits (the Docker dev-relay is for the demo/CI lanes via make demo-start).' \
 		'  igloo-paper-sync and igloo-paper-verify are manual; excluded from default test/CI lanes (require Paper desktop and Paper MCP).' \
 		'  igloo-ui-paper-token-sync is a parent-owned handoff; igloo-ui does not depend on Paper tooling.'
@@ -115,8 +116,8 @@ demo-logs:
 demo-onboard:
 	@"$(ROOT_DIR)/scripts/demo.sh" onboard
 
-demo-pwa:
-	@PORT="$(PORT)" "$(ROOT_DIR)/scripts/demo-pwa.sh"
+dev:
+	@PORT="$(PORT)" "$(ROOT_DIR)/scripts/dev.sh"
 
 demo-smoke:
 	@RELAY_PORT="$(PORT)" "$(ROOT_DIR)/test/scripts/test-demo-harness-onboard.sh"
