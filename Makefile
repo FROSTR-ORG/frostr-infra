@@ -15,6 +15,7 @@ STATE ?= dashboard-running
 .PHONY: \
 	help \
 	repo-init repo-check repo-reset \
+	install \
 	dev \
 	demo-start demo-foreground demo-stop demo-logs demo-onboard demo-smoke demo-pair-check \
 	compose-start compose-stop compose-restart compose-logs \
@@ -33,6 +34,7 @@ help:
 		'  make repo-init' \
 		'  make repo-check' \
 		'  make repo-reset' \
+		'  make install [INSTALL_UPDATE=1]' \
 		'  make demo-start [PORT=<port>]' \
 		'  make demo-foreground [PORT=<port>]' \
 		'  make demo-stop' \
@@ -102,6 +104,14 @@ repo-check:
 
 repo-reset:
 	@"$(ROOT_DIR)/scripts/reset.sh" --force
+
+# Install npm deps for every JS client in one pass. The repos/ submodules stay
+# self-contained (independent installs, per-leaf node_modules) — deliberately not
+# an npm workspace, which would hoist deps and break the leaves' build scripts.
+# Default is lockfile-exact `npm ci` (reproducible, leaves the tree clean);
+# INSTALL_UPDATE=1 runs incremental `npm install` (may rewrite lockfiles).
+install:
+	@INSTALL_UPDATE="$(INSTALL_UPDATE)" "$(ROOT_DIR)/scripts/install.sh"
 
 demo-start:
 	@BG=1 "$(ROOT_DIR)/scripts/demo.sh" start "$(PORT)"
