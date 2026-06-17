@@ -155,10 +155,22 @@ pid_list="$(printf '%s\n' "${pids}" | join_pids)"
 pid_total="$(printf '%s\n' "${pids}" | pid_count)"
 pid_owner="$(pid_phrase "${pid_total}" "${pid_list}")"
 
+# Non-interactive auto-resolve (agents/CI): terminate the squatter and continue,
+# no prompt. Opt-in so a human's stray process isn't killed by surprise.
+if [[ "${FROSTR_NONINTERACTIVE:-0}" == "1" ]]; then
+  printf 'Port %s in use by %s; FROSTR_NONINTERACTIVE=1 set — terminating it.\n' "${PORT}" "${pid_owner}" >&2
+  printf '%s\n' "${pids}" | kill_pids
+  if wait_for_port_clear "${PORT}"; then
+    start_dev
+  fi
+  printf 'error: Port %s is still in use after TERM.\n' "${PORT}" >&2
+  exit 1
+fi
+
 if ! is_interactive; then
   printf 'error: Port %s is already in use by %s.\n' "${PORT}" "${pid_owner}" >&2
   printf '%s\n' "${pids}" | describe_pids >&2
-  printf 'Stop that process or rerun from an interactive terminal to approve terminating it.\n' >&2
+  printf 'Stop that process, set FROSTR_NONINTERACTIVE=1 to auto-terminate it, or rerun from an interactive terminal.\n' >&2
   exit 1
 fi
 
