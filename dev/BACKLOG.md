@@ -40,6 +40,16 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## bifrost-rs / igloo-shared runtime
 
+- [ ] (effort: L) **Signer bring-up perf: ~18s onboard-ready + ~12s per onboard
+  export (unsure how reducible).** Measured 2026-06-17 in the Docker demo: the
+  docker build is ~1s; the ~40s "hang" is the signer reaching onboard-ready over
+  the relay (`wait_for_onboard_ready` polls ~18s) then a relay-coordinated
+  `bfonboard` export per recipient (~12s each). The poll-based readiness in
+  `repos/igloo-shell` + relay round-trips dominate. Investigate a deterministic
+  ready signal and whether the export can avoid/parallelize round-trips. The native
+  `make dev` loop (Thread 1) sidesteps this with a persistent keyset, but it's the
+  real cost whenever a device is actually onboarded.
+
 - [x] (effort: L) **Peer telemetry — DONE (2026-06-13).** Per-peer latency (ms,
   last + avg), nonce sparkline, and per-method SIGN/ECDH/PING capability badges, end
   to end: `bifrost-signer` PeerStatus (runtime-only RTT + nonce-history rings, ms
@@ -229,6 +239,31 @@ Group by area. When an item is finished, move a one-line summary to
   available — surfaced 2026-06-13 during the nostr-tools dedupe pass.
 
 ## Test harness / CI
+
+- [ ] (effort: M) **Reconcile docs + nightly `test:guards:full` after the
+  2026-06-17 lean-CI cut.** `test:guards` was trimmed to `targets`+`wasm` and
+  `make verify`/`make igloo-ui-watch`/`FROSTR_NONINTERACTIVE` were added, but
+  `test:guards:full` (still run nightly) likely goes red: `check-doc-command-
+  surfaces.sh` asserts Makefile-help↔docs parity + the old guard composition, and
+  `test/README.md` + `dev/docs/WORKFLOWS.md` still describe the old guard chain /
+  visual harness. Update the docs + the command-surface guard, or formally demote
+  nightly-full to advisory.
+- [ ] (effort: M) **Finish throwing out the de-gated visual + low-value guards.**
+  2026-06-17 removed them from the PR gate but kept the files. Once the screenshot
+  capability is recast as `make screenshot` (Thread 5b), delete
+  `test/igloo-pwa/visual-manifest.json`, `check-pwa-visual-manifest*.{mjs,sh}`,
+  `report-pwa-visual-comparison.mjs`, and the low-value guard scripts (markdown-
+  links, doc-command-surfaces, workflow-node24, client-scoped-submodules,
+  shared-setup, cross-client-imports, e2e-selector-contracts) + their `package.json`
+  entries.
+- [ ] (effort: S) **Make `make verify` affected-aware.** It currently runs the full
+  pwa+chrome `@fast` lanes; route through `scripts/test-affected.sh` so it scales to
+  the touched client.
+- [ ] (effort: M) **WASM watch + drop committed-WASM double-maintenance.** Browser
+  WASM is committed to git AND regenerated on every prepare. Add `make wasm-watch`
+  (cargo-watch/watchexec) and build-on-demand for dev; the cheap stamp guard can
+  stay in the lean gate or move to nightly. (Deferred from the 2026-06-17 hot-reload
+  pass, which did igloo-ui CSS watch only.)
 
 - [x] (effort: S) **DONE (2026-06-16).** Export-package `@live` flake under load.
   `exportProfileWithPassword` (`test/igloo-pwa/support/pages.ts`) now re-fills both
