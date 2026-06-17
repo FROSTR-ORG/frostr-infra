@@ -23,6 +23,9 @@ DEV_PASSPHRASE="devpass"
 KS_DIR="${ROOT_DIR}/dev/fixtures/dev-keyset"
 DEVTOOLS_BIN="${ROOT_DIR}/repos/bifrost-rs/target/debug/bifrost-devtools"
 SHELL_BIN="${ROOT_DIR}/build/igloo-shell-target/debug/igloo-shell"
+PWA_URL="http://localhost:1430"
+AGENT_DIR="${ROOT_DIR}/.tmp/agent"
+DEV_STATUS="${AGENT_DIR}/dev.json"
 
 if [[ ! -d "${KS_DIR}" ]]; then
   echo "error: missing dev keyset at ${KS_DIR}. Run dev/fixtures/regen.sh first." >&2
@@ -58,6 +61,8 @@ cleanup() {
     kill "${RELAY_PID}" >/dev/null 2>&1 || true
   fi
   rm -rf "${WORK_DIR}" >/dev/null 2>&1 || true
+  # Drop the readiness marker so a polling agent never sees a stale "ready".
+  rm -f "${DEV_STATUS}" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT INT TERM
 
@@ -84,6 +89,12 @@ PROFILE_ID="$("${SHELL_BIN}" import \
   --passphrase "${DEV_PASSPHRASE}" \
   --json | python3 -c "import json,sys;print(json.load(sys.stdin)['import']['profile']['id'])")"
 "${SHELL_BIN}" daemon start --profile "${PROFILE_ID}" --passphrase "${DEV_PASSPHRASE}" >/dev/null
+
+# Machine-readable readiness marker for agents that background `make dev` and
+# poll instead of scraping logs. Written once the relay + co-signer are up, just
+# before the foreground vite hands off; removed on teardown by cleanup().
+mkdir -p "${AGENT_DIR}"
+printf '{"ready":true,"pwaUrl":"%s","relayUrl":"%s"}\n' "${PWA_URL}" "${RELAY_URL}" >"${DEV_STATUS}"
 
 cat >&2 <<EOF
 

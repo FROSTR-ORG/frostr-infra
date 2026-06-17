@@ -190,9 +190,10 @@ test-e2e:
 	@npm --prefix "$(TEST_DIR)" run test:e2e
 
 # Canonical "did I break anything" gate for humans and agents: lean guards +
-# typecheck + the render-only fast e2e lane. Deterministic, clear exit code.
+# typecheck + the render-only fast e2e lane. Deterministic, clear exit code, and
+# mirrors its result into .tmp/agent/verify.json for agents that poll for data.
 verify:
-	@npm --prefix "$(TEST_DIR)" run test:verify
+	@"$(ROOT_DIR)/scripts/verify.sh"
 
 # Render a PWA screen headlessly and write a PNG + visible-text dump to
 # .tmp/agent/. STATE is a dev scenario (dashboard-running, dashboard-stopped,
