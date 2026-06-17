@@ -123,6 +123,23 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## igloo-pwa
 
+- [ ] (effort: S) **Gate the dev-scenario seam behind `import.meta.env.DEV`.**
+  `repos/igloo-pwa/src/lib/dev-scenario.ts` (`resolveDevScenario`) runs in any
+  build when `?__frostr_dev=<scenario>` is present. It's harmless (a fake in-memory
+  profile, no real keys/signing), but a production build shouldn't carry the seam —
+  wrap it in `import.meta.env.DEV` so it tree-shakes out of prod. (Mirror whatever
+  igloo-home does for `resolveVisualScenario`.)
+- [ ] (effort: S) **`agent-screenshot.spec.ts` bypasses the page-object selector
+  contract.** It uses raw `getByTestId`/`getByRole`, which `check-e2e-selector-
+  contracts.sh` flags (de-gated from PRs, but the nightly `test:guards:full` will
+  catch it). Exempt `@agent` tool specs from the contract or route them through a
+  page object.
+- [ ] (effort: S) **Enrich the dev-scenario running fixture / add scenarios.** The
+  running fixture has empty `pending_approvals`/`pending_operations`/structured
+  `events`, so those dashboard cards render empty in `make screenshot`. Add a sample
+  approval + a couple observability events, and more scenarios (permissions,
+  settings, create) for broader render-and-verify coverage.
+
 - [ ] (effort: M) **Finish the Paper dashboard alignment.** The 2026-06-16 pass
   aligned the **signer tab** (running + stopped) to Paper via semantic
   `.igloo-dashboard-*` CSS in igloo-ui + a restructured `OperatorSignerPanel`.
