@@ -19,7 +19,7 @@ RELAY ?= 0
 	test-smoke test-fast test-live test-demo test-e2e verify test-prep test-affected test-release \
 	pwa-multisig-demo \
 	browser-wasm-refresh browser-wasm-sync browser-wasm-check wasm-toolchain-check \
-	igloo-paper-sync igloo-paper-verify igloo-paper-usage-coverage-sync igloo-ui-paper-token-sync igloo-ui-paper-token-check \
+	igloo-paper-sync igloo-paper-verify igloo-paper-usage-coverage-sync igloo-ui-paper-token-sync igloo-ui-paper-token-check igloo-ui-watch \
 	igloo-chrome-dev igloo-chrome-build igloo-chrome-test-unit igloo-chrome-test-e2e \
 	igloo-pwa-dev igloo-pwa-build igloo-pwa-test-unit igloo-pwa-test-e2e \
 	igloo-home-dev igloo-home-tauri-dev igloo-home-build igloo-home-typecheck igloo-home-test-unit \
@@ -61,6 +61,7 @@ help:
 		'  make igloo-paper-usage-coverage-sync' \
 		'  make igloo-ui-paper-token-sync' \
 		'  make igloo-ui-paper-token-check' \
+		'  make igloo-ui-watch' \
 		'  make igloo-chrome-dev' \
 		'  make igloo-chrome-build' \
 		'  make igloo-chrome-test-unit' \
@@ -228,6 +229,13 @@ igloo-ui-paper-token-sync:
 
 igloo-ui-paper-token-check:
 	@cd "$(ROOT_DIR)" && node dev/scripts/sync-igloo-paper-tokens-to-ui.mjs check
+
+# Rebuild igloo-ui's dist/styles.css on every CSS source change. The pwa dev
+# server loads igloo-ui CSS from dist (JS already resolves to src via vite), so
+# run this alongside `make igloo-pwa-dev` for instant CSS hot-reload instead of a
+# manual `npm run build` after each edit.
+igloo-ui-watch:
+	@cd "$(IGLOO_UI_DIR)" && npx tailwindcss -c ./tailwind.config.js -i ./src/styles.css -o ./dist/styles.css --watch
 
 igloo-chrome-dev:
 	@npm --prefix "$(IGLOO_CHROME_DIR)" run dev
