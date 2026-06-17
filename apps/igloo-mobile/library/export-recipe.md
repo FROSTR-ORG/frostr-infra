@@ -51,29 +51,46 @@ share-derived author pubkey.
 
 ## Run scripts
 
-Both scripts require the demo stack running on `ws://127.0.0.1:8194`
-(iOS) / `ws://10.0.2.2:8194` (Android) and a sign-ready `bob`
-profile already stored on the device from the onboarding flow.
+Both focused validators require the demo stack and `make demo-onboard`
+artifacts:
 
-* `apps/igloo-mobile/scripts/run-focus-export-artifact-validation-ios.sh`
-* `apps/igloo-mobile/scripts/run-focus-export-artifact-validation-android.sh`
+* iOS relay: `ws://127.0.0.1:8194`
+* Android relay: `ws://10.0.2.2:8194`
 
-Each script:
+Run them through the curated command surface:
 
-* Boots the device emulator (assumes already booted; aborts otherwise).
-* Sources the mobile env (`rmp-mobile-env.zsh`).
-* Drives the Maestro YAML through `tab_settings` →
-  `btn_copy_profile` / `btn_copy_share` → the export password prompt
-  → `btn_export_confirm`, twice for the profile + share legs.
-* Reads the clipboard back: on iOS via `xcrun simctl pbpaste`
-  (the simulator-only clipboard, isolated from macOS `pbpaste`); on
-  Android via the app's `btn_paste_package` affordance into the
-  Load Profile import input field (Android API 35 rejects
-  `adb shell cmd clipboard get-text`).
-* Pipes each artifact through
-  `apps/igloo-mobile/scripts/verify-export-artifact.sh` which calls
-  the Rust `cargo run --example export_decode` and emits a redacted
-  proof panel.
+```bash
+just focus-ios-export
+just focus-android-export
+```
+
+Each script fresh-installs the debug app, injects bob's real
+`bfonboard1` package through diagnostics-gated automation, saves the
+resolved onboarded profile, exports `bfprofile1` and `bfshare1`, and
+pipes each artifact through `apps/igloo-mobile/scripts/verify-export-artifact.sh`.
+The verifier calls the Rust `cargo run --example export_decode` path
+and emits a redacted proof panel.
+
+The iOS validator reads the simulator clipboard with `xcrun simctl
+pbpaste`. The Android validator calls the same FFI export methods and
+Android clipboard code as the product prompt, then fetches the
+debug-private artifact with `run-as` because Android API 35 rejects
+host-side clipboard reads.
+
+To prove the exported artifacts round-trip through Load Profile, run the load
+validators immediately after a fresh export:
+
+```bash
+just focus-ios-load-artifacts
+just focus-android-load-artifacts
+```
+
+These validators feed the latest `bfprofile1` into Import and the latest
+`bfshare1` into Recover, confirm the loaded profile, and require a native
+private-storage proof file containing `stored=yes`. The recovery leg depends
+on a published encrypted kind-10000 backup, so it also verifies that the
+native `PublishProfileBackup` side effect reads stored material by
+`profile_id` and publishes under the share-derived author pubkey.
 
 ## Proof panel
 
@@ -125,14 +142,20 @@ properties directly against `FfiApp` without running the UI:
 
 ## Reusing the artifacts for VAL-LOAD
 
-After the export, the scripts leave the `bfprofile1` available at:
+After the export, the timestamped evidence directories leave the
+`bfprofile1` and `bfshare1` artifacts at:
 
-* `apps/igloo-mobile/library/evidence/mobile-export-artifact-validation/clipboard-profile.txt`
-  (iOS simctl-pbpaste path)
-* `…/android/hierarchy-03-pasteback-profile.xml` (Android uiautomator paste-back)
+* `apps/igloo-mobile/library/evidence/mobile-export-artifact-validation-ios-*/clipboard-profile.txt`
+* `apps/igloo-mobile/library/evidence/mobile-export-artifact-validation-ios-*/clipboard-share.txt`
+* `apps/igloo-mobile/library/evidence/mobile-export-artifact-validation-android-*/clipboard-profile.txt`
+* `apps/igloo-mobile/library/evidence/mobile-export-artifact-validation-android-*/clipboard-share.txt`
 
-The bfshare1 lives in the equivalent `clipboard-share.txt` /
-`hierarchy-05-pasteback-share.xml`.
+The focused Load Profile validators write proof under:
+
+* `apps/igloo-mobile/library/evidence/mobile-load-profile-artifacts-ios-*/import-load-proof.txt`
+* `apps/igloo-mobile/library/evidence/mobile-load-profile-artifacts-ios-*/recover-load-proof.txt`
+* `apps/igloo-mobile/library/evidence/mobile-load-profile-artifacts-android-*/import-load-proof.txt`
+* `apps/igloo-mobile/library/evidence/mobile-load-profile-artifacts-android-*/recover-load-proof.txt`
 
 To feed a Copy Profile artifact into VAL-LOAD-005/006/007/008, do
 **not** commit the file to git. Inject the contents at runtime
@@ -140,7 +163,7 @@ instead:
 
 ```bash
 # Read the exported bfprofile1 from the evidence directory
-PKG="$(cat apps/igloo-mobile/library/evidence/mobile-export-artifact-validation/clipboard-profile.txt)"
+PKG="$(cat apps/igloo-mobile/library/evidence/mobile-export-artifact-validation-ios-*/clipboard-profile.txt | tail -1)"
 # Feed it to the Load Profile import screen via Maestro's setClipboard
 # (in-app paste affordance; the iOS shim handles the Allow Paste dialog)
 maestro --device <udid> test flows/load-profile-import.yaml \

@@ -116,6 +116,13 @@ class AppManager private constructor(context: Context) : AppReconciler {
     var pendingExportType: String? by mutableStateOf(null)
         private set
 
+    /** Active Create Keyset distribution QR modal payload. */
+    var distributionQrPayload: String? by mutableStateOf(null)
+        private set
+
+    var distributionQrShareLabel: String by mutableStateOf("")
+        private set
+
     /** Helper to create default SignerSettings (VAL-SET-001 defaults). */
     private fun defaultSignerSettings(): com.frostr.igloo.rust.SignerSettings {
         return com.frostr.igloo.rust.SignerSettings(
@@ -140,7 +147,7 @@ class AppManager private constructor(context: Context) : AppReconciler {
         )
     }
 
-    fun dispatch(action: AppAction) {
+    fun dispatch(action: AppAction): AppState {
         // Dispatch is now synchronous - rust.dispatch() blocks until the actor
         // processes the action and returns the updated state. This ensures the
         // state is updated before dispatch returns, eliminating the timing gap
@@ -150,6 +157,7 @@ class AppManager private constructor(context: Context) : AppReconciler {
         val newState = rust.dispatch(action)
         lastRevApplied = newState.rev
         state = newState
+        return newState
     }
 
     override fun reconcile(update: AppUpdate) {
@@ -188,11 +196,29 @@ class AppManager private constructor(context: Context) : AppReconciler {
                             val deviceName = json.optString("device_name", "")
                             val sharePubkey = json.optString("share_pubkey", "")
                             val groupPubkey = json.optString("group_pubkey", "")
+                            val relays = jsonArrayToStringList(json.optJSONArray("relays"))
+                            val settings = json.optJSONObject("settings")
+                            val peerSelectionStrategy = normalizedPeerSelectionStrategy(
+                                if (settings?.has("peer_selection_strategy") == true) {
+                                    settings.optString("peer_selection_strategy")
+                                } else {
+                                    null
+                                }
+                            )
                             dispatch(AppAction.OpenDashboard(
                                 profileId = update.profileId,
                                 deviceName = deviceName,
                                 sharePubkey = sharePubkey,
                                 groupPubkey = groupPubkey
+                            ))
+                            dispatch(AppAction.OpenDashboardSettings(
+                                deviceName = deviceName,
+                                relays = relays,
+                                signTimeoutSecs = uintFromJson(settings, "sign_timeout_secs", 30u),
+                                pingTimeoutSecs = uintFromJson(settings, "ping_timeout_secs", 15u),
+                                requestTtlSecs = uintFromJson(settings, "request_ttl_secs", 300u),
+                                stateSaveIntervalSecs = uintFromJson(settings, "state_save_interval_secs", 30u),
+                                peerSelectionStrategy = peerSelectionStrategy
                             ))
                         } catch (_: Exception) {
                             // Ignore parse errors; dashboard still has minimal
@@ -255,16 +281,20 @@ class AppManager private constructor(context: Context) : AppReconciler {
                             dispatch(AppAction.OnboardDuplicateRejected(profileId = update.profileId))
                         } else {
                             // Store the profile to secure storage.
+                            val materialToStore = materialWithDeviceName(material, update.label)
                             val stored = storage.storeProfile(
                                 profileId = update.profileId,
                                 label = update.label,
                                 shortId = update.shortId,
-                                material = material
+                                material = materialToStore
                             )
                             pendingProfileMaterial = null
                             pendingRelayUrl = null
 
                             if (stored) {
+                                rust.setActiveProfileMaterial(
+                                    materialJson = String(materialToStore, Charsets.UTF_8)
+                                )
                                 // Dispatch success to Rust to navigate to dashboard (VAL-ONBOARD-011).
                                 dispatch(AppAction.OnboardStored(profileId = update.profileId))
                             } else {
@@ -282,6 +312,9 @@ class AppManager private constructor(context: Context) : AppReconciler {
                         val result = rust.importProfile(`package` = pkg, password = pwd)
                         mainHandler.post {
                             if (result.success) {
+                                result.material?.let { materialBytes ->
+                                    pendingProfileMaterial = materialBytes
+                                }
                                 dispatch(AppAction.LoadProfileImportSuccess(
                                     deviceName = result.deviceName ?: "",
                                     sharePubkey = result.sharePubkey ?: "",
@@ -306,6 +339,9 @@ class AppManager private constructor(context: Context) : AppReconciler {
                         val result = rust.recoverProfile(`package` = pkg, password = pwd)
                         mainHandler.post {
                             if (result.success) {
+                                result.material?.let { materialBytes ->
+                                    pendingProfileMaterial = materialBytes
+                                }
                                 dispatch(AppAction.LoadProfileRecoverSuccess(
                                     deviceName = result.deviceName ?: "",
                                     sharePubkey = result.sharePubkey ?: "",
@@ -340,6 +376,14 @@ class AppManager private constructor(context: Context) : AppReconciler {
                             )
                             pendingProfileMaterial = null
                             if (stored) {
+                                rust.setActiveProfileMaterial(
+                                    materialJson = String(material, Charsets.UTF_8)
+                                )
+                                writeDebugLoadProfileProof(
+                                    profileId = update.profileId,
+                                    label = update.label,
+                                    shortId = update.shortId
+                                )
                                 dispatch(AppAction.LoadProfileStored(profileId = update.profileId))
                             } else {
                                 dispatch(AppAction.LoadProfileDuplicateRejected(profileId = update.profileId))
@@ -445,7 +489,15 @@ class AppManager private constructor(context: Context) : AppReconciler {
                     // Shell persists settings to secure storage (VAL-SET-002/003/004/013/014).
                     // The settings are already updated in Rust state; the shell updates
                     // platform secure storage and the hub row label.
-                    persistSettingsToStorage()
+                    persistSettingsToStorage(
+                        signerName = update.signerName,
+                        signTimeoutSecs = update.signTimeoutSecs,
+                        pingTimeoutSecs = update.pingTimeoutSecs,
+                        requestTtlSecs = update.requestTtlSecs,
+                        stateSaveIntervalSecs = update.stateSaveIntervalSecs,
+                        peerSelectionStrategy = update.peerSelectionStrategy,
+                        relays = update.relays
+                    )
                 }
                 // ── Create / Rotate Keyset shell side-effects (VAL-CREATE-*) ────
                 // The Rust state machine emits these AppUpdates after the user
@@ -512,6 +564,10 @@ class AppManager private constructor(context: Context) : AppReconciler {
                                         method = method
                                     )
                                 )
+                                if (method == "qr") {
+                                    distributionQrPayload = pkg
+                                    distributionQrShareLabel = label
+                                }
                             }
                         }
                     }.start()
@@ -528,6 +584,14 @@ class AppManager private constructor(context: Context) : AppReconciler {
                         material = material
                     )
                     if (stored) {
+                        rust.setActiveProfileMaterial(
+                            materialJson = String(material, Charsets.UTF_8)
+                        )
+                        writeDebugCreateKeysetProof(
+                            profileId = profileId,
+                            label = label,
+                            shortId = shortId
+                        )
                         dispatch(
                             AppAction.CreateKeysetAccepted(
                                 profileId = profileId,
@@ -535,6 +599,10 @@ class AppManager private constructor(context: Context) : AppReconciler {
                                 shortId = shortId
                             )
                         )
+                        if (keysetDiagnosticAutoFinish) {
+                            keysetDiagnosticAutoFinish = false
+                            dispatch(AppAction.CreateKeysetDistributeFinish)
+                        }
                     }
                 }
                 is AppUpdate.StartKeysetSignerRuntime -> {
@@ -542,6 +610,17 @@ class AppManager private constructor(context: Context) : AppReconciler {
                     // profile so the Distribute step shows a running signer panel
                     // (VAL-CREATE-010, VAL-CREATE-022).
                     performStartSigner()
+                }
+                is AppUpdate.StartKeysetSignerRuntimeAndPublishBackup -> {
+                    // VAL-CREATE-010 + VAL-BACKUP-001: after CreateKeysetAccepted,
+                    // start the freshly-created signer and publish its encrypted
+                    // kind-10000 backup from secure storage.
+                    performStartSigner()
+                    performPublishBackup(
+                        source = update.source,
+                        profileId = update.profileId,
+                        materialJson = ""
+                    )
                 }
                 is AppUpdate.PerformRotateShareHandshake -> {
                     // VAL-ROTATE-006/013/014: run the live handshake off the
@@ -624,8 +703,16 @@ class AppManager private constructor(context: Context) : AppReconciler {
                             material = newMaterial
                         )
                         val materialJson = String(newMaterial, Charsets.UTF_8)
+                        rust.setActiveProfileMaterial(materialJson = materialJson)
+                        writeDebugRotateShareProof(
+                            oldProfileId = update.oldProfileId,
+                            newProfileId = update.newProfileId,
+                            label = update.newLabel,
+                            shortId = update.newShortId
+                        )
                         performPublishBackup(
                             source = update.source,
+                            profileId = update.newProfileId,
                             materialJson = materialJson
                         )
                     }
@@ -646,6 +733,7 @@ class AppManager private constructor(context: Context) : AppReconciler {
                     // BackupPublishCompleted.
                     performPublishBackup(
                         source = update.source,
+                        profileId = update.profileId,
                         materialJson = update.materialJson
                     )
                 }
@@ -689,6 +777,56 @@ class AppManager private constructor(context: Context) : AppReconciler {
         dispatch(AppAction.NavigateCreateKeyset)
     }
 
+    /** Debug-only Create Keyset driver for emulator automation.
+     *
+     *  Mirrors the iOS `igloo://test-create-keyset` path using an Android
+     *  debug intent. It dispatches the Rust diagnostics action with prefilled
+     *  inputs and auto-finishes after the shell stores the generated profile.
+     */
+    fun testCreateKeyset(
+        groupName: String,
+        threshold: Int,
+        count: Int,
+        deviceName: String,
+        relay: String,
+        autoFinish: Boolean = true
+    ) {
+        if (!BuildConfig.DEBUG) return
+        val trimmedGroup = groupName.trim()
+        val trimmedDevice = deviceName.trim()
+        val trimmedRelay = relay.trim()
+        if (trimmedGroup.isEmpty() ||
+            trimmedDevice.isEmpty() ||
+            trimmedRelay.isEmpty() ||
+            threshold < 2 ||
+            count < 2 ||
+            threshold > count ||
+            threshold > UShort.MAX_VALUE.toInt() ||
+            count > UShort.MAX_VALUE.toInt()
+        ) {
+            return
+        }
+        keysetDiagnosticAutoFinish = autoFinish
+        dispatch(
+            AppAction.DiagnosticsCreateKeysetRun(
+                groupName = trimmedGroup,
+                threshold = threshold.toUShort(),
+                count = count.toUShort(),
+                deviceName = trimmedDevice,
+                relay = trimmedRelay
+            )
+        )
+    }
+
+    /** Debug-only Distribute-row password seeder for QR-display validators. */
+    fun testKeysetDistributePassword(shareIdx: Int, password: String) {
+        if (!BuildConfig.DEBUG) return
+        if (shareIdx < 0 || shareIdx > UShort.MAX_VALUE.toInt() || password.isEmpty()) return
+        val idx = shareIdx.toUShort()
+        dispatch(AppAction.CreateKeysetDistributeSetPassword(shareIdx = idx, password = password))
+        dispatch(AppAction.CreateKeysetDistributeSetConfirm(shareIdx = idx, confirm = password))
+    }
+
     fun navigateBack() {
         dispatch(AppAction.NavigateBack)
     }
@@ -713,6 +851,71 @@ class AppManager private constructor(context: Context) : AppReconciler {
     /** Pending profile material for storage when onboarding completes.
      *  Set by onboard() after successful package decode; cleared after StoreOnboardedProfile. */
     private var pendingProfileMaterial: ByteArray? = null
+
+    /** Debug create-keyset validators set this before dispatching the Rust
+     *  diagnostics action so StoreKeysetCreatedProfile can finish to Dashboard. */
+    private var keysetDiagnosticAutoFinish: Boolean = false
+
+    private fun materialWithDeviceName(material: ByteArray, deviceName: String): ByteArray {
+        return try {
+            val json = org.json.JSONObject(String(material, Charsets.UTF_8))
+            json.put("device_name", deviceName)
+            json.toString().toByteArray(Charsets.UTF_8)
+        } catch (_: Exception) {
+            material
+        }
+    }
+
+    private fun materialWithSettings(
+        material: ByteArray,
+        signerName: String,
+        signTimeoutSecs: UInt,
+        pingTimeoutSecs: UInt,
+        requestTtlSecs: UInt,
+        stateSaveIntervalSecs: UInt,
+        peerSelectionStrategy: String,
+        relays: List<String>
+    ): ByteArray {
+        return try {
+            val json = org.json.JSONObject(String(material, Charsets.UTF_8))
+            json.put("device_name", signerName)
+            json.put("relays", org.json.JSONArray(relays))
+            val settings = json.optJSONObject("settings") ?: org.json.JSONObject()
+            settings.put("sign_timeout_secs", signTimeoutSecs.toLong())
+            settings.put("ping_timeout_secs", pingTimeoutSecs.toLong())
+            settings.put("request_ttl_secs", requestTtlSecs.toLong())
+            settings.put("state_save_interval_secs", stateSaveIntervalSecs.toLong())
+            settings.put("peer_selection_strategy", materialPeerSelectionStrategy(peerSelectionStrategy))
+            json.put("settings", settings)
+            json.toString().toByteArray(Charsets.UTF_8)
+        } catch (_: Exception) {
+            material
+        }
+    }
+
+    private fun jsonArrayToStringList(array: org.json.JSONArray?): List<String> {
+        if (array == null) return emptyList()
+        return (0 until array.length()).mapNotNull { index ->
+            array.optString(index, null)
+        }
+    }
+
+    private fun uintFromJson(settings: org.json.JSONObject?, key: String, defaultValue: UInt): UInt {
+        if (settings == null || !settings.has(key)) return defaultValue
+        val value = settings.optLong(key, defaultValue.toLong())
+        if (value <= 0) return defaultValue
+        return value.toUInt()
+    }
+
+    private fun normalizedPeerSelectionStrategy(value: String?): String {
+        return when (value) {
+            "Random", "random" -> "random"
+            else -> "deterministic_sorted"
+        }
+    }
+
+    private fun materialPeerSelectionStrategy(value: String): String =
+        if (normalizedPeerSelectionStrategy(value) == "random") "Random" else "DeterministicSorted"
 
     /** Pending relay URL for profile storage. */
     private var pendingRelayUrl: String? = null
@@ -780,6 +983,16 @@ class AppManager private constructor(context: Context) : AppReconciler {
         ))
     }
 
+    /** Debug-only deterministic save companion for emulator automation.
+     *  Dispatches the Rust diagnostics action, which derives profile id,
+     *  label, and short id from the real OnboardReview resolved state. */
+    fun testOnboardSaveToDashboard(deviceName: String?) {
+        if (!BuildConfig.DEBUG) return
+        dispatch(AppAction.DiagnosticsOnboardSave(
+            deviceName = deviceName?.trim()?.takeIf { it.isNotEmpty() }
+        ))
+    }
+
     /** Clear the onboarding error to allow retry (VAL-ONBOARD-006, VAL-ONBOARD-007). */
     fun onboardClearError() {
         dispatch(AppAction.OnboardClearError)
@@ -829,6 +1042,29 @@ class AppManager private constructor(context: Context) : AppReconciler {
     fun loadProfileRecoverSubmit(pkg: String, password: String) {
         val trimmedPackage = pkg.trim()
         dispatch(AppAction.LoadProfileRecoverSubmit(`package` = trimmedPackage, password = password))
+    }
+
+    /** Debug-only long-package transport companion for Load Profile validators. */
+    fun testLoadProfileAction(mode: String, pkg: String, password: String) {
+        if (!BuildConfig.DEBUG) return
+        val trimmedPackage = pkg.trim()
+        if (trimmedPackage.isEmpty() || password.isEmpty()) return
+        dispatch(AppAction.NavigateLoadProfile)
+        when (mode.trim()) {
+            "import" -> {
+                dispatch(AppAction.LoadProfileSelectImport)
+                dispatch(AppAction.LoadProfileImportSubmit(`package` = trimmedPackage, password = password))
+            }
+            "recover" -> {
+                dispatch(AppAction.LoadProfileSelectRecover)
+                dispatch(AppAction.LoadProfileRecoverSubmit(`package` = trimmedPackage, password = password))
+            }
+        }
+    }
+
+    fun testLoadProfileConfirm() {
+        if (!BuildConfig.DEBUG) return
+        loadProfileConfirm()
     }
 
     /** Clear the load profile error to allow retry (VAL-LOAD-004/005/010/011/013/017/019). */
@@ -1159,7 +1395,18 @@ class AppManager private constructor(context: Context) : AppReconciler {
      *  VAL-SET-004: saving does not disrupt a running signer.
      *  VAL-SET-016: blocked when signer is stopped (Rust silently blocks). */
     fun saveSettings() {
-        dispatch(AppAction.SaveSettings)
+        val newState = dispatch(AppAction.SaveSettings)
+        persistSettingsFromStateIfRunning(newState)
+    }
+
+    /** Debug-only deterministic settings save for emulator automation. */
+    fun testSaveSettings(signTimeoutSecs: UInt?, peerSelectionStrategy: String?) {
+        if (!BuildConfig.DEBUG) return
+        signTimeoutSecs?.let { dispatch(AppAction.EditSignTimeout(value = it)) }
+        peerSelectionStrategy
+            ?.takeIf { it == "random" || it == "deterministic_sorted" || it == "Random" || it == "DeterministicSorted" }
+            ?.let { dispatch(AppAction.EditPeerSelectionStrategy(strategy = normalizedPeerSelectionStrategy(it))) }
+        saveSettings()
     }
 
     /** Trigger copy profile — shell shows export-password prompt (VAL-SET-006/007). */
@@ -1180,6 +1427,91 @@ class AppManager private constructor(context: Context) : AppReconciler {
     /** Confirm copy share with export password (VAL-SET-008, VAL-SET-015). */
     fun confirmCopyShare(password: String) {
         dispatch(AppAction.ConfirmCopyShare(password = password))
+    }
+
+    /** Debug-only export companion for emulator automation.
+     *  Uses the same FFI export calls and clipboard shell behavior as the
+     *  product prompt, while also writing the artifact to private app storage
+     *  so validators can fetch it with run-as and decode it off-device. */
+    fun testExportAction(kind: String, password: String) {
+        if (!BuildConfig.DEBUG) return
+        val trimmedKind = kind.trim()
+        if (password.isEmpty()) return
+        val result = when (trimmedKind) {
+            "profile" -> rust.exportProfile(exportPassword = password)
+            "share" -> rust.exportShare(exportPassword = password)
+            else -> return
+        }
+        writeDebugExportArtifact(trimmedKind, result)
+        if (result.startsWith("error:")) {
+            dispatch(AppAction.ExportFailed(error = result))
+        } else {
+            val clipboard = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val clipLabel = if (trimmedKind == "profile") "bfprofile1" else "bfshare1"
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(clipLabel, result))
+            dispatch(AppAction.ExportCompleted(packageType = trimmedKind))
+        }
+        showExportPasswordPrompt = false
+        pendingExportType = null
+    }
+
+    private fun writeDebugExportArtifact(kind: String, value: String) {
+        if (!BuildConfig.DEBUG) return
+        val safeKind = when (kind) {
+            "profile", "share" -> kind
+            else -> return
+        }
+        java.io.File(appContext.filesDir, "debug-last-export-$safeKind.txt")
+            .writeText(value, Charsets.UTF_8)
+    }
+
+    private fun writeDebugLoadProfileProof(profileId: String, label: String, shortId: String) {
+        if (!BuildConfig.DEBUG) return
+        java.io.File(appContext.filesDir, "debug-last-load-profile-proof.txt")
+            .writeText(
+                listOf(
+                    "stored=yes",
+                    "profile_id_length=${profileId.length}",
+                    "label=$label",
+                    "short_id=$shortId"
+                ).joinToString("\n"),
+                Charsets.UTF_8
+            )
+    }
+
+    private fun writeDebugCreateKeysetProof(profileId: String, label: String, shortId: String) {
+        if (!BuildConfig.DEBUG) return
+        java.io.File(appContext.filesDir, "debug-last-create-keyset-proof.txt")
+            .writeText(
+                listOf(
+                    "stored=yes",
+                    "profile_id_length=${profileId.length}",
+                    "label=$label",
+                    "short_id=$shortId"
+                ).joinToString("\n"),
+                Charsets.UTF_8
+            )
+    }
+
+    private fun writeDebugRotateShareProof(
+        oldProfileId: String,
+        newProfileId: String,
+        label: String,
+        shortId: String
+    ) {
+        if (!BuildConfig.DEBUG) return
+        java.io.File(appContext.filesDir, "debug-last-rotate-share-proof.txt")
+            .writeText(
+                listOf(
+                    "replaced=yes",
+                    "old_profile_id_length=${oldProfileId.length}",
+                    "new_profile_id_length=${newProfileId.length}",
+                    "profile_changed=${oldProfileId != newProfileId}",
+                    "label=$label",
+                    "short_id=$shortId"
+                ).joinToString("\n"),
+                Charsets.UTF_8
+            )
     }
 
     /** Navigate to the Rotate Share flow (VAL-ROTATE-005). */
@@ -1232,6 +1564,31 @@ class AppManager private constructor(context: Context) : AppReconciler {
         // AppUpdate.ReplaceProfileFromRotate.
     }
 
+    /** Debug-only rotate-share driver for emulator automation. */
+    fun testRotateShareAction(pkg: String, password: String, relay: String) {
+        if (!BuildConfig.DEBUG) return
+        val profileInfo = state.dashboard.profileInfo ?: return
+        val profileId = profileInfo.profileId
+        if (profileId.isEmpty()) return
+        val trimmedPackage = pkg.trim()
+        val trimmedRelay = relay.trim()
+        if (trimmedPackage.isEmpty() || password.isEmpty() || trimmedRelay.isEmpty()) return
+        openRotateShareConnect(
+            profileId = profileId,
+            shortId = profileId.take(8),
+            deviceLabel = profileInfo.deviceName
+        )
+        updateRotateSharePackage(trimmedPackage)
+        updateRotateSharePassword(password)
+        updateRotateShareRelay(trimmedRelay)
+        rotateShareConnect()
+    }
+
+    fun testRotateShareReplace() {
+        if (!BuildConfig.DEBUG) return
+        rotateShareReplace()
+    }
+
     /** Clear the typed error banner without leaving the connect screen. */
     fun rotateShareClearError() {
         dispatch(AppAction.RotateShareClearError)
@@ -1274,6 +1631,11 @@ class AppManager private constructor(context: Context) : AppReconciler {
         showExportPasswordPrompt = false
         pendingExportType = null
         dispatch(AppAction.ClearExportState)
+    }
+
+    fun clearDistributionQr() {
+        distributionQrPayload = null
+        distributionQrShareLabel = ""
     }
 
     /** Produce a bfprofile1 package encrypted with the export password
@@ -1470,13 +1832,38 @@ class AppManager private constructor(context: Context) : AppReconciler {
      *  BackupPublishResult back to Rust so the actor can mirror it
      *  into `dashboard.last_backup_publish` for validators.
      */
-    private fun performPublishBackup(source: String, materialJson: String) {
-        if (materialJson.isEmpty()) {
+    private fun materialJsonForBackup(profileId: String, materialJson: String): String? {
+        if (materialJson.trim().isNotEmpty()) {
+            return materialJson
+        }
+        val material = storage.loadProfileMaterial(profileId) ?: return null
+        return String(material, Charsets.UTF_8).takeIf { it.trim().isNotEmpty() }
+    }
+
+    private fun performPublishBackup(source: String, profileId: String, materialJson: String) {
+        val resolvedMaterialJson = materialJsonForBackup(profileId, materialJson)
+        if (resolvedMaterialJson == null) {
+            mainHandler.post {
+                dispatch(
+                    AppAction.BackupPublishCompleted(
+                        source = source,
+                        success = false,
+                        eventId = null,
+                        authorPubkey = null,
+                        contentLength = 0u,
+                        contentRedacted = "",
+                        groupPubkey = null,
+                        relaysAttempted = emptyList(),
+                        relaysPublishedTo = emptyList(),
+                        error = "missing_material"
+                    )
+                )
+            }
             return
         }
         val sourceCopy = source
         Thread {
-            val result = rust.`publishBackup`(`source` = sourceCopy, `materialJson` = materialJson)
+            val result = rust.`publishBackup`(`source` = sourceCopy, `materialJson` = resolvedMaterialJson)
             mainHandler.post {
                 dispatch(
                     AppAction.BackupPublishCompleted(
@@ -1550,10 +1937,59 @@ class AppManager private constructor(context: Context) : AppReconciler {
      *  Called when the user saves settings while the signer is running.
      *  The Rust state already has the updated values; we update the
      *  platform secure storage and the hub row label. */
-    private fun persistSettingsToStorage() {
-        // Settings are persisted by Rust via the PersistSettings side effect.
-        // The shell's ProfileStorageManager handles platform secure storage updates.
-        // No additional action needed here since Rust owns settings state.
+    private fun persistSettingsFromStateIfRunning(savedState: AppState) {
+        if (savedState.dashboard.signer.status != com.frostr.igloo.rust.SignerStatus.RUNNING) {
+            return
+        }
+        val settings = savedState.dashboard.settings
+        persistSettingsToStorage(
+            signerName = settings.signerName,
+            signTimeoutSecs = settings.settings.signTimeoutSecs,
+            pingTimeoutSecs = settings.settings.pingTimeoutSecs,
+            requestTtlSecs = settings.settings.requestTtlSecs,
+            stateSaveIntervalSecs = settings.settings.stateSaveIntervalSecs,
+            peerSelectionStrategy = if (settings.settings.peerSelectionStrategy == com.frostr.igloo.rust.PeerSelectionStrategy.RANDOM) {
+                "random"
+            } else {
+                "deterministic_sorted"
+            },
+            relays = settings.relays
+        )
+    }
+
+    private fun persistSettingsToStorage(
+        signerName: String,
+        signTimeoutSecs: UInt,
+        pingTimeoutSecs: UInt,
+        requestTtlSecs: UInt,
+        stateSaveIntervalSecs: UInt,
+        peerSelectionStrategy: String,
+        relays: List<String>
+    ) {
+        val profileId = state.dashboard.profileInfo?.profileId
+        if (profileId.isNullOrEmpty()) return
+        val material = storage.loadProfileMaterial(profileId) ?: return
+        val updated = materialWithSettings(
+            material = material,
+            signerName = signerName,
+            signTimeoutSecs = signTimeoutSecs,
+            pingTimeoutSecs = pingTimeoutSecs,
+            requestTtlSecs = requestTtlSecs,
+            stateSaveIntervalSecs = stateSaveIntervalSecs,
+            peerSelectionStrategy = peerSelectionStrategy,
+            relays = relays
+        )
+        storage.storeProfileMaterial(profileId, updated)
+        val shortId = storage
+            .loadProfileIndex()
+            .firstOrNull { it.profileId == profileId }
+            ?.shortId ?: profileId.take(8)
+        storage.addProfileToIndex(ProfileStorageManager.ProfileIndexEntry(
+            profileId = profileId,
+            label = signerName,
+            shortId = shortId
+        ))
+        rust.setActiveProfileMaterial(String(updated, Charsets.UTF_8))
     }
 
     companion object {

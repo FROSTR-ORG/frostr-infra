@@ -2379,6 +2379,19 @@ fn onboard_stored_adds_profile_to_hub_and_navigates_to_dashboard() {
         "profile must be in hub after OnboardStored"
     );
     assert_eq!(found.unwrap().label, "My Device");
+
+    let peer_aliases: Vec<&str> = next
+        .dashboard
+        .permissions
+        .peers
+        .iter()
+        .map(|peer| peer.alias.as_str())
+        .collect();
+    assert_eq!(
+        peer_aliases,
+        vec!["alice", "carol"],
+        "first-launch dashboard must seed permissions rows"
+    );
 }
 
 #[test]

@@ -313,6 +313,11 @@ pub enum AppAction {
     OpenDashboardSettings {
         device_name: String,
         relays: Vec<String>,
+        sign_timeout_secs: u32,
+        ping_timeout_secs: u32,
+        request_ttl_secs: u32,
+        state_save_interval_secs: u32,
+        peer_selection_strategy: String,
     },
     EditSignerName {
         name: String,

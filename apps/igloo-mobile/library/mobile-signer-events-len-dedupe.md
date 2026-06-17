@@ -3,6 +3,23 @@
 Notes pinned by `fix(signer): track signer runtime events_len and dedupe per-tick INFO rows`
 (commit `04d9486`, `mobile-create-keyset-flow` events_len feature).
 
+## Continuation Update - 2026-06-17
+
+The follow-up is still green after the June 17 native storage, QR, rotation,
+and interop changes. Verification from
+`/Users/plebdev/Desktop/Projects/frostr-infra`:
+
+```sh
+cargo test --manifest-path apps/igloo-mobile/rust/Cargo.toml --test signer_runtime_recovery events_len -- --nocapture
+cargo test --manifest-path apps/igloo-mobile/rust/Cargo.toml --test signer_runtime_recovery -- --nocapture
+```
+
+Results:
+
+- Filtered events-len run: 3 passed, 0 failed.
+- Full signer runtime recovery suite: 24 passed, 0 failed, 1 ignored live-demo
+  concurrency test.
+
 ## Why this contract exists
 
 `bifrost-bridge-tokio` does not expose a per-event payload stream the way

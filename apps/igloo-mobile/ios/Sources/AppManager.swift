@@ -40,6 +40,15 @@ final class AppManager: AppReconciler {
     var showExportPasswordPrompt: Bool = false
     var pendingExportType: String? = nil
 
+    /// Active Create Keyset distribution QR modal payload.
+    ///
+    /// The Rust actor owns package/status state, but the native shell owns
+    /// presentation. `PerformKeysetDistribution(method: "qr")` sets these
+    /// after a successful `bfonboard1` encode so the first QR tap opens the
+    /// modal as soon as the package exists.
+    var distributionQrPayload: String? = nil
+    var distributionQrShareLabel: String = ""
+
     /// Decrypted profile material awaiting save on the review screen.
     var pendingOnboardMaterial: Data?
 
@@ -80,25 +89,27 @@ final class AppManager: AppReconciler {
         // Maestro test automation. Runs in init so it executes before any view appears.
         // NOTE: Only active in DEBUG builds to prevent production impact.
         #if DEBUG
-        let markerPath = "/tmp/igloo_test_auto_inject.txt"
-        let jsonPath = "/tmp/igloo_test_auto.json"
-        do {
-            let jsonData = try Data(contentsOf: URL(fileURLWithPath: jsonPath))
-            let payload = try JSONDecoder().decode(TestAutoInjectPayload.self, from: jsonData)
-            let trimmedPkg = payload.package.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedPkg.isEmpty && trimmedPkg.hasPrefix("bfonboard") {
-                let msg = "init_auto_inject_success:\(trimmedPkg.count) chars pwd_len=\(payload.password.count)"
-                try msg.write(toFile: markerPath, atomically: true, encoding: .utf8)
-                startTestOnboarding(
-                    package: trimmedPkg,
-                    password: payload.password,
-                    relayUrl: payload.relayUrl.isEmpty ? "ws://127.0.0.1:8194" : payload.relayUrl
-                )
-            } else {
-                try "init_auto_inject_empty_package".write(toFile: markerPath, atomically: true, encoding: .utf8)
+        if isOnboardDiagnosticsEnabled {
+            let markerPath = "/tmp/igloo_test_auto_inject.txt"
+            let jsonPath = "/tmp/igloo_test_auto.json"
+            do {
+                let jsonData = try Data(contentsOf: URL(fileURLWithPath: jsonPath))
+                let payload = try JSONDecoder().decode(TestAutoInjectPayload.self, from: jsonData)
+                let trimmedPkg = payload.package.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmedPkg.isEmpty && trimmedPkg.hasPrefix("bfonboard") {
+                    let msg = "init_auto_inject_success:\(trimmedPkg.count) chars pwd_len=\(payload.password.count)"
+                    try msg.write(toFile: markerPath, atomically: true, encoding: .utf8)
+                    startTestOnboarding(
+                        package: trimmedPkg,
+                        password: payload.password,
+                        relayUrl: payload.relayUrl.isEmpty ? "ws://127.0.0.1:8194" : payload.relayUrl
+                    )
+                } else {
+                    try "init_auto_inject_empty_package".write(toFile: markerPath, atomically: true, encoding: .utf8)
+                }
+            } catch {
+                try? "init_auto_inject_error:\(error.localizedDescription)".write(toFile: markerPath, atomically: true, encoding: .utf8)
             }
-        } catch {
-            try? "init_auto_inject_error:\(error.localizedDescription)".write(toFile: markerPath, atomically: true, encoding: .utf8)
         }
         #endif
     }
@@ -177,11 +188,25 @@ final class AppManager: AppReconciler {
                 let deviceName = (parsed["device_name"] as? String) ?? ""
                 let sharePubkey = (parsed["share_pubkey"] as? String) ?? ""
                 let groupPubkey = (parsed["group_pubkey"] as? String) ?? ""
+                let relays = (parsed["relays"] as? [String]) ?? []
+                let settings = (parsed["settings"] as? [String: Any]) ?? [:]
+                let peerSelectionStrategy = Self.normalizedPeerSelectionStrategy(
+                    settings["peer_selection_strategy"] as? String
+                )
                 dispatch(.openDashboard(
                     profileId: profileId,
                     deviceName: deviceName,
                     sharePubkey: sharePubkey,
                     groupPubkey: groupPubkey
+                ))
+                dispatch(.openDashboardSettings(
+                    deviceName: deviceName,
+                    relays: relays,
+                    signTimeoutSecs: Self.uint32FromJson(settings["sign_timeout_secs"], defaultValue: 30),
+                    pingTimeoutSecs: Self.uint32FromJson(settings["ping_timeout_secs"], defaultValue: 15),
+                    requestTtlSecs: Self.uint32FromJson(settings["request_ttl_secs"], defaultValue: 300),
+                    stateSaveIntervalSecs: Self.uint32FromJson(settings["state_save_interval_secs"], defaultValue: 30),
+                    peerSelectionStrategy: peerSelectionStrategy
                 ))
             }
 
@@ -276,11 +301,27 @@ final class AppManager: AppReconciler {
             // (VAL-SET-008, VAL-SET-015).
             performCopyShareExport(password: password)
 
-        case .persistSettings:
+        case .persistSettings(
+            let signerName,
+            let signTimeoutSecs,
+            let pingTimeoutSecs,
+            let requestTtlSecs,
+            let stateSaveIntervalSecs,
+            let peerSelectionStrategy,
+            let relays
+        ):
             // Shell persists settings to secure storage (VAL-SET-002/003/004/013/014).
             // The settings are already updated in Rust state; the shell updates
             // platform secure storage and the hub row label.
-            persistSettingsToStorage()
+            persistSettingsToStorage(
+                signerName: signerName,
+                signTimeoutSecs: signTimeoutSecs,
+                pingTimeoutSecs: pingTimeoutSecs,
+                requestTtlSecs: requestTtlSecs,
+                stateSaveIntervalSecs: stateSaveIntervalSecs,
+                peerSelectionStrategy: peerSelectionStrategy,
+                relays: relays
+            )
 
         // ── Create / Rotate Keyset shell side-effects ──────────────────────────
         // The Rust state machine emits these updates after the user accepts
@@ -317,6 +358,13 @@ final class AppManager: AppReconciler {
             // VAL-CREATE-022 — start the signer for the new profile and
             // surface a "Signer Running" indicator on the Distribute screen.
             performStartSigner()
+
+        case .startKeysetSignerRuntimeAndPublishBackup(let source, let profileId, _):
+            // VAL-CREATE-010 + VAL-BACKUP-001: after CreateKeysetAccepted,
+            // start the freshly-created signer and publish its encrypted
+            // kind-10000 backup from secure storage.
+            performStartSigner()
+            performPublishBackup(source: source, profileId: profileId, materialJson: "")
 
         case .performRotateShareHandshake(let package, let password, let relayUrl, let expectedGroup, let activeProfileId):
             // VAL-ROTATE-006/013/014: run the live provisioning handshake
@@ -382,6 +430,13 @@ final class AppManager: AppReconciler {
                 newProfileId: newProfileId,
                 newMaterial: newMaterial
             )
+
+        case .publishProfileBackup(let source, let profileId, let materialJson):
+            // VAL-BACKUP-001..006: regular backup publication path used by
+            // create / onboard / import / recover. Rust intentionally sends
+            // empty material_json for stored profiles because the native shell
+            // owns secure storage; reload the material by profile_id here.
+            performPublishBackup(source: source, profileId: profileId, materialJson: materialJson)
 
         // PerformOnboardHandshake is handled directly in onboardConnect() to ensure
         // the async FFI call starts immediately without relying on the reconciler
@@ -460,8 +515,17 @@ final class AppManager: AppReconciler {
                     package: pkg,
                     method: method
                 ))
+                if method == "qr" {
+                    self.distributionQrPayload = pkg
+                    self.distributionQrShareLabel = shareLabel
+                }
             }
         }
+    }
+
+    func clearDistributionQr() {
+        distributionQrPayload = nil
+        distributionQrShareLabel = ""
     }
 
     /// Persist the freshly-accepted creator profile to Keychain and report
@@ -472,6 +536,9 @@ final class AppManager: AppReconciler {
         // launch can rehydrate via restoreActiveProfile. The relays are also
         // recorded for sign-policy parity.
         _ = storage.storeProfile(profileId: profileId, label: label, shortId: shortId, material: material)
+        if let materialJson = String(data: material, encoding: .utf8) {
+            rust.setActiveProfileMaterial(materialJson: materialJson)
+        }
 
         // Drive the live signer panel on the Distribute screen via dispatching
         // `CreateKeysetAccepted` — this also enables the hub row insertion
@@ -769,15 +836,26 @@ final class AppManager: AppReconciler {
             return
         }
 
+        let materialToStore = Self.materialWithDeviceName(material, deviceName: label)
         let stored = storage.storeProfile(
             profileId: profileId,
             label: label,
             shortId: shortId,
-            material: material
+            material: materialToStore
         )
         pendingOnboardMaterial = nil
 
         if stored {
+            if let materialJson = String(data: materialToStore, encoding: .utf8) {
+                rust.setActiveProfileMaterial(materialJson: materialJson)
+                if isAutomationDiagnosticsEnabled {
+                    OnboardDiagnostics.shared.recordEvent(
+                        "store_onboarded_profile: active_material_set=yes material_len=\(materialToStore.count)"
+                    )
+                }
+            } else if isAutomationDiagnosticsEnabled {
+                OnboardDiagnostics.shared.recordEvent("store_onboarded_profile: active_material_set=no utf8=no")
+            }
             dispatch(.onboardStored(profileId: profileId))
         } else {
             dispatch(.onboardDuplicateRejected(profileId: profileId))
@@ -871,10 +949,34 @@ final class AppManager: AppReconciler {
         )
         pendingLoadProfileMaterial = nil
         if stored {
+            if let materialJson = String(data: material, encoding: .utf8) {
+                rust.setActiveProfileMaterial(materialJson: materialJson)
+            }
+            writeDebugLoadProfileProof(profileId: profileId, label: label, shortId: shortId)
             dispatch(.loadProfileStored(profileId: profileId))
         } else {
             dispatch(.loadProfileDuplicateRejected(profileId: profileId))
         }
+    }
+
+    private func writeDebugLoadProfileProof(profileId: String, label: String, shortId: String) {
+        #if DEBUG
+        guard isAutomationDiagnosticsEnabled,
+              let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return
+        }
+        let proof = [
+            "stored=yes",
+            "profile_id_length=\(profileId.count)",
+            "label=\(label)",
+            "short_id=\(shortId)"
+        ].joined(separator: "\n")
+        try? proof.write(
+            to: documents.appendingPathComponent("debug-last-load-profile-proof.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+        #endif
     }
 
     /// Clear the load profile error and return to idle (VAL-LOAD-005/011).
@@ -885,6 +987,65 @@ final class AppManager: AppReconciler {
     /// Dispatch confirm for the imported/recovered profile (VAL-LOAD-007/014).
     func loadProfileConfirm() {
         dispatch(.loadProfileConfirm)
+    }
+
+    func testLoadProfileAction(mode: String, package: String, password: String) {
+        #if DEBUG
+        guard isAutomationDiagnosticsEnabled else {
+            return
+        }
+        let trimmedMode = mode.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPackage = package.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPackage.isEmpty, !password.isEmpty else {
+            return
+        }
+        dispatch(.navigateLoadProfile)
+        switch trimmedMode {
+        case "import":
+            dispatch(.loadProfileSelectImport)
+            dispatch(.loadProfileImportSubmit(package: trimmedPackage, password: password))
+        case "recover":
+            dispatch(.loadProfileSelectRecover)
+            dispatch(.loadProfileRecoverSubmit(package: trimmedPackage, password: password))
+        default:
+            return
+        }
+        #endif
+    }
+
+    func testLoadProfileFromClipboard(mode: String, password: String) {
+        #if DEBUG
+        guard isAutomationDiagnosticsEnabled else {
+            return
+        }
+        let package = UIPasteboard.general.string ?? ""
+        testLoadProfileAction(mode: mode, package: package, password: password)
+        #endif
+    }
+
+    func testLoadProfileFromDebugFile(mode: String, password: String) {
+        #if DEBUG
+        guard isAutomationDiagnosticsEnabled else {
+            return
+        }
+        guard let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return
+        }
+        let url = documents.appendingPathComponent("debug-load-profile-package.txt")
+        guard let package = try? String(contentsOf: url, encoding: .utf8) else {
+            return
+        }
+        testLoadProfileAction(mode: mode, package: package, password: password)
+        #endif
+    }
+
+    func testLoadProfileConfirm() {
+        #if DEBUG
+        guard isAutomationDiagnosticsEnabled else {
+            return
+        }
+        loadProfileConfirm()
+        #endif
     }
 
     @discardableResult
@@ -995,14 +1156,14 @@ final class AppManager: AppReconciler {
         relayUrl: String,
         deviceName: String? = nil
     ) {
+        #if DEBUG
+        guard isOnboardDiagnosticsEnabled else { return }
+
         // DEBUG + diagnostics-gated bootstrap: stash the device_name hint so the
         // OnboardReviewView (which is rendered after the handshake completes)
         // can prefill the TextField from sandboxed test data, without depending
         // on Maestro's inputText/pasteText timing. Normal user flow (tap Connect,
         // type a device name on review): this hint is nil and the path is a no-op.
-        // Compiled only for DEBUG; in release builds the AppAction is dispatched
-        // only when diagnostics are enabled.
-        #if DEBUG
         let _ = dispatch(.injectOnboardCredentials(
             package: package,
             password: password,
@@ -1012,12 +1173,14 @@ final class AppManager: AppReconciler {
         if isOnboardDiagnosticsEnabled {
             OnboardDiagnostics.shared.recordEvent("inject_credentials: pkg_len=\(package.count) pwd_len=\(password.count) relay=\(sanitizedRelay(relayUrl)) device_name_hint=\(deviceName != nil)")
         }
-        #endif
 
         // Directly invoke onboardConnect, bypassing UI state.
         // The app must be navigated to the OnboardConnect screen for the UI to
         // reflect the state transitions (Decrypting → Handshaking → Complete/Error).
         onboardConnect(package: package, password: password, relayUrl: relayUrl)
+        #else
+        return
+        #endif
     }
 
     /// Debug-gated apply of the stashed injected device name into Rust state plus
@@ -1045,6 +1208,9 @@ final class AppManager: AppReconciler {
     /// and SIMCTL_CHILD_IGLOO_ONBOARD_DIAGNOSTICS=1 is set).
     /// Bypasses SwiftUI @State UI input and the iOS Simulator UITextView ~67-char limit.
     func startTestOnboarding(package: String, password: String, relayUrl: String, deviceName: String? = nil) {
+        #if DEBUG
+        guard isOnboardDiagnosticsEnabled else { return }
+
         // Mark as diagnostic mode entry
         if isOnboardDiagnosticsEnabled {
             OnboardDiagnostics.shared.logOnboardConnectEntry(
@@ -1058,7 +1224,6 @@ final class AppManager: AppReconciler {
         // Optional DEBUG-only device-name hint stash. OnboardReview reads this
         // to prefill the TextField so the focused iOS gate can save and reach
         // the dashboard without depending on Maestro inputText timing.
-        #if DEBUG
         if let deviceName = deviceName, !deviceName.isEmpty {
             let _ = dispatch(.injectOnboardCredentials(
                 package: package,
@@ -1067,7 +1232,6 @@ final class AppManager: AppReconciler {
                 deviceName: deviceName
             ))
         }
-        #endif
 
         // Dispatch OnboardConnect action to transition state to Decrypting.
         // This is the same dispatch that happens when the user taps Connect.
@@ -1076,6 +1240,9 @@ final class AppManager: AppReconciler {
         // Immediately start the async handshake. This is the same as what
         // onboardConnect() does after dispatching.
         performOnboardHandshake(package: package, password: password, relayUrl: relayUrl)
+        #else
+        return
+        #endif
     }
     func logBtnConnectEntry(packageText: String, passwordText: String, relayUrl: String, canSubmit: Bool, focusedField: String?) {
         if isOnboardDiagnosticsEnabled {
@@ -1176,7 +1343,8 @@ final class AppManager: AppReconciler {
         threshold: UInt16,
         count: UInt16,
         deviceName: String,
-        relay: String
+        relay: String,
+        autoFinish: Bool = true
     ) {
         #if DEBUG
         guard isKeysetDiagnosticsEnabled else { return }
@@ -1195,7 +1363,7 @@ final class AppManager: AppReconciler {
         // `StoreKeysetCreatedProfile`. `storeKeysetCreatedProfile`
         // clears it after the auto-finish dispatch so a normal user
         // path is unaffected.
-        keysetDiagnosticAutoFinish = true
+        keysetDiagnosticAutoFinish = autoFinish
         let _ = dispatch(.diagnosticsCreateKeysetRun(
             groupName: trimmedGroup,
             threshold: threshold,
@@ -1208,6 +1376,30 @@ final class AppManager: AppReconciler {
                 "test_create_keyset: group=\(trimmedGroup) threshold=\(threshold) count=\(count) device=\(trimmedDevice) relay=\(sanitizedRelay(trimmedRelay))"
             )
         }
+        #endif
+    }
+
+    /// Debug + diagnostics-gated Distribute-row password seeder.
+    ///
+    /// Focused QR-display validators still tap the visible QR button, but use
+    /// this helper to avoid iOS Simulator TextField automation races while
+    /// preparing the row. It drives the same Rust field-update actions that a
+    /// real typed password drives.
+    func testKeysetDistributePassword(shareIdx: UInt16, password: String) {
+        #if DEBUG
+        guard isKeysetDiagnosticsEnabled else { return }
+        guard !password.isEmpty else { return }
+        let _ = dispatch(.createKeysetDistributeSetPassword(
+            shareIdx: shareIdx,
+            password: password
+        ))
+        let _ = dispatch(.createKeysetDistributeSetConfirm(
+            shareIdx: shareIdx,
+            confirm: password
+        ))
+        KeysetDiagnostics.shared.recordEvent(
+            "test_keyset_distribute_password: share_idx=\(shareIdx) pwd_len=\(password.count)"
+        )
         #endif
     }
 
@@ -1249,7 +1441,6 @@ final class AppManager: AppReconciler {
         case .signer: return "signer"
         case .permissions: return "permissions"
         case .settings: return "settings"
-        default: return "signer"
         }
     }
 
@@ -1565,6 +1756,70 @@ final class AppManager: AppReconciler {
         return parsed
     }
 
+    nonisolated private static func materialWithDeviceName(_ material: Data, deviceName: String) -> Data {
+        guard var parsed = try? JSONSerialization.jsonObject(with: material) as? [String: Any] else {
+            return material
+        }
+        parsed["device_name"] = deviceName
+        guard JSONSerialization.isValidJSONObject(parsed),
+              let data = try? JSONSerialization.data(withJSONObject: parsed) else {
+            return material
+        }
+        return data
+    }
+
+    nonisolated private static func uint32FromJson(_ value: Any?, defaultValue: UInt32) -> UInt32 {
+        if let number = value as? NSNumber {
+            return number.uint32Value
+        }
+        if let string = value as? String, let parsed = UInt32(string) {
+            return parsed
+        }
+        return defaultValue
+    }
+
+    nonisolated private static func normalizedPeerSelectionStrategy(_ value: String?) -> String {
+        switch value {
+        case "Random", "random":
+            return "random"
+        default:
+            return "deterministic_sorted"
+        }
+    }
+
+    nonisolated private static func materialPeerSelectionStrategy(_ value: String) -> String {
+        normalizedPeerSelectionStrategy(value) == "random" ? "Random" : "DeterministicSorted"
+    }
+
+    nonisolated private static func materialWithSettings(
+        _ material: Data,
+        signerName: String,
+        signTimeoutSecs: UInt32,
+        pingTimeoutSecs: UInt32,
+        requestTtlSecs: UInt32,
+        stateSaveIntervalSecs: UInt32,
+        peerSelectionStrategy: String,
+        relays: [String]
+    ) -> Data {
+        guard var parsed = try? JSONSerialization.jsonObject(with: material) as? [String: Any] else {
+            return material
+        }
+        parsed["device_name"] = signerName
+        parsed["relays"] = relays
+        var settings = (parsed["settings"] as? [String: Any]) ?? [:]
+        settings["sign_timeout_secs"] = Int(signTimeoutSecs)
+        settings["ping_timeout_secs"] = Int(pingTimeoutSecs)
+        settings["request_ttl_secs"] = Int(requestTtlSecs)
+        settings["state_save_interval_secs"] = Int(stateSaveIntervalSecs)
+        settings["peer_selection_strategy"] = materialPeerSelectionStrategy(peerSelectionStrategy)
+        parsed["settings"] = settings
+        guard JSONSerialization.isValidJSONObject(parsed),
+              let data = try? JSONSerialization.data(withJSONObject: parsed) else {
+            return material
+        }
+        return data
+    }
+
     // MARK: - Signer Status Polling
 
     private var signerPollTimer: Timer?
@@ -1731,7 +1986,30 @@ final class AppManager: AppReconciler {
     /// VAL-SET-004: saving does not disrupt a running signer.
     /// VAL-SET-016: blocked when signer is stopped (Rust silently blocks).
     func saveSettings() {
-        dispatch(.saveSettings)
+        let newState = dispatch(.saveSettings)
+        persistSettingsFromStateIfRunning(newState)
+    }
+
+    /// DEBUG diagnostics route for iOS Maestro persistence gates.
+    ///
+    /// Simulator 26.5 can focus the visible SwiftUI Save Settings control
+    /// without delivering the tap action. The focused cross-flow validator
+    /// still edits the visible Settings fields, then calls this diagnostics
+    /// hook to commit the same state-machine edits and storage write.
+    func testSaveSettings(signTimeoutSecs: UInt32?, peerSelectionStrategy: String?) {
+        #if DEBUG
+        guard isOnboardDiagnosticsEnabled else {
+            return
+        }
+        if let signTimeoutSecs {
+            dispatch(.editSignTimeout(value: signTimeoutSecs))
+        }
+        if let peerSelectionStrategy {
+            dispatch(.editPeerSelectionStrategy(strategy: peerSelectionStrategy))
+        }
+        let newState = dispatch(.saveSettings)
+        persistSettingsFromStateIfRunning(newState)
+        #endif
     }
 
     /// Trigger copy profile — shell shows export-password prompt (VAL-SET-006/007).
@@ -1752,6 +2030,39 @@ final class AppManager: AppReconciler {
     /// Confirm copy share with export password (VAL-SET-008, VAL-SET-015).
     func confirmCopyShare(password: String) {
         dispatch(.confirmCopyShare(password: password))
+    }
+
+    /// DEBUG diagnostics route for iOS export artifact validators.
+    ///
+    /// The focused export gate uses this after creating a real dashboard
+    /// profile. It writes the same clipboard artifact as the product export
+    /// prompt, but avoids the iOS Simulator SwiftUI confirm-tap race.
+    func testExportAction(kind: String, password: String) {
+        #if DEBUG
+        let trimmedKind = kind.trimmingCharacters(in: .whitespacesAndNewlines)
+        if isAutomationDiagnosticsEnabled {
+            OnboardDiagnostics.shared.recordEvent(
+                "test_export_action: kind=\(trimmedKind) pwd_len=\(password.count) export_diag=\(isExportDiagnosticsEnabled)"
+            )
+        }
+        guard isAutomationDiagnosticsEnabled else {
+            return
+        }
+        guard !password.isEmpty else {
+            if isAutomationDiagnosticsEnabled {
+                OnboardDiagnostics.shared.recordEvent("test_export_action: ignored empty_password")
+            }
+            return
+        }
+        switch trimmedKind {
+        case "profile":
+            performCopyProfileExport(password: password)
+        case "share":
+            performCopyShareExport(password: password)
+        default:
+            return
+        }
+        #endif
     }
 
     /// Navigate to the Rotate Share flow (VAL-ROTATE-005).
@@ -1807,6 +2118,37 @@ final class AppManager: AppReconciler {
         dispatch(.rotateShareReplace)
     }
 
+    func testRotateShareAction(package: String, password: String, relay: String) {
+        #if DEBUG
+        guard isAutomationDiagnosticsEnabled else { return }
+        let trimmedPackage = package.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedRelay = relay.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPackage.isEmpty,
+              !password.isEmpty,
+              !trimmedRelay.isEmpty,
+              let profile = state.dashboard.profileInfo
+        else { return }
+
+        let shortId = String(profile.profileId.prefix(8))
+        let _ = dispatch(.openRotateShareConnect(
+            profileId: profile.profileId,
+            shortId: shortId,
+            deviceLabel: profile.deviceName
+        ))
+        let _ = dispatch(.rotateShareUpdatePackage(value: trimmedPackage))
+        let _ = dispatch(.rotateShareUpdatePassword(value: password))
+        let _ = dispatch(.rotateShareUpdateRelay(value: trimmedRelay))
+        let _ = dispatch(.rotateShareConnect)
+        #endif
+    }
+
+    func testRotateShareReplace() {
+        #if DEBUG
+        guard isAutomationDiagnosticsEnabled else { return }
+        let _ = dispatch(.rotateShareReplace)
+        #endif
+    }
+
     /// Clear a typed error banner without leaving the connect screen
     /// (VAL-ROTATE-009 / VAL-ROTATE-014 in-session retry).
     func rotateShareClearError() {
@@ -1857,10 +2199,20 @@ final class AppManager: AppReconciler {
     private func performCopyProfileExport(password: String) {
         let result = rust.exportProfile(exportPassword: password)
         if result.hasPrefix("error:") {
+            if isAutomationDiagnosticsEnabled {
+                OnboardDiagnostics.shared.recordEvent(
+                    "export_profile_result: ok=no error=\(redactedErrorKind(result))"
+                )
+            }
             dispatch(.exportFailed(error: result))
         } else {
             // Copy to clipboard and dispatch success
             UIPasteboard.general.string = result
+            if isAutomationDiagnosticsEnabled {
+                OnboardDiagnostics.shared.recordEvent(
+                    "export_profile_result: ok=yes len=\(result.count)"
+                )
+            }
             dispatch(.exportCompleted(packageType: "profile"))
         }
         showExportPasswordPrompt = false
@@ -1872,10 +2224,20 @@ final class AppManager: AppReconciler {
     private func performCopyShareExport(password: String) {
         let result = rust.exportShare(exportPassword: password)
         if result.hasPrefix("error:") {
+            if isAutomationDiagnosticsEnabled {
+                OnboardDiagnostics.shared.recordEvent(
+                    "export_share_result: ok=no error=\(redactedErrorKind(result))"
+                )
+            }
             dispatch(.exportFailed(error: result))
         } else {
             // Copy to clipboard and dispatch success
             UIPasteboard.general.string = result
+            if isAutomationDiagnosticsEnabled {
+                OnboardDiagnostics.shared.recordEvent(
+                    "export_share_result: ok=yes len=\(result.count)"
+                )
+            }
             dispatch(.exportCompleted(packageType: "share"))
         }
         showExportPasswordPrompt = false
@@ -1886,10 +2248,59 @@ final class AppManager: AppReconciler {
     /// Called when the user saves settings while the signer is running.
     /// The Rust state already has the updated values; we update the
     /// platform secure storage and the hub row label.
-    private func persistSettingsToStorage() {
-        // Settings are persisted by Rust via the PersistSettings side effect.
-        // The shell's ProfileStorageManager handles platform secure storage updates.
-        // No additional action needed here since Rust owns settings state.
+    private func persistSettingsFromStateIfRunning(_ savedState: AppState) {
+        guard savedState.dashboard.signer.status == .running else {
+            return
+        }
+        let settings = savedState.dashboard.settings
+        persistSettingsToStorage(
+            signerName: settings.signerName,
+            signTimeoutSecs: settings.settings.signTimeoutSecs,
+            pingTimeoutSecs: settings.settings.pingTimeoutSecs,
+            requestTtlSecs: settings.settings.requestTtlSecs,
+            stateSaveIntervalSecs: settings.settings.stateSaveIntervalSecs,
+            peerSelectionStrategy: settings.settings.peerSelectionStrategy == .random ? "random" : "deterministic_sorted",
+            relays: settings.relays
+        )
+    }
+
+    private func persistSettingsToStorage(
+        signerName: String,
+        signTimeoutSecs: UInt32,
+        pingTimeoutSecs: UInt32,
+        requestTtlSecs: UInt32,
+        stateSaveIntervalSecs: UInt32,
+        peerSelectionStrategy: String,
+        relays: [String]
+    ) {
+        guard let profileId = state.dashboard.profileInfo?.profileId,
+              !profileId.isEmpty,
+              let material = storage.loadProfileMaterial(profileId: profileId) else {
+            return
+        }
+        let updated = Self.materialWithSettings(
+            material,
+            signerName: signerName,
+            signTimeoutSecs: signTimeoutSecs,
+            pingTimeoutSecs: pingTimeoutSecs,
+            requestTtlSecs: requestTtlSecs,
+            stateSaveIntervalSecs: stateSaveIntervalSecs,
+            peerSelectionStrategy: peerSelectionStrategy,
+            relays: relays
+        )
+        let shortId = storage
+            .loadProfileIndex()
+            .first(where: { $0.profileId == profileId })?
+            .shortId ?? String(profileId.prefix(8))
+        _ = storage.storeProfile(
+            profileId: profileId,
+            label: signerName,
+            shortId: shortId,
+            material: updated
+        )
+        if let materialJson = String(data: updated, encoding: .utf8) {
+            rust.setActiveProfileMaterial(materialJson: materialJson)
+        }
     }
 
     /// Perform a test sign operation (VAL-SIGN-002).
@@ -2037,6 +2448,15 @@ final class AppManager: AppReconciler {
         // write is skipped to avoid an empty-tombstone record.
         if !newMaterial.isEmpty {
             _ = storage.storeProfileMaterial(profileId: newProfileId, material: newMaterial)
+            if let materialJson = String(data: newMaterial, encoding: .utf8) {
+                rust.setActiveProfileMaterial(materialJson: materialJson)
+            }
+            writeDebugRotateShareProof(
+                oldProfileId: oldProfileId,
+                newProfileId: newProfileId,
+                label: newLabel,
+                shortId: newShortId
+            )
         }
         // Update the profile index.
         storage.addProfileToIndex(
@@ -2059,6 +2479,33 @@ final class AppManager: AppReconciler {
         dispatch(.updateHubStatus(profileId: newProfileId, active: true))
     }
 
+    private func writeDebugRotateShareProof(
+        oldProfileId: String,
+        newProfileId: String,
+        label: String,
+        shortId: String
+    ) {
+        #if DEBUG
+        guard isAutomationDiagnosticsEnabled,
+              let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return
+        }
+        let proof = [
+            "replaced=yes",
+            "old_profile_id_length=\(oldProfileId.count)",
+            "new_profile_id_length=\(newProfileId.count)",
+            "profile_changed=\(oldProfileId != newProfileId)",
+            "label=\(label)",
+            "short_id=\(shortId)"
+        ].joined(separator: "\n")
+        try? proof.write(
+            to: documents.appendingPathComponent("debug-last-rotate-share-proof.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+        #endif
+    }
+
     /// Fire-and-forward rotation-driven backup publication so the
     /// rotate-share replacement path matches the combined
     /// `ReplaceProfileFromRotateAndPublishBackup` contract used by the
@@ -2074,11 +2521,46 @@ final class AppManager: AppReconciler {
         guard !newMaterial.isEmpty else { return }
         let materialJson = String(data: newMaterial, encoding: .utf8) ?? ""
         guard !materialJson.isEmpty else { return }
+        performPublishBackup(source: source, profileId: newProfileId, materialJson: materialJson)
+    }
+
+    private func materialJsonForBackup(profileId: String, materialJson: String) -> String? {
+        let inline = materialJson.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !inline.isEmpty {
+            return materialJson
+        }
+        guard let material = storage.loadProfileMaterial(profileId: profileId),
+              let stored = String(data: material, encoding: .utf8),
+              !stored.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+        return stored
+    }
+
+    private func performPublishBackup(source: String, profileId: String, materialJson: String) {
+        guard let resolvedMaterialJson = materialJsonForBackup(
+            profileId: profileId,
+            materialJson: materialJson
+        ) else {
+            dispatch(.backupPublishCompleted(
+                source: source,
+                success: false,
+                eventId: nil,
+                authorPubkey: nil,
+                contentLength: 0,
+                contentRedacted: "",
+                groupPubkey: nil,
+                relaysAttempted: [],
+                relaysPublishedTo: [],
+                error: "missing_material"
+            ))
+            return
+        }
         let rust = self.rust
         let sourceCopy = source
-        let profileIdCopy = newProfileId
+        let materialJsonCopy = resolvedMaterialJson
         Thread.detachNewThread {
-            let result = rust.publishBackup(source: sourceCopy, materialJson: materialJson)
+            let result = rust.publishBackup(source: sourceCopy, materialJson: materialJsonCopy)
             DispatchQueue.main.async {
                 self.dispatch(.backupPublishCompleted(
                     source: result.source,
@@ -2092,7 +2574,6 @@ final class AppManager: AppReconciler {
                     relaysPublishedTo: result.relaysPublishedTo,
                     error: result.error
                 ))
-                _ = profileIdCopy
             }
         }
     }

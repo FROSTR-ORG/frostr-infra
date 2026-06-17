@@ -29,6 +29,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1"
 async-trait = "0.1"
+bincode = "1"
 
 # WebSocket publishing — used by `FfiApp::publish_backup` to deliver the
 # kind-10000 encrypted profile backup to the configured Nostr relays. The

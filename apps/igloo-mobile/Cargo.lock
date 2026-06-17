@@ -1259,6 +1259,7 @@ dependencies = [
  "bifrost-codec",
  "bifrost-core",
  "bifrost-signer",
+ "bincode",
  "flume",
  "frostr-utils",
  "futures-util",

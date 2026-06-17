@@ -51,7 +51,9 @@ the dashboard.
 
 - All `tile_*` rows on the hub have stable `accessibilityIdentifier` /
   `testTag` ids (`tile_create_keyset`, `tile_load_profile`,
-  `tile_onboard_device`); see also `apps/igloo-mobile/library/parity/SHELL-010-accessibility-ids.md`.
+  `tile_onboard_device`); see also `apps/igloo-mobile/README.md` and
+  `apps/igloo-mobile/library/user-testing.md` for the current native
+  selector and validator recipes.
 - Dashboard tabs share a uniform `tab_signer` / `tab_permissions` /
   `tab_settings` selector across both platforms.
 - Every entry path lands on the named view via the in-app navigation

@@ -2218,8 +2218,6 @@ struct CreateKeysetReviewView: View {
 struct CreateKeysetDistributeView: View {
     @Bindable var manager: AppManager
 
-    @State private var showQrShare: DistributeShareRecord? = nil
-
     private var rows: [DistributeShareRecord] {
         manager.state.keyset.distribute
     }
@@ -2271,8 +2269,7 @@ struct CreateKeysetDistributeView: View {
                 ForEach(rows, id: \.shareIdx) { row in
                     DistributeShareCard(
                         manager: manager,
-                        row: row,
-                        onOpenQr: { self.showQrShare = $0 }
+                        row: row
                     )
                     .padding(.horizontal, IglooSpacing.Lg)
                 }
@@ -2311,12 +2308,12 @@ struct CreateKeysetDistributeView: View {
         .background(IglooColors.Gray950)
         .sheet(
             isPresented: Binding(
-                get: { self.showQrShare != nil },
-                set: { if !$0 { self.showQrShare = nil } }
+                get: { manager.distributionQrPayload != nil },
+                set: { if !$0 { manager.clearDistributionQr() } }
             )
         ) {
-            if let share = self.showQrShare {
-                QrCodeModal(payload: share.lastPackage, share: share)
+            if let payload = manager.distributionQrPayload {
+                QrCodeModal(payload: payload, shareLabel: manager.distributionQrShareLabel)
             }
         }
     }
@@ -2325,7 +2322,6 @@ struct CreateKeysetDistributeView: View {
 struct DistributeShareCard: View {
     @Bindable var manager: AppManager
     let row: DistributeShareRecord
-    let onOpenQr: (DistributeShareRecord) -> Void
 
     private var canEmit: Bool {
         !row.password.isEmpty &&
@@ -2403,6 +2399,7 @@ struct DistributeShareCard: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(canEmit ? IglooColors.Blue400 : IglooColors.Slate500)
+                .disabled(!canEmit)
                 .accessibilityIdentifier("distribute_copy_\(row.shareIdx)")
 
                 Button {
@@ -2413,6 +2410,7 @@ struct DistributeShareCard: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(canEmit ? IglooColors.Blue400 : IglooColors.Slate500)
+                .disabled(!canEmit)
                 .accessibilityIdentifier("distribute_qr_\(row.shareIdx)")
 
                 Button {
@@ -2423,6 +2421,7 @@ struct DistributeShareCard: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(canEmit ? IglooColors.Blue400 : IglooColors.Slate500)
+                .disabled(!canEmit)
                 .accessibilityIdentifier("distribute_save_\(row.shareIdx)")
                 Spacer()
             }
@@ -2471,13 +2470,13 @@ struct DistributeStatusChip: View {
 
 struct QrCodeModal: View {
     let payload: String
-    let share: DistributeShareRecord
+    let shareLabel: String
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
         VStack(spacing: IglooSpacing.Lg) {
             HStack {
-                Text("QR for \(share.label)")
+                Text("QR for \(shareLabel)")
                     .font(IglooTypography.H3Font)
                     .foregroundStyle(IglooColors.Slate200)
                 Spacer()
@@ -2918,6 +2917,12 @@ struct DashboardTabBar: View {
         HStack(spacing: 0) {
             ForEach(tabs, id: \.0) { tabId, tabLabel in
                 Button {
+                    UIApplication.shared.sendAction(
+                        #selector(UIResponder.resignFirstResponder),
+                        to: nil,
+                        from: nil,
+                        for: nil
+                    )
                     onSelectTab(tabId)
                 } label: {
                     VStack(spacing: IglooSpacing.Xs) {
@@ -3620,6 +3625,7 @@ struct TestOperationsSection: View {
             Text("Test Operations")
                 .font(IglooTypography.H3Font)
                 .foregroundStyle(IglooColors.Slate200)
+                .accessibilityIdentifier("test_operations_section")
 
             HStack(spacing: IglooSpacing.Md) {
                 // Test Sign button (VAL-SIGN-002).
@@ -3686,7 +3692,6 @@ struct TestOperationsSection: View {
             RoundedRectangle(cornerRadius: IglooRadii.Lg)
                 .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
         )
-        .accessibilityIdentifier("test_operations_section")
     }
 }
 
@@ -3703,6 +3708,7 @@ struct TestSignResultSection: View {
                 Text("Test Sign Result")
                     .font(IglooTypography.H3Font)
                     .foregroundStyle(IglooColors.Slate200)
+                    .accessibilityIdentifier("test_sign_result_section")
                 Spacer()
                 Button(action: onClear) {
                     Image(systemName: "xmark.circle.fill")
@@ -3739,7 +3745,6 @@ struct TestSignResultSection: View {
             RoundedRectangle(cornerRadius: IglooRadii.Lg)
                 .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
         )
-        .accessibilityIdentifier("test_sign_result_section")
     }
 }
 
@@ -4188,7 +4193,7 @@ struct PermissionCellView: View {
                 .padding(.vertical, 2)
                 .background(effectiveColor.opacity(0.15))
                 .cornerRadius(IglooRadii.Sm)
-                .accessibilityIdentifier("effective_\(peer.alias.lowercased())_\(directionKey)_\(methodKey.lowercased())")
+                .accessibilityIdentifier("perm_cell_\(peer.alias.lowercased())_\(directionKey)_\(methodKey.lowercased())")
 
             // Override control buttons.
             HStack(spacing: 2) {
@@ -4235,7 +4240,6 @@ struct PermissionCellView: View {
         .padding(IglooSpacing.Xs)
         .background(IglooColors.Gray900)
         .cornerRadius(IglooRadii.Sm)
-        .accessibilityIdentifier("perm_cell_\(peer.alias.lowercased())_\(directionKey)_\(methodKey.lowercased())")
     }
 }
 
@@ -4265,6 +4269,31 @@ struct SettingsView: View {
 
     private var saveBlocked: Bool {
         !isSignerRunning
+    }
+
+    private func flushSettingsEdits() {
+        manager.editSignerName(signerName)
+        if let v = UInt32(signTimeout) {
+            manager.editSignTimeout(v)
+        }
+        if let v = UInt32(pingTimeout) {
+            manager.editPingTimeout(v)
+        }
+        if let v = UInt32(requestTtl) {
+            manager.editRequestTtl(v)
+        }
+        if let v = UInt32(stateSaveInterval) {
+            manager.editStateSaveInterval(v)
+        }
+        manager.editPeerSelectionStrategy(peerStrategy)
+    }
+
+    private func saveCurrentSettings() {
+        guard !saveBlocked else {
+            return
+        }
+        flushSettingsEdits()
+        manager.saveSettings()
     }
 
     var body: some View {
@@ -4496,22 +4525,26 @@ struct SettingsView: View {
                                 .padding(.bottom, IglooSpacing.Xs)
                         }
 
-                        Button {
-                            manager.saveSettings()
-                        } label: {
-                            HStack {
-                                Image(systemName: "checkmark.circle")
-                                Text("Save Settings")
-                            }
-                            .font(IglooTypography.BodyFont)
-                            .foregroundStyle(saveBlocked ? IglooColors.Slate500 : IglooColors.Gray950)
-                            .padding(IglooSpacing.Md)
-                            .frame(maxWidth: .infinity)
-                            .background(saveBlocked ? IglooColors.Slate500.opacity(0.3) : IglooColors.Blue600)
-                            .cornerRadius(IglooRadii.Md)
+                        HStack {
+                            Image(systemName: "checkmark.circle")
+                            Text("Save Settings")
                         }
-                        .disabled(saveBlocked)
+                        .font(IglooTypography.BodyFont)
+                        .foregroundStyle(saveBlocked ? IglooColors.Slate500 : IglooColors.Gray950)
+                        .padding(IglooSpacing.Md)
+                        .frame(maxWidth: .infinity)
+                        .background(saveBlocked ? IglooColors.Slate500.opacity(0.3) : IglooColors.Blue600)
+                        .cornerRadius(IglooRadii.Md)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            saveCurrentSettings()
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityAddTraits(.isButton)
                         .accessibilityIdentifier("btn_save_settings")
+                        .accessibilityAction(.default) {
+                            saveCurrentSettings()
+                        }
                     }
 
                     // Logout (VAL-SET-010/011/012)
@@ -5471,4 +5504,3 @@ struct RotateSharePreviewCard: View {
         }
     }
 }
-

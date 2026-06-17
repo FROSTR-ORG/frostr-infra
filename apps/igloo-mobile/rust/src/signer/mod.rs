@@ -55,14 +55,12 @@ pub struct VerifiedNostrSdkAdapter {
 
 impl VerifiedNostrSdkAdapter {
     /// Construct a VerifiedNostrSdkAdapter scoped to the onboard path.
-    /// Tags every tracing event with `"onboard"`. The 500 ms subscribe and
-    /// publish settle windows match the legacy VerifiedNostrSdkAdapter
-    /// values that were historically used during onboarding's first
-    /// handshake round; the signing path uses slightly longer values — see
-    /// `for_signing`.
-    #[allow(dead_code)]
+    /// Tags every tracing event with `"onboard"`. Applies the same
+    /// localhost → platform-correct relay canonicalization that the
+    /// signing path uses so packages minted against the iOS Simulator
+    /// loopback can still reach the demo relay from Android.
     pub fn new(relays: Vec<String>) -> Self {
-        let relay_count = relays.len();
+        let (relay_count, relays) = Self::android_loopback_relay_sanity(relays);
         Self {
             inner: NostrSdkAdapter::new(relays),
             relay_count,

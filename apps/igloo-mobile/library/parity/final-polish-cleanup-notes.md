@@ -70,9 +70,12 @@ Dashboard shown") can therefore only be observed if `profileInfo` is
 missing — which would surface as a Rust state machine bug, not a polish
 issue.
 
-**Cleanup applied:** none required. Evidence path: `apps/igloo-mobile/library/evidence/mobile-final-parity-reachability-and-polish/dashboard-header-tap-restart-hierarchy-README.md`
-records the round-trip hierarchy dump (TODO if evidence re-capture is
-requested by validator).
+**Cleanup applied:** none required. The June 17 cross-flow persistence
+validators now cover this identity-retention path with real force-quit /
+relaunch cycles and stored-profile restoration evidence:
+
+* `apps/igloo-mobile/library/evidence/mobile-cross-flow-persistence-ios-2026-06-17-115938`
+* `apps/igloo-mobile/library/evidence/mobile-cross-flow-persistence-android-2026-06-17-123602`
 
 **Action if a validator escalates:** instrument the `profileInfo` block
 in `apps/igloo-mobile/ios/Sources/ContentView.swift` (`DashboardHeader` and

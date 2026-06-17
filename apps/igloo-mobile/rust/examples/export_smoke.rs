@@ -23,7 +23,7 @@ use frostr_utils::{
     decode_bfprofile_package, decode_bfshare_package, derive_profile_id_from_share_secret,
     PREFIX_BFPROFILE, PREFIX_BFSHARE,
 };
-use igloo_mobile_core::{FfiApp, MaterialMember, OnboardProfileMaterial};
+use igloo_mobile_core::{FfiApp, MaterialMember, OnboardProfileMaterial, SignerSettings};
 use std::env;
 
 fn main() -> Result<(), String> {
@@ -205,5 +205,6 @@ fn synthetic_demo_material() -> OnboardProfileMaterial {
             },
         ],
         device_name: "smoke-demo".to_string(),
+        settings: SignerSettings::default(),
     }
 }

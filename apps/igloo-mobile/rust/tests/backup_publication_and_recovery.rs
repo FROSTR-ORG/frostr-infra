@@ -33,7 +33,7 @@ use frostr_utils::{
     parse_profile_backup_event, BfOnboardPayload, BfProfileDevice, BfProfilePayload,
     BF_PACKAGE_VERSION, PREFIX_BFSHARE, PROFILE_BACKUP_EVENT_KIND,
 };
-use igloo_mobile_core::{FfiApp, MaterialMember, OnboardProfileMaterial};
+use igloo_mobile_core::{FfiApp, MaterialMember, OnboardProfileMaterial, SignerSettings};
 use k256::elliptic_curve::sec1::ToEncodedPoint as _;
 use k256::SecretKey;
 
@@ -270,6 +270,7 @@ fn live_publish_material(share_idx: usize, device_name: &str) -> OnboardProfileM
         ],
         members,
         device_name: device_name.to_string(),
+        settings: SignerSettings::default(),
     }
 }
 

@@ -340,6 +340,79 @@ fn diagnostics_create_keyset_run_builds_distribute_rows_for_non_local_shares() {
 }
 
 #[test]
+fn diagnostics_create_keyset_distribute_qr_submit_updates_row_package_and_chip() {
+    // VAL-QR-001: the distribution QR action must produce a bfonboard1
+    // payload for the requested non-local share and leave the user on the
+    // Distribute surface with the row marked as QR-delivered.
+    let state = AppState::initial();
+    let (post_diag, _) = dispatch_with_effect(
+        &state,
+        AppAction::DiagnosticsCreateKeysetRun {
+            group_name: "DiagKeysetQr".into(),
+            threshold: 2,
+            count: 3,
+            device_name: "diag-device".into(),
+            relay: VALID_RELAY.into(),
+        },
+    );
+    let share_idx = post_diag
+        .keyset
+        .distribute
+        .first()
+        .expect("diagnostic keyset must create a non-local distribute row")
+        .share_idx;
+    let password = "qr-package-pass".to_string();
+    let state = dispatch(
+        &post_diag,
+        AppAction::CreateKeysetDistributeSetPassword {
+            share_idx,
+            password: password.clone(),
+        },
+    );
+    let state = dispatch(
+        &state,
+        AppAction::CreateKeysetDistributeSetConfirm {
+            share_idx,
+            confirm: password,
+        },
+    );
+    let (state, side_effect) = dispatch_with_effect(
+        &state,
+        AppAction::CreateKeysetDistributeSubmit {
+            share_idx,
+            method: "qr".into(),
+        },
+    );
+    match side_effect {
+        Some(AppUpdate::PerformKeysetDistribution {
+            share_idx: actual_share_idx,
+            method,
+            ..
+        }) => {
+            assert_eq!(actual_share_idx, share_idx);
+            assert_eq!(method, "qr");
+        }
+        other => panic!("expected PerformKeysetDistribution, got {:?}", other),
+    }
+
+    let next = dispatch(
+        &state,
+        AppAction::CreateKeysetDistributePackageProduced {
+            share_idx,
+            package: "bfonboard1qrproof".into(),
+            method: "qr".into(),
+        },
+    );
+    let row = next
+        .keyset
+        .distribute_row(share_idx)
+        .expect("package-produced must keep the distribute row");
+    assert_eq!(row.last_package, "bfonboard1qrproof");
+    assert_eq!(row.status_chip, DistributeStatus::Qr);
+    assert_eq!(next.router.screen, Screen::CreateKeysetDistribute);
+}
+
+#[test]
 fn diagnostics_create_keyset_run_then_distribute_finish_routes_to_dashboard() {
     // End-to-end meaningfulness proof: after the URL-scheme path the
     // storeKeysetCreatedProfile shell handler dispatches

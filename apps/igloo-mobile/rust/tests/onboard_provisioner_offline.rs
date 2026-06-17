@@ -91,7 +91,7 @@ fn mint_synthetic_offline_provisioner_package() -> (String, String) {
     };
     // 32-char password matching the real harness credential style (ASCII,
     // mixed-case + digits — bech32m-friendly, no spaces or hyphens).
-    let password = "SYNTHETICPASSWORD32CHARSLONG!!".to_string();
+    let password = "SYNTHETICPASSWORDSARE32CHARSLONG".to_string();
     assert_eq!(password.len(), 32, "synthetic password must be 32 chars");
     let package_text = frostr_utils::encode_bfonboard_package(&payload, &password)
         .expect("encode synthetic bfonboard package");
