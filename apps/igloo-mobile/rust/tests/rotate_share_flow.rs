@@ -175,6 +175,29 @@ fn rotate_share_handshake_success_with_new_share_lands_on_preview() {
     assert!(next.rotate_share.error.is_none());
 }
 
+// VAL-ROTATE-011: the replacement profile keeps the active profile's
+// user-facing label. Rotated bfonboard packages can carry generic
+// source labels (for example "Onboarded Device"), but replacing a
+// share should not rename the user's existing device row/header.
+#[test]
+fn rotate_share_handshake_success_keeps_active_profile_label() {
+    let state = rotating_state("aabbccdd11223344", "rotate-bob-android", &"b".repeat(64));
+    let next = dispatch_with_side_effect(
+        &state,
+        AppAction::RotateShareHandshakeSuccess {
+            device_name: "Onboarded Device".into(),
+            share_pubkey: "a".repeat(64),
+            group_pubkey: "b".repeat(64),
+            relays: vec!["ws://127.0.0.1:8194".into()],
+            profile_id: "ff".repeat(32),
+            share_seckey_hex: "c".repeat(64),
+        },
+    );
+
+    let preview = next.rotate_share.preview.expect("preview populated");
+    assert_eq!(preview.device_name, "rotate-bob-android");
+}
+
 // VAL-ROTATE-007: group mismatch surfaces a GroupMismatch error and
 // stays on the connect screen.
 #[test]
@@ -377,6 +400,55 @@ fn rotate_share_replace_emits_swap_side_effect_and_routes_dashboard() {
             other
         ),
     }
+}
+
+// VAL-ROTATE-011: after confirming replacement, the shared app state
+// must render the rotated profile identity on Dashboard immediately.
+// Native shells commit the secure-storage swap through the side effect,
+// but the visible TEA snapshot still needs to stop pointing at the
+// superseded share.
+#[test]
+fn rotate_share_replace_updates_dashboard_to_rotated_identity() {
+    let new_profile_id = "ff".repeat(32);
+    let new_share_pubkey = "a".repeat(64);
+    let group_pubkey = "b".repeat(64);
+    let state = preview_state(
+        "aabbccdd11223344",
+        "bob",
+        &group_pubkey,
+        &new_profile_id,
+        &new_share_pubkey,
+    );
+
+    let (next, side_effect) = dispatch_and_capture(&state, AppAction::RotateShareReplace);
+
+    assert!(
+        matches!(
+            side_effect,
+            Some(AppUpdate::ReplaceProfileFromRotateAndPublishBackup { .. })
+        ),
+        "replacement must still emit the native storage + backup side effect"
+    );
+    assert_eq!(next.router.screen, Screen::Dashboard);
+
+    let info = next
+        .dashboard
+        .profile_info
+        .as_ref()
+        .expect("dashboard identity should be populated after rotate replace");
+    assert_eq!(info.device_name, "bob");
+    assert_eq!(info.profile_id, new_profile_id);
+    assert_eq!(info.share_pubkey, new_share_pubkey);
+    assert_eq!(info.group_pubkey, group_pubkey);
+    assert_eq!(
+        next.dashboard.settings.signer_name, "bob",
+        "settings signer name should track the rotated dashboard label"
+    );
+    assert_eq!(
+        next.dashboard.settings.relays,
+        vec!["ws://127.0.0.1:8194".to_string()],
+        "settings relays should track the rotated profile relays"
+    );
 }
 
 // Replace without a share secret is rejected explicitly — the actor

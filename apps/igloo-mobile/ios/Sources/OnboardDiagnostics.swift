@@ -18,6 +18,20 @@ var isOnboardDiagnosticsEnabled: Bool {
     #endif
 }
 
+/// Whether export diagnostics are enabled for this launch.
+/// Requires DEBUG build AND IGLOO_EXPORT_DIAGNOSTICS=1 environment flag.
+var isExportDiagnosticsEnabled: Bool {
+    #if DEBUG
+    return ProcessInfo.processInfo.environment["IGLOO_EXPORT_DIAGNOSTICS"] == "1"
+    #else
+    return false
+    #endif
+}
+
+var isAutomationDiagnosticsEnabled: Bool {
+    isOnboardDiagnosticsEnabled || isExportDiagnosticsEnabled
+}
+
 /// Redacted relay URL — scheme, host, and port only, no path or credentials.
 func sanitizedRelay(_ url: String) -> String {
     guard let parsed = URL(string: url) else { return "invalid_url" }
@@ -40,6 +54,8 @@ func redactedErrorKind(_ error: String?) -> String {
         return "provisioner_offline"
     } else if lower.contains("malformed") || lower.contains("decode") {
         return "malformed_package"
+    } else if lower.contains("no_active") || lower.contains("active_profile") {
+        return "no_active_profile"
     } else {
         return "unknown_error"
     }
@@ -151,7 +167,7 @@ final class OnboardDiagnostics: ObservableObject {
     private init() {}
 
     var isEnabled: Bool {
-        isOnboardDiagnosticsEnabled
+        isAutomationDiagnosticsEnabled
     }
 
     func recordEvent(_ event: String) {

@@ -59,7 +59,7 @@ apps/igloo-mobile/
 │   │   ├── lib.rs           # UniFFI exports, FFI action handler
 │   │   ├── state.rs         # AppState root
 │   │   └── state/           # Per-flow state modules
-│   └── tests/               # 153 workspace integration + unit tests
+│   └── tests/               # Workspace integration + unit tests
 ├── ios/                     # SwiftUI shell
 │   ├── IglooMobile.xcodeproj
 │   ├── Bindings/            # UniFFI-generated Swift FFI
@@ -152,7 +152,7 @@ cd rust
 cargo test --workspace
 ```
 
-Runs 153 tests covering:
+Runs the Rust workspace tests covering:
 - State machine transitions (`state_machine_tests`)
 - Backup publication and recovery round-trips (`backup_publication_and_recovery`)
 - Cross-platform keyset interop (`cross_platform_keyset_interop`)
@@ -179,6 +179,119 @@ maestro test flows/cross-parity-16-view-reachability.yaml
 
 Platform-specific flows are named accordingly (`*-ios.yaml`, `*-android.yaml`). Shared flows use `appId: com.frostr.igloo.dev`.
 
+### Focused cross-flow persistence validators
+
+The focused validators exercise the full first-launch-to-signature journey,
+real force-quit/relaunch persistence, durable Settings/Permissions edits, and
+two-profile identity isolation (`VAL-CROSS-001`, `VAL-CROSS-002`,
+`VAL-CROSS-006`, `VAL-CROSS-010`).
+
+They require the demo relay/onboard credentials, a booted target, and a current
+debug app build:
+
+```bash
+source ~/.config/frostr/rmp-mobile-env.zsh
+just focus-cross-flow-ios
+just focus-cross-flow-android
+```
+
+Each run writes screenshots, hierarchies, generated Maestro flows, and logs
+under `library/evidence/mobile-cross-flow-persistence-*/`.
+
+### Cross-platform interop evidence
+
+The canonical cross-platform byte-contract suite exercises the shared Rust
+package codec, keyset generation, share verification, and rotation primitives
+embedded by both native shells (`VAL-CROSS-005`, `VAL-CROSS-008`):
+
+```bash
+cargo test --manifest-path rust/Cargo.toml --test cross_platform_keyset_interop -- --nocapture
+cargo test --manifest-path rust/Cargo.toml --test rotate_share_flow -- --nocapture
+```
+
+Fresh evidence is captured under
+`library/evidence/mobile-cross-platform-keyset-and-rotation-interop-2026-06-17-150201/`.
+
+### Focused create-keyset validator
+
+The iOS focused create-keyset validator exercises the DEBUG-gated
+`igloo://test-create-keyset` path and asserts that the generated profile lands
+on a Dashboard identity surface:
+
+```bash
+source ~/.config/frostr/rmp-mobile-env.zsh
+just focus-ios-keyset
+just focus-android-keyset
+```
+
+The Android focused create-keyset validator uses a DEBUG-only intent to drive
+the same Rust diagnostics action and requires a native `stored=yes` proof plus
+a Dashboard hierarchy containing the generated device identity.
+
+Evidence is written under `library/evidence/mobile-ios-keyset-debug-url-scheme-*/`
+and `library/evidence/mobile-android-keyset-debug-intent-*/`.
+
+### Focused export artifact validators
+
+The focused export validators fresh-install the debug app, onboard real bob
+material, export `bfprofile1` / `bfshare1`, and verify both artifacts with the
+Rust decoder:
+
+```bash
+source ~/.config/frostr/rmp-mobile-env.zsh
+just focus-ios-export
+just focus-android-export
+```
+
+Evidence is written under `library/evidence/mobile-export-artifact-validation-*/`.
+
+### Focused Load Profile artifact validators
+
+Run these immediately after fresh export validation to prove both exported
+artifact shapes load through the native product flows:
+
+```bash
+source ~/.config/frostr/rmp-mobile-env.zsh
+just focus-ios-load-artifacts
+just focus-android-load-artifacts
+```
+
+Each validator feeds the latest exported `bfprofile1` into Import and
+`bfshare1` into Recover, confirms the loaded profile, and writes
+`stored=yes` proof under `library/evidence/mobile-load-profile-artifacts-*/`.
+The recovery leg also proves the encrypted relay backup publish/recover
+round-trip used by `VAL-BACKUP-*`.
+
+### Focused Rotate Share validators
+
+The focused Rotate Share validators drive a live demo-relay replacement:
+onboard bob, connect a same-group carol `bfonboard1` package, confirm
+replacement, and assert both the native storage proof and final Dashboard
+identity show the rotated profile:
+
+```bash
+source ~/.config/frostr/rmp-mobile-env.zsh
+just focus-ios-rotate-share
+just focus-android-rotate-share
+```
+
+Evidence is written under `library/evidence/mobile-*-rotate-share-*/`.
+
+### Focused QR display validators
+
+The focused QR display validators drive Create Keyset to Distribute, prepare
+one non-local share row through diagnostics-gated field actions, tap the real
+QR button, assert the native QR modal payload/image, and decode the screenshot
+with `zbarimg`:
+
+```bash
+source ~/.config/frostr/rmp-mobile-env.zsh
+just focus-ios-qr-display
+just focus-android-qr-display
+```
+
+Evidence is written under `library/evidence/mobile-*-qr-display-*/`.
+
 ### Android unit tests
 
 ```bash
@@ -203,6 +316,7 @@ These run local JVM tests for JSON parsing helpers (e.g., `PollStatusParse` time
 | **Settings / Maintenance** | Relay management, profile export, share rotation | `VAL-ROTATE-*` |
 | **QR Scan + Paste Fallback** | Scan `bfprofile1`/`bfonboard1` QR codes; paste fallback when camera unavailable | `VAL-QR-*` |
 | **Relay Backup** | Publish encrypted kind-10000 backup to Nostr relays; recover from backup | `VAL-BACKUP-*` |
+| **Cross-Flow Persistence** | First-launch signing, force-quit restore, durable settings/permissions, and multi-profile identity isolation | `just focus-cross-flow-ios`, `just focus-cross-flow-android` |
 | **Cross-Platform Interop** | Keysets and profiles created on iOS load correctly on Android and vice versa | `cross_platform_keyset_interop` tests |
 
 ---
@@ -217,8 +331,8 @@ We document these honestly so new contributors understand the current testing an
 2. **Android Compose `Button` `onClick` not triggerable via `adb`**
    Maestro and `adb`-based automation cannot directly fire Compose `Button` click lambdas in some views. This is a testing-infrastructure limitation, not a product bug; manual tapping and accessibility-based navigation work correctly in production builds.
 
-3. **Android `DebugIntent` credential injection path has a regression**
-   The debug-only intent-based credential injection path (used for automated test setup) currently fails. Normal UI-based onboarding (paste / QR scan / manual entry) works correctly. This affects test harness setup only, not end-user functionality.
+3. **Focused validators use debug-only harness hooks**
+   The iOS and Android cross-flow validators use diagnostics-gated URL/intent hooks for credential injection and settings persistence. Release builds do not include these entry points, and normal UI-based onboarding/settings paths remain the product surface.
 
 4. **Some validator assertions are blocked by testing infrastructure**
    A subset of Maestro validation assertions fail due to automation limitations (e.g., element visibility timing on animated transitions) rather than actual product defects. These are tracked per-flow with `❌` screenshots and manual verification notes in `library/evidence/`.
@@ -258,6 +372,22 @@ cd ../.. && make demo-start
 
 # Run a Maestro flow
 maestro test flows/hub-validation.yaml
+
+# Run focused cross-flow persistence validators
+just focus-cross-flow-ios
+just focus-cross-flow-android
+
+# Run focused iOS create-keyset validator
+just focus-ios-keyset
+just focus-android-keyset
+
+# Run focused artifact + rotate validators
+just focus-ios-export
+just focus-android-export
+just focus-ios-load-artifacts
+just focus-android-load-artifacts
+just focus-ios-rotate-share
+just focus-android-rotate-share
 ```
 
 ---

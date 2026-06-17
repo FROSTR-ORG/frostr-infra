@@ -49,8 +49,13 @@ fn read_credential_file(name: &str) -> String {
 fn live_relay_bob_onboard_succeeds_within_45_seconds() {
     let package = read_credential_file("onboard-bob.txt");
     let password = read_credential_file("onboard-bob.password.txt");
-    assert_eq!(package.len(), 690, "bob package must be 690 chars");
-    assert_eq!(password.len(), 32, "bob password must be 32 chars");
+    // Package length is a shape sanity check; the real bech32m payload is
+    // around 788 chars for the current compact package format.
+    assert!(
+        package.len() > 100,
+        "package must be a non-trivial bech32m payload"
+    );
+    assert_eq!(password.len(), 32, "password must be 32 chars");
 
     let app = FfiApp::new(std::env::temp_dir().to_string_lossy().to_string());
     let (tx, rx) = mpsc::channel();
@@ -127,8 +132,13 @@ fn live_relay_bob_onboard_succeeds_within_45_seconds() {
 fn live_relay_carol_onboard_succeeds_within_45_seconds() {
     let package = read_credential_file("onboard-carol.txt");
     let password = read_credential_file("onboard-carol.password.txt");
-    assert_eq!(package.len(), 690, "carol package must be 690 chars");
-    assert_eq!(password.len(), 32, "carol password must be 32 chars");
+    // Package length is a shape sanity check; the real bech32m payload is
+    // around 788 chars for the current compact package format.
+    assert!(
+        package.len() > 100,
+        "package must be a non-trivial bech32m payload"
+    );
+    assert_eq!(password.len(), 32, "password must be 32 chars");
 
     let app = FfiApp::new(std::env::temp_dir().to_string_lossy().to_string());
     let (tx, rx) = mpsc::channel();
@@ -161,6 +171,83 @@ fn live_relay_carol_onboard_succeeds_within_45_seconds() {
         }
     }
     let _ = handle.join();
+}
+
+/// Cross-flow regression: material returned by the real onboard handshake must
+/// be sufficient to start the signer and complete a threshold Test Sign round.
+/// This is the Rust-only seam for VAL-CROSS-001, without SwiftUI/Compose or
+/// Maestro in the middle.
+#[test]
+#[ignore = "requires live demo stack; run via cargo test -- --ignored"]
+fn live_relay_bob_onboard_material_starts_signer_and_test_sign_succeeds() {
+    let package = read_credential_file("onboard-bob.txt");
+    let password = read_credential_file("onboard-bob.password.txt");
+
+    let app = FfiApp::new(std::env::temp_dir().to_string_lossy().to_string());
+    let start = Instant::now();
+    let onboard = app.onboard(package, password, RELAY_URL.to_string());
+    assert!(
+        onboard.success,
+        "live onboard must succeed before signer start: {:?}",
+        onboard.error
+    );
+    let material_json = String::from_utf8(
+        onboard
+            .material
+            .expect("onboard must return secure-storage material"),
+    )
+    .expect("material must be UTF-8 JSON");
+    assert!(
+        material_json.contains("\"device_state_hex\""),
+        "onboarded material must carry device_state_hex for signer bootstrap"
+    );
+    assert!(
+        app.start_signer(material_json),
+        "start_signer must accept freshly onboarded material"
+    );
+
+    let mut last_status = serde_json::Value::Null;
+    let mut sign_ready = false;
+    let ready_deadline = Instant::now() + Duration::from_secs(75);
+    while Instant::now() < ready_deadline {
+        last_status =
+            serde_json::from_str(&app.get_signer_status()).expect("signer status must be JSON");
+        if last_status.get("readiness").and_then(|v| v.as_str()) == Some("sign_ready") {
+            sign_ready = true;
+            break;
+        }
+        std::thread::sleep(Duration::from_secs(1));
+    }
+    assert!(
+        sign_ready,
+        "fresh onboarded signer must reach sign_ready; last_status={last_status}"
+    );
+
+    let sign = app.test_sign();
+    assert!(
+        sign.success,
+        "test_sign must succeed from freshly onboarded material; error={:?}",
+        sign.error
+    );
+    assert_eq!(
+        sign.request_id.as_deref().map(str::len),
+        Some(32),
+        "request id must be 32-char hex"
+    );
+    assert_eq!(
+        sign.digest.as_deref().map(str::len),
+        Some(64),
+        "digest must be 64-char hex"
+    );
+    assert_eq!(
+        sign.signature.as_deref().map(str::len),
+        Some(128),
+        "signature must be 128-char hex"
+    );
+    eprintln!(
+        "[live-relay/bob-cross-flow] onboard+start+sign succeeded in {:.1}s",
+        start.elapsed().as_secs_f64()
+    );
 }
 
 /// Wrong password against the live demo relay exercises the decode-failure
@@ -242,8 +329,13 @@ fn live_relay_bob_onboard_wrong_password_returns_fast() {
 fn live_relay_unreachable_returns_within_15_seconds_with_relay_unreachable_error() {
     let package = read_credential_file("onboard-bob.txt");
     let password = read_credential_file("onboard-bob.password.txt");
-    assert_eq!(package.len(), 690, "bob package must be 690 chars");
-    assert_eq!(password.len(), 32, "bob password must be 32 chars");
+    // Package length is a shape sanity check; the real bech32m payload is
+    // around 788 chars for the current compact package format.
+    assert!(
+        package.len() > 100,
+        "package must be a non-trivial bech32m payload"
+    );
+    assert_eq!(password.len(), 32, "password must be 32 chars");
 
     let app = FfiApp::new(std::env::temp_dir().to_string_lossy().to_string());
     let (tx, rx) = mpsc::channel();

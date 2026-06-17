@@ -10,24 +10,25 @@
 #      simulator's UITextFields or tap SwiftUI Buttons (Maestro 2.6.0
 #      cannot do this reliably on iOS 26.5).
 #   4. Captures pre- and post-injection screenshots + Maestro hierarchies
-#      proving the freshly-built DiagDevice dashboard renders identity
+#      proving the freshly-built per-run ScriptDevice dashboard renders identity
 #      with the right Share/Group Pubkeys.
 #   5. Runs the Maestro flow `flows/keyset-create-url-scheme-ios.yaml`
 #      for stability regression (assertions on the dashboard).
 #
-# Evidence is written under /tmp/igloo-mobile-keyset-debug-url-scheme-evidence/
-# (and propagated to apps/igloo-mobile/library/evidence/ by the orchestrator).
+# Evidence is written under apps/igloo-mobile/library/evidence/<run-dir>.
 
 set -euo pipefail
 
 source ~/.config/frostr/rmp-mobile-env.zsh
 
-ROOT="/Users/plebdev/Desktop/Projects/frostr-infra"
-UDID="4EB37CCF-B55C-4DD4-A4EE-F3AA623BA5C0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APPS="$(cd "$SCRIPT_DIR/.." && pwd)"
+ROOT="$(cd "$APPS/../.." && pwd)"
+UDID="${UDID:-4EB37CCF-B55C-4DD4-A4EE-F3AA623BA5C0}"
 APP_ID="com.frostr.igloo.dev"
-APP_BUNDLE="$HOME/Library/Developer/Xcode/DerivedData/IglooMobile-faosiupznygiukgrbhnfhsccmhkg/Build/Products/Debug-iphonesimulator/IglooMobile.app"
+APP_BUNDLE="${APP_BUNDLE:-$HOME/Library/Developer/Xcode/DerivedData/IglooMobile-faosiupznygiukgrbhnfhsccmhkg/Build/Products/Debug-iphonesimulator/IglooMobile.app}"
 
-EVIDENCE_DIR="/tmp/igloo-mobile-keyset-debug-url-scheme-evidence"
+EVIDENCE_DIR="${EVIDENCE_DIR:-$APPS/library/evidence/mobile-ios-keyset-debug-url-scheme-$(date +%Y-%m-%d-%H%M%S)}"
 mkdir -p "$EVIDENCE_DIR"
 
 # Use a per-run device_name so the keychain reset + fresh install produce
@@ -67,7 +68,7 @@ SIMCTL_CHILD_IGLOO_KEYSET_DIAGNOSTICS=1 xcrun simctl launch "$UDID" "$APP_ID" \
 # Give SwiftUI a moment to render the hub before injecting.
 sleep 4
 
-# 3. Snapshot pre-injection: hub should be visible (no DiagDevice row).
+# 3. Snapshot pre-injection: hub should be visible (no per-run ScriptDevice row).
 xcrun simctl io "$UDID" screenshot "$EVIDENCE_DIR/01-pre-injection-hub.png" 2>/dev/null
 maestro --device "$UDID" hierarchy 2>&1 \
     > "$EVIDENCE_DIR/01-pre-injection-hierarchy.txt" || true
@@ -106,7 +107,7 @@ echo "[$(date +%H:%M:%S)] running Maestro flow keyset-create-url-scheme-ios"
 maestro --device "$UDID" test \
     -e DEVICE_NAME="$DEVICE_NAME" \
     -e GROUP_NAME="$GROUP_NAME" \
-    "$ROOT/apps/igloo-mobile/flows/keyset-create-url-scheme-ios.yaml" \
+    "$APPS/flows/keyset-create-url-scheme-ios.yaml" \
     --debug-output "$EVIDENCE_DIR/05-maestro-run" 2>&1 \
     | tee "$EVIDENCE_DIR/05-maestro-log.txt" | tail -20
 
@@ -118,9 +119,6 @@ echo ""
 echo "[$(date +%H:%M:%S)] evidence in $EVIDENCE_DIR:"
 ls -la "$EVIDENCE_DIR" | tail -20
 
-# 10. Success check: at least one Maestro assertion should have run cleanly.
-if grep -qE 'AssertVisible.*DiagDevice|allFlowsCompleted' "$EVIDENCE_DIR/05-maestro-log.txt" 2>/dev/null; then
-    echo "[$(date +%H:%M:%S)] RESULT: URL-scheme validation PASSED"
-else
-    echo "[$(date +%H:%M:%S)] RESULT: review evidence under $EVIDENCE_DIR"
-fi
+# 10. Success: under `set -euo pipefail`, reaching this point means Maestro
+# assertions and the surrounding simulator commands completed cleanly.
+echo "[$(date +%H:%M:%S)] RESULT: URL-scheme validation PASSED"

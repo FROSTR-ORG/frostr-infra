@@ -2,6 +2,7 @@
 // Architecture: one AppState/AppAction, dedicated actor thread, UniFFI 0.31
 // boundary. Rust owns all state, navigation, and domain logic.
 
+use std::net::ToSocketAddrs;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender as MpscSender;
 use std::sync::{Arc, Mutex, RwLock};
@@ -9,9 +10,12 @@ use std::thread;
 use std::time::Duration;
 
 use anyhow::Context as _;
+use bifrost_app::onboarding::complete_onboarding_with_adapter;
 use bifrost_bridge_tokio::Bridge;
 use bifrost_core::{GroupPackage, MemberPackage, SharePrivateKey};
-use bifrost_signer::{DeviceConfig, DeviceState, SigningDevice};
+use bifrost_signer::{
+    DeviceConfig, DeviceSecrets, DeviceState, DeviceStatePersisted, SigningDevice,
+};
 use flume::{Receiver, Sender};
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::SecretKey;
@@ -335,6 +339,10 @@ pub struct OnboardProfileMaterial {
     /// as the empty string; callers handle the empty case.
     #[serde(default)]
     pub device_name: String,
+    /// Persisted signer runtime settings. Older material written before this
+    /// field was added parses back to the default settings.
+    #[serde(default)]
+    pub settings: SignerSettings,
 }
 
 impl OnboardProfileMaterial {
@@ -957,21 +965,34 @@ impl FfiApp {
             members,
         };
 
-        // Build device state — create fresh (no stored volatile state yet).
-        let device_state = DeviceState::new(material.share_idx, share_seckey_bytes);
+        // Build device state — restore handshake bootstrap state when available,
+        // otherwise fall back to a fresh state for legacy/imported material.
+        let device_state = if material.device_state_hex.is_empty() {
+            DeviceState::new(material.share_idx, share_seckey_bytes)
+        } else {
+            match decode_device_state_hex(&material.device_state_hex, share_seckey_bytes) {
+                Ok(state) => state,
+                Err(_) => return false,
+            }
+        };
 
         // Build device config with the stored relay list.
         let device_config = DeviceConfig {
-            sign_timeout_secs: 30,
+            sign_timeout_secs: material.settings.sign_timeout_secs.into(),
             ecdh_timeout_secs: 30,
-            ping_timeout_secs: 15,
+            ping_timeout_secs: material.settings.ping_timeout_secs.into(),
             onboard_timeout_secs: 30,
-            request_ttl_secs: 300,
+            request_ttl_secs: material.settings.request_ttl_secs.into(),
             max_future_skew_secs: 30,
             request_cache_limit: 2048,
-            state_save_interval_secs: 30,
+            state_save_interval_secs: material.settings.state_save_interval_secs.into(),
             event_kind: 20000,
-            peer_selection_strategy: bifrost_signer::PeerSelectionStrategy::DeterministicSorted,
+            peer_selection_strategy: match material.settings.peer_selection_strategy {
+                PeerSelectionStrategy::Random => bifrost_signer::PeerSelectionStrategy::Random,
+                PeerSelectionStrategy::DeterministicSorted => {
+                    bifrost_signer::PeerSelectionStrategy::DeterministicSorted
+                }
+            },
             ecdh_cache_capacity: 256,
             ecdh_cache_ttl_secs: 300,
             sig_cache_capacity: 256,
@@ -1641,15 +1662,11 @@ impl FfiApp {
         // from the profile metadata. Use a default that the user can edit on
         // the review screen (VAL-ONBOARD-010).
         let device_name = "Onboarded Device".to_string();
-        // Honor the caller-supplied relay URL (e.g., the platform-correct URL
-        // from the shell's relay input) so stored profiles do not keep the
-        // package-embedded `ws://localhost:*` alias that fails on iOS Simulator.
+        // The caller-supplied relay URL is the platform-correct URL (e.g.,
+        // `ws://127.0.0.1:8194` on iOS Simulator or `ws://10.0.2.2:8194` on
+        // Android). The material builder applies it to the stored profile so
+        // the package-embedded `ws://localhost:*` alias is not persisted.
         let relay_input = relay_url.trim();
-        let relays = if relay_input.is_empty() {
-            decoded.relays.clone()
-        } else {
-            vec![relay_input.to_string()]
-        };
 
         // Convert share_secret from hex to bytes.
         let share_secret_bytes = match hex_to_bytes(&decoded.share_secret) {
@@ -1702,46 +1719,86 @@ impl FfiApp {
             }
         };
 
-        // ── Step 3: Perform the Nostr onboard handshake (stubbed) ────────
-        // The full handshake requires initializing the bifrost-bridge-tokio with a
-        // SigningDevice constructed from the decoded share_secret. This requires
-        // the group package which comes from the onboard response itself.
+        // ── Step 3: Real Nostr onboard handshake via bifrost-app ─────────
+        // The full handshake initializes a temporary signer, publishes an
+        // OnboardRequest to the provisioner, and returns the GroupPackage with
+        // the correct local share index and pre-seeded bootstrap nonces.
         //
-        // For the mobile onboarding milestone, we stub the handshake and return
-        // the locally-decoded identity. The group public key is derived from the
-        // decoded onboard payload's peer_pk field (the provisioner's pubkey)
-        // as a stand-in until the full bridge is initialized.
-        //
-        // TODO: Initialize bridge with SigningDevice and perform real handshake
-        // once signer runtime (VAL-SIGNER-*) is implemented.
-        let group_pubkey = decoded.peer_pk.clone();
-        let material = material_from_onboard_payload(
-            &decoded.share_secret,
-            &share_pubkey,
-            &group_pubkey,
-            &relays,
-            &profile_id,
+        // Pre-flight TCP probe: nostr-sdk's connect() returns before the
+        // websocket is established, so an unreachable relay can hang inside the
+        // await_onboard_response timeout. Probe the endpoint synchronously so
+        // VAL-ONBOARD-007's unreachable-relay case returns within seconds.
+        let handshake_relays = if relay_input.is_empty() {
+            decoded.relays.clone()
+        } else {
+            vec![relay_input.to_string()]
+        };
+        if !handshake_relays.is_empty()
+            && !relay_tcp_reachable(&handshake_relays[0], Duration::from_secs(5))
+        {
+            return failed_result("relay_unreachable");
+        }
+
+        let runtime = match tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_time()
+            .enable_io()
+            .build()
+        {
+            Ok(rt) => rt,
+            Err(_) => return failed_result("relay_unreachable"),
+        };
+
+        let adapter = crate::signer::VerifiedNostrSdkAdapter::new(handshake_relays);
+
+        let completion = match runtime.block_on(async {
+            tokio::time::timeout(
+                Duration::from_secs(60),
+                complete_onboarding_with_adapter(adapter, decoded.clone(), Duration::from_secs(30)),
+            )
+            .await
+        }) {
+            Ok(Ok(c)) => c,
+            Ok(Err(err)) => {
+                let msg = err.to_string().to_lowercase();
+                let error_kind = if msg.contains("connect") || msg.contains("relay") {
+                    "relay_unreachable"
+                } else {
+                    "provisioner_offline"
+                };
+                return failed_result(error_kind);
+            }
+            Err(_) => return failed_result("provisioner_offline"),
+        };
+
+        let material = match material_from_onboarding_completion(
+            &completion,
+            &decoded,
+            relay_input,
             &device_name,
-        )
-        .and_then(|material| {
+            &share_pubkey,
+            &profile_id,
+        ) {
+            Ok(m) => m,
+            Err(_) => return failed_result("malformed_package"),
+        };
+
+        let material_bytes = {
             let bytes = material.to_bytes();
             if bytes.is_empty() {
-                None
-            } else {
-                Some(bytes)
+                return failed_result("malformed_package");
             }
-        });
+            bytes
+        };
 
-        OnboardResult {
-            success: true,
-            error: None,
-            material,
-            device_name: Some(device_name),
-            share_pubkey: Some(share_pubkey),
-            group_pubkey: Some(group_pubkey),
-            relays: Some(relays),
-            profile_id: Some(profile_id),
-        }
+        success_result(
+            material.device_name.clone(),
+            material.share_pubkey.clone(),
+            material.group_pubkey.clone(),
+            material.relays.clone(),
+            material.profile_id.clone(),
+            Some(material_bytes),
+        )
     }
 
     pub fn import_profile(&self, package: String, password: String) -> OnboardResult {
@@ -1863,6 +1920,7 @@ impl FfiApp {
             peer_pubkeys,
             members,
             device_name: device_name.clone(),
+            settings: SignerSettings::default(),
         };
         runtime.block_on(async {
             // Drop runtime after recovery completes; the backing
@@ -2258,48 +2316,93 @@ fn derive_share_pubkey_from_hex_secret(share_secret: &str) -> Result<String, Str
     derive_share_pubkey_from_secret(&bytes)
 }
 
-fn derive_compressed_pubkey_from_secret(seckey_bytes: &[u8; 32]) -> Result<String, String> {
-    let sk = SecretKey::from_slice(seckey_bytes).map_err(|_| "malformed_package".to_string())?;
-    let pk = sk.public_key();
-    Ok(hex::encode(pk.to_encoded_point(true).as_bytes()))
-}
-
-fn material_from_onboard_payload(
-    share_secret: &str,
-    share_pubkey: &str,
-    peer_pubkey: &str,
-    relays: &[String],
-    profile_id: &str,
+fn material_from_onboarding_completion(
+    completion: &bifrost_app::onboarding::BootstrapImportResult,
+    decoded: &frostr_utils::BfOnboardPayload,
+    relay_url: &str,
     device_name: &str,
-) -> Option<OnboardProfileMaterial> {
-    let share_secret_bytes = hex_to_bytes(share_secret).ok()?;
-    let local_pubkey = derive_compressed_pubkey_from_secret(&share_secret_bytes).ok()?;
-    let mut members = vec![MaterialMember {
-        idx: 0,
-        pubkey_hex: local_pubkey,
-    }];
-    if peer_pubkey.len() == 64 {
-        members.push(MaterialMember {
-            idx: 1,
-            pubkey_hex: format!("02{peer_pubkey}"),
-        });
-    }
-    Some(OnboardProfileMaterial {
-        share_seckey_hex: share_secret.to_string(),
+    share_pubkey: &str,
+    profile_id: &str,
+) -> Result<OnboardProfileMaterial, String> {
+    let relays = if relay_url.trim().is_empty() {
+        decoded.relays.clone()
+    } else {
+        vec![relay_url.trim().to_string()]
+    };
+
+    let members: Vec<MaterialMember> = completion
+        .group
+        .members
+        .iter()
+        .map(|member| MaterialMember {
+            idx: member.idx,
+            pubkey_hex: hex::encode(member.pubkey),
+        })
+        .collect();
+
+    let peer_pubkeys: Vec<String> = members
+        .iter()
+        .filter(|member| member.idx != completion.share.idx)
+        .filter_map(|member| xonly_from_member_pubkey(&member.pubkey_hex))
+        .collect();
+
+    Ok(OnboardProfileMaterial {
+        share_seckey_hex: decoded.share_secret.clone(),
         share_pubkey: share_pubkey.to_string(),
-        group_pubkey: peer_pubkey.to_string(),
-        relays: relays.to_vec(),
-        device_state_hex: String::new(),
+        group_pubkey: hex::encode(completion.group.group_pk),
+        relays,
+        device_state_hex: completion.bootstrap_state.device_state_hex.clone(),
         profile_id: profile_id.to_string(),
-        share_idx: 0,
-        peer_pubkeys: if peer_pubkey.len() == 64 {
-            vec![peer_pubkey.to_string()]
-        } else {
-            Vec::new()
-        },
+        share_idx: completion.share.idx,
+        peer_pubkeys,
         members,
         device_name: device_name.to_string(),
+        settings: SignerSettings::default(),
     })
+}
+
+fn decode_device_state_hex(value: &str, share_seckey: [u8; 32]) -> Result<DeviceState, String> {
+    let bytes = hex::decode(value).map_err(|e| format!("decode device state hex: {e}"))?;
+    let persisted: DeviceStatePersisted =
+        bincode::deserialize(&bytes).map_err(|e| format!("decode device state bytes: {e}"))?;
+    if persisted.version != DeviceState::VERSION {
+        return Err(format!(
+            "unsupported device state version {} (expected {})",
+            persisted.version,
+            DeviceState::VERSION
+        ));
+    }
+    let secrets = DeviceSecrets::new(share_seckey);
+    Ok(DeviceState::from_persisted(secrets, persisted))
+}
+
+/// Synchronously probe whether the first relay URL is reachable over TCP.
+/// This gives the unreachable-relay onboarding path a fast failure path
+/// (VAL-ONBOARD-007) before nostr-sdk's async connect can queue a connection
+/// attempt that may not surface for tens of seconds.
+fn relay_tcp_reachable(relay_url: &str, timeout: Duration) -> bool {
+    let stripped = relay_url
+        .strip_prefix("ws://")
+        .or_else(|| relay_url.strip_prefix("wss://"))
+        .unwrap_or(relay_url);
+    let (host, port_str) = match stripped.rsplit_once(':') {
+        Some(v) => v,
+        None => return false,
+    };
+    let port: u16 = match port_str.parse() {
+        Ok(p) => p,
+        Err(_) => return false,
+    };
+    let addrs: Vec<std::net::SocketAddr> = match (host, port).to_socket_addrs() {
+        Ok(iter) => iter.collect(),
+        Err(_) => return false,
+    };
+    for addr in &addrs {
+        if std::net::TcpStream::connect_timeout(addr, timeout).is_ok() {
+            return true;
+        }
+    }
+    false
 }
 
 fn material_result_from_profile(profile: frostr_utils::BfProfilePayload) -> OnboardResult {
@@ -2342,6 +2445,7 @@ fn material_result_from_profile(profile: frostr_utils::BfProfilePayload) -> Onbo
         peer_pubkeys,
         members,
         device_name: profile.device.name.clone(),
+        settings: SignerSettings::default(),
     };
     success_result(
         profile.device.name,
@@ -2493,6 +2597,7 @@ pub(crate) fn build_keyset_material(
         peer_pubkeys,
         members,
         device_name: keyset.device_name.clone(),
+        settings: SignerSettings::default(),
     };
     // Set the actor's active material so subsequent export-profile /
     // copy-share calls can read it without the shell having to re-feed it.

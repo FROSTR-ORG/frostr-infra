@@ -24,7 +24,9 @@
 //      the shells decode via `JSONSerialization` (iOS) / `org.json`
 //      (Android). The earlier opaque `peers_json`/`pending_ops_json`
 //      strings never reached the per-peer view counters.
-use igloo_mobile_core::{MaterialMember, OnboardProfileMaterial};
+use igloo_mobile_core::{
+    MaterialMember, OnboardProfileMaterial, PeerSelectionStrategy, SignerSettings,
+};
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -63,6 +65,7 @@ fn demo_material() -> OnboardProfileMaterial {
             },
         ],
         device_name: "demo-material".to_string(),
+        settings: SignerSettings::default(),
     }
 }
 
@@ -70,7 +73,9 @@ fn demo_material() -> OnboardProfileMaterial {
 
 #[test]
 fn onboard_profile_material_roundtrips_through_json() {
-    let material = demo_material();
+    let mut material = demo_material();
+    material.settings.sign_timeout_secs = 45;
+    material.settings.peer_selection_strategy = PeerSelectionStrategy::Random;
     let bytes = material.to_bytes();
     assert!(
         !bytes.is_empty(),
@@ -84,6 +89,11 @@ fn onboard_profile_material_roundtrips_through_json() {
     assert_eq!(parsed.group_pubkey, material.group_pubkey);
     assert_eq!(parsed.relays, material.relays);
     assert_eq!(parsed.device_state_hex, material.device_state_hex);
+    assert_eq!(parsed.settings.sign_timeout_secs, 45);
+    assert_eq!(
+        parsed.settings.peer_selection_strategy,
+        PeerSelectionStrategy::Random
+    );
     assert_eq!(
         parsed.peer_pubkeys.len(),
         2,
@@ -145,6 +155,14 @@ fn onboard_profile_material_legacy_payload_with_missing_fields_deserializes() {
     assert_eq!(parsed.share_idx, 0);
     assert!(parsed.peer_pubkeys.is_empty());
     assert!(parsed.members.is_empty());
+    assert_eq!(
+        parsed.settings.sign_timeout_secs,
+        SignerSettings::default().sign_timeout_secs
+    );
+    assert_eq!(
+        parsed.settings.peer_selection_strategy,
+        PeerSelectionStrategy::DeterministicSorted
+    );
     // The shell will see no peers in the cache until the user re-onboards;
     // the bridge will start with the 1-member fallback in `start_signer`.
     // That is the correct degraded-yet-non-corrupting behavior, and it does

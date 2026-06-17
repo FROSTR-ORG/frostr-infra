@@ -1,48 +1,40 @@
 #!/usr/bin/env bash
 # Focused Android export-artifact validator for VAL-SET-006/007/008/015.
 #
-# Drives the password-gated Copy Profile / Copy Share buttons on a
-# sign-ready bob profile (typically captured during the earlier
-# `mobile-signer-runtime-restoring-readiness-fix` and
-# `mobile-onboard-error-path-hardening-fix` runs). The Android API 35
-# emulator refuses `adb shell cmd clipboard get-text`, so the proof
-# relies on the app-internal paste-back path that
-# VAL-SIGNER-017 also depends on:
-#
-#   1. Tap Settings → Copy Profile → fill the export password → confirm.
-#   2. Navigate to Load Profile → Import → tap the field → tap
-#      btn_paste_package → capture a redacted uiautomator dump.
-#   3. Same leg for Copy Share.
-#
-# Preconditions:
-#   * Emulator-5554 booted with the current `app-debug.apk` installed.
-#   * Demo stack running on ws://10.0.2.2:8194.
-#   * A sign-ready bob profile already on the device.
+# Mirrors the iOS focused validator:
+#   1. Fresh-install the debug APK.
+#   2. Use DEBUG-only intent hooks to inject bob's real bfonboard1 package,
+#      drive the real onboard handshake, and save the resolved profile.
+#   3. Use a DEBUG-only export intent that calls the same FfiApp export methods
+#      as the product password prompt and writes the same Android clipboard.
+#   4. Fetch the debug-private artifact with run-as and verify it with the Rust
+#      export decoder. No package bytes are printed to stdout.
 
-set -uo pipefail
+set -euo pipefail
 
 source ~/.config/frostr/rmp-mobile-env.zsh
 
-ROOT="/Users/plebdev/Desktop/Projects/frostr-infra"
-APPS="$ROOT/apps/igloo-mobile"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APPS="$(cd "$SCRIPT_DIR/.." && pwd)"
+ROOT="$(cd "$APPS/../.." && pwd)"
 
 APK="$APPS/android/app/build/outputs/apk/debug/app-debug.apk"
 APP_ID="com.frostr.igloo.dev"
-SERIAL="emulator-5554"
+ACTIVITY="$APP_ID/com.frostr.igloo.MainActivity"
+SERIAL="${ANDROID_SERIAL:-emulator-5554}"
+HARNESS_DIR="$ROOT/.tmp/test-harness"
 RELAY="ws://10.0.2.2:8194"
 
-EVIDENCE_DIR="$APPS/library/evidence/mobile-export-artifact-validation/android"
+ACTION_INJECT="com.frostr.igloo.DEBUG_TEST_INJECT_ONBOARD"
+ACTION_SAVE_TO_DASHBOARD="com.frostr.igloo.DEBUG_TEST_SAVE_TO_DASHBOARD"
+ACTION_EXPORT="com.frostr.igloo.DEBUG_TEST_EXPORT_ACTION"
+
+EXPORT_PASSWORD="validator-export-pwd"
+DEVICE_NAME="focus-export-bob-android"
+
+EVIDENCE_DIR="$APPS/library/evidence/mobile-export-artifact-validation-android-$(date +%Y-%m-%d-%H%M%S)"
 mkdir -p "$EVIDENCE_DIR"
 echo "[focus-export-android $(date +%H:%M:%S)] evidence: $EVIDENCE_DIR"
-
-EXPORT_PASSWORD="validator-export-pwd-001"
-
-# Pre-flight
-[ -f "$APK" ] || { echo "[focus-export-android] missing $APK; run 'just android-full' first" >&2; exit 1; }
-adb -s "$SERIAL" get-state >/dev/null 2>&1 \
-  || { echo "[focus-export-android] emulator-5554 not booted" >&2; exit 1; }
-adb -s "$SERIAL" shell toybox nc -z 10.0.2.2 8194 \
-  || { echo "[focus-export-android] relay unreachable from emulator; run make demo-start first" >&2; exit 1; }
 
 snapshot() {
   local tag="$1"
@@ -50,273 +42,137 @@ snapshot() {
   adb -s "$SERIAL" shell uiautomator dump /sdcard/window_dump.xml >/dev/null 2>&1 || true
   adb -s "$SERIAL" pull /sdcard/window_dump.xml "$EVIDENCE_DIR/hierarchy-${tag}.xml" \
     >/dev/null 2>&1 || true
-  # Redact long text fields in the dump.
   if [ -f "$EVIDENCE_DIR/hierarchy-${tag}.xml" ]; then
     python3 - <<PYEOF
 import re
 path = "$EVIDENCE_DIR/hierarchy-${tag}.xml"
-with open(path) as f:
+with open(path, encoding="utf-8") as f:
     data = f.read()
 data = re.sub(r'text="([^"]{50,})"', lambda m: f'text="[REDACTED-{len(m.group(1))}chars]"', data)
 data = re.sub(r'content-desc="([^"]{50,})"', lambda m: f'content-desc="[REDACTED-{len(m.group(1))}chars]"', data)
-with open("${EVIDENCE_DIR}/redacted-hierarchy-${tag}.xml", "w") as f:
+with open("${EVIDENCE_DIR}/redacted-hierarchy-${tag}.xml", "w", encoding="utf-8") as f:
     f.write(data)
 PYEOF
   fi
   echo "[focus-export-android snapshot $(date +%H:%M:%S)] ${tag}"
 }
 
-# 1. Launch (no clear, to keep the bob profile).
-adb -s "$SERIAL" shell am force-stop "$APP_ID" 2>/dev/null || true
-sleep 1
-adb -s "$SERIAL" shell am start -n "$APP_ID/com.frostr.igloo.MainActivity" >/dev/null
+wait_for_hierarchy_text() {
+  local needle="$1"
+  local timeout_secs="$2"
+  local started
+  started="$(date +%s)"
+  while true; do
+    adb -s "$SERIAL" shell uiautomator dump /sdcard/window_dump.xml >/dev/null 2>&1 || true
+    adb -s "$SERIAL" pull /sdcard/window_dump.xml "$EVIDENCE_DIR/.wait-window.xml" \
+      >/dev/null 2>&1 || true
+    if [ -f "$EVIDENCE_DIR/.wait-window.xml" ] && grep -Fq "$needle" "$EVIDENCE_DIR/.wait-window.xml"; then
+      rm -f "$EVIDENCE_DIR/.wait-window.xml"
+      return 0
+    fi
+    if [ $(( $(date +%s) - started )) -ge "$timeout_secs" ]; then
+      rm -f "$EVIDENCE_DIR/.wait-window.xml"
+      echo "[focus-export-android] timed out waiting for hierarchy text: $needle" >&2
+      snapshot "failure-wait-${needle//[^A-Za-z0-9]/-}"
+      return 1
+    fi
+    sleep 2
+  done
+}
+
+fetch_debug_export() {
+  local kind="$1"
+  local out="$2"
+  adb -s "$SERIAL" exec-out run-as "$APP_ID" cat "files/debug-last-export-${kind}.txt" > "$out"
+  if [ ! -s "$out" ]; then
+    echo "[focus-export-android] empty debug export artifact for $kind" >&2
+    return 1
+  fi
+}
+
+[ -f "$APK" ] || { echo "[focus-export-android] missing $APK; run 'just android-full' first" >&2; exit 1; }
+adb -s "$SERIAL" get-state >/dev/null 2>&1 \
+  || { echo "[focus-export-android] $SERIAL not booted" >&2; exit 1; }
+adb -s "$SERIAL" shell toybox nc -z 10.0.2.2 8194 \
+  || { echo "[focus-export-android] relay unreachable from emulator; run make demo-start first" >&2; exit 1; }
+[ -f "$HARNESS_DIR/onboard-bob.txt" ] || { echo "[focus-export-android] missing bob package; run make demo-onboard" >&2; exit 1; }
+[ -f "$HARNESS_DIR/onboard-bob.password.txt" ] || { echo "[focus-export-android] missing bob password; run make demo-onboard" >&2; exit 1; }
+
+PACKAGE_BOB="$(tr -d '\r\n' < "$HARNESS_DIR/onboard-bob.txt")"
+PASSWORD_BOB="$(tr -d '\r\n' < "$HARNESS_DIR/onboard-bob.password.txt")"
+
+cat > "$EVIDENCE_DIR/redacted-input.txt" <<EOF
+package_bob_length=${#PACKAGE_BOB}
+password_bob_length=${#PASSWORD_BOB}
+relay=${RELAY}
+export_password_length=${#EXPORT_PASSWORD}
+EOF
+
+echo "[focus-export-android $(date +%H:%M:%S)] fresh install + launch"
+adb -s "$SERIAL" shell pm clear "$APP_ID" >/dev/null 2>&1 || true
+adb -s "$SERIAL" install -r "$APK" >/dev/null
+adb -s "$SERIAL" shell am start -n "$ACTIVITY" >/dev/null
 sleep 3
 snapshot "01-launch"
 
-# 2. Replay each export leg separately so paste-back captures the
-#    current clipboard slot. Adb cmd clipboard get-text is unsupported
-#    on Android API 35; we let the app's paste affordance do the work
-#    and capture the redacted dump.
-cat > "$EVIDENCE_DIR/focus-export-profile.yaml" <<'YAML'
-appId: com.frostr.igloo.dev
-name: focus export profile (android)
-tags: ["flow", "mobile-export-artifact-flow-validation-unblocker"]
----
-- assertVisible:
-    text: Igloo
-- scrollUntilVisible:
-    element:
-      id: "tab_settings"
-    timeout: 15000
-- tapOn:
-    id: "tab_settings"
-- waitForAnimationToEnd
-- scrollUntilVisible:
-    element:
-      id: "btn_copy_profile"
-    timeout: 10000
-- tapOn:
-    id: "btn_copy_profile"
-- waitForAnimationToEnd
-- assertVisible:
-    id: "input_export_password"
-- assertVisible:
-    id: "input_export_password_confirm"
-- tapOn:
-    id: "input_export_password"
-- eraseText: 64
-- inputText:
-    id: "input_export_password"
-    text: "${EXPORT_PASSWORD}"
-- tapOn:
-    id: "input_export_password_confirm"
-- eraseText: 64
-- inputText:
-    id: "input_export_password_confirm"
-    text: "${EXPORT_PASSWORD}"
-- tapOn:
-    id: "btn_export_confirm"
-- waitForAnimationToEnd
-- tapOn:
-    text: "Cancel"
-    optional: true
-- tapOn:
-    id: "btn_back_dashboard"
-YAML
+echo "[focus-export-android $(date +%H:%M:%S)] inject + connect bob (length=${#PACKAGE_BOB})"
+adb -s "$SERIAL" shell am start \
+  -a "$ACTION_INJECT" \
+  -n "$ACTIVITY" \
+  --es package "$PACKAGE_BOB" \
+  --es password "$PASSWORD_BOB" \
+  --es relay "$RELAY" \
+  --es device_name "$DEVICE_NAME" \
+  --ez connect true >/dev/null
+wait_for_hierarchy_text "$DEVICE_NAME" 180
+snapshot "02-onboard-review"
 
-adb -s "$SERIAL" shell am force-stop "$APP_ID" 2>/dev/null || true
-sleep 1
-adb -s "$SERIAL" shell am start -n "$APP_ID/com.frostr.igloo.MainActivity" >/dev/null
-sleep 3
-maestro --device "$SERIAL" test "$EVIDENCE_DIR/focus-export-profile.yaml" \
-  -e EXPORT_PASSWORD="$EXPORT_PASSWORD" \
-  --debug-output "$EVIDENCE_DIR/profile-maestro-debug" 2>&1 | tail -10 || true
-snapshot "02-export-profile"
+echo "[focus-export-android $(date +%H:%M:%S)] diagnostics save to dashboard"
+adb -s "$SERIAL" shell am start \
+  -a "$ACTION_SAVE_TO_DASHBOARD" \
+  -n "$ACTIVITY" \
+  --es device_name "$DEVICE_NAME" >/dev/null
+wait_for_hierarchy_text "Signer Stopped" 60
+snapshot "03-dashboard-ready"
 
-# 3. Capture the clipboard contents via paste-back into a known app
-#    text field. We navigate to Load Profile → Import then tap
-#    btn_paste_package and capture the redacted dump.
-cat > "$EVIDENCE_DIR/focus-pasteback-profile.yaml" <<'YAML'
-appId: com.frostr.igloo.dev
-name: paste back profile export (android)
-tags: ["flow", "mobile-export-artifact-flow-validation-unblocker"]
----
-- tapOn:
-    text: Load Profile
-- scrollUntilVisible:
-    element:
-      id: "tile_load_import"
-    timeout: 15000
-- tapOn:
-    id: "tile_load_import"
-- scrollUntilVisible:
-    element:
-      id: "input_package"
-    timeout: 15000
-- tapOn:
-    id: "input_package"
-- eraseText: 4000
-- scrollUntilVisible:
-    element:
-      id: "btn_paste_package"
-    timeout: 10000
-- tapOn:
-    id: "btn_paste_package"
-- waitForAnimationToEnd
-- tapOn:
-    text: "Allow"
-    optional: true
-- waitForAnimationToEnd
-YAML
-maestro --device "$SERIAL" test "$EVIDENCE_DIR/focus-pasteback-profile.yaml" \
-  --debug-output "$EVIDENCE_DIR/pasteback-profile-debug" 2>&1 | tail -5 || true
-snapshot "03-pasteback-profile"
+echo "[focus-export-android $(date +%H:%M:%S)] export profile"
+adb -s "$SERIAL" shell am start \
+  -a "$ACTION_EXPORT" \
+  -n "$ACTIVITY" \
+  --es kind profile \
+  --es password "$EXPORT_PASSWORD" >/dev/null
+sleep 2
+fetch_debug_export profile "$EVIDENCE_DIR/clipboard-profile.txt"
+PROFILE_CLIP="$(tr -d '\r\n' < "$EVIDENCE_DIR/clipboard-profile.txt")"
+echo "[focus-export-android $(date +%H:%M:%S)] profile_clipboard_length=${#PROFILE_CLIP}"
+echo "[focus-export-android $(date +%H:%M:%S)] profile_clipboard_prefix=${PROFILE_CLIP:0:12}"
+bash "$APPS/scripts/verify-export-artifact.sh" profile "$EVIDENCE_DIR/clipboard-profile.txt" "$EXPORT_PASSWORD" \
+  > "$EVIDENCE_DIR/proof_export_profile.txt"
+snapshot "04-after-export-profile"
 
-# Read the dumped value from pasteback via the on-screen text. The text
-# field shows the redacted hierarchy dump; we only emit length + prefix.
-PKG_LEN=$(python3 - <<PYEOF
-import re, os
-xml_path = "$EVIDENCE_DIR/hierarchy-03-pasteback-profile.xml"
-if not os.path.exists(xml_path):
-    print("missing")
-else:
-    with open(xml_path) as f:
-        data = f.read()
-# Find a text node whose content-desc or text contains a string of length 690-2000
-m = re.search(r'text="([a-z0-9]{50,4000})"', data)
-if not m:
-    m = re.search(r'text="(\[REDACTED-[0-9]+chars\])"', data)
-    if m:
-        print(m.group(1))
-    else:
-        print("no_long_text")
-else:
-    raw = m.group(1)
-    if raw.startswith("[REDACTED-"):
-        print(raw)
-    else:
-        print(f"prefix={raw[:12]};length={len(raw)}")
-PYEOF
-)
-echo "[focus-export-android RESULT $(date +%H:%M:%S)] bfprofile_pasteback=${PKG_LEN}"
+echo "[focus-export-android $(date +%H:%M:%S)] export share"
+adb -s "$SERIAL" shell am start \
+  -a "$ACTION_EXPORT" \
+  -n "$ACTIVITY" \
+  --es kind share \
+  --es password "$EXPORT_PASSWORD" >/dev/null
+sleep 2
+fetch_debug_export share "$EVIDENCE_DIR/clipboard-share.txt"
+SHARE_CLIP="$(tr -d '\r\n' < "$EVIDENCE_DIR/clipboard-share.txt")"
+echo "[focus-export-android $(date +%H:%M:%S)] share_clipboard_length=${#SHARE_CLIP}"
+echo "[focus-export-android $(date +%H:%M:%S)] share_clipboard_prefix=${SHARE_CLIP:0:12}"
+bash "$APPS/scripts/verify-export-artifact.sh" share "$EVIDENCE_DIR/clipboard-share.txt" "$EXPORT_PASSWORD" \
+  > "$EVIDENCE_DIR/proof_export_share.txt"
+snapshot "05-after-export-share"
 
-# 4. Repeat for Copy Share.
-adb -s "$SERIAL" shell am force-stop "$APP_ID" 2>/dev/null || true
-sleep 1
-adb -s "$SERIAL" shell am start -n "$APP_ID/com.frostr.igloo.MainActivity" >/dev/null
-sleep 3
-
-cat > "$EVIDENCE_DIR/focus-export-share.yaml" <<'YAML'
-appId: com.frostr.igloo.dev
-name: focus export share (android)
-tags: ["flow", "mobile-export-artifact-flow-validation-unblocker"]
----
-- assertVisible:
-    text: Igloo
-- scrollUntilVisible:
-    element:
-      id: "tab_settings"
-    timeout: 15000
-- tapOn:
-    id: "tab_settings"
-- waitForAnimationToEnd
-- scrollUntilVisible:
-    element:
-      id: "btn_copy_share"
-    timeout: 10000
-- tapOn:
-    id: "btn_copy_share"
-- waitForAnimationToEnd
-- assertVisible:
-    id: "input_export_password"
-- tapOn:
-    id: "input_export_password"
-- eraseText: 64
-- inputText:
-    id: "input_export_password"
-    text: "${EXPORT_PASSWORD}"
-- tapOn:
-    id: "input_export_password_confirm"
-- eraseText: 64
-- inputText:
-    id: "input_export_password_confirm"
-    text: "${EXPORT_PASSWORD}"
-- tapOn:
-    id: "btn_export_confirm"
-- waitForAnimationToEnd
-YAML
-maestro --device "$SERIAL" test "$EVIDENCE_DIR/focus-export-share.yaml" \
-  -e EXPORT_PASSWORD="$EXPORT_PASSWORD" \
-  --debug-output "$EVIDENCE_DIR/share-maestro-debug" 2>&1 | tail -10 || true
-snapshot "04-export-share"
-
-cat > "$EVIDENCE_DIR/focus-pasteback-share.yaml" <<'YAML'
-appId: com.frostr.igloo.dev
-name: paste back share export (android)
-tags: ["flow", "mobile-export-artifact-flow-validation-unblocker"]
----
-- tapOn:
-    text: Load Profile
-- scrollUntilVisible:
-    element:
-      id: "tile_load_import"
-    timeout: 15000
-- tapOn:
-    id: "tile_load_import"
-- scrollUntilVisible:
-    element:
-      id: "input_package"
-    timeout: 15000
-- tapOn:
-    id: "input_package"
-- eraseText: 4000
-- scrollUntilVisible:
-    element:
-      id: "btn_paste_package"
-    timeout: 10000
-- tapOn:
-    id: "btn_paste_package"
-- waitForAnimationToEnd
-- tapOn:
-    text: "Allow"
-    optional: true
-- waitForAnimationToEnd
-YAML
-maestro --device "$SERIAL" test "$EVIDENCE_DIR/focus-pasteback-share.yaml" \
-  --debug-output "$EVIDENCE_DIR/pasteback-share-debug" 2>&1 | tail -5 || true
-snapshot "05-pasteback-share"
-
-SHARE_LEN=$(python3 - <<PYEOF
-import re, os
-xml_path = "$EVIDENCE_DIR/hierarchy-05-pasteback-share.xml"
-if not os.path.exists(xml_path):
-    print("missing")
-else:
-    with open(xml_path) as f:
-        data = f.read()
-m = re.search(r'text="([a-z0-9]{50,4000})"', data)
-if not m:
-    m = re.search(r'text="(\[REDACTED-[0-9]+chars\])"', data)
-    if m:
-        print(m.group(1))
-    else:
-        print("no_long_text")
-else:
-    raw = m.group(1)
-    if raw.startswith("[REDACTED-"):
-        print(raw)
-    else:
-        print(f"prefix={raw[:12]};length={len(raw)}")
-PYEOF
-)
-echo "[focus-export-android RESULT $(date +%H:%M:%S)] bfshare_pasteback=${SHARE_LEN}"
-
-# 5. Final summary.
 cat > "$EVIDENCE_DIR/summary.txt" <<EOF
+profile_clipboard_length=${#PROFILE_CLIP}
+profile_clipboard_prefix=${PROFILE_CLIP:0:12}
+share_clipboard_length=${#SHARE_CLIP}
+share_clipboard_prefix=${SHARE_CLIP:0:12}
 export_password_length=${#EXPORT_PASSWORD}
-bfprofile_pasteback=${PKG_LEN}
-bfshare_pasteback=${SHARE_LEN}
 EOF
 
 echo "[focus-export-android RESULT $(date +%H:%M:%S)] evidence: $EVIDENCE_DIR"
-ls -la "$EVIDENCE_DIR/" | head -40
+echo "[focus-export-android RESULT] profile_clipboard_length=${#PROFILE_CLIP}"
+echo "[focus-export-android RESULT] share_clipboard_length=${#SHARE_CLIP}"

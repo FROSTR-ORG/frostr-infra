@@ -2,10 +2,10 @@
 <!--
   Debug-variant manifest overlay.
 
-  Adds a debug-only intent filter for `com.frostr.igloo.DEBUG_TEST_INJECT_ONBOARD`
-  to MainActivity. The action is consumed only in debug builds; release builds
-  use the default `src/main/AndroidManifest.xml` and gain no test-inject entry
-  point. This file is merged into the main manifest at assembleDebug time.
+  Adds debug-only intent filters for test automation actions to MainActivity.
+  These actions are consumed only in debug builds; release builds use the
+  default `src/main/AndroidManifest.xml` and gain no test entry points. This
+  file is merged into the main manifest at assembleDebug time.
 
   The action is paired with a custom category so that only test tooling (adb am
   start / Maestro helper scripts) targeting this exact category will activate
@@ -22,6 +22,42 @@
             tools:ignore="ExportedActivity">
             <intent-filter>
                 <action android:name="com.frostr.igloo.DEBUG_TEST_INJECT_ONBOARD" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.frostr.igloo.DEBUG_TEST_SAVE_SETTINGS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.frostr.igloo.DEBUG_TEST_SAVE_TO_DASHBOARD" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.frostr.igloo.DEBUG_TEST_EXPORT_ACTION" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.frostr.igloo.DEBUG_TEST_LOAD_PROFILE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.frostr.igloo.DEBUG_TEST_LOAD_PROFILE_CONFIRM" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.frostr.igloo.DEBUG_TEST_CREATE_KEYSET" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.frostr.igloo.DEBUG_TEST_KEYSET_DISTRIBUTE_PASSWORD" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.frostr.igloo.DEBUG_TEST_ROTATE_SHARE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.frostr.igloo.DEBUG_TEST_ROTATE_SHARE_REPLACE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

@@ -101,6 +101,56 @@ android-assemble:
 # Full Android pipeline: host build → bindings → cross-compile → assemble.
 android-full: gen-kotlin android-rust android-assemble
 
+# ── Focused validators ───────────────────────────────────────────────────────
+
+# Validate VAL-CROSS-001/002/006/010 on a booted iOS Simulator.
+focus-cross-flow-ios:
+  scripts/run-focus-cross-flow-persistence-ios.sh
+
+# Validate VAL-CROSS-001/002/006/010 on emulator-5554.
+focus-cross-flow-android:
+  scripts/run-focus-cross-flow-persistence-android.sh
+
+# Validate the iOS debug URL-scheme Create Keyset path.
+focus-ios-keyset:
+  scripts/run-focus-ios-keyset-debug-url-scheme.sh
+
+# Validate the Android debug-intent Create Keyset path.
+focus-android-keyset:
+  scripts/run-focus-android-keyset-debug-intent.sh
+
+# Validate iOS bfprofile1 / bfshare1 export artifacts.
+focus-ios-export:
+  scripts/run-focus-export-artifact-validation-ios.sh
+
+# Validate Android bfprofile1 / bfshare1 export artifacts.
+focus-android-export:
+  scripts/run-focus-export-artifact-validation-android.sh
+
+# Validate iOS Load Profile import/recover with exported artifacts.
+focus-ios-load-artifacts:
+  scripts/run-focus-load-profile-artifacts-ios.sh
+
+# Validate Android Load Profile import/recover with exported artifacts.
+focus-android-load-artifacts:
+  scripts/run-focus-load-profile-artifacts-android.sh
+
+# Validate Android Rotate Share replacement with demo bfonboard artifacts.
+focus-android-rotate-share:
+  scripts/run-focus-android-rotate-share.sh
+
+# Validate iOS Rotate Share replacement with demo bfonboard artifacts.
+focus-ios-rotate-share:
+  scripts/run-focus-ios-rotate-share.sh
+
+# Validate iOS Create Keyset bfonboard QR display/decode.
+focus-ios-qr-display:
+  scripts/run-focus-ios-qr-display.sh
+
+# Validate Android Create Keyset bfonboard QR display/decode.
+focus-android-qr-display:
+  scripts/run-focus-android-qr-display.sh
+
 # ── Utilities ────────────────────────────────────────────────────────────────
 
 # Rebuild Rust + regenerate bindings for all platforms (no platform build).

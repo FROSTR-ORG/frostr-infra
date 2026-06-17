@@ -2361,8 +2361,6 @@ fun CreateKeysetReviewScreen(manager: AppManager) {
 @Composable
 fun CreateKeysetDistributeScreen(manager: AppManager) {
     val rows = manager.state.keyset.distribute
-    var qrPayload by remember { mutableStateOf<String?>(null) }
-    var qrShareLabel by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -2443,10 +2441,6 @@ fun CreateKeysetDistributeScreen(manager: AppManager) {
                 },
                 onSubmit = { method ->
                     manager.dispatch(AppAction.CreateKeysetDistributeSubmit(row.shareIdx, method))
-                },
-                onOpenQr = {
-                    qrPayload = it
-                    qrShareLabel = row.label
                 }
             )
             Spacer(modifier = Modifier.height(IglooSpacing.md.dp))
@@ -2491,11 +2485,11 @@ fun CreateKeysetDistributeScreen(manager: AppManager) {
         Spacer(modifier = Modifier.height(IglooSpacing.xl.dp))
     }
 
-    qrPayload?.let { payload ->
+    manager.distributionQrPayload?.let { payload ->
         QrDialog(
             payload = payload,
-            shareLabel = qrShareLabel,
-            onDismiss = { qrPayload = null }
+            shareLabel = manager.distributionQrShareLabel,
+            onDismiss = { manager.clearDistributionQr() }
         )
     }
 }
@@ -2611,8 +2605,7 @@ fun DistributeShareCard(
     onUpdateLabel: (String) -> Unit,
     onUpdatePassword: (String) -> Unit,
     onUpdateConfirm: (String) -> Unit,
-    onSubmit: (String) -> Unit,
-    onOpenQr: (String) -> Unit
+    onSubmit: (String) -> Unit
 ) {
     val canEmit = row.password.isNotEmpty() &&
         row.password == row.confirmPassword &&
@@ -2699,7 +2692,6 @@ fun DistributeShareCard(
                 Button(
                     onClick = {
                         onSubmit("qr")
-                        if (row.lastPackage.isNotEmpty()) onOpenQr(row.lastPackage)
                     },
                     enabled = canEmit,
                     modifier = Modifier.semantics { testTag = "distribute_qr_${row.shareIdx}" },
@@ -3171,7 +3163,10 @@ fun DashboardHeader(
     ) {
         TextButton(
             onClick = onBack,
-            modifier = Modifier.semantics { testTag = "btn_back_dashboard" }
+            modifier = Modifier.semantics {
+                testTagsAsResourceId = true
+                testTag = "btn_back_dashboard"
+            }
         ) {
             Text(
                 text = "←",
@@ -3589,7 +3584,10 @@ fun TestOperationsSection(
             text = "Test Operations",
             style = IglooTypography.h3,
             color = IglooColors.Slate200,
-            modifier = Modifier.semantics { testTag = "section_test_operations" }
+            modifier = Modifier.semantics {
+                testTagsAsResourceId = true
+                testTag = "section_test_operations"
+            }
         )
 
         Spacer(modifier = Modifier.height(IglooSpacing.sm.dp))
@@ -3603,7 +3601,10 @@ fun TestOperationsSection(
                 enabled = running && !testSignInProgress,
                 modifier = Modifier
                     .weight(1f)
-                    .semantics { testTag = "btn_test_sign" },
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "btn_test_sign"
+                    },
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = if (running && !testSignInProgress) IglooColors.Green600 else IglooColors.Slate500
                 ),
@@ -3632,7 +3633,10 @@ fun TestOperationsSection(
                 enabled = running && !testEcdhInProgress,
                 modifier = Modifier
                     .weight(1f)
-                    .semantics { testTag = "btn_test_ecdh" },
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "btn_test_ecdh"
+                    },
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = if (running && !testEcdhInProgress) IglooColors.Purple400 else IglooColors.Slate500
                 ),
@@ -3676,7 +3680,10 @@ fun TestSignResultSection(
             .background(IglooColors.Green900.copy(alpha = 0.1f), RoundedCornerShape(IglooRadii.md.dp))
             .border(1.dp, IglooColors.Green900.copy(alpha = 0.3f), RoundedCornerShape(IglooRadii.md.dp))
             .padding(IglooSpacing.md.dp)
-            .semantics { testTag = "section_test_sign_result" }
+            .semantics {
+                testTagsAsResourceId = true
+                testTag = "section_test_sign_result"
+            }
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -3825,7 +3832,10 @@ private fun ResultRow(
                 .fillMaxWidth()
                 .background(IglooColors.Slate900StrongTranslucent, RoundedCornerShape(IglooRadii.sm.dp))
                 .padding(IglooSpacing.sm.dp)
-                .semantics { testTag = accessibilityId },
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = accessibilityId
+                },
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -3843,7 +3853,10 @@ private fun ResultRow(
                         onCopy()
                         android.widget.Toast.makeText(context, "Copied", android.widget.Toast.LENGTH_SHORT).show()
                     }
-                    .semantics { testTag = "${accessibilityId}_copy" },
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "${accessibilityId}_copy"
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Text(text = "📋", color = IglooColors.Blue400)
@@ -4515,6 +4528,7 @@ fun RemotePolicyObservationRow(peer: com.frostr.igloo.rust.PeerPermissions) {
 
 // MARK: - Permission Cell
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun PermissionCell(
     peer: com.frostr.igloo.rust.PeerPermissions,
@@ -4549,6 +4563,7 @@ fun PermissionCell(
             .background(IglooColors.Gray900, RoundedCornerShape(IglooRadii.sm.dp))
             .padding(IglooSpacing.xs.dp)
             .semantics {
+                testTagsAsResourceId = true
                 testTag = "perm_cell_${peer.alias.lowercase()}_${directionKey}_$methodKey"
             },
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -4588,7 +4603,10 @@ fun PermissionCell(
                             onSetOverride(peer.alias, directionKey, methodKey, "allow")
                         }
                     }
-                    .semantics { testTag = "btn_allow_${peer.alias.lowercase()}_${directionKey}_$methodKey" },
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "btn_allow_${peer.alias.lowercase()}_${directionKey}_$methodKey"
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -4615,7 +4633,10 @@ fun PermissionCell(
                             onSetOverride(peer.alias, directionKey, methodKey, "deny")
                         }
                     }
-                    .semantics { testTag = "btn_deny_${peer.alias.lowercase()}_${directionKey}_$methodKey" },
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "btn_deny_${peer.alias.lowercase()}_${directionKey}_$methodKey"
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -4631,6 +4652,7 @@ fun PermissionCell(
 
 // MARK: - Settings Tab
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun SettingsTab(manager: AppManager) {
     val settings = manager.state.dashboard.settings
@@ -4747,7 +4769,10 @@ fun SettingsTab(manager: AppManager) {
                         label = "Peer Selection Strategy",
                         selection = peerStrategy,
                         options = listOf("deterministic_sorted" to "Deterministic Sorted", "random" to "Random"),
-                        onSelectionChange = { manager.editPeerSelectionStrategy(it) },
+                        onSelectionChange = {
+                            peerStrategy = it
+                            manager.editPeerSelectionStrategy(it)
+                        },
                         identifier = "settings_peer_selection_strategy"
                     )
                 }
@@ -4892,11 +4917,22 @@ fun SettingsTab(manager: AppManager) {
                     )
                 }
                 Button(
-                    onClick = { manager.saveSettings() },
+                    onClick = {
+                        manager.editSignerName(signerName)
+                        signTimeout.toUIntOrNull()?.let { manager.editSignTimeout(it) }
+                        pingTimeout.toUIntOrNull()?.let { manager.editPingTimeout(it) }
+                        requestTtl.toUIntOrNull()?.let { manager.editRequestTtl(it) }
+                        stateSaveInterval.toUIntOrNull()?.let { manager.editStateSaveInterval(it) }
+                        manager.editPeerSelectionStrategy(peerStrategy)
+                        manager.saveSettings()
+                    },
                     enabled = !saveBlocked,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .semantics { testTag = "btn_save_settings" },
+                        .semantics {
+                            testTagsAsResourceId = true
+                            testTag = "btn_save_settings"
+                        },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (saveBlocked) IglooColors.Slate500 else IglooColors.Blue600,
                         contentColor = IglooColors.Gray950
@@ -5082,6 +5118,7 @@ fun MaintenanceRow(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun SettingsTextField(
     label: String,
@@ -5104,7 +5141,10 @@ fun SettingsTextField(
             textStyle = IglooTypography.body.copy(color = IglooColors.Slate200),
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { testTag = identifier },
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = identifier
+                },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = IglooColors.Blue900PanelBorder,
                 unfocusedBorderColor = IglooColors.Blue900PanelBorder,
@@ -5116,6 +5156,7 @@ fun SettingsTextField(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun SettingsNumberField(
     label: String,
@@ -5138,7 +5179,10 @@ fun SettingsNumberField(
             textStyle = IglooTypography.valueData.copy(color = IglooColors.Slate200),
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { testTag = identifier },
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = identifier
+                },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = IglooColors.Blue900PanelBorder,
                 unfocusedBorderColor = IglooColors.Blue900PanelBorder,
@@ -5150,6 +5194,7 @@ fun SettingsNumberField(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun SettingsPickerField(
     label: String,
@@ -5175,7 +5220,10 @@ fun SettingsPickerField(
                     onClick = { onSelectionChange(value) },
                     modifier = Modifier
                         .weight(1f)
-                        .semantics { testTag = "${identifier}_$value" },
+                        .semantics {
+                            testTagsAsResourceId = true
+                            testTag = "${identifier}_$value"
+                        },
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = if (isSelected) IglooColors.Blue600 else Color.Transparent,
                         contentColor = if (isSelected) IglooColors.Gray950 else IglooColors.Slate400

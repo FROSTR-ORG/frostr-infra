@@ -2293,12 +2293,12 @@ data class AppState (
      * Navigation router — Rust owns the screen stack.
      */
     var `router`: Router
-    , 
+    ,
     /**
      * Landing hub: stored profile list + entry tiles.
      */
     var `hub`: HubState
-    , 
+    ,
     /**
      * Onboard Device flow state (VAL-ONBOARD-*).
      */
@@ -3484,6 +3484,12 @@ data class OnboardProfileMaterial (
      * as the empty string; callers handle the empty case.
      */
     var `deviceName`: kotlin.String
+    ,
+    /**
+     * Persisted signer runtime settings. Older material written before this
+     * field was added parses back to the default settings.
+     */
+    var `settings`: SignerSettings
     
 ){
     
@@ -3510,6 +3516,7 @@ public object FfiConverterTypeOnboardProfileMaterial: FfiConverterRustBuffer<Onb
             FfiConverterSequenceString.read(buf),
             FfiConverterSequenceTypeMaterialMember.read(buf),
             FfiConverterString.read(buf),
+            FfiConverterTypeSignerSettings.read(buf),
         )
     }
 
@@ -3523,7 +3530,8 @@ public object FfiConverterTypeOnboardProfileMaterial: FfiConverterRustBuffer<Onb
             FfiConverterUShort.allocationSize(value.`shareIdx`) +
             FfiConverterSequenceString.allocationSize(value.`peerPubkeys`) +
             FfiConverterSequenceTypeMaterialMember.allocationSize(value.`members`) +
-            FfiConverterString.allocationSize(value.`deviceName`)
+            FfiConverterString.allocationSize(value.`deviceName`) +
+            FfiConverterTypeSignerSettings.allocationSize(value.`settings`)
     )
 
     override fun write(value: OnboardProfileMaterial, buf: ByteBuffer) {
@@ -3537,6 +3545,7 @@ public object FfiConverterTypeOnboardProfileMaterial: FfiConverterRustBuffer<Onb
             FfiConverterSequenceString.write(value.`peerPubkeys`, buf)
             FfiConverterSequenceTypeMaterialMember.write(value.`members`, buf)
             FfiConverterString.write(value.`deviceName`, buf)
+            FfiConverterTypeSignerSettings.write(value.`settings`, buf)
     }
 }
 
@@ -5813,7 +5822,12 @@ sealed class AppAction {
     
     data class OpenDashboardSettings(
         val `deviceName`: kotlin.String, 
-        val `relays`: List<kotlin.String>) : AppAction()
+        val `relays`: List<kotlin.String>,
+        val `signTimeoutSecs`: kotlin.UInt,
+        val `pingTimeoutSecs`: kotlin.UInt,
+        val `requestTtlSecs`: kotlin.UInt,
+        val `stateSaveIntervalSecs`: kotlin.UInt,
+        val `peerSelectionStrategy`: kotlin.String) : AppAction()
         
     {
         
@@ -6453,6 +6467,11 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
             82 -> AppAction.OpenDashboardSettings(
                 FfiConverterString.read(buf),
                 FfiConverterSequenceString.read(buf),
+                FfiConverterUInt.read(buf),
+                FfiConverterUInt.read(buf),
+                FfiConverterUInt.read(buf),
+                FfiConverterUInt.read(buf),
+                FfiConverterString.read(buf),
                 )
             83 -> AppAction.EditSignerName(
                 FfiConverterString.read(buf),
@@ -7177,6 +7196,11 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 4UL
                 + FfiConverterString.allocationSize(value.`deviceName`)
                 + FfiConverterSequenceString.allocationSize(value.`relays`)
+                + FfiConverterUInt.allocationSize(value.`signTimeoutSecs`)
+                + FfiConverterUInt.allocationSize(value.`pingTimeoutSecs`)
+                + FfiConverterUInt.allocationSize(value.`requestTtlSecs`)
+                + FfiConverterUInt.allocationSize(value.`stateSaveIntervalSecs`)
+                + FfiConverterString.allocationSize(value.`peerSelectionStrategy`)
             )
         }
         is AppAction.EditSignerName -> {
@@ -7888,6 +7912,11 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
                 buf.putInt(82)
                 FfiConverterString.write(value.`deviceName`, buf)
                 FfiConverterSequenceString.write(value.`relays`, buf)
+                FfiConverterUInt.write(value.`signTimeoutSecs`, buf)
+                FfiConverterUInt.write(value.`pingTimeoutSecs`, buf)
+                FfiConverterUInt.write(value.`requestTtlSecs`, buf)
+                FfiConverterUInt.write(value.`stateSaveIntervalSecs`, buf)
+                FfiConverterString.write(value.`peerSelectionStrategy`, buf)
                 Unit
             }
             is AppAction.EditSignerName -> {
@@ -11396,4 +11425,3 @@ public object FfiConverterSequenceOptionalLong: FfiConverterRustBuffer<List<kotl
         }
     }
 }
-

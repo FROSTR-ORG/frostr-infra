@@ -41,24 +41,31 @@ documented comment block. The new parity flows are layered on top:
 * `hub-validation.yaml` continues to handle the shared
   `VAL-SHELL-001..011` plus `VAL-SHELL-010` shell-baseline assertions.
 
-## What parity gaps are NOT closed by this milestone
+## Current status after June 17 continuation
 
-Per the validation-state.json snapshot from Round 5, several
-signer-state assertions are still blocked on the iOS signer Start
-regression and the Android signer `Restoring...` deadlock. Those
-gaps belong to follow-up features (`mobile-signer-runtime-restoring-readiness-fix`,
-`mobile-export-artifact-flow-validation-unblocker`):
+The original Round 5 snapshot below predated the June 17 continuation. The
+blocking signer/export/load/cross-device items it listed now have focused
+evidence elsewhere in `library/evidence/`:
 
-* `VAL-SIGNER-002` through `VAL-SIGNER-013` iOS side (blocked by signer Start).
-* `VAL-SIGNER-004` through `VAL-SIGNER-009` peer onboarding (stuck in Restoring).
-* `VAL-PERM-002` through `VAL-PERM-013` policy-matrix rendering
-  (tied to `VAL-SIGNER-004` readiness).
-* `VAL-LOAD-001` through `VAL-LOAD-019` batch (depends on Signer/Export pipelines).
-* `VAL-CROSS-004` through `VAL-CROSS-005` (cross-device assertions requiring
-  both platforms sign-ready).
+- Signer restore/readiness, peer refresh, copy/ping, event log, and start/stop
+  behavior: `mobile-ios-signer-peer-refresh-liveness-proof`,
+  `mobile-android-signer-restoring-readiness-fix-2026-06-16`, and related
+  signer evidence folders.
+- Export and Load Profile artifact validators: latest
+  `mobile-export-artifact-validation-*` and `mobile-load-profile-artifacts-*`
+  folders.
+- Cross-flow persistence: latest `mobile-cross-flow-persistence-*` folders.
+- Rotate Share and cross-platform keyset/rotation interop: latest
+  `mobile-ios-rotate-share-*`, `mobile-android-rotate-share-*`, and
+  `mobile-cross-platform-keyset-and-rotation-interop-2026-06-17-150201`.
+- QR scan/display: latest `mobile-qr-scan-display-*`,
+  `mobile-ios-qr-display-*`, and `mobile-android-qr-display-*`.
 
-None of these gaps block `VAL-CROSS-003` reachability (the views
-themselves are reachable, their signer-dependent content is not).
+The remaining parity-polish surface is therefore bookkeeping and refresh:
+rerun the reachability flows when a validator requests fresh screenshots, and
+keep known testing-infrastructure limitations in `library/user-testing.md`.
+None of the historic Round 5 gaps block `VAL-CROSS-003` reachability in the
+current app-local mission ledger.
 
 ## Refresh command
 
@@ -78,7 +85,6 @@ xcodebuild -project ios/IglooMobile.xcodeproj -scheme IglooMobile -configuration
 # 3. Install + run the parity flows (note: requires boot of both devices
 #    and demo credentials — see `library/user-testing.md`).
 maestro --device <ios-udid-or-RMP iPhone 15> test flows/cross-parity-16-view-reachability.yaml --debug-output /tmp/parity-ios
-maestro --device <ios-udid-or-RMP iPhone 15> test flows/cross-parity-android-system-back.yaml --debug-output /tmp/parity-android-system-back
 maestro --device emulator-5554 test flows/cross-parity-16-view-reachability.yaml --debug-output /tmp/parity-android
 maestro --device emulator-5554 test flows/cross-parity-android-system-back.yaml --debug-output /tmp/parity-android-android-system-back
 ```

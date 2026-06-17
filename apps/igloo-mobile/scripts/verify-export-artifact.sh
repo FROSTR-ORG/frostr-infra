@@ -66,9 +66,7 @@ fi
 # bech32m string directly because the bech32m alphabet is contiguous and
 # never includes whitespace.
 if [ -f "$PWD_ARG" ]; then
-  PWD_CONTENT="$(printf '%s' "$PWD_CONTENT" | tr -d '\r\n ' | xargs -n1 echo)"
-  # `xargs -n1 echo` collapses the trimmed text back into a single line.
-  PWD_CONTENT="$(printf '%s' "$PWD_CONTENT")"
+  PWD_CONTENT="$(printf '%s' "$PWD_CONTENT" | tr -d '\r\n ')"
 fi
 
 echo "[verify-export-artifact] kind=$KIND"
@@ -82,6 +80,7 @@ cd "$APPS_ROOT/rust"
 # `cargo test` still pass.
 cargo build --example export_decode --quiet >/dev/null
 
+set +e
 EXP_OUTPUT="$(
   EXPORT_PACKAGE="$PKG_CONTENT" \
   EXPORT_PASSWORD="$PWD_CONTENT" \
@@ -89,6 +88,7 @@ EXP_OUTPUT="$(
   cargo run --quiet --example export_decode 2>&1
 )"
 EXP_EXIT=$?
+set -e
 echo "$EXP_OUTPUT"
 if [ "$EXP_EXIT" -ne 0 ]; then
   echo "[verify-export-artifact] FAIL: export_decode exited $EXP_EXIT" >&2

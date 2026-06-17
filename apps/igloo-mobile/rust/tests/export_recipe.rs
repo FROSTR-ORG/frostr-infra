@@ -30,7 +30,7 @@ use frostr_utils::{
     encode_bfprofile_package, BfProfileDevice, BfProfilePayload, BF_PACKAGE_VERSION,
     PREFIX_BFPROFILE, PREFIX_BFSHARE,
 };
-use igloo_mobile_core::{FfiApp, MaterialMember, OnboardProfileMaterial};
+use igloo_mobile_core::{FfiApp, MaterialMember, OnboardProfileMaterial, SignerSettings};
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -79,6 +79,7 @@ fn demo_material(device_name: &str) -> OnboardProfileMaterial {
             },
         ],
         device_name: device_name.to_string(),
+        settings: SignerSettings::default(),
     }
 }
 

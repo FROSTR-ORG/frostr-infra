@@ -12,7 +12,7 @@ use crate::state::{
 };
 use crate::{
     build_keyset_material, default_relay_url, derive_profile_id_from_secret_hex,
-    parse_keyset_bundle, AppUpdate, GeneratedKeysetWire,
+    parse_keyset_bundle, AppUpdate, GeneratedKeysetWire, SignerSettings,
 };
 
 /// Current UTC Unix epoch in whole seconds (i64).
@@ -405,6 +405,17 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                     group_pubkey: resolved.group_pubkey.clone(),
                     profile_id: profile_id.clone(),
                 });
+                // Initialize settings from the profile so the Settings tab
+                // signer name matches the device name and saving settings does
+                // not overwrite the label with a stale default.
+                next.dashboard.settings = SettingsState::from_profile(
+                    resolved.device_name.clone(),
+                    resolved.relays.clone(),
+                );
+                // Keep the first-launch dashboard aligned with OpenDashboard:
+                // permissions must have peer rows before online/policy syncs
+                // can update alice and carol.
+                next.dashboard.permissions = PermissionsState::with_demo_peers();
             }
             // Reset onboarding and navigate to dashboard.
             next.onboarding.reset();
@@ -975,6 +986,10 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                 group_pubkey,
                 profile_id: profile_id.clone(),
             });
+            // Initialize settings from the profile label so the Settings tab
+            // signer name matches and saving does not clobber the label.
+            next.dashboard.settings =
+                SettingsState::from_profile(label.clone(), next.keyset.relays.clone());
             next.keyset.accepted_short_id = Some(short_id.clone());
             // Defensive: re-pin the accepted profile_id from the shell's
             // reply so any future divergence between the actor's profile_id
@@ -1979,9 +1994,20 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
         AppAction::OpenDashboardSettings {
             device_name,
             relays,
+            sign_timeout_secs,
+            ping_timeout_secs,
+            request_ttl_secs,
+            state_save_interval_secs,
+            peer_selection_strategy,
         } => {
-            next.dashboard.settings =
-                SettingsState::from_profile(device_name.clone(), relays.clone());
+            let mut settings = SettingsState::from_profile(device_name.clone(), relays.clone());
+            settings.set_sign_timeout(*sign_timeout_secs);
+            settings.set_ping_timeout(*ping_timeout_secs);
+            settings.set_request_ttl(*request_ttl_secs);
+            settings.set_state_save_interval(*state_save_interval_secs);
+            settings.set_peer_selection_strategy(peer_selection_strategy);
+            settings.mark_saved();
+            next.dashboard.settings = settings;
             // Also update the profile_info with the same device name
             if let Some(ref mut info) = next.dashboard.profile_info {
                 info.device_name = device_name.clone();
@@ -2308,10 +2334,10 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
             // Carry the existing label so the rotated profile is not
             // orphaned under a freshly synthesized name — match VAL-ROTATE-011
             // "rotated profile keeps the previous device label".
-            let resolved_label = if device_name.trim().is_empty() {
-                next.rotate_share.active_device_label.clone()
-            } else {
+            let resolved_label = if next.rotate_share.active_device_label.trim().is_empty() {
                 device_name.clone()
+            } else {
+                next.rotate_share.active_device_label.clone()
             };
             next.rotate_share.preview = Some(crate::state::RotatePreviewIdentity {
                 device_name: resolved_label,
@@ -2385,6 +2411,14 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                 }
             };
             next.rotate_share.step = crate::state::RotateShareStep::Complete;
+            next.dashboard.profile_info = Some(ProfileInfo {
+                device_name: new_label.clone(),
+                share_pubkey: preview.share_pubkey.clone(),
+                group_pubkey: preview.group_pubkey.clone(),
+                profile_id: new_profile_id.clone(),
+            });
+            next.dashboard.settings =
+                SettingsState::from_profile(new_label.clone(), preview.relays.clone());
             // VAL-ROTATE-011: route to Dashboard so the rotated
             // profile re-opens immediately after the shell commits the
             // secure-storage swap.
@@ -2588,6 +2622,7 @@ fn build_rotated_material_bytes(
         peer_pubkeys: Vec::new(),
         members,
         device_name: preview.device_name.clone(),
+        settings: SignerSettings::default(),
     };
     Ok(material.to_bytes())
 }
