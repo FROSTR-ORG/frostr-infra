@@ -10,6 +10,7 @@ IGLOO_CHROME_DIR := $(ROOT_DIR)/repos/igloo-chrome
 IGLOO_HOME_DIR := $(ROOT_DIR)/repos/igloo-home
 PORT ?= 8194
 RELAY ?= 0
+STATE ?= dashboard-running
 
 .PHONY: \
 	help \
@@ -17,7 +18,7 @@ RELAY ?= 0
 	dev \
 	demo-start demo-foreground demo-stop demo-logs demo-onboard demo-smoke demo-pair-check \
 	compose-start compose-stop compose-restart compose-logs \
-	test-smoke test-fast test-live test-demo test-e2e verify test-prep test-affected test-release \
+	test-smoke test-fast test-live test-demo test-e2e verify screenshot test-prep test-affected test-release \
 	pwa-multisig-demo \
 	browser-wasm-refresh browser-wasm-sync browser-wasm-check wasm-toolchain-check \
 	igloo-paper-sync igloo-paper-verify igloo-paper-usage-coverage-sync igloo-ui-paper-token-sync igloo-ui-paper-token-check igloo-ui-watch \
@@ -50,6 +51,7 @@ help:
 		'  make test-demo' \
 		'  make test-e2e' \
 		'  make verify' \
+		'  make screenshot [STATE=dashboard-running|dashboard-stopped|welcome-returning]' \
 		'  make test-prep' \
 		'  make test-affected' \
 		'  make test-release' \
@@ -170,6 +172,13 @@ test-e2e:
 # typecheck + the render-only fast e2e lane. Deterministic, clear exit code.
 verify:
 	@npm --prefix "$(TEST_DIR)" run test:verify
+
+# Render a PWA screen headlessly and write a PNG + visible-text dump to
+# .tmp/agent/. STATE is a dev scenario (dashboard-running, dashboard-stopped,
+# welcome-returning) — the running dashboard renders via a seeded runtimeSnapshot
+# that storage-only seeding can't reach. For agents and humans alike.
+screenshot:
+	@FROSTR_SCREENSHOT_STATE="$(STATE)" npm --prefix "$(TEST_DIR)" run test:screenshot
 
 pwa-multisig-demo:
 	@"$(TEST_DIR)/scripts/pwa-multisig-demo.sh"
