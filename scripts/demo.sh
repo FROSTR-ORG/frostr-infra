@@ -197,23 +197,32 @@ print_onboard() {
       fi
     done
     if [ "${ready}" -eq 1 ]; then
+      # Buffer the reads under the readiness gate. A crash-looping demo signer
+      # can wipe a freshly-written package on restart (its entrypoint clears
+      # stale onboard files before regenerating); if that race empties a file
+      # between the check above and the read here, fall back to waiting rather
+      # than printing a half-read package or erroring on a vanished path.
+      local output="" package_contents password_contents raced=0
       for raw_member in "${members[@]}"; do
         member="$(trim "${raw_member}")"
         package_file="$(package_file_for_member "${member}")"
         password_file="$(password_file_for_member "${member}")"
-        if [[ -n "${relay_port}" ]]; then
-          echo "Relay URL (${member}):"
-          echo "ws://localhost:${relay_port}"
-          echo
+        package_contents="$(cat "${package_file}" 2>/dev/null || true)"
+        password_contents="$(cat "${password_file}" 2>/dev/null || true)"
+        if [[ -z "${package_contents}" || -z "${password_contents}" ]]; then
+          raced=1
+          break
         fi
-        echo "Onboarding package (${member}):"
-        cat "${package_file}"
-        echo
-        echo "Password (${member}):"
-        cat "${password_file}"
-        echo
+        if [[ -n "${relay_port}" ]]; then
+          output+="Relay URL (${member}):"$'\n'"ws://localhost:${relay_port}"$'\n\n'
+        fi
+        output+="Onboarding package (${member}):"$'\n'"${package_contents}"$'\n\n'
+        output+="Password (${member}):"$'\n'"${password_contents}"$'\n\n'
       done
-      return 0
+      if [ "${raced}" -eq 0 ]; then
+        printf '%s' "${output}"
+        return 0
+      fi
     fi
     sleep 0.1
     attempt=$((attempt + 1))

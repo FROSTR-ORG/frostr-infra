@@ -17,6 +17,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PORT="${PORT:-8194}"
+HARNESS_DIR="${FROSTR_TEST_HARNESS_DIR:-${ROOT_DIR}/.tmp/test-harness}"
 
 stopped=0
 stop_demo() {
@@ -27,7 +28,19 @@ stop_demo() {
 }
 trap stop_demo EXIT INT TERM
 
-# 1. Relay + demo co-signer, backgrounded. Blocks until the onboarding artifacts
+# 1. Start from a clean demo scratch. The demo signer reuses an existing keyset
+#    under .tmp/test-harness if present (generate_demo_material_if_needed); a
+#    stale one from a prior run can destabilize the signer, and its
+#    restart-on-failure wipes a freshly-written onboard package mid-read — which
+#    surfaces on the host as `cat: onboard-<member>.txt: No such file`. Reset the
+#    scratch so every launch regenerates a fresh, consistent keyset + packages.
+"${ROOT_DIR}/scripts/demo.sh" stop >/dev/null 2>&1 || true
+if [[ -d "${HARNESS_DIR}" ]]; then
+  printf '==> Clearing demo scratch for a fresh keyset (%s)\n' "${HARNESS_DIR}" >&2
+  rm -rf "${HARNESS_DIR:?}/"* 2>/dev/null || true
+fi
+
+# 2. Relay + demo co-signer, backgrounded. Blocks until the onboarding artifacts
 #    are written, then prints the package/password/relay URL and returns.
 BG=1 "${ROOT_DIR}/scripts/demo.sh" start "${PORT}"
 
@@ -37,6 +50,6 @@ printf '==> Open http://localhost:1430 -> "Onboard New Device" and paste the\n' 
 printf '    onboarding package + password printed above.\n' >&2
 printf '────────────────────────────────────────────────────────────────────\n\n' >&2
 
-# 2. PWA dev server in the foreground. RELAY=0: the onboarding package already
+# 3. PWA dev server in the foreground. RELAY=0: the onboarding package already
 #    carries the demo relay URL, so the app does not start a relay of its own.
 RELAY=0 "${ROOT_DIR}/scripts/igloo-pwa-dev.sh"
