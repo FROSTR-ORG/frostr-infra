@@ -156,23 +156,34 @@ Group by area. When an item is finished, move a one-line summary to
   `currentVisualScenario`) so the running dashboard can be seeded + captured
   against Paper `1-signer-dashboard`. The running layout is already unit-tested in
   `repos/igloo-ui/test/OperatorPanels.test.tsx` — test/igloo-pwa.
-- [ ] (effort: M) **RED GATE — `app-shell.spec.ts` seeds the old PWA partition and
-  now hard-fails (`make verify`/`make test-fast` red on dev HEAD).** Confirmed
-  2026-06-17: two `@fast` specs — *persists settings across reloads* and *…preserving
-  saved profiles* — fail at `app-shell.spec.ts:276` (`dashboardRoot` not visible).
-  Both seed `localStorage` directly under the old `STORAGE_KEY`/`pwaPartitionKey`
-  partition with a v2 profile carrying a *fake* `encrypted_bfshare_artifact`
-  (`'bfshare1demo'`) + `activeView:'dashboard'`, then `goto('/')` and `expectDashboard()`.
-  After the 2026-06-16 global-profile-store move (two-store model:
-  `igloo-pwa.profiles.v1` + `igloo-pwa.session.v1::<id>`) the seeded state no longer
-  hydrates to an unlocked dashboard — boot migrates the profile but the fake artifact
-  can't reconstruct the share, so the dashboard never renders. Reproduces in a clean
-  env; **not** caused by the Thread 3 work (all submodules pristine). The other 18
-  pwa `@fast` tests pass. Fix: reseed these specs via the supported two-store helper
-  (`test/igloo-pwa/support/state.ts` `buildPwaPersistedState`/`applyPwaSeed`) — or, if
-  the dashboard genuinely must hydrate from a stored artifact, fix pwa hydration. Also
-  retarget `chrome-pwa-pairing.spec.ts` (`PWA_STORAGE_KEY`), and rework app-shell's
-  resume / multi-instance assertions that exercise the removed per-tab partition — test/.
+- [x] (effort: M) **DONE (2026-06-17) — pwa `@fast` red gate fixed.** The two
+  `app-shell.spec.ts` persistence specs seeded the legacy `igloo-pwa.state.v2`
+  partition directly, which the 2026-06-16 two-store move stopped hydrating to a
+  dashboard (hard-failed at `expectDashboard()`). Reseeded both via the supported
+  `applyPwaSeed(pwaSeedPayload(buildPwaPersistedState(...)))` path and read the
+  settings poll from the global store; added an opt-in `PwaSeedPayload.ifAbsent`
+  so the reloading spec doesn't re-seed on reload. pwa `@fast` lane green (20
+  passed). `eafdb4a`.
+- [ ] (effort: S) **`chrome-pwa-pairing.spec.ts` still seeds `PWA_STORAGE_KEY`
+  directly.** Same legacy-partition seed pattern as the (now-fixed) app-shell specs;
+  it's `@cross-client` (runs in no default lane), so it didn't show in the `@fast`
+  gate — retarget it to the two-store helper before that lane is ever run — test/.
+- [ ] (effort: M) **RED GATE — chrome `@fast` lane: dashboard smoke specs stale after
+  the Paper restructure.** Confirmed 2026-06-17: two `@fast` specs fail —
+  `dashboard.spec.ts:34` (*configured options page…*) at `getByRole('heading', { name:
+  'Pending Operations' })` and `profile-import.spec.ts:43` at `getByText('Chrome
+  Import', { exact: true })`. The 2026-06-16 Paper dashboard restructure made the
+  OperatorSignerPanel section titles (`Peers` / `Pending Approvals` / `Pending
+  Operations` / `Event Log`) `<span class="igloo-dashboard-section-title">` instead of
+  headings, and reshaped the identity/settings cards (`ContentCard` titles), so the
+  smoke specs' `getByRole('heading', …)` / exact-text assertions no longer match.
+  `ensure_session_failed` in the logs is a benign cold-state warning, not the cause.
+  Pre-existing (chrome + igloo-ui pristine), masked until the pwa half was fixed.
+  Decide: **(a)** modernize the chrome smoke selectors to the restructured DOM
+  (test-side, fastest), or **(b)** treat section-titles-as-spans as an a11y
+  regression and restore heading roles in igloo-ui (submodule change; also fixes the
+  tests). Intersects the open Paper-dashboard-alignment items above — test/ (+ maybe
+  igloo-ui).
 - [ ] (effort: M) **Cross-tab single-active-signer lock.** The 2026-06-16 move to
   a global profile list (shared `igloo-pwa.profiles.v1`, per-tab session in
   `igloo-pwa.session.v1::<id>`) removed the storage partition that *implicitly*

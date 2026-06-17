@@ -43,6 +43,9 @@ submodules under `repos/`. The **Makefile is the public command surface**;
 
 Commits, newest first:
 
+- `eafdb4a` Fix the pwa half of the red `@fast` gate (reseed the two app-shell
+  persistence specs via the two-store helper; pwa `@fast` lane now green).
+- `09459a0` Handoff refresh.
 - `0078594` Docs: AGENTS.md "Verification recipes" + surface `make verify`/`install`;
   fix stale release-validation-on-PRs facts.
 - `a9d43c4` Backlog harvest: the red @fast gate, the relay leak, corrected
@@ -61,19 +64,21 @@ Commits, newest first:
 
 ## What's pending (priority order)
 
-1. **RED @fast gate (top priority).** `make verify` / `make test-fast` is red on
-   `dev` HEAD: two pwa specs (`app-shell.spec.ts` *persists settings across
-   reloads* / *…preserving saved profiles*) hard-fail at line 276 (`dashboardRoot`
-   not visible). They seed `localStorage` under the **old** partition key with a
-   fake `encrypted_bfshare_artifact`; after the 2026-06-16 two-store move the
-   seeded state no longer hydrates to a dashboard. Pre-existing, reproducible in a
-   clean env, **not** caused by Thread 3 (all submodules pristine). Fix: reseed via
-   the supported two-store helper (`test/igloo-pwa/support/state.ts`) — or fix pwa
-   hydration if a stored artifact genuinely must rehydrate. Full diagnosis in
-   `dev/BACKLOG.md` (Test harness / CI → "RED GATE").
-2. **Not pushed.** All five commits are local on `dev` (parent only). Push when the
-   user asks; the pre-push gate (`make verify`) is red per #1, so resolve that first
-   or push knowingly.
+1. **RED `@fast` gate — chrome half remains (top priority).** The pwa half is
+   **fixed** (`eafdb4a`, pwa `@fast` green). `make verify` is still red on the
+   **chrome** lane: two smoke specs fail — `dashboard.spec.ts:34` at
+   `getByRole('heading', { name: 'Pending Operations' })` and
+   `profile-import.spec.ts:43` at `getByText('Chrome Import', { exact: true })`.
+   Cause: the 2026-06-16 Paper dashboard restructure turned OperatorSignerPanel
+   section titles into `<span class="igloo-dashboard-section-title">` (not headings)
+   and reshaped the cards, so the stale selectors miss. Pre-existing, masked until
+   the pwa fix. The user chose to **scope this separately** (it intersects the active
+   Paper-dashboard alignment). Decide test-side modernization vs. restoring heading
+   semantics in igloo-ui. Full diagnosis in `dev/BACKLOG.md` ("RED GATE — chrome
+   `@fast`").
+2. **Not pushed.** All commits are local on `dev` (parent only). Push when the user
+   asks; the pre-push gate (`make verify`) is still red on the chrome lane per #1, so
+   resolve that first or push knowingly.
 3. **Tracked BACKLOG follow-ups** (the usual sink): de-gated-guard deletion + the
    visual-harness doc cleanup that rides with it; exempt `@agent` specs from the
    selector contract (greens nightly `test:guards:full`); leaked `bifrost-devtools
@@ -85,8 +90,9 @@ Commits, newest first:
 - **No npm workspace — by decision.** [[no-npm-workspace-thin-install]]. Don't
   reintroduce a root `package.json`/`workspaces`; orchestrate via `make` targets
   that loop over the self-contained leaves.
-- **The gate is red, independent of this work.** Don't trust a green assumption —
-  `make verify` currently fails on two pre-existing pwa fixture specs (#1). The
+- **The gate is still red on the chrome lane, independent of this work.** Don't
+  trust a green assumption — pwa is fixed but `make verify` still fails on two
+  pre-existing chrome dashboard smoke specs (#1). The
   machine signal works: `.tmp/agent/verify.json` correctly reports `ok:false`.
 - **Commit flow:** commit inside the submodule first, then `make bump-pointers`
   ([[workflow-no-new-prs]]). Non-recursive submodule commands only.
