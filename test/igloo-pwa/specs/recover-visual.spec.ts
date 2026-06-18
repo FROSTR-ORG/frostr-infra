@@ -1,13 +1,11 @@
-import { mkdir } from 'node:fs/promises';
-import path from 'node:path';
-
 import { expect, test, type Page } from '@playwright/test';
 
 import type { PwaStoredProfileSeed } from '../../shared/browser-artifacts';
-import { REPO_ROOT_DIR } from '../../shared/repo-paths';
+import { captureVisual } from '../../shared/visual-harness';
 import { applyPwaSeed, buildPwaPersistedState, pwaSeedPayload } from '../support/state';
 
-const RECOVER_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'recover');
+const capture = (page: Page, name: string) =>
+  captureVisual(page, { client: 'igloo-pwa', section: 'recover', name });
 
 function buildRecoverProfile(): PwaStoredProfileSeed {
   const id = 'recover-profile-1';
@@ -54,10 +52,6 @@ async function seedState(page: Page, state: unknown) {
   await page.reload();
 }
 
-async function capture(page: Page, fileName: string) {
-  await mkdir(RECOVER_CAPTURE_DIR, { recursive: true });
-  await page.screenshot({ path: path.join(RECOVER_CAPTURE_DIR, fileName), fullPage: true });
-}
 
 // The recover-key view is gated on App-local `recoveredKey` state (a reconstructed nsec
 // that is never persisted). The app exposes a DEV-only window seam so the harness can

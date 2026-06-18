@@ -1,13 +1,8 @@
-import { mkdir } from 'node:fs/promises';
-import path from 'node:path';
-
 import { expect, test, type Page } from '@playwright/test';
 
-import { REPO_ROOT_DIR } from '../../shared/repo-paths';
+import { captureVisual } from '../../shared/visual-harness';
 import { pages } from '../support/pages';
 import { applyPwaSeed, buildPwaPersistedState, pwaSeedPayload } from '../support/state';
-
-const ONBOARD_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'onboard');
 
 async function seedState(page: Page, state: unknown) {
   await page.goto('/');
@@ -15,10 +10,8 @@ async function seedState(page: Page, state: unknown) {
   await page.reload();
 }
 
-async function capture(page: Page, fileName: string) {
-  await mkdir(ONBOARD_CAPTURE_DIR, { recursive: true });
-  await page.screenshot({ path: path.join(ONBOARD_CAPTURE_DIR, fileName), fullPage: true });
-}
+const capture = (page: Page, name: string) =>
+  captureVisual(page, { client: 'igloo-pwa', section: 'onboard', name });
 
 test.describe('igloo-pwa Paper Onboard visual harness @visual', () => {
   test('captures recipient onboarding states', async ({ page }) => {

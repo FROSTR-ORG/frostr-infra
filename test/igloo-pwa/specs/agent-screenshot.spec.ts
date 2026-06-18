@@ -1,20 +1,18 @@
-import { mkdir, writeFile } from 'node:fs/promises';
-import path from 'node:path';
-
 import { test } from '@playwright/test';
 
-import { REPO_ROOT_DIR } from '../../shared/repo-paths';
+import { captureAgentArtifact } from '../../shared/visual-harness';
 
 // Agent/human "render + see a screen" tool. `make screenshot STATE=<scenario>`
 // loads the PWA with `?__frostr_dev=<scenario>` (the in-memory dev-scenario seam
 // in repos/igloo-pwa/src/lib/dev-scenario.ts) and writes a full-page PNG + a
-// visible-text dump to .tmp/agent/. Unlike the storage-only seed, this can render
-// the *running* dashboard (peers / event log) via a seeded runtimeSnapshot.
+// visible-text dump + screenshot.json to .tmp/agent/ (via the shared
+// visual-harness). pwa is the default client, so its artifacts are bare
+// `<state>.{png,txt}` (no client prefix). Unlike the storage-only seed, this can
+// render the *running* dashboard (peers / event log) via a seeded runtimeSnapshot.
 //
 // Tagged @agent so it stays out of the normal test lanes; it is a tool, not a test.
 
 const STATE = process.env.FROSTR_SCREENSHOT_STATE || 'dashboard-running';
-const OUT_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'agent');
 
 test('@agent capture', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1080 });
@@ -27,22 +25,8 @@ test('@agent capture', async ({ page }) => {
     await page.getByRole('heading', { name: 'Igloo Web' }).waitFor({ state: 'visible', timeout: 15_000 });
   }
 
-  await mkdir(OUT_DIR, { recursive: true });
-  const pngPath = path.join(OUT_DIR, `${STATE}.png`);
-  const txtPath = path.join(OUT_DIR, `${STATE}.txt`);
-  await page.screenshot({ path: pngPath, fullPage: true });
-  const text = await page.locator('body').innerText();
-  await writeFile(txtPath, text, 'utf8');
-
-  // Machine-readable result so an agent can locate the artifacts without
-  // scraping stdout. Reaching this point means the target surface rendered;
-  // a failed render fails the test (non-zero exit) and this is not rewritten.
-  await writeFile(
-    path.join(OUT_DIR, 'screenshot.json'),
-    `${JSON.stringify({ ok: true, state: STATE, png: pngPath, txt: txtPath }, null, 2)}\n`,
-    'utf8',
-  );
+  const { png } = await captureAgentArtifact(page, { client: 'pwa', state: STATE, baseName: STATE });
 
   // eslint-disable-next-line no-console
-  console.log(`screenshot: ${pngPath}`);
+  console.log(`screenshot: ${png}`);
 });

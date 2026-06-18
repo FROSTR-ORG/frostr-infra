@@ -1,14 +1,12 @@
-import { mkdir } from 'node:fs/promises';
-import path from 'node:path';
-
 import { expect, test, type Page } from '@playwright/test';
 
-import { REPO_ROOT_DIR } from '../../shared/repo-paths';
+import { captureVisual } from '../../shared/visual-harness';
 import { pages } from '../support/pages';
 import { applyPwaSeed, buildPwaPersistedState, pwaSeedPayload } from '../support/state';
 import { DETERMINISTIC_GROUP_KEY, DETERMINISTIC_SHARE_KEY } from '../support/deterministic-keys';
 
-const PERMISSIONS_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'dashboard');
+const capture = (page: Page, name: string) =>
+  captureVisual(page, { client: 'igloo-pwa', section: 'dashboard', name });
 
 function buildPermissionsProfile() {
   return {
@@ -75,10 +73,6 @@ async function seedState(page: Page, state: unknown) {
   await page.reload();
 }
 
-async function capture(page: Page, fileName: string) {
-  await mkdir(PERMISSIONS_CAPTURE_DIR, { recursive: true });
-  await page.screenshot({ path: path.join(PERMISSIONS_CAPTURE_DIR, fileName), fullPage: true });
-}
 
 test.describe('igloo-pwa Paper Permissions visual harness @visual', () => {
   test('captures the peer-only permissions page', async ({ page }) => {

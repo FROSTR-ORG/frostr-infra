@@ -1,16 +1,14 @@
-import { mkdir } from 'node:fs/promises';
-import path from 'node:path';
-
 import { expect, test, type Page } from '@playwright/test';
 
 import type { PwaStoredProfileSeed } from '../../shared/browser-artifacts';
-import { REPO_ROOT_DIR } from '../../shared/repo-paths';
+import { captureVisual } from '../../shared/visual-harness';
 import { pages } from '../support/pages';
 import { applyPwaSeed, buildPwaPersistedState, pwaSeedPayload } from '../support/state';
 
-const WELCOME_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'welcome');
-const CREATE_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'create');
-const PAPER_PASSWORD = 'paper-pass';
+const capture = (page: Page, name: string) =>
+  captureVisual(page, { client: 'igloo-pwa', section: 'welcome', name });
+const captureCreate = (page: Page, name: string) =>
+  captureVisual(page, { client: 'igloo-pwa', section: 'create', name });
 
 function fixedHex(index: number, prefix: string) {
   return `${prefix}${index.toString(16).padStart(2, '0')}`.padEnd(64, '0').slice(0, 64);
@@ -62,15 +60,6 @@ async function setPwaState(page: Page, profiles: PwaStoredProfileSeed[]) {
   await page.goto('/');
   await page.evaluate(applyPwaSeed, pwaSeedPayload(buildPwaPersistedState({ profiles })));
   await page.reload();
-}
-
-async function capture(page: Page, fileName: string) {
-  await captureIn(page, WELCOME_CAPTURE_DIR, fileName);
-}
-
-async function captureIn(page: Page, directory: string, fileName: string) {
-  await mkdir(directory, { recursive: true });
-  await page.screenshot({ path: path.join(directory, fileName), fullPage: true });
 }
 
 test.describe('igloo-pwa Paper Welcome visual harness @visual', () => {
@@ -149,7 +138,7 @@ test.describe('igloo-pwa Paper Welcome visual harness @visual', () => {
     await expect(p.create.backButton).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Create Keyset' })).toBeVisible();
     await expect(p.create.generateNextButton).toBeVisible();
-    await captureIn(page, CREATE_CAPTURE_DIR, '01-create-keyset.png');
+    await captureCreate(page,'01-create-keyset.png');
 
     await p.create.fillGenerate({ groupName: 'My Signing Key' });
     await p.create.generateNext();
@@ -157,19 +146,19 @@ test.describe('igloo-pwa Paper Welcome visual harness @visual', () => {
     await expect(page.getByText('Choose Local Share')).toBeVisible();
     await page.setViewportSize({ width: 1440, height: 1861 });
     await p.create.selectShareByName('My Signing Key Device 2');
-    await captureIn(page, CREATE_CAPTURE_DIR, '02-select-share.png');
+    await captureCreate(page,'02-select-share.png');
 
     await p.create.selectShareNext();
     await expect(page.getByRole('heading', { name: 'Save Profile' })).toBeVisible();
     await p.create.fillSaveProfile({ password: 'paper-browser-pass' });
 
     await page.setViewportSize({ width: 1440, height: 1861 });
-    await captureIn(page, CREATE_CAPTURE_DIR, '03-save-profile.png');
+    await captureCreate(page,'03-save-profile.png');
 
     await p.create.saveProfileNext();
     await expect(page.getByText('Distribute Shares')).toBeVisible();
     await expect(page.getByText('Remote Shares')).toBeVisible();
     await p.distribute.preparePackage(p.distribute.cards().nth(1), 'remote-device-pass');
-    await captureIn(page, CREATE_CAPTURE_DIR, '04-distribute-shares.png');
+    await captureCreate(page,'04-distribute-shares.png');
   });
 });

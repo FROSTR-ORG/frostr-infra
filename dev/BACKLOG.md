@@ -151,9 +151,15 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
   three colliding strategies (local-relay 24k–44k random, chrome live-signer
   18k–28k random, demo-harness `43000+pid`) and folded the home app/harness
   duplicate `listen(0)` helpers onto it — test/.
-- [ ] (effort: L) **P1 — Unified visual-harness module + single artifact tree**
-  (`test/shared/visual-harness.ts`, `.tmp/visual/<client>/`, Home on bundled
-  Playwright, manifest+guard for all clients) (ADR Q3) — test/ + igloo-home.
+- [~] (effort: L) **P1 — Unified visual-harness module** (ADR Q3). **Core done
+  (2026-06-18):** `test/shared/visual-harness.ts` provides `captureVisual`
+  (`.tmp/visual/<client>/<section>/`) and `captureAgentArtifact` (`.tmp/agent/`,
+  the documented `make screenshot` contract). Migrated all 10 capture sites — the 7
+  pwa `@visual` specs + the pwa/chrome/home `@agent` tools — off their duplicated
+  `capture()` helpers. Home already runs on bundled Playwright
+  (`playwright-screenshot.config.ts`); no `.mjs` smoke remains. **Remaining:** one
+  visual manifest + guard covering chrome + home (today only pwa has
+  `visual-manifest.json`) — test/ + igloo-home.
 - [x] (effort: M) **DONE (2026-06-18) — P2 — Make `test-targets.json` the single
   source** for affected/prebuild mapping. The path → client mapping now derives
   from the manifest's `paths` via a new `test_client_for_path` lib helper (was
