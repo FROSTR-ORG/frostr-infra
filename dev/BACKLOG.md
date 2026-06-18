@@ -363,6 +363,34 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
 
 ## igloo-home
 
+- [ ] (effort: L, spike first) **Evaluate decoupling the signer into a sidecar Rust
+  daemon (instead of in-process in `src-tauri`).** Today igloo-home embeds the native
+  Tokio signer in-process via `bifrost-bridge-tokio` (`src-tauri/Cargo.toml:39-45`),
+  reached from the frontend through ~36 Tauri `invoke`/`listen`/`dialog` call sites
+  (`src/lib/api.ts`, `App.tsx`). Evaluate moving it to the **sidecar daemon model the
+  codebase already supports** — `bifrost-app`'s daemon over a token-auth Unix socket,
+  as `igloo-shell` uses (ADRs [005](./adrs/ADR-005-shell-daemon-over-bifrost-app.md) /
+  [006](./adrs/ADR-006-bridge-transport-boundaries.md)) — with the desktop app as a
+  thin client over `DaemonClient`. **Why:** it decouples the signer from the GUI
+  framework, which is the high-leverage fix for the home test/orchestration friction —
+  the signer becomes testable directly over its socket (no GUI, no `xvfb`, no custom
+  `--features test-server` TCP harness), the GUI becomes a thin client testable in
+  plain Playwright (the frontend already renders headless via the visual seam), and
+  the three duplicated home harnesses (`fixtures/app.ts` TCP, `test/desktop/run.mjs`
+  X11, `test/visual/run.mjs` system-chromium) can collapse. It keeps the native
+  always-on / durable / background-relay signer (NOT a WASM downgrade) and is
+  framework-agnostic. **Context (investigated 2026-06-18):** this came out of a
+  Tauri→Electron question. Electron was rejected as the wrong lever — it can't host
+  the native Rust signer in-process (Node main), igloo-ui/igloo-shared reuse is already
+  maximal (the frontend is plain web), moving to the WASM signer would lose the
+  always-on/durable co-signer behavior, and Electron's larger Chromium+Node attack
+  surface is a downside for a key-share custodian. The sidecar daemon delivers the
+  testing win without the framework switch. **Spike scope:** what a (C) refactor
+  concretely touches (daemon spawn/lifecycle from the app, socket/token plumbing,
+  passphrase-over-stdin, process cleanup, packaging the daemon binary), and whether to
+  reuse the `igloo-shell` daemon or a lean dedicated one. Intersects the home
+  test-harness consolidation (P0 #3b + the unified visual-harness item) —
+  `igloo-home` + `bifrost-app` + test/.
 - [ ] (effort: S) **Recover-key meter could show member count** — `get_profile_threshold`
   returns just the threshold; optionally widen it to `{ threshold, member_count }` so the
   `RecoverCollectSharesPanel` meter reads "X of threshold (group of N)" (`src-tauri`
