@@ -167,12 +167,21 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
   `check-test-targets` guard asserts the helper is used and that no per-client repo
   glob is re-hardcoded. Prebuild targets already came from the manifest — test/ +
   scripts/.
-- [ ] (effort: M) **P2 — Document lanes, env-var schema, services, fixture
-  ownership** (lane/coverage matrix, `TEST-ENV-VARS.md`, `services/README.md`,
-  `FIXTURES.md`) — docs.
-- [ ] (effort: S) **P2 — Rename lanes for honest semantics; wire-or-delete dead
-  guards** (`check-wasm-toolchain`, `check-worktree-unchanged` are never invoked)
-  (ADR Q9) — test/ + scripts/.
+- [x] (effort: M) **DONE (2026-06-18) — P2 — Document lanes, env-var schema,
+  services, fixture ownership.** Added a lane/coverage matrix to `test/README.md`,
+  `test/docs/TEST-ENV-VARS.md` (FROSTR_*/IGLOO_* schema), `services/README.md`
+  (dev-relay / igloo-demo / demo), and `test/docs/FIXTURES.md` (seed contract,
+  test-secrets, port/lifecycle/visual helpers, per-client fixture entry points) — docs.
+- [x] (resolved 2026-06-18) **P2 — Lane semantics + dead-guard audit** (ADR Q9).
+  **Dead guards finding corrected:** `check-worktree-unchanged` is NOT dead — it is
+  wired via `check-test-prebuild-nonmutating.sh` (`test:guards:wasm:strict`);
+  `check-wasm-toolchain` is an intentional manual preflight (`make
+  wasm-toolchain-check`, in the doc-command-surface allowlist + AGENTS.md). Neither
+  is deleted. **Lane renames deferred (documented instead):** renaming `@fast`/lanes
+  is high blast-radius (every spec + grep-inverts + the doc-command-surface
+  allowlist + CI + docs) for low value; the new lane/coverage matrix documents the
+  honest semantics (`@fast` = render-only) instead. Reopen only if the names cause
+  real confusion — test/ + scripts/.
 
 ## Design (Paper ↔ runtime)
 

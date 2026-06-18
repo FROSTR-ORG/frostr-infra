@@ -120,6 +120,28 @@ the focused Docker-backed onboarding path can be run independently.
 The release-facing CI gate runs that `demo` tier explicitly through
 `make test-demo`.
 
+## Lane / coverage matrix
+
+Which lane runs what, and where it gates. `@fast` is **render-only** (its name is
+historical — it does not exercise a live signer/relay); behavior is covered by
+`@live`/`@live @smoke`/`@demo`.
+
+| Lane (tag) | Exercises | Relay/signer | Gated |
+|------------|-----------|--------------|-------|
+| `@fast` | seeded render + `@visual` snapshots | none | **per-PR** (pwa, chrome) |
+| `@live @smoke` | one onboarding + signing round-trip per client | in-process relay | **per-PR** (pwa, chrome); **nightly** (home) |
+| `@live` | full single-client behavioral suite | in-process relay (+ shell for sign-shell) | **nightly** |
+| `@cross-client` | multi-client pairing (non-demo) | in-process relay | **manual only** (non-gated by design) |
+| `@demo` | Docker 3-way onboarding→sign | Docker dev-relay + igloo-demo | **nightly** |
+| `@visual` | storage-seeded Paper snapshots | none | per-PR (subset of `@fast`) |
+| `@agent` | `make screenshot` render tool | none (dev-scenario seam) | not a gated test |
+| cargo `--lib` | bifrost-rs (pwa/chrome jobs), igloo-shell (shell job) | n/a | **per-PR** |
+
+Reference: [ADR-013](../dev/adrs/ADR-013-test-infrastructure-architecture.md) §(a)/(b).
+For the env-var schema see [`docs/TEST-ENV-VARS.md`](./docs/TEST-ENV-VARS.md); for
+fixtures/seeds/harness modules see [`docs/FIXTURES.md`](./docs/FIXTURES.md); for the
+Docker services see [`../services/README.md`](../services/README.md).
+
 ## Local Client Validation
 
 Use client-scoped commands for routine local work. These commands avoid
