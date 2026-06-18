@@ -345,6 +345,14 @@ Group by area. When an item is finished, move a one-line summary to
   fixed the chrome `@fast` red gate and surfaced the `view.running` bug (above).
   **Home still pending** (igloo-home has the `currentVisualScenario` seam but no
   `make screenshot CLIENT=home`) — test/ + igloo-chrome.
+- [ ] (effort: S) **chrome signer keys use the legacy KeyField, not the split-copy
+  KeyRow.** Found 2026-06-17 while fixing the red gate: `repos/igloo-chrome/src/pages/
+  Signer.tsx` sets `publicKeyLabel`/`shareLabel` (legacy KeyField fallback) but not
+  `groupKey`/`shareKey`, so the chrome dashboard lacks the npub/hex split-copy control
+  igloo-pwa has (`App.tsx` `toDashboardKey(...)`). Add structured `groupKey`/`shareKey`
+  to chrome's view model for parity — igloo-chrome. (Keep the "Group Public Key" /
+  "Share Public Key" label text — both KeyRow and KeyField render it, so the smoke
+  specs stay green.)
 - [ ] (effort: S) **Render-and-verify: add `make screenshot CLIENT=home`.** igloo-home
   already has the `currentVisualScenario` URL-param seam; wire a home `@agent` capture
   spec + `test:screenshot:home` so the home dashboard gets the same headless loop the
