@@ -7,6 +7,143 @@ import UIKit
 import OSLog
 #endif
 
+// MARK: - Igloo Native Primitives
+
+struct IglooPressButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+extension View {
+    func iglooPanel(
+        radius: CGFloat = IglooRadii.Lg,
+        fill: Color = IglooColors.Slate900StrongTranslucent,
+        stroke: Color = IglooColors.Blue900PanelBorder,
+        shadowOpacity: Double = 0.18
+    ) -> some View {
+        self
+            .background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .stroke(stroke, lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(shadowOpacity), radius: 14, x: 0, y: 8)
+    }
+}
+
+struct IglooIconTile: View {
+    let systemName: String
+    var tint: Color = IglooColors.Blue400
+    var fill: Color = IglooColors.Blue900.opacity(0.26)
+    var stroke: Color = IglooColors.Blue900FocusBorder.opacity(0.7)
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: 22, weight: .semibold))
+            .symbolRenderingMode(.hierarchical)
+            .foregroundStyle(tint)
+            .frame(width: 44, height: 44)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(fill)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(stroke, lineWidth: 1)
+            )
+    }
+}
+
+struct IglooChevron: View {
+    var body: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(IglooColors.Slate500)
+            .frame(width: 28, height: 44)
+            .offset(x: 1)
+    }
+}
+
+struct IglooControlButton: View {
+    let title: String
+    let systemName: String
+    let enabled: Bool
+    let accessibilityId: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: IglooSpacing.Xs) {
+                Image(systemName: systemName)
+                    .font(.system(size: 15, weight: .semibold))
+                Text(title)
+                    .font(IglooTypography.BodyFont)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
+            .foregroundStyle(enabled ? IglooColors.Blue400 : IglooColors.Slate500)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .padding(.horizontal, IglooSpacing.Md)
+            .iglooPanel(
+                radius: IglooRadii.Md,
+                fill: enabled ? IglooColors.Slate900StrongTranslucent : IglooColors.Gray900.opacity(0.72),
+                stroke: enabled ? IglooColors.Blue900PanelBorder : IglooColors.Slate400MutedBorder,
+                shadowOpacity: enabled ? 0.14 : 0
+            )
+            .contentShape(RoundedRectangle(cornerRadius: IglooRadii.Md, style: .continuous))
+        }
+        .disabled(!enabled)
+        .accessibilityIdentifier(accessibilityId)
+        .buttonStyle(IglooPressButtonStyle())
+    }
+}
+
+struct IglooActionRow: View {
+    let title: String
+    let systemName: String
+    let accessibilityId: String
+    let action: () -> Void
+    var tint: Color = IglooColors.Blue400
+    var titleColor: Color = IglooColors.Slate200
+    var fill: Color = IglooColors.Slate900StrongTranslucent
+    var stroke: Color = IglooColors.Blue900PanelBorder
+    var showsChevron: Bool = true
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: IglooSpacing.Md) {
+                IglooIconTile(
+                    systemName: systemName,
+                    tint: tint,
+                    fill: tint.opacity(0.16),
+                    stroke: tint.opacity(0.34)
+                )
+
+                Text(title)
+                    .font(IglooTypography.BodyFont)
+                    .foregroundStyle(titleColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.86)
+
+                Spacer()
+
+                if showsChevron {
+                    IglooChevron()
+                }
+            }
+            .padding(IglooSpacing.Md)
+            .frame(maxWidth: .infinity, minHeight: 68)
+            .iglooPanel(radius: IglooRadii.Lg, fill: fill, stroke: stroke)
+            .contentShape(RoundedRectangle(cornerRadius: IglooRadii.Lg, style: .continuous))
+        }
+        .accessibilityIdentifier(accessibilityId)
+        .buttonStyle(IglooPressButtonStyle())
+    }
+}
+
 struct ContentView: View {
     @Bindable var manager: AppManager
 
@@ -166,40 +303,32 @@ struct EntryTile: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: IglooSpacing.Md) {
-                // Icon
-                Image(systemName: icon)
-                    .font(.system(size: 24))
-                    .foregroundStyle(IglooColors.Blue400)
-                    .frame(width: 40, height: 40)
+                IglooIconTile(systemName: icon)
 
                 VStack(alignment: .leading, spacing: IglooSpacing.Xs) {
                     Text(title)
                         .font(IglooTypography.H3Font)
                         .foregroundStyle(IglooColors.Slate200)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.9)
 
                     Text(subtitle)
                         .font(IglooTypography.BodyFont)
                         .foregroundStyle(IglooColors.Slate400)
                         .lineLimit(2)
+                        .lineSpacing(2)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(IglooColors.Slate500)
+                IglooChevron()
             }
             .padding(IglooSpacing.Md)
-            .background(IglooColors.Slate900StrongTranslucent)
-            .cornerRadius(IglooRadii.Lg)
-            .overlay(
-                RoundedRectangle(cornerRadius: IglooRadii.Lg)
-                    .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
-            )
+            .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
+            .contentShape(RoundedRectangle(cornerRadius: IglooRadii.Xl, style: .continuous))
+            .iglooPanel(radius: IglooRadii.Xl)
         }
         .accessibilityIdentifier(accessibilityId)
-        .buttonStyle(.plain)
+        .buttonStyle(IglooPressButtonStyle())
     }
 }
 
@@ -211,18 +340,20 @@ struct EmptyProfilesView: View {
             Text("No profiles stored yet")
                 .font(IglooTypography.BodyFont)
                 .foregroundStyle(IglooColors.Slate400)
+                .multilineTextAlignment(.center)
 
             Text("Choose an entry path above to get started")
                 .font(IglooTypography.SmallFont)
                 .foregroundStyle(IglooColors.Slate500)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(IglooSpacing.Lg)
-        .background(IglooColors.Slate900StrongTranslucent.opacity(0.5))
-        .cornerRadius(IglooRadii.Md)
-        .overlay(
-            RoundedRectangle(cornerRadius: IglooRadii.Md)
-                .stroke(IglooColors.Slate400MutedBorder, lineWidth: 1)
+        .iglooPanel(
+            radius: IglooRadii.Lg,
+            fill: IglooColors.Slate900StrongTranslucent.opacity(0.48),
+            stroke: IglooColors.Slate400MutedBorder,
+            shadowOpacity: 0.08
         )
         .accessibilityIdentifier("empty_profiles_state")
         .padding(.horizontal, IglooSpacing.Lg)
@@ -246,41 +377,42 @@ struct ProfileRowView: View {
                             .font(IglooTypography.H3Font)
                             .foregroundStyle(IglooColors.Slate200)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.85)
 
                         Text(profile.shortId)
                             .font(IglooTypography.ValueDataFont)
                             .foregroundStyle(IglooColors.Slate500)
+                            .lineLimit(1)
                     }
-
-                    Spacer()
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                     StatusBadge(status: profile.status)
 
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(IglooColors.Slate500)
+                    IglooChevron()
                 }
-                .padding(IglooSpacing.Md)
+                .padding(.leading, IglooSpacing.Md)
+                .padding(.vertical, IglooSpacing.Md)
+                .padding(.trailing, IglooSpacing.Sm)
+                .contentShape(Rectangle())
             }
             .accessibilityIdentifier("profile_row_\(profile.shortId)")
-            .buttonStyle(.plain)
+            .buttonStyle(IglooPressButtonStyle())
 
             // Delete button.
             Button(action: deleteAction) {
                 Image(systemName: "trash")
-                    .font(.system(size: 16))
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(IglooColors.Red400)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+                    .frame(width: 48, height: 48)
+                    .background(IglooColors.Red500DestructiveBg, in: RoundedRectangle(cornerRadius: IglooRadii.Md, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: IglooRadii.Md, style: .continuous))
             }
             .accessibilityIdentifier("profile_delete_\(profile.shortId)")
+            .buttonStyle(IglooPressButtonStyle())
+            .padding(.trailing, IglooSpacing.Sm)
         }
-        .background(IglooColors.Slate900StrongTranslucent)
-        .cornerRadius(IglooRadii.Md)
-        .overlay(
-            RoundedRectangle(cornerRadius: IglooRadii.Md)
-                .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
-        )
+        .iglooPanel(radius: IglooRadii.Lg)
+        .padding(.horizontal, IglooSpacing.Lg)
     }
 }
 
@@ -290,13 +422,22 @@ struct StatusBadge: View {
     let status: ProfileStatus
 
     var body: some View {
-        Text(statusText)
-            .font(IglooTypography.MonoLabelFont)
-            .foregroundStyle(statusColor)
-            .padding(.horizontal, IglooSpacing.Sm)
-            .padding(.vertical, IglooSpacing.Xs)
-            .background(statusBgColor)
-            .cornerRadius(IglooRadii.Full)
+        HStack(spacing: 6) {
+            Circle()
+                .fill(statusColor)
+                .frame(width: 7, height: 7)
+
+            Text(statusText)
+                .font(IglooTypography.MonoLabelFont)
+                .foregroundStyle(statusColor)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(statusBgColor, in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(statusColor.opacity(0.28), lineWidth: 1)
+        )
     }
 
     private var statusText: String {
@@ -342,18 +483,28 @@ struct ScreenHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: IglooSpacing.Sm) {
-            HStack {
+            HStack(spacing: IglooSpacing.Md) {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(IglooColors.Blue400)
-                        .frame(width: 32, height: 32)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(IglooColors.Slate400)
+                        .frame(width: 44, height: 44)
+                        .iglooPanel(
+                            radius: IglooRadii.Md,
+                            fill: IglooColors.Gray900,
+                            stroke: IglooColors.Blue900PanelBorder,
+                            shadowOpacity: 0.08
+                        )
+                        .contentShape(RoundedRectangle(cornerRadius: IglooRadii.Md, style: .continuous))
                 }
                 .accessibilityIdentifier("btn_back")
+                .buttonStyle(IglooPressButtonStyle())
 
                 Text(title)
                     .font(IglooTypography.H2Font)
                     .foregroundStyle(IglooColors.Slate200)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.82)
 
                 Spacer()
             }
@@ -362,10 +513,20 @@ struct ScreenHeader: View {
                 Text(subtitle)
                     .font(IglooTypography.BodyFont)
                     .foregroundStyle(IglooColors.Slate400)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.horizontal, IglooSpacing.Lg)
-        .padding(.top, IglooSpacing.Md)
+        .padding(.vertical, IglooSpacing.Md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(IglooColors.Slate900StrongTranslucent)
+        .overlay(
+            Rectangle()
+                .fill(IglooColors.Blue900PanelBorder)
+                .frame(height: 1),
+            alignment: .bottom
+        )
     }
 }
 
@@ -1120,12 +1281,14 @@ struct KeyDisplayRow: View {
             Text(label)
                 .font(IglooTypography.BodyFont)
                 .foregroundStyle(IglooColors.Slate400)
+                .lineLimit(1)
 
             HStack {
                 Text(value)
                     .font(IglooTypography.ValueDataFont)
                     .foregroundStyle(IglooColors.Slate200)
                     .lineLimit(2)
+                    .minimumScaleFactor(0.72)
                     .accessibilityIdentifier(accessibilityId)
 
                 Spacer()
@@ -1140,15 +1303,18 @@ struct KeyDisplayRow: View {
                     Image(systemName: copied ? "checkmark" : "doc.on.doc")
                         .font(.system(size: 14))
                         .foregroundStyle(copied ? IglooColors.Green600 : IglooColors.Blue400)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityIdentifier("\(accessibilityId)_copy")
+                .buttonStyle(IglooPressButtonStyle())
             }
             .padding(IglooSpacing.Sm)
-            .background(IglooColors.Slate900StrongTranslucent)
-            .cornerRadius(IglooRadii.Md)
-            .overlay(
-                RoundedRectangle(cornerRadius: IglooRadii.Md)
-                    .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+            .iglooPanel(
+                radius: IglooRadii.Md,
+                fill: IglooColors.Slate900StrongTranslucent,
+                stroke: IglooColors.Blue900PanelBorder,
+                shadowOpacity: 0.08
             )
         }
     }
@@ -2872,13 +3038,24 @@ struct DashboardHeader: View {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(IglooColors.Slate400)
+                    .frame(width: 44, height: 44)
+                    .iglooPanel(
+                        radius: IglooRadii.Md,
+                        fill: IglooColors.Gray900,
+                        stroke: IglooColors.Blue900PanelBorder,
+                        shadowOpacity: 0.08
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: IglooRadii.Md, style: .continuous))
             }
             .accessibilityIdentifier("btn_back_dashboard")
+            .buttonStyle(IglooPressButtonStyle())
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(IglooTypography.H3Font)
                     .foregroundStyle(IglooColors.Slate200)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
                     // Stable identifiers so posture-restart / VAL-CROSS-002
                     // validators can confirm post-onboard identity through
                     // the full hierarchy without scrolling (orchestrator
@@ -2889,6 +3066,8 @@ struct DashboardHeader: View {
                 Text(subtitle)
                     .font(IglooTypography.MonoLabelFont)
                     .foregroundStyle(IglooColors.Slate500)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
                     .accessibilityIdentifier("dashboard_header_subtitle")
                     .accessibilityLabel(subtitle)
             }
@@ -2898,6 +3077,12 @@ struct DashboardHeader: View {
         .padding(.horizontal, IglooSpacing.Lg)
         .padding(.vertical, IglooSpacing.Md)
         .background(IglooColors.Slate900StrongTranslucent)
+        .overlay(
+            Rectangle()
+                .fill(IglooColors.Blue900PanelBorder)
+                .frame(height: 1),
+            alignment: .bottom
+        )
     }
 }
 
@@ -2914,7 +3099,7 @@ struct DashboardTabBar: View {
     ]
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 4) {
             ForEach(tabs, id: \.0) { tabId, tabLabel in
                 Button {
                     UIApplication.shared.sendAction(
@@ -2925,29 +3110,39 @@ struct DashboardTabBar: View {
                     )
                     onSelectTab(tabId)
                 } label: {
-                    VStack(spacing: IglooSpacing.Xs) {
-                        Text(tabLabel)
-                            .font(IglooTypography.BodyFont)
-                            .foregroundStyle(activeTab == tabId ? IglooColors.Blue400 : IglooColors.Slate500)
-
-                        Rectangle()
-                            .fill(activeTab == tabId ? IglooColors.Blue400 : Color.clear)
-                            .frame(height: 2)
-                    }
+                    Text(tabLabel)
+                        .font(IglooTypography.BodyFont)
+                        .foregroundStyle(activeTab == tabId ? IglooColors.Slate200 : IglooColors.Slate500)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.86)
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .background(
+                            RoundedRectangle(cornerRadius: IglooRadii.Md, style: .continuous)
+                                .fill(activeTab == tabId ? IglooColors.Blue900.opacity(0.44) : Color.clear)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: IglooRadii.Md, style: .continuous)
+                                .stroke(activeTab == tabId ? IglooColors.Blue900FocusBorder.opacity(0.7) : Color.clear, lineWidth: 1)
+                        )
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, IglooSpacing.Sm)
+                    .contentShape(RoundedRectangle(cornerRadius: IglooRadii.Md, style: .continuous))
                 }
                 .accessibilityIdentifier("tab_\(tabId)")
-                .buttonStyle(.plain)
+                .buttonStyle(IglooPressButtonStyle())
             }
         }
-        .background(IglooColors.Slate900StrongTranslucent)
-        .overlay(
-            Rectangle()
-                .fill(IglooColors.Blue900PanelBorder)
-                .frame(height: 1),
-            alignment: .bottom
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: IglooRadii.Lg, style: .continuous)
+                .fill(IglooColors.Gray900)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: IglooRadii.Lg, style: .continuous)
+                .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+        )
+        .padding(.horizontal, IglooSpacing.Lg)
+        .padding(.vertical, IglooSpacing.Sm)
+        .background(IglooColors.Slate900StrongTranslucent)
     }
 }
 
@@ -3113,6 +3308,8 @@ struct SignerStatusCard: View {
                 Text(statusText)
                     .font(IglooTypography.H3Font)
                     .foregroundStyle(IglooColors.Slate200)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
                     .accessibilityIdentifier("signer_status_card")
                     .accessibilityLabel(statusText)
 
@@ -3122,6 +3319,8 @@ struct SignerStatusCard: View {
                     Text(readinessText)
                         .font(IglooTypography.BodyFont)
                         .foregroundStyle(IglooColors.Slate400)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
             }
 
@@ -3129,12 +3328,13 @@ struct SignerStatusCard: View {
                 HStack(spacing: IglooSpacing.Sm) {
                     Image(systemName: relayConnected ? "wifi" : "wifi.slash")
                         .foregroundStyle(relayConnected ? IglooColors.Green600 : IglooColors.Amber400)
-                    Text(relayConnected ? "Relay Connected" : "Relay Disconnected")
-                        .font(IglooTypography.SmallFont)
-                        .foregroundStyle(IglooColors.Slate400)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Text(relayConnected ? "Relay Connected" : "Relay Disconnected")
+                    .font(IglooTypography.SmallFont)
+                    .foregroundStyle(IglooColors.Slate400)
+                    .lineLimit(1)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
 
             Button {
                 if status == .stopped {
@@ -3146,11 +3346,19 @@ struct SignerStatusCard: View {
                 Text(status == .stopped ? "Start" : "Stop")
                     .font(IglooTypography.H3Font)
                     .foregroundStyle(IglooColors.Gray950)
-                    .frame(maxWidth: .infinity)
-                    .padding(IglooSpacing.Md)
-                    .background(status == .stopped ? IglooColors.Blue400 : IglooColors.Red600)
-                    .cornerRadius(IglooRadii.Md)
-                    .contentShape(RoundedRectangle(cornerRadius: IglooRadii.Md))
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .background(
+                        RoundedRectangle(cornerRadius: IglooRadii.Md, style: .continuous)
+                            .fill(status == .stopped ? IglooColors.Blue400 : IglooColors.Red600)
+                    )
+                    .shadow(
+                        color: (status == .stopped ? IglooColors.Blue400 : IglooColors.Red600).opacity(0.22),
+                        radius: 10,
+                        x: 0,
+                        y: 5
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: IglooRadii.Md, style: .continuous))
             }
             // mobile-signer-runtime-validation-followup: place
             // `.accessibilityIdentifier(...)` *before* `.buttonStyle(.plain)`
@@ -3164,15 +3372,10 @@ struct SignerStatusCard: View {
             // btn_stop_signer with the parent's identifier, leaving the
             // Button action handler un-fired even when `tapOn id:` matched.
             .accessibilityIdentifier(status == .stopped ? "btn_start_signer" : "btn_stop_signer")
-            .buttonStyle(.plain)
+            .buttonStyle(IglooPressButtonStyle())
         }
         .padding(IglooSpacing.Md)
-        .background(IglooColors.Slate900StrongTranslucent)
-        .cornerRadius(IglooRadii.Lg)
-        .overlay(
-            RoundedRectangle(cornerRadius: IglooRadii.Lg)
-                .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
-        )
+        .iglooPanel(radius: IglooRadii.Lg)
     }
 }
 
@@ -3189,6 +3392,7 @@ struct ProfileIdentityBlock: View {
             Text("Identity")
                 .font(IglooTypography.H3Font)
                 .foregroundStyle(IglooColors.Slate200)
+                .lineLimit(1)
 
             // Device name.
             KeyDisplayRow(
@@ -3214,12 +3418,7 @@ struct ProfileIdentityBlock: View {
             )
         }
         .padding(IglooSpacing.Md)
-        .background(IglooColors.Slate900StrongTranslucent)
-        .cornerRadius(IglooRadii.Lg)
-        .overlay(
-            RoundedRectangle(cornerRadius: IglooRadii.Lg)
-                .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
-        )
+        .iglooPanel(radius: IglooRadii.Lg)
     }
 }
 
@@ -3246,6 +3445,7 @@ struct CopyableKeyRow: View {
                     .font(IglooTypography.ValueDataFont)
                     .foregroundStyle(IglooColors.Slate200)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.72)
                     .accessibilityIdentifier(accessibilityId)
                     .accessibilityValue(value)
 
@@ -3255,16 +3455,19 @@ struct CopyableKeyRow: View {
                     Image(systemName: "doc.on.doc")
                         .font(.system(size: 14))
                         .foregroundStyle(IglooColors.Blue400)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityIdentifier("\(accessibilityId)_copy")
+                .buttonStyle(IglooPressButtonStyle())
             }
         }
         .padding(IglooSpacing.Sm)
-        .background(IglooColors.Gray900)
-        .cornerRadius(IglooRadii.Sm)
-        .overlay(
-            RoundedRectangle(cornerRadius: IglooRadii.Sm)
-                .stroke(IglooColors.Slate400MutedBorder, lineWidth: 1)
+        .iglooPanel(
+            radius: IglooRadii.Sm,
+            fill: IglooColors.Gray900,
+            stroke: IglooColors.Slate400MutedBorder,
+            shadowOpacity: 0
         )
     }
 }
@@ -3279,48 +3482,22 @@ struct SignerControlsRow: View {
     var body: some View {
         HStack(spacing: IglooSpacing.Md) {
             // Refresh peers button (VAL-SIGNER-010).
-            Button(action: onRefresh) {
-                HStack(spacing: IglooSpacing.Xs) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 14))
-                    Text("Refresh")
-                        .font(IglooTypography.BodyFont)
-                }
-                .foregroundStyle(running ? IglooColors.Blue400 : IglooColors.Slate500)
-                .padding(.horizontal, IglooSpacing.Md)
-                .padding(.vertical, IglooSpacing.Sm)
-                .background(IglooColors.Slate900StrongTranslucent)
-                .cornerRadius(IglooRadii.Md)
-                .overlay(
-                    RoundedRectangle(cornerRadius: IglooRadii.Md)
-                        .stroke(running ? IglooColors.Blue900PanelBorder : IglooColors.Slate400MutedBorder, lineWidth: 1)
-                )
-            }
-            .disabled(!running)
-            .accessibilityIdentifier("btn_refresh_peers")
+            IglooControlButton(
+                title: "Refresh",
+                systemName: "arrow.clockwise",
+                enabled: running,
+                accessibilityId: "btn_refresh_peers",
+                action: onRefresh
+            )
 
             // Test ping button (VAL-SIGNER-018).
-            Button(action: onPing) {
-                HStack(spacing: IglooSpacing.Xs) {
-                    Image(systemName: "antenna.radiowaves.left.and.right")
-                        .font(.system(size: 14))
-                    Text("Test Ping")
-                        .font(IglooTypography.BodyFont)
-                }
-                .foregroundStyle(running ? IglooColors.Blue400 : IglooColors.Slate500)
-                .padding(.horizontal, IglooSpacing.Md)
-                .padding(.vertical, IglooSpacing.Sm)
-                .background(IglooColors.Slate900StrongTranslucent)
-                .cornerRadius(IglooRadii.Md)
-                .overlay(
-                    RoundedRectangle(cornerRadius: IglooRadii.Md)
-                        .stroke(running ? IglooColors.Blue900PanelBorder : IglooColors.Slate400MutedBorder, lineWidth: 1)
-                )
-            }
-            .disabled(!running)
-            .accessibilityIdentifier("btn_test_ping")
-
-            Spacer()
+            IglooControlButton(
+                title: "Test Ping",
+                systemName: "antenna.radiowaves.left.and.right",
+                enabled: running,
+                accessibilityId: "btn_test_ping",
+                action: onPing
+            )
         }
     }
 }
@@ -4388,18 +4565,26 @@ struct SettingsView: View {
                                         .font(IglooTypography.ValueDataFont)
                                         .foregroundStyle(IglooColors.Slate200)
                                         .lineLimit(1)
+                                        .minimumScaleFactor(0.72)
                                     Spacer()
                                     Button {
                                         manager.removeRelay(relay)
                                     } label: {
                                         Image(systemName: "xmark.circle.fill")
                                             .foregroundStyle(IglooColors.Slate500)
+                                            .frame(width: 44, height: 44)
+                                            .contentShape(Rectangle())
                                     }
                                     .accessibilityIdentifier("btn_remove_relay_\(relay.hashValue)")
+                                    .buttonStyle(IglooPressButtonStyle())
                                 }
                                 .padding(IglooSpacing.Sm)
-                                .background(IglooColors.Slate900StrongTranslucent)
-                                .cornerRadius(IglooRadii.Sm)
+                                .iglooPanel(
+                                    radius: IglooRadii.Sm,
+                                    fill: IglooColors.Slate900StrongTranslucent,
+                                    stroke: IglooColors.Slate400MutedBorder,
+                                    shadowOpacity: 0
+                                )
                             }
 
                             // Add new relay
@@ -4411,11 +4596,12 @@ struct SettingsView: View {
                                     .autocorrectionDisabled()
                                     .keyboardType(.URL)
                                     .padding(IglooSpacing.Sm)
-                                    .background(IglooColors.Slate900StrongTranslucent)
-                                    .cornerRadius(IglooRadii.Md)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: IglooRadii.Md)
-                                            .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+                                    .frame(minHeight: 48)
+                                    .iglooPanel(
+                                        radius: IglooRadii.Md,
+                                        fill: IglooColors.Slate900StrongTranslucent,
+                                        stroke: IglooColors.Blue900PanelBorder,
+                                        shadowOpacity: 0.08
                                     )
                                     .accessibilityIdentifier("input_add_relay")
 
@@ -4426,10 +4612,18 @@ struct SettingsView: View {
                                     }
                                 } label: {
                                     Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 24))
+                                        .font(.system(size: 22, weight: .semibold))
                                         .foregroundStyle(IglooColors.Blue400)
+                                        .frame(width: 48, height: 48)
+                                        .iglooPanel(
+                                            radius: IglooRadii.Md,
+                                            fill: IglooColors.Blue900.opacity(0.22),
+                                            stroke: IglooColors.Blue900FocusBorder.opacity(0.7),
+                                            shadowOpacity: 0.1
+                                        )
                                 }
                                 .accessibilityIdentifier("btn_add_relay")
+                                .buttonStyle(IglooPressButtonStyle())
                             }
                         }
                     }
@@ -4438,81 +4632,38 @@ struct SettingsView: View {
                     SettingsSection(title: "Maintenance") {
                         VStack(spacing: IglooSpacing.Md) {
                             // Copy profile (VAL-SET-006, VAL-SET-007)
-                            Button {
-                                manager.requestCopyProfile()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "doc.on.clipboard")
-                                    Text("Copy Profile")
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                }
-                                .font(IglooTypography.BodyFont)
-                                .foregroundStyle(IglooColors.Slate200)
-                                .padding(IglooSpacing.Md)
-                                .frame(maxWidth: .infinity)
-                                .background(IglooColors.Slate900StrongTranslucent)
-                                .cornerRadius(IglooRadii.Md)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: IglooRadii.Md)
-                                        .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
-                                )
-                            }
-                            .accessibilityIdentifier("btn_copy_profile")
+                            IglooActionRow(
+                                title: "Copy Profile",
+                                systemName: "doc.on.clipboard",
+                                accessibilityId: "btn_copy_profile",
+                                action: { manager.requestCopyProfile() }
+                            )
 
                             // Copy share (VAL-SET-008)
-                            Button {
-                                manager.requestCopyShare()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "square.on.square")
-                                    Text("Copy Share")
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                }
-                                .font(IglooTypography.BodyFont)
-                                .foregroundStyle(IglooColors.Slate200)
-                                .padding(IglooSpacing.Md)
-                                .frame(maxWidth: .infinity)
-                                .background(IglooColors.Slate900StrongTranslucent)
-                                .cornerRadius(IglooRadii.Md)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: IglooRadii.Md)
-                                        .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
-                                )
-                            }
-                            .accessibilityIdentifier("btn_copy_share")
+                            IglooActionRow(
+                                title: "Copy Share",
+                                systemName: "square.on.square",
+                                accessibilityId: "btn_copy_share",
+                                action: { manager.requestCopyShare() }
+                            )
 
                             // Rotate share (VAL-ROTATE-005)
-                            Button {
-                                if let info = manager.state.dashboard.profileInfo {
-                                    manager.openRotateShareConnect(
-                                        profileId: info.profileId,
-                                        shortId: String(info.profileId.prefix(8)),
-                                        deviceLabel: info.deviceName
-                                    )
-                                } else {
-                                    manager.navigateToRotateShare()
+                            IglooActionRow(
+                                title: "Rotate Share",
+                                systemName: "arrow.triangle.2.circlepath",
+                                accessibilityId: "btn_rotate_share",
+                                action: {
+                                    if let info = manager.state.dashboard.profileInfo {
+                                        manager.openRotateShareConnect(
+                                            profileId: info.profileId,
+                                            shortId: String(info.profileId.prefix(8)),
+                                            deviceLabel: info.deviceName
+                                        )
+                                    } else {
+                                        manager.navigateToRotateShare()
+                                    }
                                 }
-                            } label: {
-                                HStack {
-                                    Image(systemName: "arrow.triangle.2.circlepath")
-                                    Text("Rotate Share")
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                }
-                                .font(IglooTypography.BodyFont)
-                                .foregroundStyle(IglooColors.Slate200)
-                                .padding(IglooSpacing.Md)
-                                .frame(maxWidth: .infinity)
-                                .background(IglooColors.Slate900StrongTranslucent)
-                                .cornerRadius(IglooRadii.Md)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: IglooRadii.Md)
-                                        .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
-                                )
-                            }
-                            .accessibilityIdentifier("btn_rotate_share")
+                            )
                         }
                     }
 
@@ -4531,11 +4682,13 @@ struct SettingsView: View {
                         }
                         .font(IglooTypography.BodyFont)
                         .foregroundStyle(saveBlocked ? IglooColors.Slate500 : IglooColors.Gray950)
-                        .padding(IglooSpacing.Md)
-                        .frame(maxWidth: .infinity)
-                        .background(saveBlocked ? IglooColors.Slate500.opacity(0.3) : IglooColors.Blue600)
-                        .cornerRadius(IglooRadii.Md)
-                        .contentShape(Rectangle())
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .background(
+                            RoundedRectangle(cornerRadius: IglooRadii.Md, style: .continuous)
+                                .fill(saveBlocked ? IglooColors.Slate500.opacity(0.3) : IglooColors.Blue600)
+                        )
+                        .shadow(color: saveBlocked ? Color.clear : IglooColors.Blue600.opacity(0.22), radius: 12, x: 0, y: 6)
+                        .contentShape(RoundedRectangle(cornerRadius: IglooRadii.Md, style: .continuous))
                         .onTapGesture {
                             saveCurrentSettings()
                         }
@@ -4548,25 +4701,17 @@ struct SettingsView: View {
                     }
 
                     // Logout (VAL-SET-010/011/012)
-                    Button {
-                        manager.logout()
-                    } label: {
-                        HStack {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
-                            Text("Logout")
-                        }
-                        .font(IglooTypography.BodyFont)
-                        .foregroundStyle(IglooColors.Red400)
-                        .padding(IglooSpacing.Md)
-                        .frame(maxWidth: .infinity)
-                        .background(IglooColors.Red500DestructiveBg)
-                        .cornerRadius(IglooRadii.Md)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: IglooRadii.Md)
-                                .stroke(IglooColors.Red500DestructiveBorder, lineWidth: 1)
-                        )
-                    }
-                    .accessibilityIdentifier("btn_logout")
+                    IglooActionRow(
+                        title: "Logout",
+                        systemName: "rectangle.portrait.and.arrow.right",
+                        accessibilityId: "btn_logout",
+                        action: { manager.logout() },
+                        tint: IglooColors.Red400,
+                        titleColor: IglooColors.Red400,
+                        fill: IglooColors.Red500DestructiveBg,
+                        stroke: IglooColors.Red500DestructiveBorder,
+                        showsChevron: false
+                    )
 
                     Spacer(minLength: IglooSpacing.Xl)
                 }
@@ -4641,6 +4786,7 @@ struct SettingsSection<Content: View>: View {
             Text(title)
                 .font(IglooTypography.H3Font)
                 .foregroundStyle(IglooColors.Slate200)
+                .lineLimit(1)
 
             content
         }
@@ -4661,16 +4807,18 @@ struct SettingsTextField: View {
             Text(label)
                 .font(IglooTypography.SmallFont)
                 .foregroundStyle(IglooColors.Slate400)
+                .lineLimit(1)
 
             TextField(placeholder, text: $text)
                 .font(IglooTypography.BodyFont)
                 .foregroundStyle(IglooColors.Slate200)
                 .padding(IglooSpacing.Sm)
-                .background(IglooColors.Slate900StrongTranslucent)
-                .cornerRadius(IglooRadii.Md)
-                .overlay(
-                    RoundedRectangle(cornerRadius: IglooRadii.Md)
-                        .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+                .frame(minHeight: 48)
+                .iglooPanel(
+                    radius: IglooRadii.Md,
+                    fill: IglooColors.Slate900StrongTranslucent,
+                    stroke: IglooColors.Blue900PanelBorder,
+                    shadowOpacity: 0.08
                 )
                 .accessibilityIdentifier(identifier)
                 .onChange(of: text) { _, newValue in
@@ -4694,17 +4842,19 @@ struct SettingsNumberField: View {
             Text(label)
                 .font(IglooTypography.SmallFont)
                 .foregroundStyle(IglooColors.Slate400)
+                .lineLimit(1)
 
             TextField(placeholder, text: $value)
                 .font(IglooTypography.ValueDataFont)
                 .foregroundStyle(IglooColors.Slate200)
                 .keyboardType(.numberPad)
                 .padding(IglooSpacing.Sm)
-                .background(IglooColors.Slate900StrongTranslucent)
-                .cornerRadius(IglooRadii.Md)
-                .overlay(
-                    RoundedRectangle(cornerRadius: IglooRadii.Md)
-                        .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+                .frame(minHeight: 48)
+                .iglooPanel(
+                    radius: IglooRadii.Md,
+                    fill: IglooColors.Slate900StrongTranslucent,
+                    stroke: IglooColors.Blue900PanelBorder,
+                    shadowOpacity: 0.08
                 )
                 .accessibilityIdentifier(identifier)
                 .onChange(of: value) { _, newValue in

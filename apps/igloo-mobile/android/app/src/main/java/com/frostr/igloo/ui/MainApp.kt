@@ -1,10 +1,15 @@
 package com.frostr.igloo.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,10 +62,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import android.content.ClipboardManager
@@ -76,8 +85,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.drawscope.Stroke
 import com.frostr.igloo.AppManager
 import com.frostr.igloo.RelayDefaults
 import com.frostr.igloo.qrBitmap
@@ -110,6 +121,288 @@ import com.frostr.igloo.ui.theme.IglooColors
 import com.frostr.igloo.ui.theme.IglooRadii
 import com.frostr.igloo.ui.theme.IglooSpacing
 import com.frostr.igloo.ui.theme.IglooTypography
+
+// MARK: - Igloo Native Primitives
+
+private fun Modifier.iglooPanelSurface(
+    radius: Float = IglooRadii.lg,
+    fill: Color = IglooColors.Slate900StrongTranslucent,
+    stroke: Color = IglooColors.Blue900PanelBorder
+): Modifier {
+    val shape = RoundedCornerShape(radius.dp)
+    return this
+        .clip(shape)
+        .background(fill, shape)
+        .border(1.dp, stroke, shape)
+}
+
+@Composable
+private fun Modifier.iglooPressScale(interactionSource: MutableInteractionSource): Modifier {
+    val pressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (pressed) 0.96f else 1f,
+        animationSpec = tween(durationMillis = 120),
+        label = "iglooPressScale"
+    )
+    return this.scale(pressScale)
+}
+
+@Composable
+fun IglooIconTile(
+    icon: String,
+    tint: Color = IglooColors.Blue400,
+    fill: Color = IglooColors.Blue900.copy(alpha = 0.26f),
+    stroke: Color = IglooColors.Blue900FocusBorder.copy(alpha = 0.7f)
+) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .iglooPanelSurface(
+                radius = 10f,
+                fill = fill,
+                stroke = stroke
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        IglooSymbol(icon = icon, tint = tint, modifier = Modifier.size(25.dp))
+    }
+}
+
+@Composable
+fun IglooSymbol(
+    icon: String,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = Stroke(
+            width = (minOf(w, h) * 0.085f).coerceAtLeast(2f),
+            cap = StrokeCap.Round,
+            join = StrokeJoin.Round
+        )
+
+        when (icon) {
+            "[K]" -> {
+                drawCircle(
+                    color = tint,
+                    radius = w * 0.16f,
+                    center = Offset(w * 0.34f, h * 0.42f),
+                    style = stroke
+                )
+                drawLine(tint, Offset(w * 0.50f, h * 0.42f), Offset(w * 0.84f, h * 0.42f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.70f, h * 0.42f), Offset(w * 0.70f, h * 0.60f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.82f, h * 0.42f), Offset(w * 0.82f, h * 0.55f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+            }
+            "[L]", "[I]" -> {
+                drawLine(tint, Offset(w * 0.50f, h * 0.14f), Offset(w * 0.50f, h * 0.66f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.30f, h * 0.48f), Offset(w * 0.50f, h * 0.68f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.70f, h * 0.48f), Offset(w * 0.50f, h * 0.68f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.22f, h * 0.84f), Offset(w * 0.78f, h * 0.84f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+            }
+            "[+]" -> {
+                drawLine(tint, Offset(w * 0.50f, h * 0.20f), Offset(w * 0.50f, h * 0.80f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.20f, h * 0.50f), Offset(w * 0.80f, h * 0.50f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+            }
+            "[R]" -> {
+                drawArc(
+                    color = tint,
+                    startAngle = -35f,
+                    sweepAngle = 250f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.18f, h * 0.18f),
+                    size = androidx.compose.ui.geometry.Size(w * 0.64f, h * 0.64f),
+                    style = stroke
+                )
+                drawLine(tint, Offset(w * 0.73f, h * 0.24f), Offset(w * 0.82f, h * 0.18f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.73f, h * 0.24f), Offset(w * 0.75f, h * 0.36f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+            }
+            "chevron" -> {
+                drawLine(tint, Offset(w * 0.36f, h * 0.22f), Offset(w * 0.66f, h * 0.50f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.66f, h * 0.50f), Offset(w * 0.36f, h * 0.78f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+            }
+            "chevron.left" -> {
+                drawLine(tint, Offset(w * 0.64f, h * 0.22f), Offset(w * 0.34f, h * 0.50f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.34f, h * 0.50f), Offset(w * 0.64f, h * 0.78f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+            }
+            "doc", "[P]", "[S]" -> {
+                drawLine(tint, Offset(w * 0.30f, h * 0.16f), Offset(w * 0.64f, h * 0.16f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.64f, h * 0.16f), Offset(w * 0.78f, h * 0.30f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.78f, h * 0.30f), Offset(w * 0.78f, h * 0.84f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.78f, h * 0.84f), Offset(w * 0.30f, h * 0.84f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.30f, h * 0.84f), Offset(w * 0.30f, h * 0.16f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.42f, h * 0.46f), Offset(w * 0.66f, h * 0.46f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.42f, h * 0.62f), Offset(w * 0.62f, h * 0.62f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+            }
+            "signal" -> {
+                drawArc(
+                    color = tint,
+                    startAngle = 210f,
+                    sweepAngle = 120f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.12f, h * 0.16f),
+                    size = androidx.compose.ui.geometry.Size(w * 0.76f, h * 0.76f),
+                    style = stroke
+                )
+                drawArc(
+                    color = tint,
+                    startAngle = 220f,
+                    sweepAngle = 100f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.28f, h * 0.34f),
+                    size = androidx.compose.ui.geometry.Size(w * 0.44f, h * 0.44f),
+                    style = stroke
+                )
+                drawCircle(tint, radius = w * 0.06f, center = Offset(w * 0.50f, h * 0.78f))
+            }
+            "[V]", "check" -> {
+                drawLine(tint, Offset(w * 0.22f, h * 0.52f), Offset(w * 0.42f, h * 0.72f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.42f, h * 0.72f), Offset(w * 0.80f, h * 0.28f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+            }
+            "[X]", "logout" -> {
+                drawLine(tint, Offset(w * 0.18f, h * 0.22f), Offset(w * 0.52f, h * 0.22f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.18f, h * 0.22f), Offset(w * 0.18f, h * 0.78f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.18f, h * 0.78f), Offset(w * 0.52f, h * 0.78f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.46f, h * 0.50f), Offset(w * 0.84f, h * 0.50f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.70f, h * 0.34f), Offset(w * 0.84f, h * 0.50f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.70f, h * 0.66f), Offset(w * 0.84f, h * 0.50f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+            }
+            "trash" -> {
+                drawLine(tint, Offset(w * 0.28f, h * 0.30f), Offset(w * 0.72f, h * 0.30f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.40f, h * 0.20f), Offset(w * 0.60f, h * 0.20f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.34f, h * 0.38f), Offset(w * 0.40f, h * 0.82f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.66f, h * 0.38f), Offset(w * 0.60f, h * 0.82f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+                drawLine(tint, Offset(w * 0.40f, h * 0.82f), Offset(w * 0.60f, h * 0.82f), strokeWidth = stroke.width, cap = StrokeCap.Round)
+            }
+            else -> {
+                drawCircle(
+                    color = tint,
+                    radius = w * 0.28f,
+                    center = Offset(w * 0.50f, h * 0.50f),
+                    style = stroke
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun IglooControlButton(
+    title: String,
+    icon: String,
+    enabled: Boolean,
+    accessibilityId: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .iglooPressScale(interactionSource)
+            .iglooPanelSurface(
+                radius = IglooRadii.md,
+                fill = if (enabled) IglooColors.Slate900StrongTranslucent else IglooColors.Gray900.copy(alpha = 0.72f),
+                stroke = if (enabled) IglooColors.Blue900PanelBorder else IglooColors.Slate400MutedBorder
+            )
+            .semantics {
+                testTagsAsResourceId = true
+                testTag = accessibilityId
+                contentDescription = title
+                role = Role.Button
+                if (enabled) {
+                    onClick(label = title) {
+                        onClick()
+                        true
+                    }
+                }
+            }
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.Button,
+                onClick = onClick
+            )
+            .padding(horizontal = IglooSpacing.md.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(IglooSpacing.xs.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IglooSymbol(icon = icon, tint = if (enabled) IglooColors.Blue400 else IglooColors.Slate500, modifier = Modifier.size(18.dp))
+            Text(
+                text = title,
+                style = IglooTypography.body,
+                color = if (enabled) IglooColors.Blue400 else IglooColors.Slate500,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun IglooActionRow(
+    title: String,
+    icon: String,
+    accessibilityId: String,
+    onClick: () -> Unit,
+    tint: Color = IglooColors.Blue400,
+    fill: Color = IglooColors.Slate900StrongTranslucent,
+    stroke: Color = IglooColors.Blue900PanelBorder,
+    showsChevron: Boolean = true
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 68.dp)
+            .iglooPressScale(interactionSource)
+            .iglooPanelSurface(radius = IglooRadii.lg, fill = fill, stroke = stroke)
+            .semantics {
+                testTagsAsResourceId = true
+                testTag = accessibilityId
+                contentDescription = title
+                role = Role.Button
+                onClick(label = title) {
+                    onClick()
+                    true
+                }
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.Button,
+                onClick = onClick
+            )
+            .padding(IglooSpacing.md.dp),
+        horizontalArrangement = Arrangement.spacedBy(IglooSpacing.md.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IglooIconTile(
+            icon = icon,
+            tint = tint,
+            fill = tint.copy(alpha = 0.16f),
+            stroke = tint.copy(alpha = 0.34f)
+        )
+        Text(
+            text = title,
+            style = IglooTypography.body,
+            color = if (tint == IglooColors.Red400) IglooColors.Red400 else IglooColors.Slate200,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        if (showsChevron) {
+            IglooSymbol(icon = "chevron", tint = IglooColors.Slate500, modifier = Modifier.size(20.dp))
+        }
+    }
+}
 
 // MARK: - Root Composable
 
@@ -299,8 +592,11 @@ fun EmptyProfilesState() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(IglooColors.Slate900StrongTranslucent.copy(alpha = 0.5f))
-            .border(1.dp, IglooColors.Slate400MutedBorder, RoundedCornerShape(IglooRadii.md.dp))
+            .iglooPanelSurface(
+                radius = IglooRadii.lg,
+                fill = IglooColors.Slate900StrongTranslucent.copy(alpha = 0.48f),
+                stroke = IglooColors.Slate400MutedBorder
+            )
             .padding(IglooSpacing.lg.dp)
             .semantics { testTag = "empty_profiles_state" },
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -321,6 +617,7 @@ fun EmptyProfilesState() {
 
 // MARK: - Entry Tile
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun EntryTile(
     title: String,
@@ -329,48 +626,59 @@ fun EntryTile(
     onClick: () -> Unit,
     accessibilityId: String
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .background(IglooColors.Slate900StrongTranslucent)
-            .border(1.dp, IglooColors.Blue900PanelBorder, RoundedCornerShape(IglooRadii.lg.dp))
-            .padding(IglooSpacing.md.dp)
-            .semantics { testTag = accessibilityId },
+            .heightIn(min = 92.dp)
+            .iglooPressScale(interactionSource)
+            .iglooPanelSurface(radius = IglooRadii.xl)
+            .semantics {
+                testTagsAsResourceId = true
+                testTag = accessibilityId
+                contentDescription = title
+                role = Role.Button
+                onClick(label = title) {
+                    onClick()
+                    true
+                }
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.Button,
+                onClick = onClick
+            )
+            .padding(IglooSpacing.md.dp),
         horizontalArrangement = Arrangement.spacedBy(IglooSpacing.md.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icon
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(IglooRadii.sm.dp))
-                .background(IglooColors.Blue900.copy(alpha = 0.3f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = icon, color = IglooColors.Blue400)
-        }
+        IglooIconTile(icon = icon)
 
         Column(
+            modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(IglooSpacing.xs.dp)
         ) {
             Text(
                 text = title,
                 style = IglooTypography.h3,
-                color = IglooColors.Slate200
+                color = IglooColors.Slate200,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = subtitle,
                 style = IglooTypography.body,
-                color = IglooColors.Slate400
+                color = IglooColors.Slate400,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
         }
 
-        Spacer(modifier = Modifier.weight(1f))
-
-        Text(
-            text = ">",
-            color = IglooColors.Slate500
+        IglooSymbol(
+            icon = "chevron",
+            tint = IglooColors.Slate500,
+            modifier = Modifier.size(width = 24.dp, height = 44.dp)
         )
     }
 }
@@ -380,12 +688,23 @@ fun EntryTile(
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ProfileRowView(profile: StoredProfile, onClick: () -> Unit, onDelete: () -> Unit) {
+    val rowInteractionSource = remember { MutableInteractionSource() }
+    val deleteInteractionSource = remember { MutableInteractionSource() }
+    val deleteProfileLabel = "Delete profile ${profile.shortId}"
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(IglooColors.Slate900StrongTranslucent)
-            .border(1.dp, IglooColors.Blue900PanelBorder, RoundedCornerShape(IglooRadii.md.dp))
-            .semantics { testTag = "profile_row_${profile.shortId}" },
+            .iglooPanelSurface(radius = IglooRadii.lg)
+            .semantics {
+                testTagsAsResourceId = true
+                testTag = "profile_row_${profile.shortId}"
+                contentDescription = profile.label
+                role = Role.Button
+                onClick(label = "Open profile") {
+                    onClick()
+                    true
+                }
+            },
         horizontalArrangement = Arrangement.spacedBy(0.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -393,33 +712,43 @@ fun ProfileRowView(profile: StoredProfile, onClick: () -> Unit, onDelete: () -> 
         Row(
             modifier = Modifier
                 .weight(1f)
-                .clickable(onClick = onClick)
-                .padding(IglooSpacing.md.dp),
+                .iglooPressScale(rowInteractionSource)
+                .clickable(
+                    interactionSource = rowInteractionSource,
+                    indication = null,
+                    role = Role.Button,
+                    onClick = onClick
+                )
+                .padding(start = IglooSpacing.md.dp, top = IglooSpacing.md.dp, bottom = IglooSpacing.md.dp, end = IglooSpacing.sm.dp),
             horizontalArrangement = Arrangement.spacedBy(IglooSpacing.md.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(IglooSpacing.xs.dp)
             ) {
                 Text(
                     text = profile.label,
                     style = IglooTypography.h3,
-                    color = IglooColors.Slate200
+                    color = IglooColors.Slate200,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = profile.shortId,
                     style = IglooTypography.monoLabel,
-                    color = IglooColors.Slate500
+                    color = IglooColors.Slate500,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
             StatusBadge(status = profile.status)
 
-            Text(
-                text = ">",
-                color = IglooColors.Slate500
+            IglooSymbol(
+                icon = "chevron",
+                tint = IglooColors.Slate500,
+                modifier = Modifier.size(width = 20.dp, height = 40.dp)
             )
         }
 
@@ -427,16 +756,34 @@ fun ProfileRowView(profile: StoredProfile, onClick: () -> Unit, onDelete: () -> 
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .clickable(onClick = onDelete)
+                .iglooPressScale(deleteInteractionSource)
+                .iglooPanelSurface(
+                    radius = IglooRadii.md,
+                    fill = IglooColors.Red500DestructiveBg,
+                    stroke = Color.Transparent
+                )
                 .semantics {
+                    testTagsAsResourceId = true
                     testTag = "profile_delete_${profile.shortId}"
-                    contentDescription = "Delete profile"
-                },
+                    contentDescription = deleteProfileLabel
+                    role = Role.Button
+                    onClick(label = deleteProfileLabel) {
+                        onDelete()
+                        true
+                    }
+                }
+                .clickable(
+                    interactionSource = deleteInteractionSource,
+                    indication = null,
+                    role = Role.Button,
+                    onClick = onDelete
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "🗑",
-                color = IglooColors.Red400
+            IglooSymbol(
+                icon = "trash",
+                tint = IglooColors.Red400,
+                modifier = Modifier.size(22.dp)
             )
         }
     }
@@ -468,15 +815,25 @@ fun StatusBadge(status: ProfileStatus) {
         }
     }
 
-    Text(
-        text = text,
-        style = IglooTypography.monoLabel,
-        color = color,
+    Row(
         modifier = Modifier
             .background(bgColor, RoundedCornerShape(IglooRadii.full.dp))
-            .padding(horizontal = IglooSpacing.sm.dp)
-            .padding(vertical = IglooSpacing.xs.dp)
-    )
+            .border(1.dp, color.copy(alpha = 0.28f), RoundedCornerShape(IglooRadii.full.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(7.dp)
+                .background(color, CircleShape)
+        )
+        Text(
+            text = text,
+            style = IglooTypography.monoLabel,
+            color = color
+        )
+    }
 }
 
 // MARK: - Screen Header
@@ -488,11 +845,13 @@ fun ScreenHeader(
     subtitle: String? = null,
     onBack: () -> Unit
 ) {
+    val backInteractionSource = remember { MutableInteractionSource() }
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .background(IglooColors.Slate900StrongTranslucent)
             .statusBarsPadding()
-            .padding(start = IglooSpacing.lg.dp, top = IglooSpacing.md.dp, end = IglooSpacing.lg.dp, bottom = 0.dp),
+            .padding(horizontal = IglooSpacing.lg.dp, vertical = IglooSpacing.md.dp),
         verticalArrangement = Arrangement.spacedBy(IglooSpacing.sm.dp)
     ) {
         Row(
@@ -504,9 +863,9 @@ fun ScreenHeader(
             // Semantics before clickable per library/mobile-platform-gotchas.md.
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(IglooRadii.sm.dp))
-                    .background(IglooColors.Slate900StrongTranslucent)
+                    .size(44.dp)
+                    .iglooPressScale(backInteractionSource)
+                    .iglooPanelSurface(radius = IglooRadii.md, fill = IglooColors.Gray900)
                     .semantics {
                         testTagsAsResourceId = true
                         testTag = "btn_back"
@@ -517,16 +876,28 @@ fun ScreenHeader(
                             true
                         }
                     }
-                    .clickable(role = Role.Button, onClick = onBack),
+                    .clickable(
+                        interactionSource = backInteractionSource,
+                        indication = null,
+                        role = Role.Button,
+                        onClick = onBack
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "<", style = IglooTypography.h3, color = IglooColors.Blue400)
+                IglooSymbol(
+                    icon = "chevron.left",
+                    tint = IglooColors.Slate400,
+                    modifier = Modifier.size(20.dp)
+                )
             }
 
             Text(
                 text = title,
                 style = IglooTypography.h2,
-                color = IglooColors.Slate200
+                color = IglooColors.Slate200,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
         }
 
@@ -534,10 +905,18 @@ fun ScreenHeader(
             Text(
                 text = subtitle,
                 style = IglooTypography.body,
-                color = IglooColors.Slate400
+                color = IglooColors.Slate400,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(IglooColors.Blue900PanelBorder)
+    )
 }
 
 // MARK: - Onboard Flow Screens
@@ -1186,25 +1565,28 @@ private fun CopyableKeyRow(
     label: String,
     value: String,
     accessibilityId: String,
-    onCopy: (() -> Unit)? = null
+    onCopy: (() -> Unit)? = null,
+    horizontalPadding: Boolean = true
 ) {
     val context = LocalContext.current
+    val copyInteractionSource = remember { MutableInteractionSource() }
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = IglooSpacing.lg.dp),
+            .then(if (horizontalPadding) Modifier.padding(horizontal = IglooSpacing.lg.dp) else Modifier),
         verticalArrangement = Arrangement.spacedBy(IglooSpacing.xs.dp)
     ) {
         Text(
             text = label,
             style = IglooTypography.label,
-            color = IglooColors.Slate400
+            color = IglooColors.Slate400,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(IglooColors.Slate900StrongTranslucent, RoundedCornerShape(IglooRadii.md.dp))
-                .border(1.dp, IglooColors.Blue900PanelBorder, RoundedCornerShape(IglooRadii.md.dp))
+                .iglooPanelSurface(radius = IglooRadii.md)
                 .padding(IglooSpacing.sm.dp)
                 .semantics {
                     testTagsAsResourceId = true
@@ -1217,13 +1599,20 @@ private fun CopyableKeyRow(
                 text = value,
                 style = IglooTypography.valueData,
                 color = IglooColors.Slate200,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(44.dp)
+                    .iglooPressScale(copyInteractionSource)
                     .clip(RoundedCornerShape(IglooRadii.sm.dp))
-                    .clickable {
+                    .clickable(
+                        interactionSource = copyInteractionSource,
+                        indication = null,
+                        role = Role.Button
+                    ) {
                         if (onCopy != null) {
                             onCopy()
                         } else {
@@ -1236,10 +1625,12 @@ private fun CopyableKeyRow(
                     .semantics {
                         testTagsAsResourceId = true
                         testTag = "${accessibilityId}_copy"
+                        contentDescription = "Copy $label"
+                        role = Role.Button
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "📋", color = IglooColors.Blue400)
+                IglooSymbol(icon = "doc", tint = IglooColors.Blue400, modifier = Modifier.size(20.dp))
             }
         }
     }
@@ -3154,62 +3545,96 @@ fun DashboardHeader(
     subtitle: String,
     onBack: () -> Unit
 ) {
-    Row(
+    val backInteractionSource = remember { MutableInteractionSource() }
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(IglooColors.Slate900StrongTranslucent)
-            .padding(horizontal = IglooSpacing.lg.dp, vertical = IglooSpacing.md.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .statusBarsPadding()
     ) {
-        TextButton(
-            onClick = onBack,
-            modifier = Modifier.semantics {
-                testTagsAsResourceId = true
-                testTag = "btn_back_dashboard"
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = IglooSpacing.lg.dp, vertical = IglooSpacing.md.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .iglooPressScale(backInteractionSource)
+                    .iglooPanelSurface(radius = IglooRadii.md, fill = IglooColors.Gray900)
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "btn_back_dashboard"
+                        contentDescription = "Back"
+                        role = Role.Button
+                        onClick(label = "Back") {
+                            onBack()
+                            true
+                        }
+                    }
+                    .clickable(
+                        interactionSource = backInteractionSource,
+                        indication = null,
+                        role = Role.Button,
+                        onClick = onBack
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                IglooSymbol(
+                    icon = "chevron.left",
+                    tint = IglooColors.Slate400,
+                    modifier = Modifier.size(20.dp)
+                )
             }
-        ) {
-            Text(
-                text = "←",
-                style = IglooTypography.h3,
-                color = IglooColors.Slate400
-            )
-        }
 
-        Column(
-            modifier = Modifier.padding(start = IglooSpacing.md.dp)
-        ) {
-            // Stable identifiers — paired with iOS
-            // `dashboard_header_title` / `dashboard_header_subtitle` —
-            // let the post-restart / VAL-CROSS-002 validator confirm
-            // post-onboard identity through the full uiautomator
-            // hierarchy without scrolling the device name (orchestrator
-            // note after onboarding-and-runtime user-testing round 1).
-            Text(
-                text = title,
-                style = IglooTypography.h3,
-                color = IglooColors.Slate200,
-                modifier = Modifier.semantics {
-                    testTagsAsResourceId = true
-                    testTag = "dashboard_header_title"
-                    this.contentDescription = title
-                }
-            )
-            Text(
-                text = subtitle,
-                style = IglooTypography.monoLabel,
-                color = IglooColors.Slate500,
-                modifier = Modifier.semantics {
-                    testTagsAsResourceId = true
-                    testTag = "dashboard_header_subtitle"
-                    this.contentDescription = subtitle
-                }
-            )
+            Column(
+                modifier = Modifier
+                    .padding(start = IglooSpacing.md.dp)
+                    .weight(1f)
+            ) {
+                // Stable identifiers — paired with iOS
+                // `dashboard_header_title` / `dashboard_header_subtitle` —
+                // let the post-restart / VAL-CROSS-002 validator confirm
+                // post-onboard identity through the full uiautomator
+                // hierarchy without scrolling the device name (orchestrator
+                // note after onboarding-and-runtime user-testing round 1).
+                Text(
+                    text = title,
+                    style = IglooTypography.h3,
+                    color = IglooColors.Slate200,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics {
+                        testTagsAsResourceId = true
+                        testTag = "dashboard_header_title"
+                        this.contentDescription = title
+                    }
+                )
+                Text(
+                    text = subtitle,
+                    style = IglooTypography.monoLabel,
+                    color = IglooColors.Slate500,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics {
+                        testTagsAsResourceId = true
+                        testTag = "dashboard_header_subtitle"
+                        this.contentDescription = subtitle
+                    }
+                )
+            }
         }
-
-        Spacer(modifier = Modifier.weight(1f))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(IglooColors.Blue900PanelBorder)
+        )
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun DashboardTabBar(
     activeTab: String,
@@ -3217,42 +3642,64 @@ fun DashboardTabBar(
 ) {
     val tabs = listOf("signer" to "Signer", "permissions" to "Permissions", "settings" to "Settings")
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(IglooColors.Slate900StrongTranslucent)
     ) {
-        tabs.forEach { (tabId, tabLabel) ->
-            val isActive = activeTab == tabId
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onSelectTab(tabId) }
-                    .padding(vertical = IglooSpacing.sm.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = tabLabel,
-                    style = IglooTypography.body,
-                    color = if (isActive) IglooColors.Blue400 else IglooColors.Slate500
-                )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = IglooSpacing.lg.dp, vertical = IglooSpacing.sm.dp)
+                .iglooPanelSurface(radius = IglooRadii.lg, fill = IglooColors.Gray900)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            tabs.forEach { (tabId, tabLabel) ->
+                val isActive = activeTab == tabId
+                val tabInteractionSource = remember(tabId) { MutableInteractionSource() }
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp)
-                        .background(if (isActive) IglooColors.Blue400 else Color.Transparent)
-                )
+                        .weight(1f)
+                        .heightIn(min = 40.dp)
+                        .iglooPressScale(tabInteractionSource)
+                        .clip(RoundedCornerShape(IglooRadii.md.dp))
+                        .background(if (isActive) IglooColors.Blue900.copy(alpha = 0.44f) else Color.Transparent)
+                        .border(
+                            1.dp,
+                            if (isActive) IglooColors.Blue900FocusBorder.copy(alpha = 0.7f) else Color.Transparent,
+                            RoundedCornerShape(IglooRadii.md.dp)
+                        )
+                        .semantics {
+                            testTagsAsResourceId = true
+                            testTag = "tab_$tabId"
+                            contentDescription = tabLabel
+                            role = Role.Button
+                            onClick(label = tabLabel) {
+                                onSelectTab(tabId)
+                                true
+                            }
+                        }
+                        .clickable(
+                            interactionSource = tabInteractionSource,
+                            indication = null,
+                            role = Role.Button,
+                            onClick = { onSelectTab(tabId) }
+                        )
+                        .padding(horizontal = IglooSpacing.xs.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = tabLabel,
+                        style = IglooTypography.body,
+                        color = if (isActive) IglooColors.Slate200 else IglooColors.Slate500,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
-
-    // Bottom border.
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(1.dp)
-            .background(IglooColors.Blue900PanelBorder)
-    )
 }
 
 // MARK: - Signer Tab
@@ -3382,12 +3829,12 @@ fun SignerStatusCard(
         com.frostr.igloo.rust.SignerReadiness.DEGRADED -> "Degraded"
         else -> ""
     }
+    val signInteractionSource = remember { MutableInteractionSource() }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(IglooColors.Slate900StrongTranslucent)
-            .border(1.dp, IglooColors.Blue900PanelBorder, RoundedCornerShape(IglooRadii.lg.dp))
+            .iglooPanelSurface(radius = IglooRadii.lg)
             .padding(IglooSpacing.md.dp),
         verticalArrangement = Arrangement.spacedBy(IglooSpacing.md.dp)
     ) {
@@ -3404,14 +3851,24 @@ fun SignerStatusCard(
                 text = statusText,
                 style = IglooTypography.h3,
                 color = IglooColors.Slate200,
-                modifier = Modifier.padding(start = IglooSpacing.sm.dp)
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .padding(start = IglooSpacing.sm.dp)
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "signer_status_card"
+                        contentDescription = statusText
+                    }
+                    .weight(1f)
             )
-            Spacer(modifier = Modifier.weight(1f))
             if (status == com.frostr.igloo.rust.SignerStatus.RUNNING) {
                 Text(
                     text = readinessText,
                     style = IglooTypography.body,
-                    color = IglooColors.Slate400
+                    color = IglooColors.Slate400,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -3424,7 +3881,9 @@ fun SignerStatusCard(
                 Text(
                     text = if (relayConnected) "Relay Connected" else "Relay Disconnected",
                     style = IglooTypography.small,
-                    color = IglooColors.Slate400
+                    color = IglooColors.Slate400,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -3456,6 +3915,7 @@ fun SignerStatusCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
+                .iglooPressScale(signInteractionSource)
                 .clip(RoundedCornerShape(IglooRadii.md.dp))
                 .background(signBg)
                 .semantics {
@@ -3468,13 +3928,20 @@ fun SignerStatusCard(
                         true
                     }
                 }
-                .clickable(role = Role.Button, onClick = signAction),
+                .clickable(
+                    interactionSource = signInteractionSource,
+                    indication = null,
+                    role = Role.Button,
+                    onClick = signAction
+                ),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = signLabel,
                 style = IglooTypography.h3,
-                color = IglooColors.Gray950
+                color = IglooColors.Gray950,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -3490,15 +3957,16 @@ fun ProfileIdentityBlock(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(IglooColors.Slate900StrongTranslucent)
-            .border(1.dp, IglooColors.Blue900PanelBorder, RoundedCornerShape(IglooRadii.lg.dp))
+            .iglooPanelSurface(radius = IglooRadii.lg)
             .padding(IglooSpacing.md.dp),
         verticalArrangement = Arrangement.spacedBy(IglooSpacing.md.dp)
     ) {
         Text(
             text = "Identity",
             style = IglooTypography.h3,
-            color = IglooColors.Slate200
+            color = IglooColors.Slate200,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
 
         // Device name.
@@ -3509,7 +3977,8 @@ fun ProfileIdentityBlock(
             label = "Share Pubkey",
             value = sharePubkey,
             accessibilityId = "identity_share_pubkey",
-            onCopy = { onCopy(sharePubkey, "Share Pubkey") }
+            onCopy = { onCopy(sharePubkey, "Share Pubkey") },
+            horizontalPadding = false
         )
 
         // Group pubkey with copy.
@@ -3517,7 +3986,8 @@ fun ProfileIdentityBlock(
             label = "Group Pubkey",
             value = groupPubkey,
             accessibilityId = "identity_group_pubkey",
-            onCopy = { onCopy(groupPubkey, "Group Pubkey") }
+            onCopy = { onCopy(groupPubkey, "Group Pubkey") },
+            horizontalPadding = false
         )
     }
 }
@@ -3532,39 +4002,23 @@ fun SignerControlsRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(IglooSpacing.md.dp)
     ) {
-        OutlinedButton(
+        IglooControlButton(
+            title = "Refresh",
+            icon = "[R]",
+            enabled = running,
+            accessibilityId = "btn_refresh_peers",
             onClick = onRefresh,
-            enabled = running,
-            modifier = Modifier.weight(1f),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = if (running) IglooColors.Blue400 else IglooColors.Slate500
-            ),
-            border = ButtonDefaults.outlinedButtonBorder.copy(
-                brush = Brush.linearGradient(
-                    listOf(IglooColors.Blue900PanelBorder, IglooColors.Slate400MutedBorder)
-                )
-            ),
-            shape = RoundedCornerShape(IglooRadii.md.dp)
-        ) {
-            Text(text = "↻ Refresh", style = IglooTypography.body)
-        }
+            modifier = Modifier.weight(1f)
+        )
 
-        OutlinedButton(
-            onClick = onPing,
+        IglooControlButton(
+            title = "Test Ping",
+            icon = "signal",
             enabled = running,
-            modifier = Modifier.weight(1f),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = if (running) IglooColors.Blue400 else IglooColors.Slate500
-            ),
-            border = ButtonDefaults.outlinedButtonBorder.copy(
-                brush = Brush.linearGradient(
-                    listOf(IglooColors.Blue900PanelBorder, IglooColors.Slate400MutedBorder)
-                )
-            ),
-            shape = RoundedCornerShape(IglooRadii.md.dp)
-        ) {
-            Text(text = "◎ Test Ping", style = IglooTypography.body)
-        }
+            accessibilityId = "btn_test_ping",
+            onClick = onPing,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -4154,6 +4608,7 @@ fun PendingOpsSection(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun KeyDisplayRow(
     label: String,
@@ -4165,20 +4620,31 @@ fun KeyDisplayRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(IglooColors.Gray900, RoundedCornerShape(IglooRadii.sm.dp))
-            .border(1.dp, IglooColors.Slate400MutedBorder, RoundedCornerShape(IglooRadii.sm.dp))
+            .iglooPanelSurface(
+                radius = IglooRadii.sm,
+                fill = IglooColors.Gray900,
+                stroke = IglooColors.Slate400MutedBorder
+            )
             .padding(IglooSpacing.sm.dp)
     ) {
         Text(
             text = label,
             style = IglooTypography.small,
-            color = IglooColors.Slate400
+            color = IglooColors.Slate400,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
         Text(
             text = displayValue,
             style = IglooTypography.valueData,
             color = IglooColors.Slate200,
-            maxLines = 1
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.semantics {
+                testTagsAsResourceId = true
+                testTag = accessibilityId
+                contentDescription = value
+            }
         )
     }
 }
@@ -4785,10 +5251,15 @@ fun SettingsTab(manager: AppManager) {
                 Column {
                     // Existing relays
                     relays.forEach { relay ->
+                        val removeRelayLabel = "Remove relay $relay"
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(IglooColors.Slate900StrongTranslucent, RoundedCornerShape(IglooRadii.sm.dp))
+                                .iglooPanelSurface(
+                                    radius = IglooRadii.sm,
+                                    fill = IglooColors.Slate900StrongTranslucent,
+                                    stroke = IglooColors.Slate400MutedBorder
+                                )
                                 .padding(IglooSpacing.sm.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -4796,12 +5267,26 @@ fun SettingsTab(manager: AppManager) {
                                 text = relay,
                                 style = IglooTypography.valueData,
                                 color = IglooColors.Slate200,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
                             )
-                            IconButton(onClick = { manager.removeRelay(relay) }) {
+                            IconButton(
+                                onClick = { manager.removeRelay(relay) },
+                                modifier = Modifier.semantics {
+                                    testTagsAsResourceId = true
+                                    testTag = "btn_remove_relay_${relay.hashCode()}"
+                                    contentDescription = removeRelayLabel
+                                    role = Role.Button
+                                    onClick(label = removeRelayLabel) {
+                                        manager.removeRelay(relay)
+                                        true
+                                    }
+                                }
+                            ) {
                                 Icon(
                                     imageVector = androidx.compose.material.icons.Icons.Default.Close,
-                                    contentDescription = "Remove relay",
+                                    contentDescription = removeRelayLabel,
                                     tint = IglooColors.Slate500
                                 )
                             }
@@ -4821,7 +5306,11 @@ fun SettingsTab(manager: AppManager) {
                             textStyle = IglooTypography.body.copy(color = IglooColors.Slate200),
                             modifier = Modifier
                                 .weight(1f)
-                                .semantics { testTag = "input_add_relay" },
+                                .heightIn(min = 48.dp)
+                                .semantics {
+                                    testTagsAsResourceId = true
+                                    testTag = "input_add_relay"
+                                },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = IglooColors.Blue900PanelBorder,
                                 unfocusedBorderColor = IglooColors.Blue900PanelBorder,
@@ -4837,7 +5326,19 @@ fun SettingsTab(manager: AppManager) {
                                     manager.addRelay(newRelayUrl)
                                     newRelayUrl = ""
                                 }
-                            }
+                            },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .iglooPanelSurface(
+                                    radius = IglooRadii.md,
+                                    fill = IglooColors.Blue900.copy(alpha = 0.22f),
+                                    stroke = IglooColors.Blue900FocusBorder.copy(alpha = 0.7f)
+                                )
+                                .semantics {
+                                    testTagsAsResourceId = true
+                                    testTag = "btn_add_relay"
+                                    contentDescription = "Add relay"
+                                }
                         ) {
                             Icon(
                                 imageVector = androidx.compose.material.icons.Icons.Default.Add,
@@ -4864,9 +5365,9 @@ fun SettingsTab(manager: AppManager) {
             SettingsSection(title = "Maintenance") {
                 Column {
                     // Copy profile (VAL-SET-006, VAL-SET-007)
-                    MaintenanceRow(
-                        glyph = "[P]",
-                        label = "Copy Profile",
+                    IglooActionRow(
+                        icon = "[P]",
+                        title = "Copy Profile",
                         accessibilityId = "btn_copy_profile",
                         onClick = { manager.requestCopyProfile() }
                     )
@@ -4874,9 +5375,9 @@ fun SettingsTab(manager: AppManager) {
                     Spacer(modifier = Modifier.height(IglooSpacing.md.dp))
 
                     // Copy share (VAL-SET-008)
-                    MaintenanceRow(
-                        glyph = "[S]",
-                        label = "Copy Share",
+                    IglooActionRow(
+                        icon = "[S]",
+                        title = "Copy Share",
                         accessibilityId = "btn_copy_share",
                         onClick = { manager.requestCopyShare() }
                     )
@@ -4885,9 +5386,9 @@ fun SettingsTab(manager: AppManager) {
 
                     // Rotate share (VAL-ROTATE-005)
                     val rotateProfile = manager.state.dashboard.profileInfo
-                    MaintenanceRow(
-                        glyph = "[R]",
-                        label = "Rotate Share",
+                    IglooActionRow(
+                        icon = "[R]",
+                        title = "Rotate Share",
                         accessibilityId = "btn_rotate_share",
                         onClick = {
                             if (rotateProfile != null) {
@@ -4929,6 +5430,7 @@ fun SettingsTab(manager: AppManager) {
                     enabled = !saveBlocked,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 52.dp)
                         .semantics {
                             testTagsAsResourceId = true
                             testTag = "btn_save_settings"
@@ -4936,17 +5438,19 @@ fun SettingsTab(manager: AppManager) {
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (saveBlocked) IglooColors.Slate500 else IglooColors.Blue600,
                         contentColor = IglooColors.Gray950
-                    )
+                    ),
+                    shape = RoundedCornerShape(IglooRadii.md.dp)
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(IglooSpacing.sm.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconChip(
-                            glyph = "[V]",
-                            contentDescription = "Save Settings"
+                        IglooSymbol(icon = "check", tint = IglooColors.Gray950, modifier = Modifier.size(18.dp))
+                        Text(
+                            text = "Save Settings",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        Text("Save Settings")
                     }
                 }
             }
@@ -4954,29 +5458,16 @@ fun SettingsTab(manager: AppManager) {
             Spacer(modifier = Modifier.height(IglooSpacing.lg.dp))
 
             // Logout (VAL-SET-010/011/012)
-            OutlinedButton(
+            IglooActionRow(
+                title = "Logout",
+                icon = "logout",
+                accessibilityId = "btn_logout",
                 onClick = { manager.logout() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics { testTag = "btn_logout" },
-                border = BorderStroke(1.dp, IglooColors.Red500DestructiveBorder),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = IglooColors.Red500DestructiveBg,
-                    contentColor = IglooColors.Red400
-                )
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(IglooSpacing.sm.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconChip(
-                        glyph = "[X]",
-                        contentDescription = "Logout",
-                        tint = IglooColors.Red400
-                    )
-                    Text("Logout")
-                }
-            }
+                tint = IglooColors.Red400,
+                fill = IglooColors.Red500DestructiveBg,
+                stroke = IglooColors.Red500DestructiveBorder,
+                showsChevron = false
+            )
 
             Spacer(modifier = Modifier.height(IglooSpacing.xl.dp))
         }
@@ -5028,6 +5519,8 @@ fun SettingsSection(title: String, content: @Composable () -> Unit) {
             text = title,
             style = IglooTypography.h3,
             color = IglooColors.Slate200,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(bottom = IglooSpacing.sm.dp)
         )
         content()
@@ -5132,6 +5625,8 @@ fun SettingsTextField(
             text = label,
             style = IglooTypography.small,
             color = IglooColors.Slate400,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(bottom = IglooSpacing.xs.dp)
         )
         OutlinedTextField(
@@ -5170,6 +5665,8 @@ fun SettingsNumberField(
             text = label,
             style = IglooTypography.small,
             color = IglooColors.Slate400,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(bottom = IglooSpacing.xs.dp)
         )
         OutlinedTextField(
@@ -5208,6 +5705,8 @@ fun SettingsPickerField(
             text = label,
             style = IglooTypography.small,
             color = IglooColors.Slate400,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(bottom = IglooSpacing.xs.dp)
         )
         Row(
@@ -5230,7 +5729,12 @@ fun SettingsPickerField(
                     ),
                     border = BorderStroke(1.dp, if (isSelected) IglooColors.Blue600 else IglooColors.Blue900PanelBorder)
                 ) {
-                    Text(label, style = IglooTypography.small)
+                    Text(
+                        text = label,
+                        style = IglooTypography.small,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
