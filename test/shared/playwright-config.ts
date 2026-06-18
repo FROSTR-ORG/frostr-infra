@@ -26,6 +26,10 @@ export function defineFrostrPlaywrightConfig(config: PlaywrightTestConfig) {
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 1 : 0,
     workers: 1,
+    // Reap any registered helper processes (local relays, native signer relay)
+    // that outlived their spec after a mid-test crash. A client config may
+    // override this; today none do.
+    globalTeardown: path.join(TEST_ROOT_DIR, 'shared', 'global-teardown.ts'),
     ...config,
     expect: {
       timeout: 10_000,

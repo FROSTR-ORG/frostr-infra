@@ -1,12 +1,11 @@
 import net from 'node:net';
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn } from 'node:child_process';
 
 import { ensureBifrostDevtoolsBinary } from './bifrost-devtools-binaries';
 import { BIFROST_RS_DIR } from './repo-paths';
-
-function randomRelayPort() {
-  return 24_000 + Math.floor(Math.random() * 20_000);
-}
+import { allocatePort } from './port-allocation';
+import { closeChild } from './process-lifecycle';
+import { registerProcess, unregisterProcess } from './process-registry';
 
 async function waitForRelayPort(host: string, port: number, timeoutMs: number) {
   const deadline = Date.now() + timeoutMs;
@@ -33,13 +32,15 @@ export type LocalRelayHandle = {
   close: () => Promise<void>;
 };
 
-export async function startLocalRelay(port = randomRelayPort()): Promise<LocalRelayHandle> {
+export async function startLocalRelay(port?: number): Promise<LocalRelayHandle> {
+  const resolvedPort = port ?? (await allocatePort());
   const relayBinary = ensureBifrostDevtoolsBinary();
-  const child = spawn(relayBinary, ['relay', '--host', '127.0.0.1', '--port', String(port)], {
+  const child = spawn(relayBinary, ['relay', '--host', '127.0.0.1', '--port', String(resolvedPort)], {
     cwd: BIFROST_RS_DIR,
     env: process.env,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  registerProcess(child.pid);
 
   const output: string[] = [];
   const remember = (prefix: string) => (chunk: Buffer) => {
@@ -52,36 +53,20 @@ export async function startLocalRelay(port = randomRelayPort()): Promise<LocalRe
   child.stderr?.on('data', remember('stderr: '));
 
   try {
-    await waitForRelayPort('127.0.0.1', port, 10_000);
+    await waitForRelayPort('127.0.0.1', resolvedPort, 10_000);
   } catch (error) {
     child.kill('SIGKILL');
+    unregisterProcess(child.pid);
     throw new Error(
-      `Failed to start local relay on ${port}: ${error instanceof Error ? error.message : String(error)} | ${output.join(' | ')}`
+      `Failed to start local relay on ${resolvedPort}: ${error instanceof Error ? error.message : String(error)} | ${output.join(' | ')}`
     );
   }
 
   return {
-    url: `ws://127.0.0.1:${port}`,
+    url: `ws://127.0.0.1:${resolvedPort}`,
     async close() {
-      await new Promise<void>((resolve) => {
-        const processRef = child as ChildProcess;
-        if (processRef.exitCode !== null) {
-          resolve();
-          return;
-        }
-        const timeout = setTimeout(() => {
-          processRef.kill('SIGKILL');
-        }, 1_000);
-        processRef.once('exit', () => {
-          clearTimeout(timeout);
-          resolve();
-        });
-        processRef.once('close', () => {
-          clearTimeout(timeout);
-          resolve();
-        });
-        processRef.kill('SIGTERM');
-      });
+      await closeChild(child);
+      unregisterProcess(child.pid);
     },
   };
 }

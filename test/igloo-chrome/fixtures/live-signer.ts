@@ -10,6 +10,9 @@ import { SimplePool, nip44, type Event, type Filter } from 'nostr-tools';
 
 import { logE2E, withLoggedStep } from '../../shared/observability';
 import { ensureBifrostDevtoolsBinary } from '../../shared/bifrost-devtools-binaries';
+import { allocatePort } from '../../shared/port-allocation';
+import { closeChild } from '../../shared/process-lifecycle';
+import { registerProcess, unregisterProcess } from '../../shared/process-registry';
 import { LIVE_SIGNER_PASSWORD, RPC_PROFILE_PASSWORD } from '../../shared/test-secrets';
 import { loadBridgeWasmModule } from '../../shared/bridge-wasm';
 import { IGLOO_SHELL_DIR } from '../../shared/repo-paths';
@@ -244,6 +247,7 @@ class ManagedRelayProcess {
     });
 
     this.child = child;
+    registerProcess(child.pid);
 
     try {
       await waitForRelayPort('127.0.0.1', this.port, 5_000);
@@ -258,20 +262,8 @@ class ManagedRelayProcess {
     if (!child) return;
 
     this.child = null;
-    child.kill('SIGTERM');
-    await new Promise<void>((resolve) => {
-      const timeout = setTimeout(() => {
-        child.kill('SIGKILL');
-      }, 1_000);
-      child.once('exit', () => {
-        clearTimeout(timeout);
-        resolve();
-      });
-      child.once('close', () => {
-        clearTimeout(timeout);
-        resolve();
-      });
-    });
+    await closeChild(child);
+    unregisterProcess(child.pid);
   }
 }
 
@@ -554,10 +546,6 @@ async function requestOnboardNonceCount(relayUrl: string, demoDir: string): Prom
   }
 }
 
-function randomPort() {
-  return 18_000 + Math.floor(Math.random() * 10_000);
-}
-
 class SharedLiveSignerController implements LiveSignerController {
   private readonly port: number;
   private readonly relay: ManagedRelayProcess;
@@ -578,7 +566,7 @@ class SharedLiveSignerController implements LiveSignerController {
   }
 
   static async create(): Promise<SharedLiveSignerController> {
-    const controller = new SharedLiveSignerController(randomPort());
+    const controller = new SharedLiveSignerController(await allocatePort());
     await controller.initialize();
     return controller;
   }

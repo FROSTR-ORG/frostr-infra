@@ -6,13 +6,11 @@ import { lstat, mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 
 import { logE2E, withLoggedStep } from '../../../shared/observability';
 import { REPO_ROOT_DIR } from '../../../shared/repo-paths';
+import { allocatePort } from '../../../shared/port-allocation';
 import type { DemoHarnessFixture } from '../types';
 
 const DEMO_SCRIPT = path.join(REPO_ROOT_DIR, 'scripts', 'demo.sh');
 const DEMO_RELAY_HOST = process.env.DEV_RELAY_EXTERNAL_HOST ?? 'localhost';
-const DEMO_RELAY_PORT = Number(
-  process.env.IGLOO_DEMO_RELAY_PORT ?? String(43000 + (process.pid % 1000))
-);
 
 async function waitForHarnessArtifact(filePath: string, timeoutMs: number) {
   const deadline = Date.now() + timeoutMs;
@@ -252,7 +250,9 @@ export async function startDemoHarnessFixture(): Promise<DemoHarnessFixture> {
   const demoMember = process.env.IGLOO_SHELL_DEMO_MEMBER ?? 'alice';
   const inviteMembers = process.env.IGLOO_SHELL_DEMO_INVITE_MEMBERS ?? 'bob,carol';
   const containerArtifactDir = `/workspace/.tmp/test-harness/${projectName}`;
-  const relayPortNumber = DEMO_RELAY_PORT;
+  const relayPortNumber = process.env.IGLOO_DEMO_RELAY_PORT
+    ? Number(process.env.IGLOO_DEMO_RELAY_PORT)
+    : await allocatePort();
   const relayHost = DEMO_RELAY_HOST;
   const relayPort = String(relayPortNumber);
   const relayUrl = `ws://${relayHost}:${relayPort}`;

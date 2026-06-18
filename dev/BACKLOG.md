@@ -133,10 +133,18 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
   test-secrets imports, add a guard banning inline canonical-password literals (it
   depends on the swap), and unify the chrome/home seed builders under one
   `ProfileSeedInput` (PWA builder already type-enforced) — test/.
-- [ ] (effort: M) **P1 — Robust process teardown** — idempotent relay `close()`,
-  SIGKILL escalation, global orphan-reaper for `bifrost-devtools relay` — test/.
-- [ ] (effort: S) **P1 — Unify relay port allocation** to one OS-assigned source
-  (`listen(0)`) — test/. _(depends on teardown)_
+- [x] (effort: M) **DONE (2026-06-18) — P1 — Robust process teardown.** Added
+  `test/shared/process-lifecycle.ts` (`closeChild` — idempotent SIGTERM→SIGKILL
+  escalation, always resolves) wired into local-relay, the home app harness (was
+  SIGTERM + 5s with no kill), and the chrome managed relay. Added
+  `test/shared/process-registry.ts` + `global-teardown.ts` (a run-scoped PID
+  registry reaped by a Playwright `globalTeardown` — never a blanket `pkill`).
+  Verified: pwa + chrome smoke pass, no leaked relays — test/.
+- [x] (effort: S) **DONE (2026-06-18) — P1 — Unify relay port allocation.** Added
+  `test/shared/port-allocation.ts` (`allocatePort` via `listen(0)`); replaced the
+  three colliding strategies (local-relay 24k–44k random, chrome live-signer
+  18k–28k random, demo-harness `43000+pid`) and folded the home app/harness
+  duplicate `listen(0)` helpers onto it — test/.
 - [ ] (effort: L) **P1 — Unified visual-harness module + single artifact tree**
   (`test/shared/visual-harness.ts`, `.tmp/visual/<client>/`, Home on bundled
   Playwright, manifest+guard for all clients) (ADR Q3) — test/ + igloo-home.

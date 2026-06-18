@@ -1,11 +1,13 @@
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 
 import { IGLOO_HOME_DIR } from '../../shared/repo-paths';
+import { allocatePort } from '../../shared/port-allocation';
+import { closeChild } from '../../shared/process-lifecycle';
 
 type TestResponse<T = unknown> = {
   request_id: string;
@@ -21,28 +23,6 @@ export type IglooHomeHarness = {
   request: <T = unknown>(command: string, input?: unknown) => Promise<T>;
   close: () => Promise<void>;
 };
-
-function nextPort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      if (!address || typeof address === 'string') {
-        server.close(() => reject(new Error('failed to allocate igloo-home test server port')));
-        return;
-      }
-      const { port } = address;
-      server.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(port);
-      });
-    });
-  });
-}
 
 async function waitForServer(port: number, token: string, timeoutMs: number) {
   const deadline = Date.now() + timeoutMs;
@@ -134,7 +114,7 @@ export async function launchIglooHome(): Promise<IglooHomeHarness> {
     buildIglooHome();
   }
   const appDataDir = await mkdtemp(path.join(os.tmpdir(), 'igloo-home-test-'));
-  const port = await nextPort();
+  const port = await allocatePort();
   // PR21 requires IGLOO_HOME_TEST_TOKEN (64 hex chars) to start the loopback
   // test server, and every client connection must present it as the first
   // line before the request payload.
@@ -166,18 +146,8 @@ export async function launchIglooHome(): Promise<IglooHomeHarness> {
     token,
     request: <T>(command: string, input?: unknown) => requestServer<T>(port, token, command, input),
     close: async () => {
-      if (!child.killed) {
-        child.kill('SIGTERM');
-        await waitForExit(child);
-      }
+      await closeChild(child, { timeoutMs: 5_000 });
       await rm(appDataDir, { recursive: true, force: true });
     },
   };
-}
-
-function waitForExit(child: ChildProcess) {
-  return new Promise<void>(resolve => {
-    child.once('exit', () => resolve());
-    setTimeout(() => resolve(), 5_000);
-  });
 }

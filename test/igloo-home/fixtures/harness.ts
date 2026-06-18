@@ -1,11 +1,11 @@
 import path from 'node:path';
 import os from 'node:os';
-import net from 'node:net';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { access, lstat, mkdtemp, readFile, readlink, rm, stat } from 'node:fs/promises';
 
 import { REPO_ROOT_DIR } from '../../shared/repo-paths';
+import { allocatePort } from '../../shared/port-allocation';
 import { requestControl, waitForControlReady, type ControlResponse } from '../../shared/control-socket';
 
 type BobConfig = {
@@ -182,28 +182,6 @@ function execCompose(projectName: string, env: NodeJS.ProcessEnv, args: string[]
     cwd: REPO_ROOT_DIR,
     stdio: 'inherit',
     env,
-  });
-}
-
-async function allocatePort(): Promise<number> {
-  return await new Promise<number>((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      if (!address || typeof address === 'string') {
-        server.close(() => reject(new Error('failed to allocate relay port')));
-        return;
-      }
-      const { port } = address;
-      server.close(error => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(port);
-      });
-    });
   });
 }
 
