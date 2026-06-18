@@ -39,8 +39,10 @@ Task-oriented entry sequences. Read top to bottom for the goal you have.
     [`docs/WORKFLOWS.md`](./docs/WORKFLOWS.md), the parent design handoff manual
     in [`docs/DESIGN.md`](./docs/DESIGN.md), the coordinated parent release
     manual in [`docs/RELEASE.md`](./docs/RELEASE.md), the workspace gotchas
-    reference in [`docs/GOTCHAS.md`](./docs/GOTCHAS.md), and the workspace style
-    guide in [`docs/STYLES.md`](./docs/STYLES.md)
+    reference in [`docs/GOTCHAS.md`](./docs/GOTCHAS.md), the workspace style
+    guide in [`docs/STYLES.md`](./docs/STYLES.md), and the test-infrastructure
+    audit in [`docs/TEST-AUDIT.md`](./docs/TEST-AUDIT.md) (input to the target
+    test-architecture ADR)
 - [`adrs/`](./adrs)
   - architecture decision records
   - use [`adrs/INDEX.md`](./adrs/INDEX.md) as the entrypoint

@@ -14,6 +14,50 @@ Group by area. When an item is finished, move a one-line summary to
 > the codebase before picking one up. Trivial test-refactor micro-items from the
 > 2026-05 sessions were left in the `HISTORY.md` archive rather than carried here.
 
+## Test infrastructure remediation (audit 2026-06-17)
+
+Mirrored from [`docs/TEST-AUDIT.md`](./docs/TEST-AUDIT.md) (97 findings, full
+detail there). **Gated on the target-state ADR** — do not start these until the
+ADR locks in the design (the audit's open questions decide sequencing/shape).
+Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarity.
+
+- [ ] (effort: S) **P0 — Gate selector contracts in the global per-PR lane.** Hoist
+  `test:guards:selectors` into `test:verify`/`workspace-guards` so stale selectors
+  fail same-PR, not 24h later (the Paper restructure cascade) — test/ + CI.
+- [ ] (effort: M) **P0 — Tag and gate the silent suites.** Tag the 11 untagged
+  specs (filename `-live` ≠ contract); add Chrome:fast + Home:fast + per-client
+  `test:unit` to `client-scoped-validation.yml`. Largest correctness-risk cut —
+  test/ + CI.
+- [ ] (effort: M) **P0 — Decide & wire the `@live` / `@cross-client` CI story.**
+  Per-PR `@live` smoke + explicit nightly `@cross-client`, or document nightly-only;
+  stop the silent pairing-contract drift (ADR Q1/Q2) — test/ + CI.
+- [ ] (effort: M) **P0 — Enforce WASM provenance.** Prebuild `check` fails hard,
+  reject `.tmp/` fallback under a lane, startup hash assertion (fixtures vs app vs
+  dist same epoch). Root cause of the pwa-dist "Incorrect password" (ADR Q4) —
+  scripts/ + test/.
+- [ ] (effort: S) **P1 — Expand the WASM stamp** to cover toolchain + igloo-shared
+  build inputs — scripts/. _(depends on WASM provenance)_
+- [ ] (effort: M) **P1 — Type-enforce fixture seeds against the persist allowlist**
+  (`PersistableStoredProfile`) so TS rejects discarded seed fields (ADR Q7) — test/
+  + igloo-pwa.
+- [ ] (effort: M) **P1 — Consolidate seed builders + centralize the test password**
+  (one `ProfileSeedInput`, shared test-secrets) — test/. _(depends on the type work)_
+- [ ] (effort: M) **P1 — Robust process teardown** — idempotent relay `close()`,
+  SIGKILL escalation, global orphan-reaper for `bifrost-devtools relay` — test/.
+- [ ] (effort: S) **P1 — Unify relay port allocation** to one OS-assigned source
+  (`listen(0)`) — test/. _(depends on teardown)_
+- [ ] (effort: L) **P1 — Unified visual-harness module + single artifact tree**
+  (`test/shared/visual-harness.ts`, `.tmp/visual/<client>/`, Home on bundled
+  Playwright, manifest+guard for all clients) (ADR Q3) — test/ + igloo-home.
+- [ ] (effort: M) **P2 — Make `test-targets.json` the single source** for
+  affected/prebuild mapping — test/ + scripts/.
+- [ ] (effort: M) **P2 — Document lanes, env-var schema, services, fixture
+  ownership** (lane/coverage matrix, `TEST-ENV-VARS.md`, `services/README.md`,
+  `FIXTURES.md`) — docs.
+- [ ] (effort: S) **P2 — Rename lanes for honest semantics; wire-or-delete dead
+  guards** (`check-wasm-toolchain`, `check-worktree-unchanged` are never invoked)
+  (ADR Q9) — test/ + scripts/.
+
 ## Design (Paper ↔ runtime)
 
 - [ ] (effort: S) **Promote the `dashboard-signer` visual entry to `aligned`.** Its
