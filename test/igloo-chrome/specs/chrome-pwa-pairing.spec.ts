@@ -10,9 +10,8 @@ import { assertNoncePoolHydrated, type RuntimeSnapshotResult } from '../support/
 import { createGeneratedBrowserArtifacts, createPwaStoredProfileSeed } from '../../shared/browser-artifacts';
 import { startLocalRelay } from '../../shared/local-relay';
 import { IGLOO_PWA_DIR } from '../../shared/repo-paths';
-import { buildPwaPersistedState, PWA_STORAGE_KEY } from '../../igloo-pwa/support/state';
-import { expectPwaDashboard, seedPwaState } from '../../igloo-pwa/support/ui';
-import { loadSelectedChromeStoredProfile, selectChromeStoredProfile } from '../support/ui';
+import { buildPwaPersistedState } from '../../igloo-pwa/support/state';
+import { expectPwaDashboard, loadStoredPwaProfile, seedPwaState } from '../../igloo-pwa/support/ui';
 
 type StaticServer = {
   origin: string;
@@ -98,37 +97,6 @@ async function startPwaDistServer(): Promise<StaticServer> {
   };
 }
 
-async function readPwaRuntimeState(page: import('@playwright/test').Page) {
-  return await page.evaluate((storageKey) => {
-    const raw = window.localStorage.getItem(storageKey);
-    if (!raw) return null;
-    return JSON.parse(raw) as {
-      runtimeSnapshot?: {
-        active?: boolean;
-        readiness?: { sign_ready?: boolean };
-        runtime_status?: {
-          peers?: Array<{
-            pubkey: string;
-            can_sign: boolean;
-            incoming_available: number;
-            outgoing_available: number;
-          }>;
-        };
-      } | null;
-    };
-  }, PWA_STORAGE_KEY);
-}
-
-async function loadStoredPwaProfileAtOrigin(
-  page: import('@playwright/test').Page,
-  origin: string,
-  label: string,
-) {
-  await page.goto(origin);
-  await selectChromeStoredProfile(page, label);
-  await loadSelectedChromeStoredProfile(page);
-}
-
 test.describe('chrome <-> pwa browser pairing @cross-client', () => {
   test.setTimeout(120_000);
 
@@ -187,7 +155,7 @@ test.describe('chrome <-> pwa browser pairing @cross-client', () => {
           profiles: [pwaSeed],
         }),
       );
-      await loadStoredPwaProfileAtOrigin(pwaPage, pwaServer.origin, 'PWA Pairing Device');
+      await loadStoredPwaProfile(pwaPage, 'PWA Pairing Device', { url: pwaServer.origin });
       await expectPwaDashboard(pwaPage, 'PWA Pairing Device');
 
       await expect
@@ -214,39 +182,16 @@ test.describe('chrome <-> pwa browser pairing @cross-client', () => {
         })
         .toBe('hydrated');
 
-      await expect
-        .poll(async () => await readPwaRuntimeState(pwaPage), {
-          timeout: 20_000,
-          intervals: [250, 500, 1_000],
-        })
-        .toEqual(expect.objectContaining({
-          runtimeSnapshot: expect.objectContaining({
-            active: true,
-          }),
-        }));
-
-      let lastPwaState: Awaited<ReturnType<typeof readPwaRuntimeState>> = null;
-      await expect
-        .poll(async () => {
-          lastPwaState = await readPwaRuntimeState(pwaPage);
-          const runtime = lastPwaState?.runtimeSnapshot;
-          if (!runtime?.active || !runtime.readiness?.sign_ready) {
-            return 'waiting';
-          }
-          const peers = runtime.runtime_status?.peers ?? [];
-          return peers.length === 1 && peers.some((peer) => peer.can_sign) ? 'hydrated' : 'waiting';
-        }, {
-          timeout: 20_000,
-          intervals: [250, 500, 1_000],
-        })
-        .toBe('hydrated')
-        .catch(() => {
-          throw new Error(`PWA runtime never became sign-ready: ${JSON.stringify(lastPwaState, null, 2)}`);
-        });
+      // The pwa keeps no runtimeSnapshot in storage (in-memory only since the
+      // two-store split), so assert hydration via the dashboard DOM: a peer's
+      // SIGN capability chip ("SIGN capable" aria-label) appears once its nonce
+      // pool is sign-ready. OperatorSignerPanel is shared, so chrome + pwa expose
+      // the same chip — replaces the removed "sign-ready" status label.
+      await expect(pwaPage.getByLabel('SIGN capable').first()).toBeVisible({ timeout: 30_000 });
 
       const chromeOptions = await openExtensionPage('options.html');
-      await expect(chromeOptions.getByText('sign-ready').first()).toBeVisible();
-      await expect(pwaPage.getByText('sign-ready').first()).toBeVisible();
+      await expect(chromeOptions.getByLabel('SIGN capable').first()).toBeVisible();
+      await expect(pwaPage.getByLabel('SIGN capable').first()).toBeVisible();
 
       await chromeOptions.close();
     } finally {

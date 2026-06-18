@@ -515,7 +515,10 @@ if selected_has pwa; then
 fi
 
 if selected_has chrome; then
-  run_step "Build igloo-chrome extension" env IGLOO_CHROME_WASM_SOURCE_DIR="${BROWSER_WASM_PREBUILD_DIR}/igloo-chrome/public/wasm" npm --prefix "${ROOT_DIR}/repos/igloo-chrome" run build:app
+  # VITE_IGLOO_VISUAL=1 compiles in the dev-scenario render seam used by the
+  # `make screenshot CLIENT=chrome` @agent capture (inert without the URL param).
+  # The release build leaves it unset, so the shipped extension excludes the seam.
+  run_step "Build igloo-chrome extension" env IGLOO_CHROME_WASM_SOURCE_DIR="${BROWSER_WASM_PREBUILD_DIR}/igloo-chrome/public/wasm" VITE_IGLOO_VISUAL=1 npm --prefix "${ROOT_DIR}/repos/igloo-chrome" run build:app
 fi
 
 if selected_has home; then

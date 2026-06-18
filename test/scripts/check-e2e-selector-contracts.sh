@@ -48,12 +48,15 @@ for file in "${imported_contract_files[@]}"; do
 done
 
 # 2. Spec files must not use getByTestId directly — they drive the UI through the
-#    support/pages page objects (which own the test-id locators).
+#    support/pages page objects (which own the test-id locators). `@agent`
+#    render-and-verify tool specs (agent-screenshot.spec.ts) are exempt: they are
+#    headless capture tools, not gated tests, and waiting on a stable surface
+#    test-id is the right primitive for them.
 spec_roots=()
 for root in "${search_roots[@]}"; do
   spec_roots+=("${root}/specs")
 done
-if rg -n "getByTestId\\(" "${spec_roots[@]}" 2>/dev/null; then
+if rg -n "getByTestId\\(" "${spec_roots[@]}" -g '!**/agent-screenshot.spec.ts' 2>/dev/null; then
   echo "specs must not call getByTestId directly; route through support/pages page objects" >&2
   exit 1
 fi

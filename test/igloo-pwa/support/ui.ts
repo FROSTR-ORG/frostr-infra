@@ -115,8 +115,10 @@ export async function completeDistributionCard(card: Locator, password: string, 
   await markDistributionCardDistributed(card);
 }
 
-export async function loadStoredPwaProfile(page: Page, label: string) {
-  await page.goto('/');
+export async function loadStoredPwaProfile(page: Page, label: string, options?: { url?: string }) {
+  // Defaults to the Playwright baseURL ('/'); cross-client specs that serve the
+  // pwa dist on an ad-hoc origin pass that URL explicitly.
+  await page.goto(options?.url ?? '/');
   const profileRow = page
     .getByTestId(CRITICAL_E2E_TEST_IDS.welcomeProfileRow)
     .filter({ hasText: label })

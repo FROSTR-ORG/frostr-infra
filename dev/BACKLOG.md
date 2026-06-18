@@ -167,18 +167,24 @@ Group by area. When an item is finished, move a one-line summary to
   settings poll from the global store; added an opt-in `PwaSeedPayload.ifAbsent`
   so the reloading spec doesn't re-seed on reload. pwa `@fast` lane green (20
   passed). `eafdb4a`.
-- [ ] (effort: S) **`chrome-pwa-pairing.spec.ts` still seeds `PWA_STORAGE_KEY`
-  directly.** Same legacy-partition seed pattern as the (now-fixed) app-shell specs;
-  it's `@cross-client` (runs in no default lane), so it didn't show in the `@fast`
-  gate — retarget it to the two-store helper before that lane is ever run — test/.
-- [ ] (effort: S) **`chrome-pwa-pairing.spec.ts:248-249` `sign-ready` selectors are
-  stale post-restructure.** Both `chromeOptions`/`pwaPage` assert
-  `getByText('sign-ready')`, but the Paper restructure replaced the peer `sign-ready`
-  label with the `~N ready` nonce-pool pill (`.igloo-dashboard-count.is-ready`) + the
-  `SIGN capable` chip (see the now-fixed `@live` diagnostics test for the pattern).
-  The chrome `view.running` fix (2026-06-17) is the prerequisite that makes the chrome
-  dashboard render peers at all. Not edited here because `@cross-client` runs in no
-  default lane and needs a full two-client run to verify — retarget + run that lane.
+- [ ] (effort: M) **`chrome-pwa-pairing.spec.ts` — last blocker: pwa **dist**
+  decryption "Incorrect password".** 2026-06-17: modernized 3 of 4 stale layers and
+  the test now drives correctly up to the pwa unlock: (1) dropped the obsolete
+  `readPwaRuntimeState(localStorage)` runtime inspection — the pwa keeps no
+  `runtimeSnapshot` in storage since the two-store split — for DOM-based hydration
+  (`getByLabel('SIGN capable')`); (2) replaced the stale chrome-helper profile load
+  (`selectChromeStoredProfile`, expecting a removed "Stored Profiles" card) with the
+  current pwa welcome unlock via `loadStoredPwaProfile(page, label, { url })` (added a
+  `url` option to that helper); (3) `sign-ready` → `SIGN capable` chips. **Remaining:**
+  the unlock modal submits the correct `DEFAULT_BROWSER_PASSWORD` but the pwa **dist**
+  returns "Incorrect password", while the identical seed+unlock recipe passes in
+  `profile-inventory`/`pwa-home-pairing` against the **vite dev server**. So the
+  share decrypts under dev-server WASM but not the prebuilt **dist** WASM → a
+  dist-vs-test WASM skew ([[wasm-build-macos]]), not a test-selector issue. This test
+  is the only `loadStoredPwaProfile` user that serves the dist. Run it via
+  `FROSTR_TEST_PREPARED=1 npx --prefix test playwright test -c
+  test/igloo-chrome/playwright.config.ts -g "hydrates nonce pools"` after
+  `bash scripts/test-prebuild.sh sync pwa chrome`. `@cross-client`, no default lane.
 - [x] (effort: M) **DONE (2026-06-17) — RED GATE chrome `@fast` lane fixed.** Took
   fork **(a)** modernize selectors. The render tool (below) showed the cold seeded
   dashboard renders the stopped **Readiness / Next-Step** cards, not a `Pending
@@ -353,10 +359,21 @@ Group by area. When an item is finished, move a one-line summary to
   to chrome's view model for parity — igloo-chrome. (Keep the "Group Public Key" /
   "Share Public Key" label text — both KeyRow and KeyField render it, so the smoke
   specs stay green.)
-- [ ] (effort: S) **Render-and-verify: add `make screenshot CLIENT=home`.** igloo-home
-  already has the `currentVisualScenario` URL-param seam; wire a home `@agent` capture
-  spec + `test:screenshot:home` so the home dashboard gets the same headless loop the
-  pwa and chrome now have — test/.
+- [x] (effort: S) **DONE (2026-06-17) — `make screenshot CLIENT=home`.** Renders the
+  home desktop frontend headlessly to `.tmp/agent/home-<state>.{png,txt}` via a
+  Playwright `@agent` spec (`test/igloo-home/screenshot/agent-screenshot.spec.ts`) +
+  an isolated `playwright-screenshot.config.ts` (separate testDir so it never sweeps
+  the tauri-driver live suite; `npm run dev` webServer). Guarded `installTestBridge`
+  under a visual scenario in `igloo-home` `App.tsx` so the Tauri `invoke()` at mount
+  doesn't throw in a plain browser. Uses the existing `?__igloo_visual=` seam; the
+  shared default `dashboard-running` maps to home's `dashboard-signer`. Cross-platform
+  (bundled chromium) unlike the Linux-only `test/visual/run.mjs` — test/ + igloo-home.
+- [ ] (effort: S) **Home `dashboard-signer` visual scenario renders a *loading*
+  dashboard.** Found 2026-06-17 via `make screenshot CLIENT=home`: the panel shows
+  "Starting signer… / Restoring your session…" rather than a running dashboard, so the
+  injected `sampleRuntimeSnapshot` (repos/igloo-home/src/test/visualMode.ts) needs the
+  same fidelity tuning the chrome scenario got — a status/readiness shape that
+  `deriveDashboardState` reads as ready, not loading — igloo-home.
 - [ ] (effort: S) **Playwright leaks `bifrost-devtools relay` processes.** Found
   2026-06-17: ~16 orphaned `bifrost-devtools relay --host 127.0.0.1 --port <ephemeral>`
   processes (PPID 1, dated back to May 31 / Jun 8) accumulating across e2e/`@live`

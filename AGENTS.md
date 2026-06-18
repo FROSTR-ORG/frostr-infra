@@ -144,8 +144,11 @@ poll for state instead of scraping logs.
   writes `<state>.{png,txt}`, states `dashboard-running | dashboard-stopped |
   welcome-returning`. `CLIENT=chrome` renders the extension options page to
   `chrome-<state>.{png,txt}`, states `dashboard-running | dashboard-stopped |
-  onboarding`. The running dashboard renders via an in-memory runtimeSnapshot
-  (the `?__frostr_dev=` dev-scenario seam) that storage-only seeding can't reach.
+  onboarding`. `CLIENT=home` renders the desktop frontend to
+  `home-<state>.{png,txt}`, states `dashboard-signer | dashboard-settings |
+  landing | ...` (default `dashboard-running` maps to `dashboard-signer`). The
+  running dashboard renders via an in-memory runtimeSnapshot (the `?__frostr_dev=`
+  / `?__igloo_visual=` dev-scenario seam) that storage-only seeding can't reach.
 - **Live dev loop:** `make dev` — native relay + co-signer + vite in seconds;
   prints `READY <url>` and writes `.tmp/agent/dev.json` when up (Ctrl-C tears
   down). Pair with `make igloo-ui-watch` for CSS hot-reload.

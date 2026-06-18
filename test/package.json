@@ -25,6 +25,7 @@
     "test:screenshot": "npm run test:screenshot:pwa",
     "test:screenshot:pwa": "FROSTR_TEST_LANE=fast playwright test -c ./igloo-pwa/playwright.config.ts --grep @agent",
     "test:screenshot:chrome": "FROSTR_TEST_LANE=fast playwright test -c ./igloo-chrome/playwright.config.ts --grep @agent",
+    "test:screenshot:home": "FROSTR_TEST_LANE=fast playwright test -c ./igloo-home/playwright-screenshot.config.ts --grep @agent",
     "test:e2e:igloo-pwa:live": "playwright test -c ./igloo-pwa/playwright.config.ts --grep @live",
     "test:e2e:igloo-pwa:cross": "playwright test -c ./igloo-pwa/playwright.config.ts --grep @cross-client",
     "test:e2e:igloo-pwa:visual": "playwright test -c ./igloo-pwa/playwright.config.ts --grep @visual",
