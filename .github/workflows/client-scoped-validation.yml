@@ -72,6 +72,8 @@ jobs:
           bash scripts/test-prebuild.sh ensure pwa-runtime
           npm --prefix test run test:guards:pwa
           npm --prefix test run test:typecheck:pwa
+          npm --prefix repos/igloo-shared run test:unit
+          npm --prefix repos/igloo-pwa run test:unit:raw
           npm --prefix test run test:e2e:igloo-pwa:fast
 
   chrome:
@@ -109,6 +111,7 @@ jobs:
           npm ci --prefix repos/igloo-ui
           npm ci --prefix repos/igloo-chrome
           npm ci --prefix test
+          npx --prefix test playwright install chromium --with-deps
           npm audit --prefix repos/igloo-chrome --audit-level=moderate
           cargo fetch --manifest-path repos/bifrost-rs/Cargo.toml --locked --target wasm32-unknown-unknown
 
@@ -117,7 +120,9 @@ jobs:
           bash scripts/test-prebuild.sh ensure chrome-runtime
           npm --prefix test run test:guards:chrome
           npm --prefix test run test:typecheck:chrome
+          npm --prefix repos/igloo-chrome run test:unit:raw
           npm --prefix repos/igloo-chrome run build:app
+          npm --prefix test run test:e2e:igloo-chrome:fast
 
   home:
     runs-on: ubuntu-latest
@@ -156,3 +161,4 @@ jobs:
         run: |
           npm --prefix test run test:guards:home
           npm --prefix test run test:typecheck:home
+          npm --prefix repos/igloo-home run test:unit

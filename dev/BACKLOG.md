@@ -38,16 +38,25 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
   (`test:guards:tags`) — ≥1 lane tag, `@agent` exempt — wired into `test:guards`
   (per-PR) + `test:guards:full`. Amended ADR-013 "exactly one" → "at least one"
   (demo specs layer). test/.
-- [ ] (effort: M) **P0 #2b — Switch the fast lanes to `--grep @fast` + gate the
-  silent suites in CI.** Needs per-test `@fast` tagging of render tests in mixed
-  files (today no test carries `@fast`, so `--grep @fast` would run nothing), then
-  switch `test:e2e:*:fast` off `--grep-invert` onto `--grep @fast`, and add
-  Chrome:fast + Home:fast + per-affected `test:unit` to `client-scoped-validation.yml`.
-  **Open fork (surfaced to maintainer):** explicit per-test `@fast` (ADR Q9, large
-  churn) vs keeping an explicit `--grep-invert` default — test/ + CI.
-- [ ] (effort: M) **P0 — Decide & wire the `@live` / `@cross-client` CI story.**
-  Per-PR `@live` smoke + explicit nightly `@cross-client`, or document nightly-only;
-  stop the silent pairing-contract drift (ADR Q1/Q2) — test/ + CI.
+- [x] (effort: M) **DONE (2026-06-18) — P0 #2b — Gate Chrome e2e in CI + complete the
+  fast-lane filter.** Added `test:e2e:igloo-chrome:fast` (+ Playwright install) to the
+  chrome `client-scoped-validation` job — closes the audit's headline "Chrome has zero
+  per-PR e2e" gap. Completed the fast grep-invert to exclude `@demo` too
+  (`@live|@cross-client|@demo|@agent`); `@visual` stays in fast (render-only). Home has
+  no `@fast` specs (all `@live`/tauri) so "Home:fast" is N/A; home's per-PR render
+  coverage is the `@agent` screenshot tool. `make verify` green. **Deferred (not
+  blocking):** explicit per-test `@fast` tag (ADR Q9) — large per-test churn across
+  mixed files; the completed grep-invert gives identical gating today — test/ + CI.
+- [x] (effort: S) **DONE (2026-06-18) — P0 #3a — Per-affected unit suites in CI.**
+  Wired the submodule `test:unit` suites into `client-scoped-validation`: shared+pwa
+  (pwa job), chrome (chrome job), home (home job). All green locally (shared 151 /
+  pwa 71 / chrome 98 / home 25). — test/ + CI.
+- [ ] (effort: M) **P0 #3b — `@live` smoke per-PR + cargo lib-test; document
+  `@cross-client` nightly.** Remaining from #3: add a `@live @smoke` spec per client
+  (one onboarding+signing round-trip; specs use in-process relays so no external CI
+  infra) wired into the per-PR lanes; a lean `cargo test --lib` for bifrost-rs /
+  igloo-shell; and document `@cross-client` as nightly/manual (ADR Q1/Q2). Best as a
+  small reviewed PR (verifies in CI) — test/ + CI.
 - [ ] (effort: M) **P0 — Enforce WASM provenance** (ADR Q4) — scripts/ + test/.
   **Root cause pinned (2026-06-18):** the test process encrypts with the `.tmp`
   **igloo-shared** scratch WASM (`resolveTestBrowserWasmDir`), but a dist-serving
@@ -65,11 +74,14 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
   fails fast with a clear SHA-384 mismatch message, wired into the chrome
   global-setup (gates the per-PR chrome lane) + the pwa-dist server in
   chrome-pwa-pairing (the bug site); `make verify` green.
-  **(b) REMAINING** — structural: make `prepare-browser-wasm` expose ONE canonical
-  WASM dir consumed by tests + all client builds (kill the per-client-copy skew), or
-  have dist-serving specs build from `resolveTestBrowserWasmDir()`; plus expand the
-  prebuild stamp to cover the toolchain (wasm-bindgen/build scripts). (b) spans
-  submodules (vite configs + sync scripts) — a focused follow-up.
+  **(b) DONE (2026-06-18)** — structural: added `pwa` to the chrome lane's
+  `prebuild` set in `test-targets.json`, so the full chrome lane (where the
+  `@cross-client` pwa-dist specs run) prebuilds pwa → the pwa dist is rebuilt fresh
+  from the same shared WASM the test injects → no skew. `fastPrebuild` stays lean
+  (chrome only), so the chrome `@fast` lane is unaffected. With (a) as the runtime
+  tripwire, the provenance gap is closed. **(c) OPTIONAL follow-up** — expand the
+  prebuild stamp to cover the toolchain (wasm-bindgen/build scripts) so a toolchain
+  bump invalidates the cache; nice-to-have hardening, not required for correctness.
 - [ ] (effort: S) **P1 — Expand the WASM stamp** to cover toolchain + igloo-shared
   build inputs — scripts/. _(depends on WASM provenance)_
 - [ ] (effort: M) **P1 — Type-enforce fixture seeds against the persist allowlist**
