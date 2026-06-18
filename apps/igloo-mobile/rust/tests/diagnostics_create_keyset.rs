@@ -33,6 +33,8 @@
 //      panel.
 
 use igloo_mobile_core::*;
+use k256::elliptic_curve::sec1::ToEncodedPoint;
+use k256::SecretKey;
 
 fn dispatch(state: &AppState, action: AppAction) -> AppState {
     let (next, _) = igloo_mobile_core::update(state, &action);
@@ -47,6 +49,34 @@ fn dispatch_with_effect(
 }
 
 const VALID_RELAY: &str = "ws://127.0.0.1:8194";
+
+fn deterministic_share(share_idx: u16, byte: u8) -> GeneratedShare {
+    generated_share_from_secret(share_idx, [byte; 32])
+}
+
+fn deterministic_share_with_prefix(share_idx: u16, start_byte: u8, prefix: &str) -> GeneratedShare {
+    for byte in start_byte..=u8::MAX {
+        let share = deterministic_share(share_idx, byte);
+        if share.share_pubkey_compressed.starts_with(prefix) {
+            return share;
+        }
+    }
+    panic!("could not find deterministic share with compressed prefix {prefix}");
+}
+
+fn generated_share_from_secret(share_idx: u16, secret: [u8; 32]) -> GeneratedShare {
+    let signing_key = SecretKey::from_slice(&secret).expect("deterministic test secret is valid");
+    let point = signing_key.public_key().to_encoded_point(true);
+    let compressed = hex::encode(point.as_bytes());
+    let xonly = hex::encode(&point.as_bytes()[1..]);
+    GeneratedShare {
+        share_idx,
+        share_pubkey: xonly,
+        share_pubkey_compressed: compressed,
+        share_secret_hex: hex::encode(secret),
+        default_label: format!("Share {share_idx}"),
+    }
+}
 
 #[test]
 fn diagnostics_create_keyset_run_noop_when_threshold_exceeds_count() {
@@ -183,6 +213,107 @@ fn diagnostics_create_keyset_run_emits_store_side_effect_for_valid_inputs() {
         "valid inputs must emit StoreKeysetCreatedProfile with the
          diagnostics device_name as label; got: {:?}",
         side_effect
+    );
+}
+
+#[test]
+fn diagnostics_create_keyset_material_carries_xonly_runtime_peers() {
+    // The signer runtime subscribes by x-only author pubkey. The stored group
+    // members still need compressed SEC1 keys, but `peer_pubkeys` must stay
+    // 64-char x-only so onboarding requests from distributed shares are seen.
+    let state = AppState::initial();
+    let (next, side_effect) = dispatch_with_effect(
+        &state,
+        AppAction::DiagnosticsCreateKeysetRun {
+            group_name: "DiagKeysetPeers".into(),
+            threshold: 2,
+            count: 3,
+            device_name: "diag-device".into(),
+            relay: VALID_RELAY.into(),
+        },
+    );
+    let material = match side_effect {
+        Some(AppUpdate::StoreKeysetCreatedProfile { material, .. }) => {
+            OnboardProfileMaterial::from_bytes(&material).expect("created material parses")
+        }
+        other => panic!("expected StoreKeysetCreatedProfile, got {:?}", other),
+    };
+    let mut expected_peer_pubkeys = next
+        .keyset
+        .bundle
+        .as_ref()
+        .expect("diagnostic keyset must keep generated bundle")
+        .shares
+        .iter()
+        .filter(|share| share.share_idx != next.keyset.local_share_idx)
+        .map(|share| share.share_pubkey.clone())
+        .collect::<Vec<_>>();
+    expected_peer_pubkeys.sort();
+
+    let mut actual_peer_pubkeys = material.peer_pubkeys.clone();
+    actual_peer_pubkeys.sort();
+    assert_eq!(actual_peer_pubkeys, expected_peer_pubkeys);
+    assert!(
+        material
+            .peer_pubkeys
+            .iter()
+            .all(|pubkey| pubkey.len() == 64 && hex::decode(pubkey).is_ok()),
+        "runtime peer_pubkeys must be x-only secp256k1 hex"
+    );
+    assert!(
+        material
+            .members
+            .iter()
+            .all(|member| member.pubkey_hex.len() == 66 && hex::decode(&member.pubkey_hex).is_ok()),
+        "material members must retain compressed SEC1 keys"
+    );
+}
+
+#[test]
+fn create_keyset_accept_material_preserves_compressed_member_prefixes() {
+    // Regression for native-created onboarding packages: source-side material
+    // must preserve the dealer's real 02/03 SEC1 member keys. Guessing
+    // `02 + xonly` makes recipients whose actual key starts with `03` reject
+    // the onboard response as a group/member mismatch, which the UI surfaces
+    // as provisioner_offline.
+    let share_a = deterministic_share(1, 0x11);
+    let share_b = deterministic_share_with_prefix(2, 0x33, "03");
+
+    let mut state = AppState::initial();
+    state.keyset.bundle = Some(KeysetBundleRecord {
+        group_name: "PrefixParity".into(),
+        threshold: 2,
+        count: 2,
+        group_pubkey: "44".repeat(32),
+        shares: vec![share_a.clone(), share_b.clone()],
+    });
+    state.keyset.local_share_idx = share_a.share_idx;
+    state.keyset.device_name = "prefix-source".into();
+    state.keyset.relays = vec![VALID_RELAY.into()];
+
+    let (_next, side_effect) = dispatch_with_effect(&state, AppAction::CreateKeysetAccept);
+    let material = match side_effect {
+        Some(AppUpdate::StoreKeysetCreatedProfile { material, .. }) => {
+            OnboardProfileMaterial::from_bytes(&material).expect("created material parses")
+        }
+        other => panic!("expected StoreKeysetCreatedProfile, got {:?}", other),
+    };
+
+    let mut expected_members = vec![
+        (share_a.share_idx, share_a.share_pubkey_compressed),
+        (share_b.share_idx, share_b.share_pubkey_compressed),
+    ];
+    expected_members.sort_by_key(|entry| entry.0);
+    let mut actual_members = material
+        .members
+        .iter()
+        .map(|member| (member.idx, member.pubkey_hex.clone()))
+        .collect::<Vec<_>>();
+    actual_members.sort_by_key(|entry| entry.0);
+
+    assert_eq!(
+        actual_members, expected_members,
+        "created profile material must preserve actual compressed member pubkeys"
     );
 }
 
@@ -361,6 +492,17 @@ fn diagnostics_create_keyset_distribute_qr_submit_updates_row_package_and_chip()
         .first()
         .expect("diagnostic keyset must create a non-local distribute row")
         .share_idx;
+    let expected_peer_pk = post_diag
+        .keyset
+        .bundle
+        .as_ref()
+        .expect("diagnostic keyset must keep its generated bundle")
+        .shares
+        .iter()
+        .find(|share| share.share_idx == post_diag.keyset.local_share_idx)
+        .expect("diagnostic keyset must keep the selected local share")
+        .share_pubkey
+        .clone();
     let password = "qr-package-pass".to_string();
     let state = dispatch(
         &post_diag,
@@ -386,10 +528,15 @@ fn diagnostics_create_keyset_distribute_qr_submit_updates_row_package_and_chip()
     match side_effect {
         Some(AppUpdate::PerformKeysetDistribution {
             share_idx: actual_share_idx,
+            peer_pk_hex,
             method,
             ..
         }) => {
             assert_eq!(actual_share_idx, share_idx);
+            assert_eq!(
+                peer_pk_hex, expected_peer_pk,
+                "distribution packages must embed the selected local share as the provisioning peer"
+            );
             assert_eq!(method, "qr");
         }
         other => panic!("expected PerformKeysetDistribution, got {:?}", other),
@@ -410,6 +557,44 @@ fn diagnostics_create_keyset_distribute_qr_submit_updates_row_package_and_chip()
     assert_eq!(row.last_package, "bfonboard1qrproof");
     assert_eq!(row.status_chip, DistributeStatus::Qr);
     assert_eq!(next.router.screen, Screen::CreateKeysetDistribute);
+}
+
+#[test]
+fn encode_distribute_onboard_embeds_nonzero_provisioning_peer_pk() {
+    let app = FfiApp::new(std::env::temp_dir().to_string_lossy().to_string());
+    let password = "qr-package-pass";
+    let peer_pk = "22".repeat(32);
+
+    let package = app.encode_distribute_onboard(
+        "11".repeat(32),
+        peer_pk.clone(),
+        vec![VALID_RELAY.into()],
+        "Remote Device".into(),
+        password.into(),
+    );
+
+    assert!(
+        package.starts_with("bfonboard1"),
+        "valid distribution input must encode a bfonboard package, got {package}"
+    );
+    let decoded =
+        frostr_utils::decode_bfonboard_package(&package, password).expect("decode package");
+    assert_eq!(decoded.peer_pk, peer_pk);
+}
+
+#[test]
+fn encode_distribute_onboard_rejects_all_zero_peer_pk() {
+    let app = FfiApp::new(std::env::temp_dir().to_string_lossy().to_string());
+
+    let package = app.encode_distribute_onboard(
+        "11".repeat(32),
+        "00".repeat(32),
+        vec![VALID_RELAY.into()],
+        "Remote Device".into(),
+        "qr-package-pass".into(),
+    );
+
+    assert_eq!(package, "error:invalid_peer_pk");
 }
 
 #[test]

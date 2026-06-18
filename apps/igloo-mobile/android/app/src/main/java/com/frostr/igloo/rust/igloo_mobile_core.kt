@@ -307,7 +307,7 @@ internal inline fun<T, reified E: Throwable> uniffiTraitInterfaceCallWithError(
         }
     }
 }
-// Initial value and increment amount for handles. 
+// Initial value and increment amount for handles.
 // These ensure that Kotlin-generated handles always have the lowest bit set
 private const val UNIFFI_HANDLEMAP_INITIAL = 1.toLong()
 private const val UNIFFI_HANDLEMAP_DELTA = 2.toLong()
@@ -317,7 +317,7 @@ private const val UNIFFI_HANDLEMAP_DELTA = 2.toLong()
 // This is used pass an opaque 64-bit handle representing a foreign object to the Rust code.
 internal class UniffiHandleMap<T: Any> {
     private val map = ConcurrentHashMap<Long, T>()
-    // Start 
+    // Start
     private val counter = java.util.concurrent.atomic.AtomicLong(UNIFFI_HANDLEMAP_INITIAL)
 
     val size: Int
@@ -709,81 +709,81 @@ internal object IntegrityCheckingUniffiLib {
     external fun ffi_igloo_mobile_core_uniffi_contract_version(
     ): Int
 
-        
+
 }
 
 internal object UniffiLib {
-    
+
     // The Cleaner for the whole library
     internal val CLEANER: UniffiCleaner by lazy {
         UniffiCleaner.create()
     }
-    
+
 
     init {
         Native.register(UniffiLib::class.java, findLibraryName(componentName = "igloo_mobile_core"))
         uniffiCallbackInterfaceAppReconciler.register(this)
-        
+
     }
-    external fun uniffi_igloo_mobile_core_fn_clone_ffiapp(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_igloo_mobile_core_fn_clone_ffiapp(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Long
-external fun uniffi_igloo_mobile_core_fn_free_ffiapp(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_free_ffiapp(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Unit
-external fun uniffi_igloo_mobile_core_fn_constructor_ffiapp_new(`dataDir`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_constructor_ffiapp_new(`dataDir`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): Long
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_decode_rotation_share_source(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_decode_rotation_share_source(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_dispatch(`ptr`: Long,`action`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_dispatch(`ptr`: Long,`action`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_encode_distribute_onboard(`ptr`: Long,`shareSecretHex`: RustBuffer.ByValue,`relays`: RustBuffer.ByValue,`shareLabel`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_encode_distribute_onboard(`ptr`: Long,`shareSecretHex`: RustBuffer.ByValue,`peerPkHex`: RustBuffer.ByValue,`relays`: RustBuffer.ByValue,`shareLabel`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_encode_rotate_share_onboard(`ptr`: Long,`shareSecretHex`: RustBuffer.ByValue,`relays`: RustBuffer.ByValue,`peerPkHex`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_encode_rotate_share_onboard(`ptr`: Long,`shareSecretHex`: RustBuffer.ByValue,`relays`: RustBuffer.ByValue,`peerPkHex`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_export_profile(`ptr`: Long,`exportPassword`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_export_profile(`ptr`: Long,`exportPassword`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_export_share(`ptr`: Long,`exportPassword`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_export_share(`ptr`: Long,`exportPassword`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_generate_keyset(`ptr`: Long,`configJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_generate_keyset(`ptr`: Long,`configJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_get_signer_status(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_get_signer_status(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_import_profile(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_import_profile(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_listen_for_updates(`ptr`: Long,`reconciler`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_listen_for_updates(`ptr`: Long,`reconciler`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Unit
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_onboard(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,`relayUrl`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_onboard(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,`relayUrl`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_ping_peer(`ptr`: Long,`peerAlias`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_ping_peer(`ptr`: Long,`peerAlias`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): Byte
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_publish_backup(`ptr`: Long,`source`: RustBuffer.ByValue,`materialJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_publish_backup(`ptr`: Long,`source`: RustBuffer.ByValue,`materialJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_recover_profile(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_recover_profile(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_rotate_keyset(`ptr`: Long,`groupJson`: RustBuffer.ByValue,`threshold`: Short,`count`: Short,`shareSecretsHex`: RustBuffer.ByValue,`sharePubkeysHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_rotate_keyset(`ptr`: Long,`groupJson`: RustBuffer.ByValue,`threshold`: Short,`count`: Short,`shareSecretsHex`: RustBuffer.ByValue,`sharePubkeysHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_set_active_profile_material(`ptr`: Long,`materialJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_set_active_profile_material(`ptr`: Long,`materialJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): Unit
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_start_signer(`ptr`: Long,`materialJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_start_signer(`ptr`: Long,`materialJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): Byte
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_state(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_state(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_stop_signer(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_stop_signer(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Unit
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_test_ecdh(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_test_ecdh(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_test_sign(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_test_sign(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun uniffi_igloo_mobile_core_fn_method_ffiapp_validate_rotation_source(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun uniffi_igloo_mobile_core_fn_method_ffiapp_validate_rotation_source(`ptr`: Long,`package`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
 external fun uniffi_igloo_mobile_core_fn_init_callback_vtable_appreconciler(`vtable`: UniffiVTableCallbackInterfaceAppReconciler,
 ): Unit
-external fun ffi_igloo_mobile_core_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun ffi_igloo_mobile_core_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
-external fun ffi_igloo_mobile_core_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
 ): Unit
-external fun ffi_igloo_mobile_core_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
 external fun ffi_igloo_mobile_core_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
 ): Unit
@@ -791,7 +791,7 @@ external fun ffi_igloo_mobile_core_rust_future_cancel_u8(`handle`: Long,
 ): Unit
 external fun ffi_igloo_mobile_core_rust_future_free_u8(`handle`: Long,
 ): Unit
-external fun ffi_igloo_mobile_core_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Byte
 external fun ffi_igloo_mobile_core_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
 ): Unit
@@ -799,7 +799,7 @@ external fun ffi_igloo_mobile_core_rust_future_cancel_i8(`handle`: Long,
 ): Unit
 external fun ffi_igloo_mobile_core_rust_future_free_i8(`handle`: Long,
 ): Unit
-external fun ffi_igloo_mobile_core_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Byte
 external fun ffi_igloo_mobile_core_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
 ): Unit
@@ -807,7 +807,7 @@ external fun ffi_igloo_mobile_core_rust_future_cancel_u16(`handle`: Long,
 ): Unit
 external fun ffi_igloo_mobile_core_rust_future_free_u16(`handle`: Long,
 ): Unit
-external fun ffi_igloo_mobile_core_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Short
 external fun ffi_igloo_mobile_core_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
 ): Unit
@@ -815,7 +815,7 @@ external fun ffi_igloo_mobile_core_rust_future_cancel_i16(`handle`: Long,
 ): Unit
 external fun ffi_igloo_mobile_core_rust_future_free_i16(`handle`: Long,
 ): Unit
-external fun ffi_igloo_mobile_core_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Short
 external fun ffi_igloo_mobile_core_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
 ): Unit
@@ -823,7 +823,7 @@ external fun ffi_igloo_mobile_core_rust_future_cancel_u32(`handle`: Long,
 ): Unit
 external fun ffi_igloo_mobile_core_rust_future_free_u32(`handle`: Long,
 ): Unit
-external fun ffi_igloo_mobile_core_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Int
 external fun ffi_igloo_mobile_core_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
 ): Unit
@@ -831,7 +831,7 @@ external fun ffi_igloo_mobile_core_rust_future_cancel_i32(`handle`: Long,
 ): Unit
 external fun ffi_igloo_mobile_core_rust_future_free_i32(`handle`: Long,
 ): Unit
-external fun ffi_igloo_mobile_core_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Int
 external fun ffi_igloo_mobile_core_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
 ): Unit
@@ -839,7 +839,7 @@ external fun ffi_igloo_mobile_core_rust_future_cancel_u64(`handle`: Long,
 ): Unit
 external fun ffi_igloo_mobile_core_rust_future_free_u64(`handle`: Long,
 ): Unit
-external fun ffi_igloo_mobile_core_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Long
 external fun ffi_igloo_mobile_core_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
 ): Unit
@@ -847,7 +847,7 @@ external fun ffi_igloo_mobile_core_rust_future_cancel_i64(`handle`: Long,
 ): Unit
 external fun ffi_igloo_mobile_core_rust_future_free_i64(`handle`: Long,
 ): Unit
-external fun ffi_igloo_mobile_core_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Long
 external fun ffi_igloo_mobile_core_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
 ): Unit
@@ -855,7 +855,7 @@ external fun ffi_igloo_mobile_core_rust_future_cancel_f32(`handle`: Long,
 ): Unit
 external fun ffi_igloo_mobile_core_rust_future_free_f32(`handle`: Long,
 ): Unit
-external fun ffi_igloo_mobile_core_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Float
 external fun ffi_igloo_mobile_core_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
 ): Unit
@@ -863,7 +863,7 @@ external fun ffi_igloo_mobile_core_rust_future_cancel_f64(`handle`: Long,
 ): Unit
 external fun ffi_igloo_mobile_core_rust_future_free_f64(`handle`: Long,
 ): Unit
-external fun ffi_igloo_mobile_core_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Double
 external fun ffi_igloo_mobile_core_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
 ): Unit
@@ -871,7 +871,7 @@ external fun ffi_igloo_mobile_core_rust_future_cancel_rust_buffer(`handle`: Long
 ): Unit
 external fun ffi_igloo_mobile_core_rust_future_free_rust_buffer(`handle`: Long,
 ): Unit
-external fun ffi_igloo_mobile_core_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): RustBuffer.ByValue
 external fun ffi_igloo_mobile_core_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
 ): Unit
@@ -879,10 +879,10 @@ external fun ffi_igloo_mobile_core_rust_future_cancel_void(`handle`: Long,
 ): Unit
 external fun ffi_igloo_mobile_core_rust_future_free_void(`handle`: Long,
 ): Unit
-external fun ffi_igloo_mobile_core_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+external fun ffi_igloo_mobile_core_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
 ): Unit
 
-    
+
 }
 
 private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
@@ -902,7 +902,7 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_dispatch() != 50970.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_encode_distribute_onboard() != 58543.toShort()) {
+    if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_encode_distribute_onboard() != 53562.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_igloo_mobile_core_checksum_method_ffiapp_encode_rotate_share_onboard() != 10153.toShort()) {
@@ -1043,7 +1043,7 @@ inline fun <T : Disposable?, R> T.use(block: (T) -> R) =
         }
     }
 
-/** 
+/**
  * Placeholder object used to signal that we're constructing an interface with a FFI handle.
  *
  * This is the first argument for interface constructors that input a raw handle. It exists is that
@@ -1054,7 +1054,7 @@ inline fun <T : Disposable?, R> T.use(block: (T) -> R) =
  * */
 object UniffiWithHandle
 
-/** 
+/**
  * Used to instantiate an interface without an actual pointer, for fakes in tests, mostly.
  *
  * @suppress
@@ -1444,7 +1444,7 @@ public object FfiConverterByteArray: FfiConverterRustBuffer<ByteArray> {
 
 
 public interface FfiAppInterface {
-    
+
     /**
      * Decode a rotated `bfshare1` source row to produce the share
      * secret hex (VAL-ROTATE-003 source validation requires the
@@ -1453,9 +1453,9 @@ public interface FfiAppInterface {
      * success or `error:...` strings on failure.
      */
     fun `decodeRotationShareSource`(`package`: kotlin.String, `password`: kotlin.String): kotlin.String
-    
+
     fun `dispatch`(`action`: AppAction): AppState
-    
+
     /**
      * Encode a `bfonboard1` package from a single share secret + relays.
      *
@@ -1468,8 +1468,8 @@ public interface FfiAppInterface {
      * `error:...` string on failure (shells convert these into the
      * `CreateKeysetDistributeFailed` action).
      */
-    fun `encodeDistributeOnboard`(`shareSecretHex`: kotlin.String, `relays`: List<kotlin.String>, `shareLabel`: kotlin.String, `password`: kotlin.String): kotlin.String
-    
+    fun `encodeDistributeOnboard`(`shareSecretHex`: kotlin.String, `peerPkHex`: kotlin.String, `relays`: List<kotlin.String>, `shareLabel`: kotlin.String, `password`: kotlin.String): kotlin.String
+
     /**
      * Encode a `bfonboard1` package for a rotated keyset share
      * (VAL-ROTATE-006 distributes the rotated Per-Share package via
@@ -1478,11 +1478,11 @@ public interface FfiAppInterface {
      * the receiving device can decode + connect.
      */
     fun `encodeRotateShareOnboard`(`shareSecretHex`: kotlin.String, `relays`: List<kotlin.String>, `peerPkHex`: kotlin.String, `password`: kotlin.String): kotlin.String
-    
+
     fun `exportProfile`(`exportPassword`: kotlin.String): kotlin.String
-    
+
     fun `exportShare`(`exportPassword`: kotlin.String): kotlin.String
-    
+
     /**
      * Generate a fresh keyset via `frostr_utils::create_keyset`.
      *
@@ -1496,7 +1496,7 @@ public interface FfiAppInterface {
      * via `CreateKeysetGenerationSuccess` / `CreateKeysetGenerationFailed`.
      */
     fun `generateKeyset`(`configJson`: kotlin.String): kotlin.String
-    
+
     /**
      * Get the current signer status as a JSON string for the shell to parse
      * and dispatch via `SignerStatusUpdate`.
@@ -1530,11 +1530,11 @@ public interface FfiAppInterface {
      * both succeed.
      */
     fun `getSignerStatus`(): kotlin.String
-    
+
     fun `importProfile`(`package`: kotlin.String, `password`: kotlin.String): OnboardResult
-    
+
     fun `listenForUpdates`(`reconciler`: AppReconciler)
-    
+
     /**
      * Perform the onboard handshake with the provisioner relay.
      *
@@ -1553,7 +1553,7 @@ public interface FfiAppInterface {
      * - "provisioner_offline": provisioner did not respond
      */
     fun `onboard`(`package`: kotlin.String, `password`: kotlin.String, `relayUrl`: kotlin.String): OnboardResult
-    
+
     /**
      * Perform a ping round against the specified peer.
      * Called by the shell when the user activates the test ping / peer Refresh
@@ -1568,7 +1568,7 @@ public interface FfiAppInterface {
      * Returns `true` if the ping round completed successfully, `false` otherwise.
      */
     fun `pingPeer`(`peerAlias`: kotlin.String): kotlin.Boolean
-    
+
     /**
      * Publish a kind-10000 encrypted profile backup to every relay
      * embedded in the freshly materialized profile. Returns a
@@ -1593,9 +1593,9 @@ public interface FfiAppInterface {
      * round-trip.
      */
     fun `publishBackup`(`source`: kotlin.String, `materialJson`: kotlin.String): BackupPublishResult
-    
+
     fun `recoverProfile`(`package`: kotlin.String, `password`: kotlin.String): OnboardResult
-    
+
     /**
      * Rotate an existing keyset via `frostr_utils::rotate_keyset_dealer`
      * (VAL-ROTATE-004). The caller passes:
@@ -1614,9 +1614,9 @@ public interface FfiAppInterface {
      * rendering.
      */
     fun `rotateKeyset`(`groupJson`: kotlin.String, `threshold`: kotlin.UShort, `count`: kotlin.UShort, `shareSecretsHex`: List<kotlin.String>, `sharePubkeysHex`: List<kotlin.String>): kotlin.String
-    
+
     fun `setActiveProfileMaterial`(`materialJson`: kotlin.String)
-    
+
     /**
      * Start the signer runtime for the active profile.
      *
@@ -1632,16 +1632,16 @@ public interface FfiAppInterface {
      * inspect `get_signer_status()` to diagnose the error.
      */
     fun `startSigner`(`materialJson`: kotlin.String): kotlin.Boolean
-    
+
     fun `state`(): AppState
-    
+
     /**
      * Stop the signer runtime (VAL-SIGNER-015).
      * Shutdown is signaled by setting signer_bridge to None; the polling task
      * exits when it detects None on the next poll cycle.
      */
     fun `stopSigner`()
-    
+
     /**
      * Perform a test ECDH operation (VAL-SIGN-005).
      * Generates a random target keypair and derives a shared secret with alice
@@ -1649,7 +1649,7 @@ public interface FfiAppInterface {
      * and shared_secret on success.
      */
     fun `testEcdh`(): TestEcdhResult
-    
+
     /**
      * Perform a test sign operation (VAL-SIGN-002).
      * Generates a random 32-byte digest and initiates a real threshold signing
@@ -1657,7 +1657,7 @@ public interface FfiAppInterface {
      * request_id, digest, and signature on success.
      */
     fun `testSign`(): TestSignResult
-    
+
     /**
      * Decode a `bfonboard1` envelope without invoking the live
      * handshake (VAL-ROTATE-003 path: validate rotation-source rows
@@ -1670,7 +1670,7 @@ public interface FfiAppInterface {
      * so the actor can normalize the failure reason.
      */
     fun `validateRotationSource`(`package`: kotlin.String, `password`: kotlin.String): kotlin.String
-    
+
     companion object
 }
 
@@ -1699,10 +1699,10 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
         this.cleanable = null
     }
     constructor(`dataDir`: kotlin.String) :
-        this(UniffiWithHandle, 
+        this(UniffiWithHandle,
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_igloo_mobile_core_fn_constructor_ffiapp_new(
-    
+
         FfiConverterString.lower(`dataDir`),_status)
 }
     )
@@ -1778,7 +1778,7 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
         }
     }
 
-    
+
     /**
      * Decode a rotated `bfshare1` source row to produce the share
      * secret hex (VAL-ROTATE-003 source validation requires the
@@ -1796,7 +1796,7 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
+
 
     override fun `dispatch`(`action`: AppAction): AppState {
             return FfiConverterTypeAppState.lift(
@@ -1809,9 +1809,9 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
 
-    
+
+
     /**
      * Encode a `bfonboard1` package from a single share secret + relays.
      *
@@ -1823,20 +1823,20 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
      * Returns the encoded `bfonboard1...` string on success, or an
      * `error:...` string on failure (shells convert these into the
      * `CreateKeysetDistributeFailed` action).
-     */override fun `encodeDistributeOnboard`(`shareSecretHex`: kotlin.String, `relays`: List<kotlin.String>, `shareLabel`: kotlin.String, `password`: kotlin.String): kotlin.String {
+     */override fun `encodeDistributeOnboard`(`shareSecretHex`: kotlin.String, `peerPkHex`: kotlin.String, `relays`: List<kotlin.String>, `shareLabel`: kotlin.String, `password`: kotlin.String): kotlin.String {
             return FfiConverterString.lift(
     callWithHandle {
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_igloo_mobile_core_fn_method_ffiapp_encode_distribute_onboard(
         it,
-        FfiConverterString.lower(`shareSecretHex`),FfiConverterSequenceString.lower(`relays`),FfiConverterString.lower(`shareLabel`),FfiConverterString.lower(`password`),_status)
+        FfiConverterString.lower(`shareSecretHex`),FfiConverterString.lower(`peerPkHex`),FfiConverterSequenceString.lower(`relays`),FfiConverterString.lower(`shareLabel`),FfiConverterString.lower(`password`),_status)
 }
     }
     )
     }
-    
 
-    
+
+
     /**
      * Encode a `bfonboard1` package for a rotated keyset share
      * (VAL-ROTATE-006 distributes the rotated Per-Share package via
@@ -1854,7 +1854,7 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
+
 
     override fun `exportProfile`(`exportPassword`: kotlin.String): kotlin.String {
             return FfiConverterString.lift(
@@ -1867,7 +1867,7 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
+
 
     override fun `exportShare`(`exportPassword`: kotlin.String): kotlin.String {
             return FfiConverterString.lift(
@@ -1880,9 +1880,9 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
 
-    
+
+
     /**
      * Generate a fresh keyset via `frostr_utils::create_keyset`.
      *
@@ -1905,9 +1905,9 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
 
-    
+
+
     /**
      * Get the current signer status as a JSON string for the shell to parse
      * and dispatch via `SignerStatusUpdate`.
@@ -1950,7 +1950,7 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
+
 
     override fun `importProfile`(`package`: kotlin.String, `password`: kotlin.String): OnboardResult {
             return FfiConverterTypeOnboardResult.lift(
@@ -1963,10 +1963,10 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
+
 
     override fun `listenForUpdates`(`reconciler`: AppReconciler)
-        = 
+        =
     callWithHandle {
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_igloo_mobile_core_fn_method_ffiapp_listen_for_updates(
@@ -1974,10 +1974,10 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
         FfiConverterTypeAppReconciler.lower(`reconciler`),_status)
 }
     }
-    
-    
 
-    
+
+
+
     /**
      * Perform the onboard handshake with the provisioner relay.
      *
@@ -2005,9 +2005,9 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
 
-    
+
+
     /**
      * Perform a ping round against the specified peer.
      * Called by the shell when the user activates the test ping / peer Refresh
@@ -2031,9 +2031,9 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
 
-    
+
+
     /**
      * Publish a kind-10000 encrypted profile backup to every relay
      * embedded in the freshly materialized profile. Returns a
@@ -2067,7 +2067,7 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
+
 
     override fun `recoverProfile`(`package`: kotlin.String, `password`: kotlin.String): OnboardResult {
             return FfiConverterTypeOnboardResult.lift(
@@ -2080,9 +2080,9 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
 
-    
+
+
     /**
      * Rotate an existing keyset via `frostr_utils::rotate_keyset_dealer`
      * (VAL-ROTATE-004). The caller passes:
@@ -2110,10 +2110,10 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
+
 
     override fun `setActiveProfileMaterial`(`materialJson`: kotlin.String)
-        = 
+        =
     callWithHandle {
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_igloo_mobile_core_fn_method_ffiapp_set_active_profile_material(
@@ -2121,10 +2121,10 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
         FfiConverterString.lower(`materialJson`),_status)
 }
     }
-    
-    
 
-    
+
+
+
     /**
      * Start the signer runtime for the active profile.
      *
@@ -2149,7 +2149,7 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
+
 
     override fun `state`(): AppState {
             return FfiConverterTypeAppState.lift(
@@ -2162,15 +2162,15 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
 
-    
+
+
     /**
      * Stop the signer runtime (VAL-SIGNER-015).
      * Shutdown is signaled by setting signer_bridge to None; the polling task
      * exits when it detects None on the next poll cycle.
      */override fun `stopSigner`()
-        = 
+        =
     callWithHandle {
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_igloo_mobile_core_fn_method_ffiapp_stop_signer(
@@ -2178,10 +2178,10 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
         _status)
 }
     }
-    
-    
 
-    
+
+
+
     /**
      * Perform a test ECDH operation (VAL-SIGN-005).
      * Generates a random target keypair and derives a shared secret with alice
@@ -2198,9 +2198,9 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
 
-    
+
+
     /**
      * Perform a test sign operation (VAL-SIGN-002).
      * Generates a random 32-byte digest and initiates a real threshold signing
@@ -2217,9 +2217,9 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
 
-    
+
+
     /**
      * Decode a `bfonboard1` envelope without invoking the live
      * handshake (VAL-ROTATE-003 path: validate rotation-source rows
@@ -2241,20 +2241,20 @@ open class FfiApp: Disposable, AutoCloseable, FfiAppInterface
     }
     )
     }
-    
-
-    
-
-    
 
 
-    
-    
+
+
+
+
+
+
+
     /**
      * @suppress
      */
     companion object
-    
+
 }
 
 
@@ -2303,39 +2303,39 @@ data class AppState (
      * Onboard Device flow state (VAL-ONBOARD-*).
      */
     var `onboarding`: OnboardingState
-    , 
+    ,
     /**
      * Load Profile flow state (VAL-LOAD-*).
      */
     var `loadProfile`: LoadProfileState
-    , 
+    ,
     /**
      * Create / Rotate Keyset wizard state (VAL-CREATE-* / VAL-ROTATE-*).
      */
     var `keyset`: KeysetFlowState
-    , 
+    ,
     /**
      * Rotate Share flow state (VAL-ROTATE-*).
      */
     var `rotateShare`: RotateShareState
-    , 
+    ,
     /**
      * Dashboard state for signer runtime, permissions, and settings tabs.
      */
     var `dashboard`: DashboardState
-    , 
+    ,
     /**
      * Monotonically increasing revision counter used by shells to detect
      * stale snapshots (rev guard).
      */
     var `rev`: kotlin.ULong
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -2395,21 +2395,21 @@ public object FfiConverterTypeAppState: FfiConverterRustBuffer<AppState> {
  */
 data class BackupPublishResult (
     var `success`: kotlin.Boolean
-    , 
+    ,
     /**
      * "create" | "onboard" | "rotate" | "import" | "recover" — passed
      * back from the actor's `AppUpdate::PublishProfileBackup` so the
      * shell can correlate which path produced this event.
      */
     var `source`: kotlin.String
-    , 
+    ,
     /**
      * Hex-encoded Nostr event id once the relay confirmed receipt.
      * `None` if the publish did not reach any relay or if the parsed
      * event never landed on a watched relay.
      */
     var `eventId`: kotlin.String?
-    , 
+    ,
     /**
      * Hex-encoded Nostr pubkey of the event author (derived from the
      * profile's share secret). This is the same value as the share
@@ -2417,49 +2417,49 @@ data class BackupPublishResult (
      * VAL-BACKUP-001/002/004/006.
      */
     var `authorPubkey`: kotlin.String?
-    , 
+    ,
     /**
      * Number of bytes inside the encrypted `content` field.
      */
     var `contentLength`: kotlin.UInt
-    , 
+    ,
     /**
      * First 24 chars (truncated form) of the encrypted NIP-44
      * `content` plus the total length; never the raw ciphertext.
      */
     var `contentRedacted`: kotlin.String
-    , 
+    ,
     /**
      * Group public key the backup was published for (`None` if the
      * material lacked a valid group pubkey).
      */
     var `groupPubkey`: kotlin.String?
-    , 
+    ,
     /**
      * Concatenated list of relay URLs the publish tried.
      */
     var `relaysAttempted`: List<kotlin.String>
-    , 
+    ,
     /**
      * Subset of `relays_attempted` whose `["OK", true, …]` ack we
      * observed before the relay closed or timed out. Empty when the
      * publish failed at every relay.
      */
     var `relaysPublishedTo`: List<kotlin.String>
-    , 
+    ,
     /**
      * Error string when `success == false`. Distinct from the OK
      * streams above so a partial publish (one relay OK, two failed)
      * can still be surfaced with the failed relay URLs.
      */
     var `error`: kotlin.String?
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -2526,65 +2526,65 @@ data class BackupPublishStatus (
      * ("create" | "onboard" | "rotate" | "import" | "recover").
      */
     var `source`: kotlin.String
-    , 
+    ,
     /**
      * Whether the publish hit at least one relay.
      */
     var `success`: kotlin.Boolean
-    , 
+    ,
     /**
      * Hex-encoded Nostr event id when `success` is true.
      */
     var `eventId`: kotlin.String?
-    , 
+    ,
     /**
      * Hex-encoded Nostr author pubkey (derivative of the share secret,
      * the canonical relay-side filter for VAL-BACKUP-001/002/004/006).
      */
     var `authorPubkey`: kotlin.String?
-    , 
+    ,
     /**
      * Number of bytes inside the encrypted `content` field.
      */
     var `contentLength`: kotlin.UInt
-    , 
+    ,
     /**
      * Truncated prefix + length of the encrypted `content` field —
      * never the raw ciphertext.
      */
     var `contentRedacted`: kotlin.String
-    , 
+    ,
     /**
      * Group public key the backup was published for.
      */
     var `groupPubkey`: kotlin.String?
-    , 
+    ,
     /**
      * Concatenated list of relay URLs the publish tried.
      */
     var `relaysAttempted`: List<kotlin.String>
-    , 
+    ,
     /**
      * Subset whose `["OK", …]` acks we observed.
      */
     var `relaysPublishedTo`: List<kotlin.String>
-    , 
+    ,
     /**
      * Error string when `success` is false.
      */
     var `error`: kotlin.String?
-    , 
+    ,
     /**
      * Unix timestamp the actor recorded this status at.
      */
     var `recordedAtSecs`: kotlin.Long
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -2648,40 +2648,40 @@ data class DashboardState (
      * Active dashboard tab.
      */
     var `activeTab`: DashboardTab
-    , 
+    ,
     /**
      * Signer runtime console state.
      */
     var `signer`: SignerRuntimeState
-    , 
+    ,
     /**
      * Permissions policy editor state (VAL-PERM-001 through VAL-PERM-013).
      */
     var `permissions`: PermissionsState
-    , 
+    ,
     /**
      * Settings and maintenance state (VAL-SET-001 through VAL-SET-016).
      */
     var `settings`: SettingsState
-    , 
+    ,
     /**
      * Identity block data for the active profile.
      */
     var `profileInfo`: ProfileInfo?
-    , 
+    ,
     /**
      * Latest recorded kind-10000 backup publish result for this
      * profile (VAL-BACKUP-001..006). `None` until the shell forwards
      * `BackupPublishCompleted`. Replaced on every subsequent publish.
      */
     var `lastBackupPublish`: BackupPublishStatus?
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -2733,36 +2733,36 @@ public object FfiConverterTypeDashboardState: FfiConverterRustBuffer<DashboardSt
  */
 data class DistributeShareRecord (
     var `shareIdx`: kotlin.UShort
-    , 
+    ,
     var `label`: kotlin.String
-    , 
+    ,
     /**
      * Package password as entered (validated separately per share).
      */
     var `password`: kotlin.String
-    , 
+    ,
     /**
      * Confirm-password field for the double-input UX (VAL-CREATE-013).
      */
     var `confirmPassword`: kotlin.String
-    , 
+    ,
     /**
      * Most recent bfonboard1 package string for this share. Reset to
      * empty when the password changes.
      */
     var `lastPackage`: kotlin.String
-    , 
+    ,
     /**
      * Current distribution status chip (VAL-CREATE-017).
      */
     var `statusChip`: DistributeStatus
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -2815,14 +2815,20 @@ data class GeneratedShare (
      * Identifier inside the keyset (matches `SharePackage.idx`).
      */
     var `shareIdx`: kotlin.UShort
-    , 
+    ,
     /**
-     * 64-char lowercase-hex compressed public key (33-byte form is rendered
-     * as x-only here so mobile validators can compare via accessibility
-     * value or copy affordance).
+     * 64-char lowercase-hex x-only public key. The UI displays this compact
+     * identity while signer material uses `share_pubkey_compressed`.
      */
     var `sharePubkey`: kotlin.String
-    , 
+    ,
+    /**
+     * 66-char lowercase-hex SEC1 compressed public key from the generated
+     * group member list. This preserves the real 02/03 prefix needed by
+     * onboarding response validation.
+     */
+    var `sharePubkeyCompressed`: kotlin.String
+    ,
     /**
      * 32-byte share secret as 64-char lowercase hex. Kept here so the
      * wizard can re-encode the share via the `bfonboard1` envelope on the
@@ -2830,19 +2836,19 @@ data class GeneratedShare (
      * native logs.
      */
     var `shareSecretHex`: kotlin.String
-    , 
+    ,
     /**
      * Default label for this share, derived from `group_name` + share_idx.
      * The user can override it on the Distribute step (VAL-CREATE-011).
      */
     var `defaultLabel`: kotlin.String
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -2856,12 +2862,14 @@ public object FfiConverterTypeGeneratedShare: FfiConverterRustBuffer<GeneratedSh
             FfiConverterString.read(buf),
             FfiConverterString.read(buf),
             FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
         )
     }
 
     override fun allocationSize(value: GeneratedShare) = (
             FfiConverterUShort.allocationSize(value.`shareIdx`) +
             FfiConverterString.allocationSize(value.`sharePubkey`) +
+            FfiConverterString.allocationSize(value.`sharePubkeyCompressed`) +
             FfiConverterString.allocationSize(value.`shareSecretHex`) +
             FfiConverterString.allocationSize(value.`defaultLabel`)
     )
@@ -2869,6 +2877,7 @@ public object FfiConverterTypeGeneratedShare: FfiConverterRustBuffer<GeneratedSh
     override fun write(value: GeneratedShare, buf: ByteBuffer) {
             FfiConverterUShort.write(value.`shareIdx`, buf)
             FfiConverterString.write(value.`sharePubkey`, buf)
+            FfiConverterString.write(value.`sharePubkeyCompressed`, buf)
             FfiConverterString.write(value.`shareSecretHex`, buf)
             FfiConverterString.write(value.`defaultLabel`, buf)
     }
@@ -2886,13 +2895,13 @@ data class HubState (
      * Sorted list of stored profiles (newest first).
      */
     var `profiles`: List<StoredProfile>
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -2926,28 +2935,28 @@ public object FfiConverterTypeHubState: FfiConverterRustBuffer<HubState> {
  */
 data class KeysetBundleRecord (
     var `groupName`: kotlin.String
-    , 
+    ,
     var `threshold`: kotlin.UShort
-    , 
+    ,
     var `count`: kotlin.UShort
-    , 
+    ,
     /**
      * 64-char lowercase-hex group public key.
      */
     var `groupPubkey`: kotlin.String
-    , 
+    ,
     /**
      * All shares produced by the dealer; the local device picks one and the
      * Distribute step iterates over the remainder.
      */
     var `shares`: List<GeneratedShare>
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -2993,67 +3002,67 @@ data class KeysetFlowState (
      * Current wizard progress.
      */
     var `step`: KeysetFlowStep
-    , 
+    ,
     /**
      * Persistent validation error from the Generate step, cleared on the
      * next successful validation pass.
      */
     var `error`: KeysetValidationError?
-    , 
+    ,
     /**
      * Free-form error message surfaced when keygen or distribution fails.
      * Lives separately so the typed `error` slot can keep validating form
      * parity while runtime failures carry the FFI's raw error text.
      */
     var `lastErrorMessage`: kotlin.String?
-    , 
+    ,
     /**
      * Wizard mode (Create vs Rotate) — VAL-CREATE-002 form parity.
      */
     var `mode`: KeysetFlowMode
-    , 
+    ,
     /**
      * Generate-step inputs: group name, threshold, count. Kept across
      * the wizard so back navigation preserves values (VAL-CREATE-009).
      */
     var `groupName`: kotlin.String
-    , 
+    ,
     var `threshold`: kotlin.UShort
-    , 
+    ,
     var `count`: kotlin.UShort
-    , 
+    ,
     /**
      * Generated bundle; filled when `step` reaches DeviceProfile+ and
      * empty after `reset()`.
      */
     var `bundle`: KeysetBundleRecord?
-    , 
+    ,
     /**
      * Selected local share idx (VAL-CREATE-004, VAL-CREATE-006).
      */
     var `localShareIdx`: kotlin.UShort
-    , 
+    ,
     /**
      * Device profile inputs: device name (prefilled from
      * `group_name`+share-idx default), relay list pre-filled with the
      * app default relay URL.
      */
     var `deviceName`: kotlin.String
-    , 
+    ,
     var `relays`: List<kotlin.String>
-    , 
+    ,
     /**
      * One DistributeShareRecord per remaining (non-local) share.
      * Empty until the wizard reaches the Distribute step.
      */
     var `distribute`: List<DistributeShareRecord>
-    , 
+    ,
     /**
      * Short profile id captured after Accept-and-Continue storage completes.
      * Used by the Distribute step's embedded dashboard header on iOS.
      */
     var `acceptedShortId`: kotlin.String?
-    , 
+    ,
     /**
      * Full profile id of the keyset that the user just accepted. Set in
      * `CreateKeysetAccept` (and re-set by `CreateKeysetAccepted` from the
@@ -3065,7 +3074,7 @@ data class KeysetFlowState (
      * or the hub order isn't `insert(0, ...)`.
      */
     var `acceptedProfileId`: kotlin.String
-    , 
+    ,
     /**
      * Rotation-mode source picker (VAL-ROTATE-001..004).
      *
@@ -3076,26 +3085,26 @@ data class KeysetFlowState (
      * (VAL-ROTATE-002) against the right stored profile.
      */
     var `rotationSources`: List<RotationSourceRow>
-    , 
+    ,
     /**
      * Profile id the rotation source picker binds to (VAL-ROTATE-001).
      * Empty means the picker is showing the placeholder.
      */
     var `rotateSourceProfileId`: kotlin.String
-    , 
+    ,
     /**
      * Surface error for the rotation-source stage. Mirrors the
      * typed `error` slot so the same inline-error UI handles both
      * shape rejections (VAL-ROTATE-002, VAL-ROTATE-003).
      */
     var `rotationError`: kotlin.String?
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -3178,33 +3187,33 @@ data class LoadProfileResolved (
      * User-visible device/profile name.
      */
     var `deviceName`: kotlin.String
-    , 
+    ,
     /**
      * Full 64-char lowercase-hex share public key.
      */
     var `sharePubkey`: kotlin.String
-    , 
+    ,
     /**
      * Full 64-char lowercase-hex group public key.
      */
     var `groupPubkey`: kotlin.String
-    , 
+    ,
     /**
      * Relay list in effect for this profile (from the backup for recovery).
      */
     var `relays`: List<kotlin.String>
-    , 
+    ,
     /**
      * Derived 64-char lowercase-hex profile id (sha256 of share pubkey).
      */
     var `profileId`: kotlin.String
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -3251,40 +3260,40 @@ data class LoadProfileState (
      * Current progress step — drives UI display.
      */
     var `step`: LoadProfileStep
-    , 
+    ,
     /**
      * Most recent error, if any, for display on the import/recover screen.
      */
     var `error`: LoadProfileError?
-    , 
+    ,
     /**
      * The package string as entered (trimmed of surrounding whitespace).
      * Not persisted; kept for re-use on retry.
      */
     var `package`: kotlin.String
-    , 
+    ,
     /**
      * The package password as entered. Not persisted.
      */
     var `password`: kotlin.String
-    , 
+    ,
     /**
      * Which path the user is on: "import" or "recover".
      * Used to determine back navigation and error recovery behavior.
      */
     var `path`: kotlin.String
-    , 
+    ,
     /**
      * Decoded/recovered profile preview; None until Preview step.
      */
     var `resolved`: LoadProfileResolved?
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -3326,23 +3335,23 @@ public object FfiConverterTypeLoadProfileState: FfiConverterRustBuffer<LoadProfi
 
 data class LogEntry (
     var `level`: LogLevel
-    , 
+    ,
     /**
      * ISO-8601 / RFC-3339 formatted timestamp string.
      */
     var `timestamp`: kotlin.String
-    , 
+    ,
     /**
      * Human-readable log message.
      */
     var `message`: kotlin.String
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -3375,15 +3384,15 @@ public object FfiConverterTypeLogEntry: FfiConverterRustBuffer<LogEntry> {
 
 data class MaterialMember (
     var `idx`: kotlin.UShort
-    , 
+    ,
     var `pubkeyHex`: kotlin.String
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -3416,17 +3425,17 @@ public object FfiConverterTypeMaterialMember: FfiConverterRustBuffer<MaterialMem
  */
 data class NonceInventory (
     var `incomingAvailable`: kotlin.UInt
-    , 
+    ,
     var `outgoingAvailable`: kotlin.UInt
-    , 
+    ,
     var `outgoingSpent`: kotlin.UInt
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -3459,23 +3468,23 @@ public object FfiConverterTypeNonceInventory: FfiConverterRustBuffer<NonceInvent
 
 data class OnboardProfileMaterial (
     var `shareSeckeyHex`: kotlin.String
-    , 
+    ,
     var `sharePubkey`: kotlin.String
-    , 
+    ,
     var `groupPubkey`: kotlin.String
-    , 
+    ,
     var `relays`: List<kotlin.String>
-    , 
+    ,
     var `deviceStateHex`: kotlin.String
-    , 
+    ,
     var `profileId`: kotlin.String
-    , 
+    ,
     var `shareIdx`: kotlin.UShort
-    , 
+    ,
     var `peerPubkeys`: List<kotlin.String>
-    , 
+    ,
     var `members`: List<MaterialMember>
-    , 
+    ,
     /**
      * User-visible device name carried through export flows so that
      * bfprofile1 packages emitted by export-profile preserve the
@@ -3490,13 +3499,13 @@ data class OnboardProfileMaterial (
      * field was added parses back to the default settings.
      */
     var `settings`: SignerSettings
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -3553,27 +3562,27 @@ public object FfiConverterTypeOnboardProfileMaterial: FfiConverterRustBuffer<Onb
 
 data class OnboardResult (
     var `success`: kotlin.Boolean
-    , 
+    ,
     var `error`: kotlin.String?
-    , 
+    ,
     var `material`: kotlin.ByteArray?
-    , 
+    ,
     var `deviceName`: kotlin.String?
-    , 
+    ,
     var `sharePubkey`: kotlin.String?
-    , 
+    ,
     var `groupPubkey`: kotlin.String?
-    , 
+    ,
     var `relays`: List<kotlin.String>?
-    , 
+    ,
     var `profileId`: kotlin.String?
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -3629,33 +3638,33 @@ data class OnboardingState (
      * Current progress step — drives UI display.
      */
     var `step`: OnboardingStep
-    , 
+    ,
     /**
      * Most recent error, if any, for display on the connect screen.
      */
     var `error`: OnboardingError?
-    , 
+    ,
     /**
      * The bfonboard package string as entered (trimmed of surrounding whitespace).
      * Not persisted; kept for re-use on retry after a partial step.
      */
     var `package`: kotlin.String
-    , 
+    ,
     /**
      * The package password as entered. Not persisted.
      */
     var `password`: kotlin.String
-    , 
+    ,
     /**
      * The relay URL to use — either from the package or user-edited.
      */
     var `relayUrl`: kotlin.String
-    , 
+    ,
     /**
      * Resolved identity from a successful handshake; None until Complete.
      */
     var `resolved`: ResolvedIdentity?
-    , 
+    ,
     /**
      * Optional device name pre-injected from a debug intent (Android
      * `com.frostr.igloo.DEBUG_TEST_INJECT_ONBOARD`) before the handshake
@@ -3664,13 +3673,13 @@ data class OnboardingState (
      * on `reset()` so it cannot leak across flows.
      */
     var `injectedDeviceName`: kotlin.String?
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -3723,34 +3732,34 @@ data class PeerPermissions (
      * Peer alias (e.g. "alice", "carol").
      */
     var `alias`: kotlin.String
-    , 
+    ,
     /**
      * Backward-compatible field name used by older UI/tests.
      */
     var `peerAlias`: kotlin.String
-    , 
+    ,
     /**
      * Whether this peer is currently online (from signer runtime).
      */
     var `online`: kotlin.Boolean
-    , 
+    ,
     /**
      * Manual override cells: 2 directions × 4 methods = 8 cells.
      * Organized as a flat list; access by (direction, method) key.
      */
     var `overrides`: List<PolicyCell>
-    , 
+    ,
     /**
      * Remote policy observation from the running signer (VAL-PERM-012, VAL-PERM-013).
      */
     var `remoteObservation`: RemotePolicyObservation
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -3795,33 +3804,33 @@ data class PeerStatus (
      * Human-readable peer alias (e.g. "alice", "carol").
      */
     var `alias`: kotlin.String
-    , 
+    ,
     /**
      * 64-char lowercase-hex x-only public key of this peer.
      */
     var `pubkey`: kotlin.String
-    , 
+    ,
     /**
      * Whether this peer is currently reachable and has completed the ping round.
      */
     var `online`: kotlin.Boolean
-    , 
+    ,
     /**
      * Unix timestamp of the last received message from this peer.
      */
     var `lastSeenSecs`: kotlin.Long?
-    , 
+    ,
     /**
      * Nonce inventory counters for this peer.
      */
     var `nonces`: NonceInventory
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -3863,18 +3872,18 @@ public object FfiConverterTypePeerStatus: FfiConverterRustBuffer<PeerStatus> {
  */
 data class PendingOp (
     var `opType`: PendingOpType
-    , 
+    ,
     /**
      * Unix timestamp when the operation started.
      */
     var `startedAtSecs`: kotlin.Long
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -3911,18 +3920,18 @@ data class PermissionsState (
      * Per-peer permission states, one entry per known peer.
      */
     var `peers`: List<PeerPermissions>
-    , 
+    ,
     /**
      * Whether a remote policy refresh is currently in progress.
      */
     var `refreshInProgress`: kotlin.Boolean
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -3955,17 +3964,17 @@ public object FfiConverterTypePermissionsState: FfiConverterRustBuffer<Permissio
  */
 data class PolicyCell (
     var `direction`: PolicyDirection
-    , 
+    ,
     var `method`: PolicyMethod
-    , 
+    ,
     var `overrideValue`: PolicyOverrideValue
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -4005,28 +4014,28 @@ data class ProfileInfo (
      * User-visible device name (from profile label).
      */
     var `deviceName`: kotlin.String
-    , 
+    ,
     /**
      * 64-char lowercase-hex share public key.
      */
     var `sharePubkey`: kotlin.String
-    , 
+    ,
     /**
      * 64-char lowercase-hex group public key.
      */
     var `groupPubkey`: kotlin.String
-    , 
+    ,
     /**
      * 64-char lowercase-hex profile id.
      */
     var `profileId`: kotlin.String
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -4071,23 +4080,23 @@ data class RemotePolicyObservation (
      * Whether the peer has advertised its policy to us.
      */
     var `available`: kotlin.Boolean
-    , 
+    ,
     /**
      * Unix timestamp of the last policy advertisement from this peer.
      */
     var `lastObservedSecs`: kotlin.Long?
-    , 
+    ,
     /**
      * Revision marker from the peer's policy advertisement.
      */
     var `revision`: kotlin.ULong?
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -4127,33 +4136,33 @@ data class ResolvedIdentity (
      * User-editable device name (pre-filled from the onboard package's device name).
      */
     var `deviceName`: kotlin.String
-    , 
+    ,
     /**
      * Full 64-char lowercase-hex share public key.
      */
     var `sharePubkey`: kotlin.String
-    , 
+    ,
     /**
      * Full 64-char lowercase-hex group public key.
      */
     var `groupPubkey`: kotlin.String
-    , 
+    ,
     /**
      * Relay list in effect for this profile.
      */
     var `relays`: List<kotlin.String>
-    , 
+    ,
     /**
      * Derived 64-char lowercase-hex profile id (sha256 of share pubkey).
      */
     var `profileId`: kotlin.String
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -4202,29 +4211,29 @@ data class RotatePreviewIdentity (
      * previous label).
      */
     var `deviceName`: kotlin.String
-    , 
+    ,
     /**
      * 64-char lowercase-hex share public key of the rotated share.
      */
     var `sharePubkey`: kotlin.String
-    , 
+    ,
     /**
      * 64-char lowercase-hex group public key (matches the active
      * profile's group key — VAL-ROTATE-004 invariant).
      */
     var `groupPubkey`: kotlin.String
-    , 
+    ,
     /**
      * Derived 64-char lowercase-hex profile id of the rotated share.
      */
     var `profileId`: kotlin.String
-    , 
+    ,
     /**
      * Relay list in effect for the rotated profile (carried verbatim
      * from the rotated package so round-tripping is lossless).
      */
     var `relays`: List<kotlin.String>
-    , 
+    ,
     /**
      * 64-char lowercase-hex share secret of the rotated share.
      * Carried through from the live handshake so the actor can build
@@ -4236,13 +4245,13 @@ data class RotatePreviewIdentity (
      * replace so secret lifetime matches the rotate flow.
      */
     var `shareSeckeyHex`: kotlin.String
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -4290,40 +4299,40 @@ data class RotateShareState (
      * Current progress step (UI drives off this field).
      */
     var `step`: RotateShareStep
-    , 
+    ,
     /**
      * Most recent error, if any, for display on the connect screen.
      */
     var `error`: RotateShareError?
-    , 
+    ,
     /**
      * Raw error text the shell returned alongside the typed error —
      * rendered next to the typed message for diagnostics.
      */
     var `lastErrorMessage`: kotlin.String?
-    , 
+    ,
     /**
      * bfonboard package text as entered (trimmed).
      */
     var `package`: kotlin.String
-    , 
+    ,
     /**
      * bfonboard package password as entered (not persisted).
      */
     var `password`: kotlin.String
-    , 
+    ,
     /**
      * Relay URL in effect — package-embedded or user-edited to platform
      * correct value (`127.0.0.1:8194` on iOS sim, `10.0.2.2:8194` on
      * Android emulator).
      */
     var `relayUrl`: kotlin.String
-    , 
+    ,
     /**
      * Resolved rotated identity (set once handshake completes).
      */
     var `preview`: RotatePreviewIdentity?
-    , 
+    ,
     /**
      * Active profile id at the time the user opened the rotate-share
      * flow. Used by VAL-ROTATE-010 (back leaves original untouched),
@@ -4332,25 +4341,25 @@ data class RotateShareState (
      * profile_id matches this).
      */
     var `activeProfileId`: kotlin.String
-    , 
+    ,
     /**
      * Active profile short id (first 8 hex chars) for the connect-card
      * row (VAL-ROTATE-005).
      */
     var `activeShortId`: kotlin.String
-    , 
+    ,
     /**
      * Active profile device label for the connect-card row
      * (VAL-ROTATE-005).
      */
     var `activeDeviceLabel`: kotlin.String
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -4417,12 +4426,12 @@ data class RotationSourceRow (
      * been claimed and re-fills on back navigation.
      */
     var `package`: kotlin.String
-    , 
+    ,
     /**
      * bfshare1 password as entered (validated, not persisted).
      */
     var `password`: kotlin.String
-    , 
+    ,
     /**
      * Whitelisted profile id this rotation source targets. Set when
      * the source-profile picker binds the row to a stored profile.
@@ -4430,13 +4439,13 @@ data class RotationSourceRow (
      * it.
      */
     var `sourceProfileId`: kotlin.String
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -4475,18 +4484,18 @@ data class Router (
      * Current active screen.
      */
     var `screen`: Screen
-    , 
+    ,
     /**
      * Navigation history for back button (last = most recent previous screen).
      */
     var `backHistory`: List<Screen>
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -4529,45 +4538,45 @@ data class SettingsState (
      * VAL-SET-013: editing renames everywhere live.
      */
     var `signerName`: kotlin.String
-    , 
+    ,
     /**
      * Signer runtime settings.
      */
     var `settings`: SignerSettings
-    , 
+    ,
     /**
      * Relay list with add/remove/trim/dedupe. VAL-SET-014.
      */
     var `relays`: List<kotlin.String>
-    , 
+    ,
     /**
      * Whether there are unsaved edits (for UI state display).
      */
     var `hasUnsavedEdits`: kotlin.Boolean
-    , 
+    ,
     /**
      * Whether the settings save is currently blocked because the signer is stopped.
      * VAL-SET-016: save is visibly gated while the signer is stopped.
      */
     var `saveBlockedSignerStopped`: kotlin.Boolean
-    , 
+    ,
     /**
      * Pending export password for copy profile (set when user triggers copy profile).
      * The shell shows a password prompt; the password is used once to encrypt the output.
      */
     var `pendingExportPassword`: kotlin.String?
-    , 
+    ,
     /**
      * Pending export type: "profile" or "share". Determines which package is exported.
      */
     var `pendingExportType`: kotlin.String?
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -4620,62 +4629,62 @@ data class SignerRuntimeState (
      * Whether the signer runtime is currently running.
      */
     var `status`: SignerStatus
-    , 
+    ,
     /**
      * Whether the relay connection is healthy (non-degraded).
      */
     var `relayConnected`: kotlin.Boolean
-    , 
+    ,
     /**
      * Operational readiness of the signer.
      */
     var `readiness`: SignerReadiness
-    , 
+    ,
     /**
      * List of peer statuses (alice and carol for the 2-of-3 demo keyset).
      */
     var `peers`: List<PeerStatus>
-    , 
+    ,
     /**
      * Runtime event log entries, newest first.
      */
     var `events`: List<LogEntry>
-    , 
+    ,
     /**
      * Currently in-flight operations, empty when idle (VAL-SIGNER-014).
      */
     var `pendingOps`: List<PendingOp>
-    , 
+    ,
     /**
      * Unix timestamp of the last successful poll (for VAL-SIGNER-011 auto-update proof).
      */
     var `lastRefreshSecs`: kotlin.Long?
-    , 
+    ,
     /**
      * Whether the signer is currently processing a ping round.
      */
     var `pingInProgress`: kotlin.Boolean
-    , 
+    ,
     /**
      * Whether a test sign operation is currently in flight (VAL-SIGN-002).
      */
     var `testSignInProgress`: kotlin.Boolean
-    , 
+    ,
     /**
      * Result of the last completed test sign operation (VAL-SIGN-002).
      */
     var `lastTestSign`: TestSignResultData?
-    , 
+    ,
     /**
      * Whether a test ECDH operation is currently in flight (VAL-SIGN-005).
      */
     var `testEcdhInProgress`: kotlin.Boolean
-    , 
+    ,
     /**
      * Result of the last completed test ECDH operation (VAL-SIGN-005).
      */
     var `lastTestEcdh`: TestEcdhResultData?
-    , 
+    ,
     /**
      * Highest `events_len` value the actor has ingested from shell polls.
      * Used to dedupe the per-poll cadence so a single runtime
@@ -4685,13 +4694,13 @@ data class SignerRuntimeState (
      * `mobile-create-keyset-flow` events_len contract.
      */
     var `runtimeObservedEventsLen`: kotlin.ULong
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -4762,33 +4771,33 @@ data class SignerSettings (
      * Sign operation timeout in seconds. Default: 30.
      */
     var `signTimeoutSecs`: kotlin.UInt
-    , 
+    ,
     /**
      * Ping timeout in seconds. Default: 15.
      */
     var `pingTimeoutSecs`: kotlin.UInt
-    , 
+    ,
     /**
      * Request TTL in seconds. Default: 300.
      */
     var `requestTtlSecs`: kotlin.UInt
-    , 
+    ,
     /**
      * State save interval in seconds. Default: 30.
      */
     var `stateSaveIntervalSecs`: kotlin.UInt
-    , 
+    ,
     /**
      * Peer selection strategy. Default: deterministic_sorted.
      */
     var `peerSelectionStrategy`: PeerSelectionStrategy
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -4833,28 +4842,28 @@ data class StoredProfile (
      * User-visible label (device name).
      */
     var `label`: kotlin.String
-    , 
+    ,
     /**
      * Shortened profile id (8 hex chars).
      */
     var `shortId`: kotlin.String
-    , 
+    ,
     /**
      * Full profile id (64 hex chars) for internal use / equality checks.
      */
     var `profileId`: kotlin.String
-    , 
+    ,
     /**
      * Profile availability / active status.
      */
     var `status`: ProfileStatus
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -4890,21 +4899,21 @@ public object FfiConverterTypeStoredProfile: FfiConverterRustBuffer<StoredProfil
 
 data class TestEcdhResult (
     var `success`: kotlin.Boolean
-    , 
+    ,
     var `error`: kotlin.String?
-    , 
+    ,
     var `requestId`: kotlin.String?
-    , 
+    ,
     var `targetPubkey`: kotlin.String?
-    , 
+    ,
     var `sharedSecret`: kotlin.String?
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -4949,28 +4958,28 @@ data class TestEcdhResultData (
      * Request id for correlating with demo-harness logs.
      */
     var `requestId`: kotlin.String
-    , 
+    ,
     /**
      * The target public key used for ECDH (64-char lowercase-hex).
      */
     var `targetPubkey`: kotlin.String
-    , 
+    ,
     /**
      * The derived 32-byte shared secret (64-char lowercase-hex).
      */
     var `sharedSecret`: kotlin.String
-    , 
+    ,
     /**
      * Unix timestamp when the operation completed.
      */
     var `completedAtSecs`: kotlin.Long
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -5006,21 +5015,21 @@ public object FfiConverterTypeTestEcdhResultData: FfiConverterRustBuffer<TestEcd
 
 data class TestSignResult (
     var `success`: kotlin.Boolean
-    , 
+    ,
     var `error`: kotlin.String?
-    , 
+    ,
     var `requestId`: kotlin.String?
-    , 
+    ,
     var `digest`: kotlin.String?
-    , 
+    ,
     var `signature`: kotlin.String?
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -5065,28 +5074,28 @@ data class TestSignResultData (
      * Request id for correlating with demo-harness logs.
      */
     var `requestId`: kotlin.String
-    , 
+    ,
     /**
      * The 32-byte digest that was signed (64-char lowercase-hex).
      */
     var `digest`: kotlin.String
-    , 
+    ,
     /**
      * The 64-byte BIP340 signature (128-char lowercase-hex).
      */
     var `signature`: kotlin.String
-    , 
+    ,
     /**
      * Unix timestamp when the operation completed.
      */
     var `completedAtSecs`: kotlin.Long
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -5124,223 +5133,223 @@ public object FfiConverterTypeTestSignResultData: FfiConverterRustBuffer<TestSig
  * Navigation actions — mirrors the screen stack.
  */
 sealed class AppAction {
-    
+
     object NavigateOnboard : AppAction()
-    
-    
+
+
     object NavigateOnboardConnect : AppAction()
-    
-    
+
+
     object NavigateLoadProfile : AppAction()
-    
-    
+
+
     object NavigateCreateKeyset : AppAction()
-    
-    
+
+
     data class OpenProfile(
         val `profileId`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object NavigateBack : AppAction()
-    
-    
+
+
     data class InjectOnboardCredentials(
-        val `package`: kotlin.String, 
-        val `password`: kotlin.String, 
-        val `relayUrl`: kotlin.String, 
+        val `package`: kotlin.String,
+        val `password`: kotlin.String,
+        val `relayUrl`: kotlin.String,
         val `deviceName`: kotlin.String?) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class OnboardConnect(
-        val `package`: kotlin.String, 
-        val `password`: kotlin.String, 
+        val `package`: kotlin.String,
+        val `password`: kotlin.String,
         val `relayUrl`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class OnboardHandshakeSuccess(
-        val `deviceName`: kotlin.String, 
-        val `sharePubkey`: kotlin.String, 
-        val `groupPubkey`: kotlin.String, 
-        val `relays`: List<kotlin.String>, 
+        val `deviceName`: kotlin.String,
+        val `sharePubkey`: kotlin.String,
+        val `groupPubkey`: kotlin.String,
+        val `relays`: List<kotlin.String>,
         val `profileId`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class OnboardHandshakeFailure(
         val `error`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class OnboardSave(
-        val `profileId`: kotlin.String, 
-        val `label`: kotlin.String, 
+        val `profileId`: kotlin.String,
+        val `label`: kotlin.String,
         val `shortId`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class DiagnosticsOnboardSave(
         val `deviceName`: kotlin.String?) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class OnboardStored(
         val `profileId`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class OnboardDuplicateRejected(
         val `profileId`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object OnboardClearError : AppAction()
-    
-    
+
+
     object LoadProfileSelectImport : AppAction()
-    
-    
+
+
     object LoadProfileSelectRecover : AppAction()
-    
-    
+
+
     data class LoadProfileImportSubmit(
-        val `package`: kotlin.String, 
+        val `package`: kotlin.String,
         val `password`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class LoadProfileRecoverSubmit(
-        val `package`: kotlin.String, 
+        val `package`: kotlin.String,
         val `password`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class LoadProfileImportSuccess(
-        val `deviceName`: kotlin.String, 
-        val `sharePubkey`: kotlin.String, 
-        val `groupPubkey`: kotlin.String, 
-        val `relays`: List<kotlin.String>, 
+        val `deviceName`: kotlin.String,
+        val `sharePubkey`: kotlin.String,
+        val `groupPubkey`: kotlin.String,
+        val `relays`: List<kotlin.String>,
         val `profileId`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class LoadProfileImportFailure(
         val `error`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class LoadProfileRecoverSuccess(
-        val `deviceName`: kotlin.String, 
-        val `sharePubkey`: kotlin.String, 
-        val `groupPubkey`: kotlin.String, 
-        val `relays`: List<kotlin.String>, 
+        val `deviceName`: kotlin.String,
+        val `sharePubkey`: kotlin.String,
+        val `groupPubkey`: kotlin.String,
+        val `relays`: List<kotlin.String>,
         val `profileId`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class LoadProfileRecoverFailure(
         val `error`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object LoadProfileConfirm : AppAction()
-    
-    
+
+
     data class LoadProfileStored(
         val `profileId`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class LoadProfileDuplicateRejected(
         val `profileId`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object LoadProfileClearError : AppAction()
-    
-    
+
+
     /**
      * Open the wizard — reset state and land on the entry screen.
      */
     object CreateKeysetEnter : AppAction()
-    
-    
+
+
     /**
      * Pick the create (new signing key) mode on the entry screen.
      */
     object CreateKeysetSelectCreate : AppAction()
-    
-    
+
+
     /**
      * Pick the rotate (preserve group key) mode on the entry screen. The
      * rotation path is owned by the rotate-share feature; this action
@@ -5348,65 +5357,65 @@ sealed class AppAction {
      * stays in the Generate step until the rotate feature completes it.
      */
     object CreateKeysetSelectRotate : AppAction()
-    
-    
+
+
     /**
      * User-side field changes on the Generate step (VAL-CREATE-002,
      * VAL-CREATE-003). Each field change recomputes validation.
      */
     data class CreateKeysetUpdateGroupName(
         val `value`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class CreateKeysetUpdateThreshold(
         val `value`: kotlin.UShort) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class CreateKeysetUpdateCount(
         val `value`: kotlin.UShort) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class CreateKeysetUpdateMode(
         val `mode`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * User tapped Generate with valid inputs (VAL-CREATE-002..007).
      * Shells dispatch an FfiApp.generate_keyset() call and then resolve
      * with `CreateKeysetGenerationSuccess`/`CreateKeysetGenerationFailed`.
      */
     data class CreateKeysetGenerateSubmit(
-        val `groupName`: kotlin.String, 
-        val `threshold`: kotlin.UShort, 
-        val `count`: kotlin.UShort, 
+        val `groupName`: kotlin.String,
+        val `threshold`: kotlin.UShort,
+        val `count`: kotlin.UShort,
         val `mode`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * FfiApp.generate_keyset() succeeded with a JSON bundle wire form.
      * The actor parses the bundle, builds the share picker and the
@@ -5414,532 +5423,532 @@ sealed class AppAction {
      */
     data class CreateKeysetGenerationSuccess(
         val `bundleJson`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * FfiApp.generate_keyset() failed — return to `GenerationFailed`.
      */
     data class CreateKeysetGenerationFailed(
         val `error`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Pick which share becomes the local device (VAL-CREATE-004,
      * VAL-CREATE-006).
      */
     data class CreateKeysetSelectLocalShare(
         val `shareIdx`: kotlin.UShort) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * User-side field changes on the Device Profile step.
      */
     data class CreateKeysetUpdateDeviceName(
         val `value`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class CreateKeysetUpdateRelays(
         val `value`: List<kotlin.String>) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * User tapped "Continue to Review" with valid inputs
      * (VAL-CREATE-005/007/008).
      */
     object CreateKeysetAdvanceToReview : AppAction()
-    
-    
+
+
     /**
      * User tapped "Accept and Continue" (VAL-CREATE-010). Triggers
      * AppUpdate::StoreKeysetCreatedProfile so the shell writes the
      * decrypted material to native secure storage.
      */
     object CreateKeysetAccept : AppAction()
-    
-    
+
+
     /**
      * Shell stored the profile and reported the new profile id back.
      */
     data class CreateKeysetAccepted(
-        val `profileId`: kotlin.String, 
-        val `label`: kotlin.String, 
+        val `profileId`: kotlin.String,
+        val `label`: kotlin.String,
         val `shortId`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * User-side field changes on the Distribute step (VAL-CREATE-013).
      */
     data class CreateKeysetDistributeSetPassword(
-        val `shareIdx`: kotlin.UShort, 
+        val `shareIdx`: kotlin.UShort,
         val `password`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class CreateKeysetDistributeSetConfirm(
-        val `shareIdx`: kotlin.UShort, 
+        val `shareIdx`: kotlin.UShort,
         val `confirm`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class CreateKeysetDistributeSetLabel(
-        val `shareIdx`: kotlin.UShort, 
+        val `shareIdx`: kotlin.UShort,
         val `label`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class CreateKeysetDistributeSubmit(
-        val `shareIdx`: kotlin.UShort, 
+        val `shareIdx`: kotlin.UShort,
         val `method`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell produced the bfonboard1 package for the requested share;
      * the actor stores it on the row and updates the status chip.
      */
     data class CreateKeysetDistributePackageProduced(
-        val `shareIdx`: kotlin.UShort, 
-        val `package`: kotlin.String, 
+        val `shareIdx`: kotlin.UShort,
+        val `package`: kotlin.String,
         val `method`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell failed to produce the bfonboard1 package for the requested
      * share (KDF error, missing share, etc.). The chip stays Pending.
      */
     data class CreateKeysetDistributeFailed(
-        val `shareIdx`: kotlin.UShort, 
+        val `shareIdx`: kotlin.UShort,
         val `error`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * User tapped "Finish" (VAL-CREATE-018/019).
      */
     object CreateKeysetDistributeFinish : AppAction()
-    
-    
+
+
     /**
      * User abandoned the wizard before Review accept (VAL-CREATE-020).
      * Actor resets `KeysetFlowState` and returns control to the caller.
      */
     object CreateKeysetAbandon : AppAction()
-    
-    
+
+
     data class RequestDeleteProfile(
         val `profileId`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class ConfirmDeleteProfile(
         val `profileId`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object RestoreAllProfiles : AppAction()
-    
-    
+
+
     data class ProfileRestored(
-        val `label`: kotlin.String, 
-        val `profileId`: kotlin.String, 
+        val `label`: kotlin.String,
+        val `profileId`: kotlin.String,
         val `shortId`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class UpdateHubStatus(
-        val `profileId`: kotlin.String, 
+        val `profileId`: kotlin.String,
         val `active`: kotlin.Boolean) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class DashboardSetTab(
         val `tab`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class OpenDashboard(
-        val `profileId`: kotlin.String, 
-        val `deviceName`: kotlin.String, 
-        val `sharePubkey`: kotlin.String, 
+        val `profileId`: kotlin.String,
+        val `deviceName`: kotlin.String,
+        val `sharePubkey`: kotlin.String,
         val `groupPubkey`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object SignerStart : AppAction()
-    
-    
+
+
     data class SignerStarted(
-        val `relayConnected`: kotlin.Boolean, 
+        val `relayConnected`: kotlin.Boolean,
         val `readiness`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object SignerStop : AppAction()
-    
-    
+
+
     object SignerStopped : AppAction()
-    
-    
+
+
     data class SignerStatusUpdate(
-        val `relayConnected`: kotlin.Boolean, 
-        val `readiness`: kotlin.String, 
-        val `peerAliases`: List<kotlin.String>, 
-        val `peerPubkeys`: List<kotlin.String>, 
-        val `peerOnline`: List<kotlin.Boolean>, 
-        val `peerLastSeen`: List<kotlin.Long?>, 
-        val `peerIncomingAvailable`: List<kotlin.UInt>, 
-        val `peerOutgoingAvailable`: List<kotlin.UInt>, 
-        val `peerOutgoingSpent`: List<kotlin.UInt>, 
-        val `pendingOpTypes`: List<kotlin.String>, 
-        val `pendingOpStartedAt`: List<kotlin.Long>, 
-        val `lastRefreshSecs`: kotlin.Long?, 
+        val `relayConnected`: kotlin.Boolean,
+        val `readiness`: kotlin.String,
+        val `peerAliases`: List<kotlin.String>,
+        val `peerPubkeys`: List<kotlin.String>,
+        val `peerOnline`: List<kotlin.Boolean>,
+        val `peerLastSeen`: List<kotlin.Long?>,
+        val `peerIncomingAvailable`: List<kotlin.UInt>,
+        val `peerOutgoingAvailable`: List<kotlin.UInt>,
+        val `peerOutgoingSpent`: List<kotlin.UInt>,
+        val `pendingOpTypes`: List<kotlin.String>,
+        val `pendingOpStartedAt`: List<kotlin.Long>,
+        val `lastRefreshSecs`: kotlin.Long?,
         val `eventsLen`: kotlin.UInt) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object SignerPoll : AppAction()
-    
-    
+
+
     object SignerPingPeers : AppAction()
-    
-    
+
+
     data class SignerPingComplete(
-        val `peerAlias`: kotlin.String, 
-        val `lastSeenSecs`: kotlin.Long, 
+        val `peerAlias`: kotlin.String,
+        val `lastSeenSecs`: kotlin.Long,
         val `incomingAvailable`: kotlin.UInt) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class CopyToClipboard(
-        val `value`: kotlin.String, 
+        val `value`: kotlin.String,
         val `label`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object TestSign : AppAction()
-    
-    
+
+
     data class TestSignResult(
-        val `requestId`: kotlin.String, 
-        val `digest`: kotlin.String, 
+        val `requestId`: kotlin.String,
+        val `digest`: kotlin.String,
         val `signature`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class TestSignFailed(
         val `error`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object TestEcdh : AppAction()
-    
-    
+
+
     data class TestEcdhResult(
-        val `requestId`: kotlin.String, 
-        val `targetPubkey`: kotlin.String, 
+        val `requestId`: kotlin.String,
+        val `targetPubkey`: kotlin.String,
         val `sharedSecret`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class TestEcdhFailed(
         val `error`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object ClearTestSignResult : AppAction()
-    
-    
+
+
     object ClearTestEcdhResult : AppAction()
-    
-    
+
+
     data class SetPolicyOverride(
-        val `peerAlias`: kotlin.String, 
-        val `direction`: kotlin.String, 
-        val `method`: kotlin.String, 
+        val `peerAlias`: kotlin.String,
+        val `direction`: kotlin.String,
+        val `method`: kotlin.String,
         val `value`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class ResetPolicyOverride(
-        val `peerAlias`: kotlin.String, 
-        val `direction`: kotlin.String, 
+        val `peerAlias`: kotlin.String,
+        val `direction`: kotlin.String,
         val `method`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class ClearAllPeerOverrides(
         val `peerAlias`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object RefreshRemotePolicy : AppAction()
-    
-    
+
+
     data class SyncPeerOnlineStatus(
-        val `peerAliases`: List<kotlin.String>, 
+        val `peerAliases`: List<kotlin.String>,
         val `peerOnline`: List<kotlin.Boolean>) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class UpdateRemotePolicyObservation(
-        val `peerAlias`: kotlin.String, 
-        val `available`: kotlin.Boolean, 
-        val `lastObservedSecs`: kotlin.Long?, 
+        val `peerAlias`: kotlin.String,
+        val `available`: kotlin.Boolean,
+        val `lastObservedSecs`: kotlin.Long?,
         val `revision`: kotlin.ULong?) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class OpenDashboardSettings(
-        val `deviceName`: kotlin.String, 
+        val `deviceName`: kotlin.String,
         val `relays`: List<kotlin.String>,
         val `signTimeoutSecs`: kotlin.UInt,
         val `pingTimeoutSecs`: kotlin.UInt,
         val `requestTtlSecs`: kotlin.UInt,
         val `stateSaveIntervalSecs`: kotlin.UInt,
         val `peerSelectionStrategy`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class EditSignerName(
         val `name`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class EditSignTimeout(
         val `value`: kotlin.UInt) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class EditPingTimeout(
         val `value`: kotlin.UInt) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class EditRequestTtl(
         val `value`: kotlin.UInt) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class EditStateSaveInterval(
         val `value`: kotlin.UInt) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class EditPeerSelectionStrategy(
         val `strategy`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class AddRelay(
         val `url`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class RemoveRelay(
         val `url`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object SaveSettings : AppAction()
-    
-    
+
+
     object RequestCopyProfile : AppAction()
-    
-    
+
+
     data class ConfirmCopyProfile(
         val `password`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object RequestCopyShare : AppAction()
-    
-    
+
+
     data class ConfirmCopyShare(
         val `password`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object NavigateToRotateShare : AppAction()
-    
-    
+
+
     object Logout : AppAction()
-    
-    
+
+
     /**
      * Open the Rotate Share connect screen with the active profile
      * identity pinned on `state.rotate_share`. Equivalent to
@@ -5948,54 +5957,54 @@ sealed class AppAction {
      * (VAL-ROTATE-005).
      */
     data class OpenRotateShareConnect(
-        val `profileId`: kotlin.String, 
-        val `shortId`: kotlin.String, 
+        val `profileId`: kotlin.String,
+        val `shortId`: kotlin.String,
         val `deviceLabel`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * User editable input on the Rotate Share connect screen.
      */
     data class RotateShareUpdatePackage(
         val `value`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class RotateShareUpdatePassword(
         val `value`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class RotateShareUpdateRelay(
         val `value`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Submit the connect form. Routed to the appropriate failure
      * variant after the deduplication/group check (VAL-ROTATE-007/008)
      * and the live handshake (VAL-ROTATE-006/013/014).
      */
     object RotateShareConnect : AppAction()
-    
-    
+
+
     /**
      * Live handshake completed; resolution shares the active group's
      * pubkey but yields a fresh share pubkey + profile id
@@ -6008,19 +6017,19 @@ sealed class AppAction {
      * shell must never render, log, or persist it on its own.
      */
     data class RotateShareHandshakeSuccess(
-        val `deviceName`: kotlin.String, 
-        val `sharePubkey`: kotlin.String, 
-        val `groupPubkey`: kotlin.String, 
-        val `relays`: List<kotlin.String>, 
-        val `profileId`: kotlin.String, 
+        val `deviceName`: kotlin.String,
+        val `sharePubkey`: kotlin.String,
+        val `groupPubkey`: kotlin.String,
+        val `relays`: List<kotlin.String>,
+        val `profileId`: kotlin.String,
         val `shareSeckeyHex`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Live handshake failed — the actor maps the shell's error_kind
      * string into a typed `RotateShareError` and stays on the connect
@@ -6028,100 +6037,100 @@ sealed class AppAction {
      */
     data class RotateShareHandshakeFailure(
         val `error`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Confirm replacement — swap the active profile with the rotated
      * profile and land on the dashboard
      * (VAL-ROTATE-011, VAL-ROTATE-012).
      */
     object RotateShareReplace : AppAction()
-    
-    
+
+
     /**
      * Clear the existing error banner without leaving the connect
      * screen (parity with `OnboardClearError`).
      */
     object RotateShareClearError : AppAction()
-    
-    
+
+
     /**
      * Abandon the flow entirely — same semantics as a back-press from
      * the connect screen (VAL-ROTATE-010).
      */
     object RotateShareReset : AppAction()
-    
-    
+
+
     /**
      * User-side edits on the rotation-source picker.
      */
     data class KeysetSetRotationSourceProfile(
         val `profileId`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object KeysetAddRotationSourceRow : AppAction()
-    
-    
+
+
     data class KeysetRemoveRotationSourceRow(
         val `index`: kotlin.UInt) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class KeysetUpdateRotationSourcePackage(
-        val `index`: kotlin.UInt, 
+        val `index`: kotlin.UInt,
         val `value`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class KeysetUpdateRotationSourcePassword(
-        val `index`: kotlin.UInt, 
+        val `index`: kotlin.UInt,
         val `value`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class ExportCompleted(
         val `packageType`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     data class ExportFailed(
         val `error`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     object ClearExportState : AppAction()
-    
-    
+
+
     /**
      * DEBUG + diagnostics-gated action that drives the entire Create
      * Keyset wizard to completion with pre-filled inputs, bypassing
@@ -6153,18 +6162,18 @@ sealed class AppAction {
      * production but kept available for test-suite re-use.
      */
     data class DiagnosticsCreateKeysetRun(
-        val `groupName`: kotlin.String, 
-        val `threshold`: kotlin.UShort, 
-        val `count`: kotlin.UShort, 
-        val `deviceName`: kotlin.String, 
+        val `groupName`: kotlin.String,
+        val `threshold`: kotlin.UShort,
+        val `count`: kotlin.UShort,
+        val `deviceName`: kotlin.String,
         val `relay`: kotlin.String) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell forwarded the result of `FfiApp::publish_backup`. Each
      * materialization path (create / onboard / rotate / import /
@@ -6176,28 +6185,28 @@ sealed class AppAction {
      * on the snapshot.
      */
     data class BackupPublishCompleted(
-        val `source`: kotlin.String, 
-        val `success`: kotlin.Boolean, 
-        val `eventId`: kotlin.String?, 
-        val `authorPubkey`: kotlin.String?, 
-        val `contentLength`: kotlin.UInt, 
-        val `contentRedacted`: kotlin.String, 
-        val `groupPubkey`: kotlin.String?, 
-        val `relaysAttempted`: List<kotlin.String>, 
-        val `relaysPublishedTo`: List<kotlin.String>, 
+        val `source`: kotlin.String,
+        val `success`: kotlin.Boolean,
+        val `eventId`: kotlin.String?,
+        val `authorPubkey`: kotlin.String?,
+        val `contentLength`: kotlin.UInt,
+        val `contentRedacted`: kotlin.String,
+        val `groupPubkey`: kotlin.String?,
+        val `relaysAttempted`: List<kotlin.String>,
+        val `relaysPublishedTo`: List<kotlin.String>,
         val `error`: kotlin.String?) : AppAction()
-        
+
     {
-        
+
 
         companion object
     }
-    
 
-    
 
-    
-    
+
+
+
+
 
 
     companion object
@@ -8114,234 +8123,234 @@ public object FfiConverterTypeAppAction : FfiConverterRustBuffer<AppAction>{
 
 
 sealed class AppUpdate {
-    
+
     data class FullState(
         val v1: com.frostr.igloo.rust.AppState) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Store profile material in platform secure storage (Keychain/Keystore).
      */
     data class StoreProfile(
         val `profileId`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Delete profile material from platform secure storage.
      */
     data class DeleteFromSecureStorage(
         val `profileId`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Restore a single profile from platform secure storage.
      */
     data class RestoreFromSecureStorage(
         val `profileId`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Restore all stored profiles from platform secure storage.
      */
     object RestoreAllStoredProfiles : AppUpdate()
-    
-    
+
+
     /**
      * Hub requests delete confirmation dialog for a profile.
      */
     data class ShowDeleteConfirmation(
-        val `profileId`: kotlin.String, 
+        val `profileId`: kotlin.String,
         val `label`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell should perform the onboard handshake with the provisioner.
      * Contains the trimmed package, password, and platform-correct relay URL.
      */
     data class PerformOnboardHandshake(
-        val `package`: kotlin.String, 
-        val `password`: kotlin.String, 
+        val `package`: kotlin.String,
+        val `password`: kotlin.String,
         val `relayUrl`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Onboard failed — store profile material (already decrypted) to secure storage.
      */
     data class StoreOnboardedProfile(
-        val `profileId`: kotlin.String, 
-        val `label`: kotlin.String, 
+        val `profileId`: kotlin.String,
+        val `label`: kotlin.String,
         val `shortId`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell should perform the local bfprofile decode for import.
      * VAL-LOAD-002/003/004/005: package decode, validation, wrong password.
      */
     data class PerformLoadProfileImport(
-        val `package`: kotlin.String, 
+        val `package`: kotlin.String,
         val `password`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell should perform the bfshare recovery: decrypt share and fetch
      * kind-10000 backup from the relays embedded in the share.
      * VAL-LOAD-009/010/011/012/013/019: share decode, backup fetch, reconstruction.
      */
     data class PerformLoadProfileRecovery(
-        val `package`: kotlin.String, 
+        val `package`: kotlin.String,
         val `password`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Load profile confirmed — store the profile material to secure storage.
      */
     data class StoreLoadedProfile(
-        val `profileId`: kotlin.String, 
-        val `label`: kotlin.String, 
+        val `profileId`: kotlin.String,
+        val `label`: kotlin.String,
         val `shortId`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell should start the signer runtime for the active profile.
      * VAL-SIGNER-002: Start signer transitions to running.
      * VAL-SIGNER-001: stopped baseline while not running.
      */
     object StartSignerRuntime : AppUpdate()
-    
-    
+
+
     /**
      * Shell should stop the signer runtime.
      * VAL-SIGNER-015: Stop signer returns to stopped state.
      */
     object StopSignerRuntime : AppUpdate()
-    
-    
+
+
     /**
      * Shell should ping all online peers to update their status.
      * VAL-SIGNER-010: manual peer Refresh updates status data.
      * VAL-SIGNER-018: test ping completes against alice.
      */
     object PingSignerPeers : AppUpdate()
-    
-    
+
+
     /**
      * Copy a hex value to the platform clipboard.
      * VAL-SIGNER-017: identity key values are copyable.
      */
     data class CopyToClipboard(
-        val `value`: kotlin.String, 
+        val `value`: kotlin.String,
         val `label`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell should poll the signer runtime status and dispatch SignerStatusUpdate.
      * VAL-SIGNER-011: console status auto-updates without user interaction.
      */
     object PollSignerStatus : AppUpdate()
-    
-    
+
+
     /**
      * Shell should refresh remote policy observations from live peers
      * (VAL-PERM-012, VAL-PERM-013). After the refresh completes, the shell
      * dispatches UpdateRemotePolicyObservation for each peer that responded.
      */
     object RefreshRemotePolicy : AppUpdate()
-    
-    
+
+
     /**
      * Shell should show an export password prompt before writing a package
      * to the clipboard. VAL-SET-006 (copy profile) and VAL-SET-008 (copy share).
      */
     data class ShowExportPasswordPrompt(
         val `exportType`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell should produce a bfprofile1 package encrypted with the given
      * password and write it to the clipboard. VAL-SET-007/015.
      */
     data class PerformCopyProfile(
         val `password`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell should produce a bfshare1 package encrypted with the given
      * password and write it to the clipboard. VAL-SET-008/015.
      */
     data class PerformCopyShare(
         val `password`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Persist settings changes to secure storage. Emitted when the user
      * saves settings while the signer is running (VAL-SET-002/003/004/013/014).
@@ -8349,20 +8358,20 @@ sealed class AppUpdate {
      * signer name change to the hub row.
      */
     data class PersistSettings(
-        val `signerName`: kotlin.String, 
-        val `signTimeoutSecs`: kotlin.UInt, 
-        val `pingTimeoutSecs`: kotlin.UInt, 
-        val `requestTtlSecs`: kotlin.UInt, 
-        val `stateSaveIntervalSecs`: kotlin.UInt, 
-        val `peerSelectionStrategy`: kotlin.String, 
+        val `signerName`: kotlin.String,
+        val `signTimeoutSecs`: kotlin.UInt,
+        val `pingTimeoutSecs`: kotlin.UInt,
+        val `requestTtlSecs`: kotlin.UInt,
+        val `stateSaveIntervalSecs`: kotlin.UInt,
+        val `peerSelectionStrategy`: kotlin.String,
         val `relays`: List<kotlin.String>) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell should perform a test sign operation (VAL-SIGN-002).
      * Shell calls FfiApp.test_sign() which initiates a real threshold signing
@@ -8370,8 +8379,8 @@ sealed class AppUpdate {
      * the shell dispatches TestSignResult or TestSignFailed.
      */
     object PerformTestSign : AppUpdate()
-    
-    
+
+
     /**
      * Shell should perform a test ECDH operation (VAL-SIGN-005).
      * Shell calls FfiApp.test_ecdh() which initiates a real ECDH round with
@@ -8379,8 +8388,8 @@ sealed class AppUpdate {
      * TestEcdhResult or TestEcdhFailed.
      */
     object PerformTestEcdh : AppUpdate()
-    
-    
+
+
     /**
      * Shell should run frostr_utils::create_keyset() to produce the bundle.
      * VAL-CREATE-022: this is the perf-sensitive step that must run off the
@@ -8388,68 +8397,69 @@ sealed class AppUpdate {
      * `CreateKeysetGenerationSuccess`/`CreateKeysetGenerationFailed`.
      */
     data class PerformKeysetGeneration(
-        val `groupName`: kotlin.String, 
-        val `threshold`: kotlin.UShort, 
-        val `count`: kotlin.UShort, 
+        val `groupName`: kotlin.String,
+        val `threshold`: kotlin.UShort,
+        val `count`: kotlin.UShort,
         val `mode`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell should encode a `bfonboard1` package for one of the remaining
      * shares and (depending on `method`) copy to the clipboard, open a QR
      * modal, or save to a file. VAL-CREATE-014/015/016.
      */
     data class PerformKeysetDistribution(
-        val `shareIdx`: kotlin.UShort, 
-        val `shareSecretHex`: kotlin.String, 
-        val `relays`: List<kotlin.String>, 
-        val `label`: kotlin.String, 
-        val `password`: kotlin.String, 
+        val `shareIdx`: kotlin.UShort,
+        val `shareSecretHex`: kotlin.String,
+        val `peerPkHex`: kotlin.String,
+        val `relays`: List<kotlin.String>,
+        val `label`: kotlin.String,
+        val `password`: kotlin.String,
         val `method`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell stored the freshly created profile material to secure storage.
      * After successful storage the shell dispatches `CreateKeysetAccepted`
      * with `profile_id`/`label`/`short_id`.
      */
     data class StoreKeysetCreatedProfile(
-        val `profileId`: kotlin.String, 
-        val `label`: kotlin.String, 
-        val `shortId`: kotlin.String, 
-        val `material`: kotlin.ByteArray, 
+        val `profileId`: kotlin.String,
+        val `label`: kotlin.String,
+        val `shortId`: kotlin.String,
+        val `material`: kotlin.ByteArray,
         val `relays`: List<kotlin.String>) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell should kick the signer runtime for the freshly stored profile
      * so the Distribute step shows a live signer panel (VAL-CREATE-010).
      */
     data class StartKeysetSignerRuntime(
-        val `profileId`: kotlin.String, 
+        val `profileId`: kotlin.String,
         val `label`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Combined variant used by the Create Keyset acceptance path so
      * backup publication (VAL-BACKUP-001) and runtime kick
@@ -8460,16 +8470,16 @@ sealed class AppUpdate {
      * the publish result back via `BackupPublishCompleted`.
      */
     data class StartKeysetSignerRuntimeAndPublishBackup(
-        val `source`: kotlin.String, 
-        val `profileId`: kotlin.String, 
+        val `source`: kotlin.String,
+        val `profileId`: kotlin.String,
         val `label`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell should perform the real Nostr onboarding handshake for a
      * rotated `bfonboard1` package (VAL-ROTATE-006). The connector
@@ -8479,18 +8489,18 @@ sealed class AppUpdate {
      * handshake resolves.
      */
     data class PerformRotateShareHandshake(
-        val `package`: kotlin.String, 
-        val `password`: kotlin.String, 
-        val `relayUrl`: kotlin.String, 
-        val `expectedGroupPubkey`: kotlin.String, 
+        val `package`: kotlin.String,
+        val `password`: kotlin.String,
+        val `relayUrl`: kotlin.String,
+        val `expectedGroupPubkey`: kotlin.String,
         val `activeProfileId`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell should swap the active profile's stored material with the
      * rotated material (VAL-ROTATE-011). One side effect lets the
@@ -8499,24 +8509,24 @@ sealed class AppUpdate {
      * dashboard identity.
      */
     data class ReplaceProfileFromRotate(
-        val `oldProfileId`: kotlin.String, 
-        val `newProfileId`: kotlin.String, 
-        val `newLabel`: kotlin.String, 
-        val `newShortId`: kotlin.String, 
-        val `newMaterial`: kotlin.ByteArray, 
-        val `newRelays`: List<kotlin.String>, 
+        val `oldProfileId`: kotlin.String,
+        val `newProfileId`: kotlin.String,
+        val `newLabel`: kotlin.String,
+        val `newShortId`: kotlin.String,
+        val `newMaterial`: kotlin.ByteArray,
+        val `newRelays`: List<kotlin.String>,
         /**
          * Also drop the old device from local secure storage so the
          * hub row's "available later" UX matches what the shell stored.
          */
         val `deleteOld`: kotlin.Boolean) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Combined variant used by the rotate-share replacement path so
      * backup publication (VAL-BACKUP-004, by the new share) and
@@ -8528,21 +8538,21 @@ sealed class AppUpdate {
      * new (post-rotate) share, not the pre-rotation one.
      */
     data class ReplaceProfileFromRotateAndPublishBackup(
-        val `source`: kotlin.String, 
-        val `oldProfileId`: kotlin.String, 
-        val `newProfileId`: kotlin.String, 
-        val `newLabel`: kotlin.String, 
-        val `newShortId`: kotlin.String, 
-        val `newMaterial`: kotlin.ByteArray, 
-        val `newRelays`: List<kotlin.String>, 
+        val `source`: kotlin.String,
+        val `oldProfileId`: kotlin.String,
+        val `newProfileId`: kotlin.String,
+        val `newLabel`: kotlin.String,
+        val `newShortId`: kotlin.String,
+        val `newMaterial`: kotlin.ByteArray,
+        val `newRelays`: List<kotlin.String>,
         val `deleteOld`: kotlin.Boolean) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell should publish a kind-10000 encrypted profile backup to
      * every relay embedded in the freshly materialized profile.
@@ -8564,16 +8574,16 @@ sealed class AppUpdate {
      * into `dashboard.last_backup_publish` for validators and tests.
      */
     data class PublishProfileBackup(
-        val `source`: kotlin.String, 
-        val `profileId`: kotlin.String, 
+        val `source`: kotlin.String,
+        val `profileId`: kotlin.String,
         val `materialJson`: kotlin.String) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
+
     /**
      * Shell should run `frostr_utils::rotate_keyset_dealer` to produce
      * the rotated bundle (VAL-ROTATE-004). Mirror of
@@ -8582,35 +8592,35 @@ sealed class AppUpdate {
      * fresh `create_keyset`.
      */
     data class PerformKeysetRotation(
-        val `groupName`: kotlin.String, 
-        val `threshold`: kotlin.UShort, 
-        val `count`: kotlin.UShort, 
+        val `groupName`: kotlin.String,
+        val `threshold`: kotlin.UShort,
+        val `count`: kotlin.UShort,
         /**
          * Decrypted source group package (GroupPackage wire form)
          * carrying the current group public key. FFI rotates from
          * this group.
          */
-        val `sourceGroupJson`: kotlin.String, 
+        val `sourceGroupJson`: kotlin.String,
         /**
          * Decrypted source share secrets (each a 32-byte hex) keyed
          * by share_idx order; the FFI rebuilds a SharePackage list
          * from these. Pair with `source_share_pubkeys_hex` to
          * preserve the original member mapping.
          */
-        val `sourceShareSecretsHex`: List<kotlin.String>, 
+        val `sourceShareSecretsHex`: List<kotlin.String>,
         val `sourceSharePubkeysHex`: List<kotlin.String>) : AppUpdate()
-        
+
     {
-        
+
 
         companion object
     }
-    
 
-    
 
-    
-    
+
+
+
+
 
 
     companion object
@@ -8699,6 +8709,7 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 )
             25 -> AppUpdate.PerformKeysetDistribution(
                 FfiConverterUShort.read(buf),
+                FfiConverterString.read(buf),
                 FfiConverterString.read(buf),
                 FfiConverterSequenceString.read(buf),
                 FfiConverterString.read(buf),
@@ -8950,6 +8961,7 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 4UL
                 + FfiConverterUShort.allocationSize(value.`shareIdx`)
                 + FfiConverterString.allocationSize(value.`shareSecretHex`)
+                + FfiConverterString.allocationSize(value.`peerPkHex`)
                 + FfiConverterSequenceString.allocationSize(value.`relays`)
                 + FfiConverterString.allocationSize(value.`label`)
                 + FfiConverterString.allocationSize(value.`password`)
@@ -9182,6 +9194,7 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
                 buf.putInt(25)
                 FfiConverterUShort.write(value.`shareIdx`, buf)
                 FfiConverterString.write(value.`shareSecretHex`, buf)
+                FfiConverterString.write(value.`peerPkHex`, buf)
                 FfiConverterSequenceString.write(value.`relays`, buf)
                 FfiConverterString.write(value.`label`, buf)
                 FfiConverterString.write(value.`password`, buf)
@@ -9272,12 +9285,12 @@ public object FfiConverterTypeAppUpdate : FfiConverterRustBuffer<AppUpdate>{
  */
 
 enum class DashboardTab {
-    
+
     SIGNER,
     PERMISSIONS,
     SETTINGS;
 
-    
+
 
 
     companion object
@@ -9312,7 +9325,7 @@ public object FfiConverterTypeDashboardTab: FfiConverterRustBuffer<DashboardTab>
  */
 
 enum class DistributeStatus {
-    
+
     /**
      * No distribution attempt yet.
      */
@@ -9330,7 +9343,7 @@ enum class DistributeStatus {
      */
     SAVED;
 
-    
+
 
 
     companion object
@@ -9367,7 +9380,7 @@ public object FfiConverterTypeDistributeStatus: FfiConverterRustBuffer<Distribut
  */
 
 enum class KeysetFlowMode {
-    
+
     /**
      * Generate a fresh keyset from a new signing key.
      */
@@ -9377,7 +9390,7 @@ enum class KeysetFlowMode {
      */
     ROTATE;
 
-    
+
 
 
     companion object
@@ -9413,7 +9426,7 @@ public object FfiConverterTypeKeysetFlowMode: FfiConverterRustBuffer<KeysetFlowM
  */
 
 enum class KeysetFlowStep {
-    
+
     /**
      * Initial state — no action taken, the user is on the entry screen.
      */
@@ -9442,7 +9455,7 @@ enum class KeysetFlowStep {
      */
     GENERATION_FAILED;
 
-    
+
 
 
     companion object
@@ -9484,7 +9497,7 @@ public object FfiConverterTypeKeysetFlowStep: FfiConverterRustBuffer<KeysetFlowS
  */
 
 enum class KeysetValidationError {
-    
+
     /**
      * `threshold > count` (e.g. 4-of-3).
      */
@@ -9506,7 +9519,7 @@ enum class KeysetValidationError {
      */
     EMPTY_GROUP_NAME;
 
-    
+
 
 
     companion object
@@ -9543,7 +9556,7 @@ public object FfiConverterTypeKeysetValidationError: FfiConverterRustBuffer<Keys
  */
 
 enum class LoadProfileError {
-    
+
     /**
      * Package text is not valid bech32m or does not decode to a bfprofile1/bfshare1 envelope.
      */
@@ -9569,7 +9582,7 @@ enum class LoadProfileError {
      */
     UNEXPECTED;
 
-    
+
 
 
     companion object
@@ -9603,7 +9616,7 @@ public object FfiConverterTypeLoadProfileError: FfiConverterRustBuffer<LoadProfi
  */
 
 enum class LoadProfileStep {
-    
+
     /**
      * Initial state — no action taken.
      */
@@ -9629,7 +9642,7 @@ enum class LoadProfileStep {
      */
     ERROR;
 
-    
+
 
 
     companion object
@@ -9662,12 +9675,12 @@ public object FfiConverterTypeLoadProfileStep: FfiConverterRustBuffer<LoadProfil
  */
 
 enum class LogLevel {
-    
+
     INFO,
     WARN,
     ERROR;
 
-    
+
 
 
     companion object
@@ -9703,7 +9716,7 @@ public object FfiConverterTypeLogLevel: FfiConverterRustBuffer<LogLevel> {
  */
 
 enum class OnboardingError {
-    
+
     /**
      * Package text is not valid bech32m or does not decode to a bfonboard1 envelope.
      */
@@ -9731,7 +9744,7 @@ enum class OnboardingError {
      */
     UNEXPECTED;
 
-    
+
 
 
     companion object
@@ -9764,7 +9777,7 @@ public object FfiConverterTypeOnboardingError: FfiConverterRustBuffer<Onboarding
  */
 
 enum class OnboardingStep {
-    
+
     /**
      * Initial state — no action taken.
      */
@@ -9786,7 +9799,7 @@ enum class OnboardingStep {
      */
     ERROR;
 
-    
+
 
 
     companion object
@@ -9820,11 +9833,11 @@ public object FfiConverterTypeOnboardingStep: FfiConverterRustBuffer<OnboardingS
  */
 
 enum class PeerSelectionStrategy {
-    
+
     DETERMINISTIC_SORTED,
     RANDOM;
 
-    
+
 
 
     companion object
@@ -9857,13 +9870,13 @@ public object FfiConverterTypePeerSelectionStrategy: FfiConverterRustBuffer<Peer
  */
 
 enum class PendingOpType {
-    
+
     PING,
     SIGN,
     ECDH,
     ONBOARD;
 
-    
+
 
 
     companion object
@@ -9896,11 +9909,11 @@ public object FfiConverterTypePendingOpType: FfiConverterRustBuffer<PendingOpTyp
  */
 
 enum class PolicyDirection {
-    
+
     REQUEST,
     RESPOND;
 
-    
+
 
 
     companion object
@@ -9933,13 +9946,13 @@ public object FfiConverterTypePolicyDirection: FfiConverterRustBuffer<PolicyDire
  */
 
 enum class PolicyMethod {
-    
+
     PING,
     ONBOARD,
     SIGN,
     ECDH;
 
-    
+
 
 
     companion object
@@ -9974,12 +9987,12 @@ public object FfiConverterTypePolicyMethod: FfiConverterRustBuffer<PolicyMethod>
  */
 
 enum class PolicyOverrideValue {
-    
+
     UNSET,
     ALLOW,
     DENY;
 
-    
+
 
 
     companion object
@@ -10012,11 +10025,11 @@ public object FfiConverterTypePolicyOverrideValue: FfiConverterRustBuffer<Policy
  */
 
 enum class ProfileStatus {
-    
+
     AVAILABLE,
     ACTIVE;
 
-    
+
 
 
     companion object
@@ -10054,7 +10067,7 @@ public object FfiConverterTypeProfileStatus: FfiConverterRustBuffer<ProfileStatu
  */
 
 enum class RotateShareError {
-    
+
     /**
      * Package text is not a valid bech32m bfonboard1 envelope or the
      * payload failed decryption for non-password reasons
@@ -10094,7 +10107,7 @@ enum class RotateShareError {
      */
     UNEXPECTED;
 
-    
+
 
 
     companion object
@@ -10127,7 +10140,7 @@ public object FfiConverterTypeRotateShareError: FfiConverterRustBuffer<RotateSha
  */
 
 enum class RotateShareStep {
-    
+
     /**
      * Initial state — connect screen awaits paste + password + relay.
      */
@@ -10157,7 +10170,7 @@ enum class RotateShareStep {
      */
     ERROR;
 
-    
+
 
 
     companion object
@@ -10190,7 +10203,7 @@ public object FfiConverterTypeRotateShareStep: FfiConverterRustBuffer<RotateShar
  */
 
 enum class Screen {
-    
+
     /**
      * Landing hub: stored profiles + three entry tiles.
      */
@@ -10252,7 +10265,7 @@ enum class Screen {
      */
     ROTATE_SHARE;
 
-    
+
 
 
     companion object
@@ -10287,7 +10300,7 @@ public object FfiConverterTypeScreen: FfiConverterRustBuffer<Screen> {
  */
 
 enum class SignerReadiness {
-    
+
     /**
      * Runtime is not running or has not yet attempted to connect.
      */
@@ -10309,7 +10322,7 @@ enum class SignerReadiness {
      */
     DEGRADED;
 
-    
+
 
 
     companion object
@@ -10344,11 +10357,11 @@ public object FfiConverterTypeSignerReadiness: FfiConverterRustBuffer<SignerRead
  */
 
 enum class SignerStatus {
-    
+
     STOPPED,
     RUNNING;
 
-    
+
 
 
     companion object
@@ -10379,9 +10392,9 @@ public object FfiConverterTypeSignerStatus: FfiConverterRustBuffer<SignerStatus>
 
 
 public interface AppReconciler {
-    
+
     fun `reconcile`(`update`: AppUpdate)
-    
+
     companion object
 }
 

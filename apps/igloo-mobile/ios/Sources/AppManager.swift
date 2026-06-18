@@ -331,11 +331,12 @@ final class AppManager: AppReconciler {
         case .performKeysetGeneration(let groupName, let threshold, let count, let mode):
             performKeysetGeneration(groupName: groupName, threshold: threshold, count: count, mode: mode)
 
-        case .performKeysetDistribution(let shareIdx, let shareSecretHex, let relays, let shareLabel, let password, let method):
+        case .performKeysetDistribution(let shareIdx, let shareSecretHex, let peerPkHex, let relays, let shareLabel, let password, let method):
             // VAL-CREATE-014/015/016 — encode bfonboard1 + update chip.
             performKeysetDistribution(
                 shareIdx: shareIdx,
                 shareSecretHex: shareSecretHex,
+                peerPkHex: peerPkHex,
                 relays: relays,
                 shareLabel: shareLabel,
                 password: password,
@@ -488,6 +489,7 @@ final class AppManager: AppReconciler {
     private func performKeysetDistribution(
         shareIdx: UInt16,
         shareSecretHex: String,
+        peerPkHex: String,
         relays: [String],
         shareLabel: String,
         password: String,
@@ -497,6 +499,7 @@ final class AppManager: AppReconciler {
         Thread.detachNewThread {
             let pkg = rust.encodeDistributeOnboard(
                 shareSecretHex: shareSecretHex,
+                peerPkHex: peerPkHex,
                 relays: relays,
                 shareLabel: shareLabel,
                 password: password

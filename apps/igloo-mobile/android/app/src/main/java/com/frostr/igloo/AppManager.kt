@@ -537,6 +537,7 @@ class AppManager private constructor(context: Context) : AppReconciler {
                 is AppUpdate.PerformKeysetDistribution -> {
                     val shareIdx = update.shareIdx
                     val shareSecretHex = update.shareSecretHex
+                    val peerPkHex = update.peerPkHex
                     val relays = update.relays
                     val label = update.label
                     val password = update.password
@@ -544,6 +545,7 @@ class AppManager private constructor(context: Context) : AppReconciler {
                     Thread {
                         val pkg = rust.encodeDistributeOnboard(
                             shareSecretHex = shareSecretHex,
+                            peerPkHex = peerPkHex,
                             relays = relays,
                             shareLabel = label,
                             password = password

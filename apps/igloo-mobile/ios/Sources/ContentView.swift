@@ -648,9 +648,7 @@ struct OnboardConnectView: View {
     /// action but the long bfonboard string did not propagate to @State in time
     /// before the user tapped btn_connect).
     private func effectivePackageForContent(_ content: String) -> String? {
-        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.hasPrefix("bfonboard") else { return nil }
-        return trimmed
+        normalizedOnboardingPackageText(content, requireBfOnboardPrefix: true)
     }
 
     /// Test-only inject path. Reads a sandboxed JSON file from
@@ -669,9 +667,8 @@ struct OnboardConnectView: View {
               let package = payload["package"],
               let password = payload["password"]
         else { return nil }
-        let trimmedPkg = package.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let trimmedPkg = normalizedOnboardingPackageText(package, requireBfOnboardPrefix: true) else { return nil }
         let trimmedPwd = password.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedPkg.isEmpty, trimmedPkg.hasPrefix("bfonboard") else { return nil }
         if let relay = payload["relay"], !relay.isEmpty, relayUrl.isEmpty {
             relayUrl = relay
         }
@@ -2712,6 +2709,50 @@ struct QrCodeImage: View {
 
 // MARK: - QR Scanner Sheet (VAL-QR-002 / VAL-QR-003)
 
+private func normalizedOnboardingPackageText(
+    _ content: String,
+    requireBfOnboardPrefix: Bool = false
+) -> String? {
+    let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return nil }
+
+    let compact = String(trimmed.unicodeScalars.filter {
+        !CharacterSet.whitespacesAndNewlines.contains($0)
+    })
+    if compact.hasPrefix("bfonboard") {
+        return compact
+    }
+
+    return requireBfOnboardPrefix ? nil : trimmed
+}
+
+private func readOnboardingPackagePasteText() -> String? {
+    #if DEBUG
+    // In iOS Simulator, Maestro can hand long package strings to the app more
+    // reliably through the shared temp file than through UIPasteboard.
+    let macTmpPath = "/tmp/igloo_test_package.txt"
+    if let content = try? String(contentsOfFile: macTmpPath, encoding: .utf8) {
+        if let normalized = normalizedOnboardingPackageText(content, requireBfOnboardPrefix: true) {
+            try? "SUCCESS: file read \(normalized.count) chars".write(toFile: "/tmp/paste_action_result.txt", atomically: true, encoding: .utf8)
+            return normalized
+        }
+    }
+    #endif
+
+    if let clipboardContent = UIPasteboard.general.string {
+        let normalized = normalizedOnboardingPackageText(clipboardContent)
+        #if DEBUG
+        try? "CLIPBOARD: \(normalized?.count ?? 0) chars".write(toFile: "/tmp/paste_action_result.txt", atomically: true, encoding: .utf8)
+        #endif
+        return normalized
+    }
+
+    #if DEBUG
+    try? "FAILED: no file, no clipboard".write(toFile: "/tmp/paste_action_result.txt", atomically: true, encoding: .utf8)
+    #endif
+    return nil
+}
+
 /// Sheet for scanning a `bfonboard1` QR code. On real iOS devices this would
 /// drive an AVCaptureSession + AVCaptureMetadataOutput against the back
 /// camera; on the iOS Simulator (no camera hardware) `AVCaptureDevice.default`
@@ -2746,11 +2787,8 @@ struct QrScannerSheet: View {
 
                         Button {
                             // Validate & feed pasted clipboard on the real-camera path too.
-                            if let clipboardContent = UIPasteboard.general.string {
-                                let trimmed = clipboardContent.trimmingCharacters(in: .whitespacesAndNewlines)
-                                if !trimmed.isEmpty {
-                                    onScanned(trimmed)
-                                }
+                            if let pasted = readOnboardingPackagePasteText() {
+                                onScanned(pasted)
                             }
                         } label: {
                             Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
@@ -2830,11 +2868,8 @@ struct QrScannerSheet: View {
                         // Paste from clipboard (parity with the existing
                         // btn_paste_package affordance on OnboardConnect).
                         Button {
-                            if let clipboardContent = UIPasteboard.general.string {
-                                let trimmed = clipboardContent.trimmingCharacters(in: .whitespacesAndNewlines)
-                                if !trimmed.isEmpty {
-                                    manualText = trimmed
-                                }
+                            if let pasted = readOnboardingPackagePasteText() {
+                                manualText = pasted
                             }
                         } label: {
                             Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
@@ -5350,25 +5385,8 @@ struct PasteButtonView: UIViewRepresentable {
         }
 
         @objc func pasteTapped() {
-            // Try reading from temp file first (for Maestro test automation).
-            // In iOS Simulator, /tmp/ is shared with Mac /tmp/.
-            let macTmpPath = "/tmp/igloo_test_package.txt"
-            if let content = try? String(contentsOfFile: macTmpPath, encoding: .utf8) {
-                let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty && trimmed.hasPrefix("bfonboard") {
-                    try? "SUCCESS: file read \(trimmed.count) chars".write(toFile: "/tmp/paste_action_result.txt", atomically: true, encoding: .utf8)
-                    onPaste(trimmed)
-                    return
-                }
-            }
-
-            // Fallback: clipboard paste.
-            if let clipboardContent = UIPasteboard.general.string {
-                let trimmed = clipboardContent.trimmingCharacters(in: .whitespacesAndNewlines)
-                try? "CLIPBOARD: \(trimmed.count) chars".write(toFile: "/tmp/paste_action_result.txt", atomically: true, encoding: .utf8)
-                onPaste(trimmed)
-            } else {
-                try? "FAILED: no file, no clipboard".write(toFile: "/tmp/paste_action_result.txt", atomically: true, encoding: .utf8)
+            if let pasted = readOnboardingPackagePasteText() {
+                onPaste(pasted)
             }
         }
     }

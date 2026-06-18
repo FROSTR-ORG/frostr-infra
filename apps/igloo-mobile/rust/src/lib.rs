@@ -180,6 +180,7 @@ pub enum AppUpdate {
     PerformKeysetDistribution {
         share_idx: u16,
         share_secret_hex: String,
+        peer_pk_hex: String,
         relays: Vec<String>,
         label: String,
         password: String,
@@ -2025,6 +2026,7 @@ impl FfiApp {
     pub fn encode_distribute_onboard(
         &self,
         share_secret_hex: String,
+        peer_pk_hex: String,
         relays: Vec<String>,
         _share_label: String,
         password: String,
@@ -2032,17 +2034,19 @@ impl FfiApp {
         if password.is_empty() {
             return "error:empty_password".to_string();
         }
-        // The Distribute form's "peer_pk" slot needs a placeholder until
-        // the runtime handshake completes. We use the all-zero x-only hex
-        // so the envelope remains valid; the onboarding flow will rewrite
-        // this slot from the live peer handshake. The validator's
-        // bfonboard1 well-formedness assertion (VAL-CREATE-014) only
-        // checks the package and password, not the receiver peer.
-        let placeholder_pk = "00".repeat(32);
+        let peer_pk = peer_pk_hex.trim().to_ascii_lowercase();
+        if peer_pk.len() != 64
+            || peer_pk == "00".repeat(32)
+            || hex::decode(&peer_pk)
+                .map(|bytes| bytes.len() != 32)
+                .unwrap_or(true)
+        {
+            return "error:invalid_peer_pk".to_string();
+        }
         let payload = frostr_utils::BfOnboardPayload {
             share_secret: share_secret_hex,
             relays,
-            peer_pk: placeholder_pk,
+            peer_pk,
         };
         frostr_utils::encode_bfonboard_package(&payload, &password)
             .unwrap_or_else(|e| format!("error:encode:{e}"))
@@ -2530,15 +2534,25 @@ pub(crate) fn parse_keyset_bundle(
     if group.threshold == 0 || count == 0 || group.threshold > count {
         return Err("invalid_bundle_shape".to_string());
     }
+    let member_pubkeys_by_idx = group
+        .members
+        .iter()
+        .map(|member| (member.idx, member.pubkey.to_ascii_lowercase()))
+        .collect::<std::collections::HashMap<_, _>>();
     let mut shares = Vec::with_capacity(exported.shares.len());
     for share in exported.shares {
         // Derive the x-only public key from the share secret so the share
         // picker can list each share by its stable identity.
         let pubkey = derive_share_pubkey_from_hex_secret(&share.seckey)
             .map_err(|e| format!("invalid_bundle_share:{e}"))?;
+        let compressed_pubkey = member_pubkeys_by_idx
+            .get(&share.idx)
+            .cloned()
+            .unwrap_or_else(|| compressed_member_pubkey(&pubkey));
         shares.push(crate::state::GeneratedShare {
             share_idx: share.idx,
             share_pubkey: pubkey,
+            share_pubkey_compressed: compressed_pubkey,
             share_secret_hex: share.seckey.clone(),
             default_label: default_device_label(&group.group_name, share.idx),
         });
@@ -2576,14 +2590,14 @@ pub(crate) fn build_keyset_material(
         .shares
         .iter()
         .filter(|s| s.share_idx != keyset.local_share_idx)
-        .map(|s| compressed_member_pubkey(&s.share_pubkey))
+        .map(|s| s.share_pubkey.clone())
         .collect();
     let members: Vec<MaterialMember> = bundle
         .shares
         .iter()
         .map(|s| MaterialMember {
             idx: s.share_idx,
-            pubkey_hex: compressed_member_pubkey(&s.share_pubkey),
+            pubkey_hex: compressed_member_pubkey(&s.share_pubkey_compressed),
         })
         .collect();
     let material = OnboardProfileMaterial {

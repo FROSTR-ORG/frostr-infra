@@ -70,14 +70,27 @@ name: QR Scan / Paste Fallback - iOS (VAL-QR-002/003)
 - assertVisible:
     id: "btn_qr_scan_back"
 
-# VAL-QR-003: paste clipboard into the fallback field, then surface the
-# trimmed bfonboard envelope via "Use This Package" so OnboardConnectView
-# receives the same payload a real scan would have produced.
-- tapOn:
-    id: "input_qr_fallback_package"
-- eraseText: 1000
+# VAL-QR-003: load the clipboard through the product paste button, then
+# surface the trimmed bfonboard envelope via "Use This Package" so
+# OnboardConnectView receives the same payload a real scan would have produced.
+# Raw Maestro paste into SwiftUI's long fallback field can corrupt/truncate
+# bech32m text on iOS simulators; the app button uses the same robust paste
+# helper as the main connect form.
 - setClipboard: "${ONBOARD_PACKAGE}"
-- pasteText
+- tapOn:
+    id: "btn_qr_paste_clipboard"
+- runFlow:
+    when:
+      visible:
+        text: "Allow Paste"
+    commands:
+      - tapOn: "Allow Paste"
+- runFlow:
+    when:
+      visible:
+        text: "Allow"
+    commands:
+      - tapOn: "Allow"
 - tapOn:
     id: "btn_qr_fallback_use"
 

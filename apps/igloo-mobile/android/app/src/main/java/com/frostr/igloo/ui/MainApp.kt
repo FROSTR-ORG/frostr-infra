@@ -122,6 +122,18 @@ import com.frostr.igloo.ui.theme.IglooRadii
 import com.frostr.igloo.ui.theme.IglooSpacing
 import com.frostr.igloo.ui.theme.IglooTypography
 
+fun normalizeOnboardingPackageText(content: String, requireBfOnboardPrefix: Boolean = false): String? {
+    val trimmed = content.trim()
+    if (trimmed.isEmpty()) return null
+
+    val compact = trimmed.filterNot { it.isWhitespace() }
+    if (compact.startsWith("bfonboard")) {
+        return compact
+    }
+
+    return if (requireBfOnboardPrefix) null else trimmed
+}
+
 // MARK: - Igloo Native Primitives
 
 private fun Modifier.iglooPanelSurface(
@@ -1145,7 +1157,7 @@ fun OnboardConnectScreen(manager: AppManager) {
                     onClick = {
                         val pastedText = clipboardManager.primaryClip?.getItemAt(0)?.text?.toString()
                         if (pastedText != null) {
-                            packageText = pastedText.trim()
+                            packageText = normalizeOnboardingPackageText(pastedText) ?: pastedText.trim()
                         }
                     },
                     modifier = Modifier
@@ -1351,7 +1363,7 @@ fun OnboardConnectScreen(manager: AppManager) {
                 fallbackText = scannerFallbackText,
                 onFallbackTextChange = { scannerFallbackText = it },
                 onUsePayload = fun(payload: String) {
-                    val trimmed = payload.trim()
+                    val trimmed = normalizeOnboardingPackageText(payload) ?: payload.trim()
                     if (trimmed.isNotEmpty()) {
                         packageText = trimmed
                     }
@@ -3424,7 +3436,7 @@ fun QrScannerFallback(
             onClick = {
                 val pastedText = clipboardManager.primaryClip?.getItemAt(0)?.text?.toString()
                 if (pastedText != null) {
-                    onFallbackTextChange(pastedText.trim())
+                    onFallbackTextChange(normalizeOnboardingPackageText(pastedText) ?: pastedText.trim())
                 }
             },
             modifier = Modifier
@@ -3443,7 +3455,7 @@ fun QrScannerFallback(
         Button(
             onClick = {
                 if (fallbackText.isNotBlank()) {
-                    onUsePayload(fallbackText.trim())
+                    onUsePayload(normalizeOnboardingPackageText(fallbackText) ?: fallbackText.trim())
                 }
             },
             enabled = fallbackText.isNotBlank(),
