@@ -16,8 +16,13 @@ import {
   type BrowserProfilePackagePayload,
 } from '../../repos/igloo-shared/src/profile-package';
 import { Secret } from '../../repos/igloo-shared/src/secret';
+import type {
+  PersistableStoredProfile,
+  ProfileSource,
+} from '../../repos/igloo-shared/src/persist-contract';
+import { PROFILE_BLOB_PASSWORD } from './test-secrets';
 
-export const DEFAULT_BROWSER_PASSWORD = 'playwright-passphrase';
+export const DEFAULT_BROWSER_PASSWORD = PROFILE_BLOB_PASSWORD;
 
 export type GeneratedBrowserShareArtifact = {
   memberIdx: number;
@@ -39,41 +44,12 @@ export type GeneratedBrowserArtifacts = {
   shares: GeneratedBrowserShareArtifact[];
 };
 
-export type PwaStoredProfileSeed = {
-  id: string;
-  label: string;
-  share_public_key: string;
-  group_public_key: string;
-  relays: string[];
-  group_package_json: string;
-  share_package_json: string;
-  source: 'generated' | 'bfprofile' | 'bfshare' | 'bfonboard';
-  relay_profile: string;
-  group_ref: string;
-  encrypted_profile_ref: string;
-  state_path: string;
-  created_at: number;
-  stored_password: string;
-  profile_string: string;
-  share_string: string;
-  // Password-sealed bfshare1 artifact the app decrypts at session start to
-  // rebuild the in-memory share (PwaProfile.encrypted_bfshare_artifact). The
-  // v2 unlock path requires this; without it startSession rejects the profile
-  // as legacy-v1 and the UI surfaces a generic "Incorrect password".
-  encrypted_bfshare_artifact: string;
-  member_idx: number;
-  signer_settings: {
-    sign_timeout_secs: number;
-    ping_timeout_secs: number;
-    request_ttl_secs: number;
-    state_save_interval_secs: number;
-    peer_selection_strategy: 'deterministic_sorted';
-  };
-  manual_peer_policy_overrides: [];
-  peer_pubkey: null;
-  runtime_snapshot_json: null;
-  onboarding_package: null;
-};
+// A PWA stored-profile seed is exactly the app's PERSISTABLE profile contract
+// (igloo-shared `persist-contract`). Aliased to keep the long-standing name, but
+// the shape is now the single source of truth: a seed that sets a field the app
+// would not persist (raw `share_package_json`, `stored_password`, a
+// `runtime_snapshot_json`, etc.) is a COMPILE error, not silent dead state.
+export type PwaStoredProfileSeed = PersistableStoredProfile;
 
 let wasmInjected = false;
 
@@ -360,10 +336,9 @@ export function createPwaStoredProfileSeed(input: {
   groupPackageJson: string;
   label?: string;
   password?: string;
-  source?: 'generated' | 'bfprofile' | 'bfshare' | 'bfonboard';
+  source?: ProfileSource;
 }): PwaStoredProfileSeed {
   const label = input.label?.trim() || input.artifact.profilePayload.device.name;
-  const password = input.password ?? DEFAULT_BROWSER_PASSWORD;
   const createdAt = Date.now();
   return {
     id: input.artifact.profileId,
@@ -372,19 +347,17 @@ export function createPwaStoredProfileSeed(input: {
     group_public_key: groupPublicKeyFromPackage(input.artifact.profilePayload.groupPackage),
     relays: [...input.artifact.profilePayload.device.relays],
     group_package_json: input.groupPackageJson,
-    share_package_json: input.artifact.sharePackageJson,
     source: input.source ?? 'generated',
     relay_profile: input.artifact.profilePayload.device.relays[0] ?? 'local',
     group_ref: `browser-profile:${input.artifact.profileId}:group`,
     encrypted_profile_ref: `browser-profile:${input.artifact.profileId}:encrypted-profile`,
     state_path: `/tmp/igloo-pwa/${input.artifact.profileId}`,
     created_at: createdAt,
-    stored_password: password,
-    profile_string: input.artifact.bfprofile,
-    share_string: input.artifact.bfshare,
     // Mirror the app's save shape (local-adapter/common.ts): the bfshare1
     // artifact doubles as the encrypted_bfshare_artifact the v2 session-start
-    // flow decrypts with the unlock passphrase.
+    // flow decrypts with the unlock passphrase. The raw share secret and the
+    // unlock password are NOT seeded — the app rebuilds the share in-memory from
+    // this artifact, and tests supply the password through the unlock UI.
     encrypted_bfshare_artifact: input.artifact.bfshare,
     member_idx: input.artifact.memberIdx,
     signer_settings: {
@@ -396,7 +369,5 @@ export function createPwaStoredProfileSeed(input: {
     },
     manual_peer_policy_overrides: [],
     peer_pubkey: null,
-    runtime_snapshot_json: null,
-    onboarding_package: null,
   };
 }

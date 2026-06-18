@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import type { PwaStoredProfileSeed } from '../../shared/browser-artifacts';
 import { gotoCreateDistribute } from '../support/flows';
 import { pages } from '../support/pages';
 import {
@@ -9,7 +10,7 @@ import {
   pwaSeedPayload,
 } from '../support/state';
 
-function seededDashboardProfile() {
+function seededDashboardProfile(): PwaStoredProfileSeed {
   return {
     id: 'guard-profile',
     label: 'Guard Device',
@@ -17,29 +18,23 @@ function seededDashboardProfile() {
     group_public_key: '22'.repeat(32),
     relays: ['wss://relay.primal.net'],
     group_package_json: '{"group_name":"Guard Group","group_pk":"22","threshold":2,"members":[]}',
-    share_package_json: '{"idx":1,"seckey":"11"}',
     encrypted_bfshare_artifact: 'bfshare1seed',
     member_idx: 1,
-    source: 'bfprofile' as const,
+    source: 'bfprofile',
     relay_profile: 'wss://relay.primal.net',
     group_ref: 'g',
     encrypted_profile_ref: 'e',
     state_path: '/tmp/guard',
     created_at: 1_700_000_000_000,
-    stored_password: 'pw',
-    profile_string: 'bfprofile1guard',
-    share_string: 'bfshare1guard',
     signer_settings: {
       sign_timeout_secs: 30,
       ping_timeout_secs: 15,
       request_ttl_secs: 300,
       state_save_interval_secs: 30,
-      peer_selection_strategy: 'deterministic_sorted' as const,
+      peer_selection_strategy: 'deterministic_sorted',
     },
-    manual_peer_policy_overrides: [] as [],
+    manual_peer_policy_overrides: [],
     peer_pubkey: null,
-    runtime_snapshot_json: null,
-    onboarding_package: null,
   };
 }
 

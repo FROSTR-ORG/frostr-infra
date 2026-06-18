@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { expect, test, type Page } from '@playwright/test';
 
+import type { PwaStoredProfileSeed } from '../../shared/browser-artifacts';
 import { REPO_ROOT_DIR } from '../../shared/repo-paths';
 import { pages } from '../support/pages';
 import { applyPwaSeed, buildPwaPersistedState, pwaSeedPayload } from '../support/state';
@@ -16,7 +17,7 @@ const DASHBOARD_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-
 
 // A seeded stored profile carrying the deterministic keys, so the merged
 // identity/runtime card renders byte-stable npub displays.
-function buildDashboardProfile() {
+function buildDashboardProfile(): PwaStoredProfileSeed {
   const groupPackageJson = JSON.stringify({
     group_name: 'My Signing Key',
     group_pk: DETERMINISTIC_GROUP_KEY.pubHex,
@@ -34,29 +35,23 @@ function buildDashboardProfile() {
     group_public_key: DETERMINISTIC_GROUP_KEY.pubHex,
     relays: ['wss://relay.primal.net', 'wss://relay.damus.io'],
     group_package_json: groupPackageJson,
-    share_package_json: JSON.stringify({ idx: 1, seckey: DETERMINISTIC_SHARE_KEY.secretHex }),
     encrypted_bfshare_artifact: 'bfshare1seed',
     member_idx: 1,
-    source: 'generated' as const,
+    source: 'generated',
     relay_profile: 'wss://relay.primal.net',
     group_ref: 'group-ref',
     encrypted_profile_ref: 'enc-ref',
     state_path: 'state-path',
     created_at: 1_700_000_000_000,
-    stored_password: 'paper-dashboard-pass',
-    profile_string: 'bfprofile1paperdashboard',
-    share_string: 'bfshare1paperdashboard',
     signer_settings: {
       sign_timeout_secs: 30,
       ping_timeout_secs: 15,
       request_ttl_secs: 300,
       state_save_interval_secs: 30,
-      peer_selection_strategy: 'deterministic_sorted' as const,
+      peer_selection_strategy: 'deterministic_sorted',
     },
-    manual_peer_policy_overrides: [] as [],
+    manual_peer_policy_overrides: [],
     peer_pubkey: null,
-    runtime_snapshot_json: null,
-    onboarding_package: null,
   };
 }
 

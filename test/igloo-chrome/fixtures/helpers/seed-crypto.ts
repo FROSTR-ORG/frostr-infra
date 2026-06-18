@@ -1,8 +1,9 @@
 import { webcrypto } from 'node:crypto';
 
 import type { LocalEncryptedProfileBlob, LocalProfileBlobPayload, LocalProfileBlobRecord } from '../../../../repos/igloo-chrome/src/lib/profile-blob';
+import { PROFILE_BLOB_PASSWORD } from '../../../shared/test-secrets';
 
-const PASSWORD = 'playwright-passphrase';
+const PASSWORD = PROFILE_BLOB_PASSWORD;
 const PBKDF2_ITERATIONS = 200_000;
 
 type NodeCryptoKey = Awaited<ReturnType<typeof webcrypto.subtle.deriveKey>>;

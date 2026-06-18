@@ -38,10 +38,6 @@ function buildPaperProfile(index: number, label: string, threshold: number, memb
       threshold,
       members,
     }),
-    share_package_json: JSON.stringify({
-      idx: memberIdx,
-      seckey: fixedHex(index, '12'),
-    }),
     encrypted_bfshare_artifact: `bfshare1${id}`,
     member_idx: memberIdx,
     source: 'generated',
@@ -50,9 +46,6 @@ function buildPaperProfile(index: number, label: string, threshold: number, memb
     encrypted_profile_ref: `browser-profile:${id}:encrypted-profile`,
     state_path: `/tmp/igloo-pwa/${id}`,
     created_at: Date.UTC(2026, 4, 21) + index,
-    stored_password: PAPER_PASSWORD,
-    profile_string: `bfprofile1${id}`,
-    share_string: `bfshare1${id}`,
     signer_settings: {
       sign_timeout_secs: 30,
       ping_timeout_secs: 15,
@@ -62,8 +55,6 @@ function buildPaperProfile(index: number, label: string, threshold: number, memb
     },
     manual_peer_policy_overrides: [],
     peer_pubkey: null,
-    runtime_snapshot_json: null,
-    onboarding_package: null,
   };
 }
 

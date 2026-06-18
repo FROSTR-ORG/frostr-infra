@@ -10,6 +10,7 @@ import { SimplePool, nip44, type Event, type Filter } from 'nostr-tools';
 
 import { logE2E, withLoggedStep } from '../../shared/observability';
 import { ensureBifrostDevtoolsBinary } from '../../shared/bifrost-devtools-binaries';
+import { LIVE_SIGNER_PASSWORD, RPC_PROFILE_PASSWORD } from '../../shared/test-secrets';
 import { loadBridgeWasmModule } from '../../shared/bridge-wasm';
 import { IGLOO_SHELL_DIR } from '../../shared/repo-paths';
 import {
@@ -150,7 +151,7 @@ function managedShellEnv(root: string): NodeJS.ProcessEnv {
     // socket well under the limit. Without this, chrome @live can't start the
     // native signer daemon on macOS.
     XDG_RUNTIME_DIR: root,
-    IGLOO_SHELL_TEST_PASSPHRASE: 'playwright-live-passphrase'
+    IGLOO_SHELL_TEST_PASSPHRASE: LIVE_SIGNER_PASSWORD
   };
 }
 
@@ -325,7 +326,7 @@ async function generateDemoResponderConfig(
           '--label',
           'alice-live',
           '--passphrase',
-          'playwright-live-passphrase',
+          LIVE_SIGNER_PASSWORD,
           '--relay-profile',
           'local',
           '--json'
@@ -369,7 +370,7 @@ async function buildLiveProfile(
       if (!peerMember) {
         throw new Error('demo group is missing member 1');
       }
-      const onboardingPassword = 'playwright-password';
+      const onboardingPassword = RPC_PROFILE_PASSWORD;
       const onboardingPath = path.join(demoDir, 'share-bob.bfonboard');
       await withFixtureStep(
         'profile-export-bfonboard',

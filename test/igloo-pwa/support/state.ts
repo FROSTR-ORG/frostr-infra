@@ -9,15 +9,6 @@ export const PWA_SESSION_STORE_KEY = 'igloo-pwa.session.v1';
 export const PWA_TEST_INSTANCE_ID = 'e2e';
 export const PWA_INSTANCE_ID_KEY = 'igloo-pwa.instanceId';
 
-// Legacy pre-split keys, retained only for specs that still write the old
-// partition directly (they migrate into the global store on first boot).
-export const PWA_STORAGE_KEY = 'igloo-pwa.state.v2';
-export const PWA_INSTANCE_REGISTRY_KEY = 'igloo-pwa.instances.v1';
-
-export function pwaPartitionKey(instanceId: string = PWA_TEST_INSTANCE_ID): string {
-  return `${PWA_STORAGE_KEY}::${instanceId}`;
-}
-
 export function pwaSessionKey(instanceId: string = PWA_TEST_INSTANCE_ID): string {
   return `${PWA_SESSION_STORE_KEY}::${instanceId}`;
 }
