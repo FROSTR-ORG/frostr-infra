@@ -116,11 +116,23 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
   sign-reload, dashboard-states, approval-queue, permissions, pwa-home-pairing).
   The fix was validated via the new pwa smoke; the rest run nightly and were not
   individually re-run — confirm green on the next `release-validation` — test/.
-- [ ] (effort: M) **P1 — Type-enforce fixture seeds against the persist allowlist**
-  (`PersistableStoredProfile`) so TS rejects discarded seed fields (ADR Q7) — test/
-  + igloo-pwa.
-- [ ] (effort: M) **P1 — Consolidate seed builders + centralize the test password**
-  (one `ProfileSeedInput`, shared test-secrets) — test/. _(depends on the type work)_
+- [x] (effort: M) **DONE (2026-06-18) — P1 — Type-enforce fixture seeds against the
+  persist allowlist** (`PersistableStoredProfile`, ADR Q7). Added the contract to
+  **igloo-shared** (`persist-contract.ts`); igloo-pwa derives `PROFILE_ALLOWED_KEYS`
+  from it with a compile-time drift guard; the test harness's `PwaStoredProfileSeed`
+  now aliases the shared contract, so a seed setting a non-persisted field (raw
+  share, stored password, runtime snapshot) is a **compile error**. Cleaned those
+  fields from the shared builder + the manually-built seeds (app-shell /
+  dashboard-visual / welcome-visual / recover-visual). `make verify` green —
+  igloo-shared + igloo-pwa + test/.
+- [~] (effort: M) **P1 — Consolidate seed builders + centralize the test password**
+  (one `ProfileSeedInput`, shared test-secrets). **Partial (2026-06-18):** added
+  `test/shared/test-secrets.ts` (the 3 canonical passwords, single source) and
+  wired the fixture-level definitions (browser-artifacts, chrome seed-crypto, chrome
+  live-signer). **Remaining:** swap the ~25 per-spec inline literals to the
+  test-secrets imports, add a guard banning inline canonical-password literals (it
+  depends on the swap), and unify the chrome/home seed builders under one
+  `ProfileSeedInput` (PWA builder already type-enforced) — test/.
 - [ ] (effort: M) **P1 — Robust process teardown** — idempotent relay `close()`,
   SIGKILL escalation, global orphan-reaper for `bifrost-devtools relay` — test/.
 - [ ] (effort: S) **P1 — Unify relay port allocation** to one OS-assigned source
