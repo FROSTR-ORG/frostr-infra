@@ -122,25 +122,35 @@ Linux-only Home).
 
 ### (e) WASM / artifact provenance
 
-Keep the `.tmp/` prebuild cache for speed, but add a **hard fail-fast hash gate**:
+Keep the `.tmp/` prebuild cache for speed, and guarantee the WASM the test process
+encrypts/signs with is byte-identical to the WASM the app build under test loads:
 
-- one canonical input hash over **all WASM source + toolchain (wasm-bindgen, build
-  scripts) + igloo-shared build inputs** (today the stamp hashes only bifrost-rs
-  crates);
-- prebuild `check` **fails hard** on mismatch — and callers (`test/shared/test-prebuild.ts`)
-  must **not** catch-and-continue to a stale cache (today they do); a strict-mode
-  flag, on by default in test lanes, makes the mismatch terminal;
-- test lanes **reject the `.tmp/` fallback** when a lane is active;
-- a **startup assertion** in the test global-setup compares SHA-384 hashes of the
-  WASM loaded by the test fixtures, the dev server, and dist, and **fails the whole
-  run** (not log-only) if they are not byte-identical from the same bifrost-rs commit.
+- **A fail-fast SHA-384 provenance assertion** (`test/shared/wasm-provenance.ts`,
+  `assertWasmProvenance`) — **implemented 2026-06-18.** It compares each browser
+  WASM binary the app build will load against the test-injected WASM
+  (`resolveTestBrowserWasmDir`) and throws an actionable error on any mismatch.
+  Wired into the chrome global-setup (so it gates the per-PR chrome lane) and the
+  pwa-dist server in the cross-client spec (the bug site), replacing the cryptic
+  "Incorrect password" with a clear provenance error.
+- **One canonical WASM (structural follow-up, P0 remainder).** `prepare-browser-wasm`
+  builds one shared WASM then *copies* it per client, and a single-client prebuild
+  target refreshes only some clients' copies — so a dist-serving spec can load WASM
+  that lags the test-injected build. Expose ONE canonical WASM dir consumed by tests
+  and all client builds (or have dist-serving specs build from
+  `resolveTestBrowserWasmDir`). Also expand the prebuild stamp to cover the toolchain
+  (wasm-bindgen, build scripts) so a toolchain bump invalidates the cache.
 
-pwa and chrome may build WASM separately but **must be from the same commit/epoch**.
+> Correction (2026-06-18): the earlier draft said to make prebuild `check`
+> fail-hard "because callers continue with stale". That premise was wrong —
+> `test/shared/test-prebuild.ts` already does check → catch → **sync** (auto-rebuild
+> on a stale stamp), so fail-hard would *remove* a useful self-heal. The real gap is
+> cross-context provenance (test vs the served dist), which the assertion above
+> closes; the canonical-WASM pipeline removes the skew at the source. The `@fast` /
+> dev-server lanes already load one consistent WASM, so the main gates were never
+> exposed — the skew is specific to dist-serving specs.
 
-_Rejected:_ tracked-artifacts-only in test lanes (loses cache speed on cold runs);
-tracked-only **and** hash gate (over-rigid; friction when iterating on WASM). This
-is the root cause of the observed pwa-dist "Incorrect password" failure (stale
-`.tmp/` WASM silently overriding tracked artifacts).
+_Rejected:_ making prebuild `check` fail-hard (removes the existing self-heal for no
+real gain); tracked-artifacts-only in test lanes (loses cache speed on cold runs).
 
 ### (f) Selector strategy + contract enforcement timing
 

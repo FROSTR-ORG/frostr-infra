@@ -10,6 +10,7 @@ import { assertNoncePoolHydrated, type RuntimeSnapshotResult } from '../support/
 import { createGeneratedBrowserArtifacts, createPwaStoredProfileSeed } from '../../shared/browser-artifacts';
 import { startLocalRelay } from '../../shared/local-relay';
 import { IGLOO_PWA_DIR } from '../../shared/repo-paths';
+import { assertWasmProvenance } from '../../shared/wasm-provenance';
 import { buildPwaPersistedState } from '../../igloo-pwa/support/state';
 import { expectPwaDashboard, loadStoredPwaProfile, seedPwaState } from '../../igloo-pwa/support/ui';
 
@@ -20,6 +21,11 @@ type StaticServer = {
 
 async function startPwaDistServer(): Promise<StaticServer> {
   const distDir = path.join(IGLOO_PWA_DIR, 'dist');
+  // The pwa dist is served to a browser that decrypts the test-seeded share; its
+  // WASM must match the WASM the test process encrypted with. An asymmetric
+  // prebuild can leave the pwa dist lagging (see ADR-013 WASM provenance) — fail
+  // fast here with an actionable message instead of a cryptic "Incorrect password".
+  await assertWasmProvenance({ appWasmDir: path.join(distDir, 'wasm'), label: 'igloo-pwa dist' });
   const sockets = new Set<net.Socket>();
   const mimeTypes = new Map<string, string>([
     ['.html', 'text/html; charset=utf-8'],

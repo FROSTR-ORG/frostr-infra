@@ -60,13 +60,16 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
   WASM, so the main gates are NOT exposed — this is specific to dist-serving specs.
   NB2 the ADR's "make prebuild `check` fail-hard because callers continue with
   stale" is inaccurate: `test/shared/test-prebuild.ts` already does check→catch→sync
-  (auto-rebuild on stale); fail-hard would *remove* that self-heal. So the real
-  deliverables are: **(a)** a fail-fast startup SHA-384 provenance assertion
-  (test-injected WASM vs the app/dist WASM the spec exercises) with a clear message;
-  and **(b)** structural — make `prepare-browser-wasm` expose ONE canonical WASM dir
-  consumed by tests + all client builds (kill the per-client-copy skew), or have
-  dist-serving specs build the dist from `resolveTestBrowserWasmDir()`. (b) spans
-  submodules (vite configs + sync scripts).
+  (auto-rebuild on stale); fail-hard would *remove* that self-heal. Deliverables:
+  **(a) DONE (2026-06-18)** — `test/shared/wasm-provenance.ts` (`assertWasmProvenance`)
+  fails fast with a clear SHA-384 mismatch message, wired into the chrome
+  global-setup (gates the per-PR chrome lane) + the pwa-dist server in
+  chrome-pwa-pairing (the bug site); `make verify` green.
+  **(b) REMAINING** — structural: make `prepare-browser-wasm` expose ONE canonical
+  WASM dir consumed by tests + all client builds (kill the per-client-copy skew), or
+  have dist-serving specs build from `resolveTestBrowserWasmDir()`; plus expand the
+  prebuild stamp to cover the toolchain (wasm-bindgen/build scripts). (b) spans
+  submodules (vite configs + sync scripts) — a focused follow-up.
 - [ ] (effort: S) **P1 — Expand the WASM stamp** to cover toolchain + igloo-shared
   build inputs — scripts/. _(depends on WASM provenance)_
 - [ ] (effort: M) **P1 — Type-enforce fixture seeds against the persist allowlist**
