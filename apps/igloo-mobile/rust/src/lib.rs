@@ -1556,13 +1556,7 @@ impl FfiApp {
         let target_seckey = k256::SecretKey::random(&mut rand::rngs::OsRng);
         let target_pubkey = target_seckey.public_key();
         // Get 32-byte x-only public key (strip the 0x02/0x03 prefix byte).
-        let target_pubkey_bytes: [u8; 32] = {
-            let encoded = target_pubkey.to_encoded_point(false);
-            let bytes = encoded.as_bytes();
-            let mut arr = [0u8; 32];
-            arr.copy_from_slice(&bytes[1..]); // skip prefix byte
-            arr
-        };
+        let target_pubkey_bytes = xonly_public_key_bytes(&target_pubkey);
         let target_pubkey_hex = hex::encode(target_pubkey_bytes);
 
         // Call the bridge ecdh method. The bridge derives the shared secret
@@ -2673,11 +2667,18 @@ fn hex_to_bytes(hex: &str) -> Result<[u8; 32], String> {
 fn derive_share_pubkey_from_secret(seckey_bytes: &[u8; 32]) -> Result<String, String> {
     let sk = SecretKey::from_slice(seckey_bytes).map_err(|_| "malformed_package".to_string())?;
     let pk = sk.public_key();
+    let out = xonly_public_key_bytes(&pk);
+    Ok(hex::encode(out))
+}
+
+fn xonly_public_key_bytes(pk: &k256::PublicKey) -> [u8; 32] {
     let ep = pk.to_encoded_point(false);
-    let x_bytes = ep.x().ok_or("malformed_package".to_string())?;
+    let x_bytes = ep
+        .x()
+        .expect("uncompressed SEC1 public key includes an x-coordinate");
     let mut out = [0u8; 32];
     out.copy_from_slice(x_bytes.as_ref());
-    Ok(hex::encode(out))
+    out
 }
 
 // ── Rotate keyset FFI helpers (VAL-ROTATE-004) ────────────────────────────
@@ -3100,4 +3101,28 @@ pub(crate) async fn fetch_latest_backup_event(
         Some(msg) => anyhow::anyhow!("relay_unreachable:{msg}"),
         None => anyhow::anyhow!("no_backup_found"),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn xonly_public_key_bytes_uses_only_the_sec1_x_coordinate() {
+        let secret = SecretKey::from_slice(&[7u8; 32]).expect("test secret is valid");
+        let public_key = secret.public_key();
+        let uncompressed = public_key.to_encoded_point(false);
+
+        assert_eq!(
+            uncompressed.as_bytes()[1..].len(),
+            64,
+            "uncompressed SEC1 body contains x+y and must not be copied into a 32-byte buffer"
+        );
+
+        let xonly = xonly_public_key_bytes(&public_key);
+        let expected_x: &[u8] = uncompressed.x().unwrap().as_ref();
+        assert_eq!(xonly.len(), 32);
+        assert_eq!(xonly.as_slice(), expected_x);
+        assert_eq!(hex::encode(xonly).len(), 64);
+    }
 }

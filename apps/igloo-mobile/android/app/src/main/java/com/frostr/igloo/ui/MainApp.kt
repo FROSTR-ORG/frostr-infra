@@ -4162,7 +4162,13 @@ fun TestSignResultSection(
                 color = IglooColors.Green600
             )
             Row(horizontalArrangement = Arrangement.spacedBy(IglooSpacing.sm.dp)) {
-                TextButton(onClick = onClear) {
+                TextButton(
+                    onClick = onClear,
+                    modifier = Modifier.semantics {
+                        testTagsAsResourceId = true
+                        testTag = "btn_clear_test_sign_result"
+                    }
+                ) {
                     Text(
                         text = "Clear",
                         style = IglooTypography.body,
@@ -4221,7 +4227,10 @@ fun TestEcdhResultSection(
             .background(IglooColors.Purple900.copy(alpha = 0.1f), RoundedCornerShape(IglooRadii.md.dp))
             .border(1.dp, IglooColors.Purple900.copy(alpha = 0.3f), RoundedCornerShape(IglooRadii.md.dp))
             .padding(IglooSpacing.md.dp)
-            .semantics { testTag = "section_test_ecdh_result" }
+            .semantics {
+                testTagsAsResourceId = true
+                testTag = "section_test_ecdh_result"
+            }
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -4234,7 +4243,13 @@ fun TestEcdhResultSection(
                 color = IglooColors.Purple400
             )
             Row(horizontalArrangement = Arrangement.spacedBy(IglooSpacing.sm.dp)) {
-                TextButton(onClick = onClear) {
+                TextButton(
+                    onClick = onClear,
+                    modifier = Modifier.semantics {
+                        testTagsAsResourceId = true
+                        testTag = "btn_clear_test_ecdh_result"
+                    }
+                ) {
                     Text(
                         text = "Clear",
                         style = IglooTypography.body,
@@ -4472,10 +4487,16 @@ fun NonceBadge(label: String, value: Int) {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun EventLogSection(events: List<com.frostr.igloo.rust.LogEntry>) {
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                testTagsAsResourceId = true
+                testTag = "event_log_section"
+            },
         verticalArrangement = Arrangement.spacedBy(IglooSpacing.md.dp)
     ) {
         Text(
@@ -4493,21 +4514,26 @@ fun EventLogSection(events: List<com.frostr.igloo.rust.LogEntry>) {
                     .fillMaxWidth()
                     .background(IglooColors.Slate900StrongTranslucent, RoundedCornerShape(IglooRadii.md.dp))
                     .padding(IglooSpacing.md.dp)
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "event_log_empty"
+                    }
             )
         } else {
             Column(
                 verticalArrangement = Arrangement.spacedBy(IglooSpacing.xs.dp)
             ) {
-                events.take(20).forEach { entry ->
-                    EventLogRow(entry = entry)
+                events.take(20).forEachIndexed { index, entry ->
+                    EventLogRow(index = index, entry = entry)
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun EventLogRow(entry: com.frostr.igloo.rust.LogEntry) {
+fun EventLogRow(index: Int, entry: com.frostr.igloo.rust.LogEntry) {
     val levelColor = when (entry.level) {
         com.frostr.igloo.rust.LogLevel.INFO -> IglooColors.Blue400
         com.frostr.igloo.rust.LogLevel.WARN -> IglooColors.Amber400
@@ -4525,7 +4551,11 @@ fun EventLogRow(entry: com.frostr.igloo.rust.LogEntry) {
         modifier = Modifier
             .fillMaxWidth()
             .background(IglooColors.Slate900StrongTranslucent, RoundedCornerShape(IglooRadii.sm.dp))
-            .padding(IglooSpacing.sm.dp),
+            .padding(IglooSpacing.sm.dp)
+            .semantics {
+                testTagsAsResourceId = true
+                testTag = "event_log_row_$index"
+            },
         verticalAlignment = Alignment.Top
     ) {
         Text(
@@ -4544,7 +4574,12 @@ fun EventLogRow(entry: com.frostr.igloo.rust.LogEntry) {
             style = IglooTypography.body,
             color = IglooColors.Slate200,
             maxLines = 2,
-            modifier = Modifier.padding(start = IglooSpacing.sm.dp)
+            modifier = Modifier
+                .padding(start = IglooSpacing.sm.dp)
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = "event_log_message_$index"
+                }
         )
     }
 }

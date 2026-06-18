@@ -151,6 +151,14 @@ focus-ios-qr-display:
 focus-android-qr-display:
   scripts/run-focus-android-qr-display.sh
 
+# Validate bidirectional native QR onboarding, then Test Sign + Test ECDH.
+focus-cross-platform-onboard-signer:
+  scripts/run-cross-platform-onboard-signer-proof.sh
+
+# Validate bidirectional native-created packages through the manual Connect form.
+focus-cross-platform-manual-onboard:
+  scripts/run-cross-platform-manual-onboard-proof.sh
+
 # ── Utilities ────────────────────────────────────────────────────────────────
 
 # Rebuild Rust + regenerate bindings for all platforms (no platform build).
