@@ -48,10 +48,25 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
 - [ ] (effort: M) **P0 — Decide & wire the `@live` / `@cross-client` CI story.**
   Per-PR `@live` smoke + explicit nightly `@cross-client`, or document nightly-only;
   stop the silent pairing-contract drift (ADR Q1/Q2) — test/ + CI.
-- [ ] (effort: M) **P0 — Enforce WASM provenance.** Prebuild `check` fails hard,
-  reject `.tmp/` fallback under a lane, startup hash assertion (fixtures vs app vs
-  dist same epoch). Root cause of the pwa-dist "Incorrect password" (ADR Q4) —
-  scripts/ + test/.
+- [ ] (effort: M) **P0 — Enforce WASM provenance** (ADR Q4) — scripts/ + test/.
+  **Root cause pinned (2026-06-18):** the test process encrypts with the `.tmp`
+  **igloo-shared** scratch WASM (`resolveTestBrowserWasmDir`), but a dist-serving
+  spec (chrome-pwa-pairing) decrypts with the pwa **dist** WASM, which vite's
+  `resolveWasmSourceDir` copied from a *different* source — the chrome-target
+  prebuild refreshes shared+chrome scratch but **not** igloo-pwa, and
+  `prepare-browser-wasm.sh` builds one shared WASM then *copies* it per client, so
+  the pwa copy can lag. The app's SHA-384 loader then rejects the mismatched WASM →
+  cryptic "Incorrect password". NB the `@fast`/dev-server lanes use one consistent
+  WASM, so the main gates are NOT exposed — this is specific to dist-serving specs.
+  NB2 the ADR's "make prebuild `check` fail-hard because callers continue with
+  stale" is inaccurate: `test/shared/test-prebuild.ts` already does check→catch→sync
+  (auto-rebuild on stale); fail-hard would *remove* that self-heal. So the real
+  deliverables are: **(a)** a fail-fast startup SHA-384 provenance assertion
+  (test-injected WASM vs the app/dist WASM the spec exercises) with a clear message;
+  and **(b)** structural — make `prepare-browser-wasm` expose ONE canonical WASM dir
+  consumed by tests + all client builds (kill the per-client-copy skew), or have
+  dist-serving specs build the dist from `resolveTestBrowserWasmDir()`. (b) spans
+  submodules (vite configs + sync scripts).
 - [ ] (effort: S) **P1 — Expand the WASM stamp** to cover toolchain + igloo-shared
   build inputs — scripts/. _(depends on WASM provenance)_
 - [ ] (effort: M) **P1 — Type-enforce fixture seeds against the persist allowlist**
