@@ -100,8 +100,12 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
   tripwire, the provenance gap is closed. **(c) OPTIONAL follow-up** — expand the
   prebuild stamp to cover the toolchain (wasm-bindgen/build scripts) so a toolchain
   bump invalidates the cache; nice-to-have hardening, not required for correctness.
-- [ ] (effort: S) **P1 — Expand the WASM stamp** to cover toolchain + igloo-shared
-  build inputs — scripts/. _(depends on WASM provenance)_
+- [x] (effort: S) **DONE (2026-06-18) — P1 — Expand the WASM stamp** to cover
+  toolchain + igloo-shared build inputs. `check-browser-wasm-stamp.sh` now also
+  hashes the igloo-shared build driver (`scripts/build-bridge-wasm.sh`) and the
+  parent-repo toolchain pin (`check-wasm-toolchain.sh`, which encodes the expected
+  wasm-pack version), so a build-script or toolchain bump invalidates the stamp and
+  forces a rebuild + re-stamp — test/ + scripts/.
 - [ ] (effort: M) **P1 — Promote the home `@live @smoke` to a per-PR gate** (ADR-013
   §(b) wants smoke per affected client per-PR). Today it's nightly-only because the
   per-PR `home` job has no tauri/webkit2gtk/xvfb buildout (and adding it to every
@@ -148,8 +152,13 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
 - [ ] (effort: L) **P1 — Unified visual-harness module + single artifact tree**
   (`test/shared/visual-harness.ts`, `.tmp/visual/<client>/`, Home on bundled
   Playwright, manifest+guard for all clients) (ADR Q3) — test/ + igloo-home.
-- [ ] (effort: M) **P2 — Make `test-targets.json` the single source** for
-  affected/prebuild mapping — test/ + scripts/.
+- [x] (effort: M) **DONE (2026-06-18) — P2 — Make `test-targets.json` the single
+  source** for affected/prebuild mapping. The path → client mapping now derives
+  from the manifest's `paths` via a new `test_client_for_path` lib helper (was
+  hardcoded `repos/igloo-{pwa,chrome,home}/*` globs in `test-affected.sh`); the
+  `check-test-targets` guard asserts the helper is used and that no per-client repo
+  glob is re-hardcoded. Prebuild targets already came from the manifest — test/ +
+  scripts/.
 - [ ] (effort: M) **P2 — Document lanes, env-var schema, services, fixture
   ownership** (lane/coverage matrix, `TEST-ENV-VARS.md`, `services/README.md`,
   `FIXTURES.md`) — docs.

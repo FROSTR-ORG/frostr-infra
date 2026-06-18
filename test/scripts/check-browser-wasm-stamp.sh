@@ -18,6 +18,7 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 bifrost_dir="${root_dir}/repos/bifrost-rs"
+shared_dir="${root_dir}/repos/igloo-shared"
 stamp_file="${root_dir}/test/browser-wasm-source.stamp"
 
 # bifrost-rs paths that feed the browser WASM build (see
@@ -36,16 +37,40 @@ wasm_paths=(
   Cargo.lock
 )
 
+# igloo-shared build driver: the script that actually invokes wasm-pack and copies
+# the modules. A change here (module list, wasm-pack flags, post-processing) can
+# change the compiled output even when the Rust source is byte-identical.
+shared_wasm_paths=(
+  scripts/build-bridge-wasm.sh
+)
+
+# Parent-repo paths that pin the WASM toolchain. A wasm-pack/clang version bump is
+# recorded here (the toolchain check encodes the expected wasm-pack version), so
+# bumping the pin invalidates the stamp and forces a rebuild + re-stamp.
+toolchain_paths=(
+  test/scripts/check-wasm-toolchain.sh
+)
+
 if [[ ! -d "${bifrost_dir}/.git" && ! -f "${bifrost_dir}/.git" ]]; then
   echo "not ok: repos/bifrost-rs is not checked out; run 'make repo-init'" >&2
   exit 1
 fi
 
+if [[ ! -d "${shared_dir}/.git" && ! -f "${shared_dir}/.git" ]]; then
+  echo "not ok: repos/igloo-shared is not checked out; run 'make repo-init'" >&2
+  exit 1
+fi
+
 compute_hash() {
-  # `git rev-parse HEAD:<path>` prints each path's tree/blob object id; hashing
-  # the concatenation yields a stamp that changes only when the committed WASM
-  # source changes (deterministic, no rebuild required).
-  git -C "${bifrost_dir}" rev-parse "${wasm_paths[@]/#/HEAD:}" | shasum -a 256 | awk '{print $1}'
+  # `git rev-parse HEAD:<path>` prints each path's tree/blob object id; hashing the
+  # concatenation across the bifrost-rs WASM source, the igloo-shared build driver,
+  # and the parent-repo toolchain pin yields a stamp that changes only when one of
+  # those committed inputs changes (deterministic, no rebuild required).
+  {
+    git -C "${bifrost_dir}" rev-parse "${wasm_paths[@]/#/HEAD:}"
+    git -C "${shared_dir}" rev-parse "${shared_wasm_paths[@]/#/HEAD:}"
+    git -C "${root_dir}" rev-parse "${toolchain_paths[@]/#/HEAD:}"
+  } | shasum -a 256 | awk '{print $1}'
 }
 
 current="$(compute_hash)"

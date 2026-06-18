@@ -62,18 +62,22 @@ if [[ "${#changed_files[@]}" -gt 0 ]]; then
       repos/igloo-paper|repos/igloo-paper/*)
         run_guards=1
         ;;
-      repos/igloo-home/*)
-        run_home=1
-        ;;
-      repos/igloo-pwa/*)
-        run_pwa=1
-        ;;
-      repos/igloo-chrome/*)
-        run_chrome=1
-        ;;
       repos/igloo-ui/*)
         run_ui=1
         run_pwa=1
+        ;;
+    esac
+    # The pwa/chrome/home path -> client mapping is owned by the test-targets
+    # manifest (single source of truth), not hardcoded repo globs above.
+    case "$(test_client_for_path "${path}")" in
+      pwa)
+        run_pwa=1
+        ;;
+      chrome)
+        run_chrome=1
+        ;;
+      home)
+        run_home=1
         ;;
     esac
   done

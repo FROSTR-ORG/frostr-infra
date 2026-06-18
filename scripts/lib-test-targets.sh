@@ -18,3 +18,23 @@ test_targets_for_client() {
     process.stdout.write(entry.prebuild.join(" "));
   ' "${TEST_TARGETS_MANIFEST}" "${client}"
 }
+
+# Echo the client (pwa|chrome|home) that owns a changed path, or nothing if the
+# path is outside every client's `paths` prefix. The manifest's `paths` are the
+# single source of truth for the path -> client mapping (no hardcoded repo globs
+# in test-affected.sh).
+test_client_for_path() {
+  local path="$1"
+  node -e '
+    const fs = require("fs");
+    const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const path = process.argv[2];
+    let found = "";
+    outer: for (const [client, entry] of Object.entries(manifest.clients || {})) {
+      for (const prefix of entry.paths || []) {
+        if (path === prefix || path.startsWith(prefix)) { found = client; break outer; }
+      }
+    }
+    process.stdout.write(found);
+  ' "${TEST_TARGETS_MANIFEST}" "${path}"
+}

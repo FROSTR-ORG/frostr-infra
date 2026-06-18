@@ -21,6 +21,10 @@ if ! node -e '
       console.error("test-targets manifest missing/empty prebuild for client: " + c);
       process.exit(1);
     }
+    if (!Array.isArray(e.paths) || e.paths.length === 0) {
+      console.error("test-targets manifest missing/empty paths for client: " + c);
+      process.exit(1);
+    }
   }
 ' "${manifest}"; then
   status=1
@@ -38,6 +42,20 @@ if ! rg -q "test_targets_for_client" scripts/test-affected.sh; then
   echo "error: scripts/test-affected.sh must derive prebuild targets via test_targets_for_client" >&2
   status=1
 fi
+
+if ! rg -q "test_client_for_path" scripts/test-affected.sh; then
+  echo "error: scripts/test-affected.sh must derive the path -> client mapping via test_client_for_path (no hardcoded repos/igloo-{pwa,chrome,home} globs)" >&2
+  status=1
+fi
+
+# Belt-and-suspenders: the per-client repo path must not be re-hardcoded as a case
+# arm in test-affected.sh now that the manifest owns the mapping.
+for client in pwa chrome home; do
+  if rg -q "repos/igloo-${client}/\\*\\)" scripts/test-affected.sh; then
+    echo "error: scripts/test-affected.sh hardcodes a repos/igloo-${client}/* case; use test_client_for_path instead" >&2
+    status=1
+  fi
+done
 
 if [[ "${status}" -eq 0 ]]; then
   echo "ok: test-target manifest is the single source of truth"
