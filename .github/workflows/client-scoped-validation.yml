@@ -13,6 +13,7 @@ on:
       - "repos/igloo-shared"
       - "repos/igloo-ui"
       - "repos/bifrost-rs"
+      - "repos/igloo-shell"
   push:
     branches:
       - master
@@ -166,3 +167,29 @@ jobs:
           npm --prefix test run test:guards:home
           npm --prefix test run test:typecheck:home
           npm --prefix repos/igloo-home run test:unit
+
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # igloo-shell path-depends on bifrost-rs crates (../../../bifrost-rs), so
+      # both must be present to compile its lib tests.
+      - name: Initialize Shell submodules
+        run: |
+          git config --global url."https://github.com/".insteadOf git@github.com:
+          git submodule update --init repos/bifrost-rs repos/igloo-shell
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang
+          cargo fetch --manifest-path repos/igloo-shell/Cargo.toml --locked
+
+      - name: Run Shell scoped validation
+        run: |
+          cargo test --lib --workspace --manifest-path repos/igloo-shell/Cargo.toml --locked

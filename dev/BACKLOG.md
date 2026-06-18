@@ -106,15 +106,17 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
   parent-repo toolchain pin (`check-wasm-toolchain.sh`, which encodes the expected
   wasm-pack version), so a build-script or toolchain bump invalidates the stamp and
   forces a rebuild + re-stamp — test/ + scripts/.
-- [ ] (effort: M) **P1 — Promote the home `@live @smoke` to a per-PR gate** (ADR-013
-  §(b) wants smoke per affected client per-PR). Today it's nightly-only because the
-  per-PR `home` job has no tauri/webkit2gtk/xvfb buildout (and adding it to every
-  home/test/shared PR conflicts with the 2026-06-17 lean-CI cut). Either add the
-  desktop toolchain to the per-PR home job or accept nightly as the home tier — CI.
-- [ ] (effort: S) **P1 — Add `cargo test --lib` for igloo-shell** to a per-PR lane.
-  The P0 #3b lib-test covers bifrost-rs (present in the pwa+chrome jobs); igloo-shell
-  is checked out in no per-PR job, so its lib-test stays nightly. Wire it where an
-  igloo-shell-affecting PR would gate — CI.
+- [x] (decided 2026-06-18) **P1 — Home `@live @smoke` tier: ACCEPT NIGHTLY.** ADR-013
+  §(b) wants smoke per affected client per-PR, but the per-PR `home` job has no
+  tauri/webkit2gtk/xvfb buildout and adding the full desktop toolchain to every
+  home/test/shared PR conflicts with the 2026-06-17 lean-CI cut. Decision: the home
+  smoke runs in the nightly `release-validation` job (where the toolchain already
+  exists); documented in `test/README.md` tiers. Revisit if home regressions recur.
+- [x] (effort: S) **DONE (2026-06-18) — P1 — Add `cargo test --lib` for igloo-shell**
+  to a per-PR lane. Added a `shell` job to `client-scoped-validation.yml` (checks out
+  bifrost-rs + igloo-shell for the path deps, runs `cargo test --lib --workspace`)
+  and added `repos/igloo-shell` to the workflow path triggers (it gated nowhere
+  per-PR before). Verified the command locally (7 tests) — CI.
 - [ ] (effort: S) **P2 — Re-verify the 6 other `@live` specs** that share
   `expectPwaSignerSignReady` after its P0 #3b drift fix (onboarding, sign-shell,
   sign-reload, dashboard-states, approval-queue, permissions, pwa-home-pairing).
