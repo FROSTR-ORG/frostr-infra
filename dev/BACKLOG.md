@@ -23,9 +23,13 @@ architecture, **Accepted 2026-06-17**) — see it for the sequencing constraints
 rejected alternatives. Remediation is unblocked; start with the P0 items.
 Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarity.
 
-- [ ] (effort: S) **P0 — Gate selector contracts in the global per-PR lane.** Hoist
-  `test:guards:selectors` into `test:verify`/`workspace-guards` so stale selectors
-  fail same-PR, not 24h later (the Paper restructure cascade) — test/ + CI.
+- [x] (effort: S) **DONE (2026-06-18) — P0 — Gate selector contracts in the global
+  per-PR lane.** Added `test:guards:selectors` (cross-client-imports + e2e selector
+  contract) to `test:guards`, so the global selector contract now runs in `make
+  verify` (`test:verify`), CI `workspace-guards` (`npm run test:guards`), and the
+  affected lane — same-PR, not nightly-only. No double-run: `test:guards:full` lists
+  the sub-guards individually. Stays "lean guards" (ripgrep, sub-second). `make
+  verify` green — test/.
 - [ ] (effort: M) **P0 — Tag and gate the silent suites.** Tag the 11 untagged
   specs (filename `-live` ≠ contract); add Chrome:fast + Home:fast + per-client
   `test:unit` to `client-scoped-validation.yml`. Largest correctness-risk cut —
