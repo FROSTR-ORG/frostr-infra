@@ -9,7 +9,7 @@ import {
   waitForAliceSignReady,
 } from '../fixtures/harness';
 
-test.describe('igloo-home onboarding package', () => {
+test.describe('igloo-home onboarding package @live', () => {
   test('accepts Bob onboarding package and responds to live ping/sign', async () => {
     test.skip(!process.env.DISPLAY && !process.env.WAYLAND_DISPLAY, 'desktop display is required');
 

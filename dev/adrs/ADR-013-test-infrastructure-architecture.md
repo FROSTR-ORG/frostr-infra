@@ -29,17 +29,24 @@ it is sequenced in the BACKLOG roadmap and gated on this ADR.
 
 ### (a) Lane taxonomy — explicit tags, not `grep-invert`
 
-Every spec carries exactly **one primary execution tag**:
+Every spec carries **at least one primary execution-lane tag**:
 
 - `@fast` — render-only, no relay/harness (the per-PR behavioral floor)
 - `@live` — single-client behavioral, local relay
 - `@cross-client` — multi-client pairing
 - `@demo` — Docker 3-way demo harness
 
-plus orthogonal **tooling tags**: `@agent` (capture tools, exempt from gating) and
-`@visual` (storage-seeded snapshots). The **tag is the contract; filenames are
-narrative** — Home drops its `-live` filename convention and joins the taxonomy
-with a real `@fast` subset.
+plus orthogonal **tooling tags**: `@agent` (capture tools, exempt from the lane-tag
+requirement) and `@visual` (storage-seeded snapshots — its own lane). The **tag is
+the contract; filenames are narrative** — Home drops its `-live` filename
+convention and joins the taxonomy with a real `@fast` subset.
+
+> Refinement (2026-06-18, during P0 #2a): the contract is **"at least one"**, not
+> the literally-stated "exactly one". Demo pairing specs legitimately layer
+> (`@live @cross-client @demo`), and `@visual` is orthogonal to the behavioral
+> tags, so "exactly one" is unworkable. The `check-spec-primary-tags` guard
+> enforces "≥ 1 lane tag, `@agent` exempt", which fully closes the silent-untagged
+> gap the audit found.
 
 _Rejected:_ continuing the `--grep-invert` convention (lane membership is implicit,
 "fast" conflates "render-only" with "non-relay", and specs land accidentally narrow).
@@ -201,10 +208,11 @@ being **Accepted**. Fixed sequencing constraints:
   and gate the silent suites; wire the `@live` smoke + per-affected `test:unit`;
   add the WASM hash gate.
 - **Tag completeness before gating.** The `@fast` tag rollout (a/g) precedes the
-  lane-gating change (b): a new guard must assert **every spec carries exactly one
-  primary tag** and pass *before* the gate filters on `@fast` — otherwise an
-  untagged spec is silently skipped and a green gate hides it. (The audit lists the
-  currently-untagged specs; that inventory drives the tagging.)
+  lane-gating change (b): the `check-spec-primary-tags` guard asserts **every spec
+  carries at least one lane tag** (`@agent` exempt) and must pass *before* the gate
+  filters on `@fast` — otherwise an untagged spec is silently skipped and a green
+  gate hides it. (Done 2026-06-18 for fully-untagged spec files; per-test `@fast`
+  tagging lands with the lane-filter switch in (b).)
 - **Atomic rename.** The lane renames (g) land in a single change across
   `test/package.json` + `Makefile` + CI workflows, with deprecation aliases for the
   old names and a `check-lane-names` guard that fails on obsolete references.

@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 import { launchIglooHome } from '../fixtures/app';
 import { ensureDemoHarness } from '../fixtures/harness';
 
-test.describe('igloo-home generated onboarding', () => {
+test.describe('igloo-home generated onboarding @live', () => {
   test('creates a local share, distributes bfonboard, and imports the second device', async () => {
     test.skip(!process.env.DISPLAY && !process.env.WAYLAND_DISPLAY, 'desktop display is required');
 

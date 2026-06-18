@@ -30,10 +30,21 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
   affected lane — same-PR, not nightly-only. No double-run: `test:guards:full` lists
   the sub-guards individually. Stays "lean guards" (ripgrep, sub-second). `make
   verify` green — test/.
-- [ ] (effort: M) **P0 — Tag and gate the silent suites.** Tag the 11 untagged
-  specs (filename `-live` ≠ contract); add Chrome:fast + Home:fast + per-client
-  `test:unit` to `client-scoped-validation.yml`. Largest correctness-risk cut —
-  test/ + CI.
+- [x] (effort: S) **DONE (2026-06-18) — P0 #2a — Tag the silent specs + add the
+  tag-completeness guard.** Tagged the 11 fully-untagged spec files at the describe
+  level (chrome profile-import/rotation-update → `@live` (local relay); chrome
+  provider, pwa app-shell/wasm-integrity, ui-showcase reference-screens → `@fast`;
+  the 5 home `-live` specs → `@live`). Added `check-spec-primary-tags.sh`
+  (`test:guards:tags`) — ≥1 lane tag, `@agent` exempt — wired into `test:guards`
+  (per-PR) + `test:guards:full`. Amended ADR-013 "exactly one" → "at least one"
+  (demo specs layer). test/.
+- [ ] (effort: M) **P0 #2b — Switch the fast lanes to `--grep @fast` + gate the
+  silent suites in CI.** Needs per-test `@fast` tagging of render tests in mixed
+  files (today no test carries `@fast`, so `--grep @fast` would run nothing), then
+  switch `test:e2e:*:fast` off `--grep-invert` onto `--grep @fast`, and add
+  Chrome:fast + Home:fast + per-affected `test:unit` to `client-scoped-validation.yml`.
+  **Open fork (surfaced to maintainer):** explicit per-test `@fast` (ADR Q9, large
+  churn) vs keeping an explicit `--grep-invert` default — test/ + CI.
 - [ ] (effort: M) **P0 — Decide & wire the `@live` / `@cross-client` CI story.**
   Per-PR `@live` smoke + explicit nightly `@cross-client`, or document nightly-only;
   stop the silent pairing-contract drift (ADR Q1/Q2) — test/ + CI.

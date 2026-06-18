@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 import { launchIglooHome } from '../fixtures/app';
 import { ensureDemoHarness } from '../fixtures/harness';
 
-test.describe('igloo-home rotation', () => {
+test.describe('igloo-home rotation @live', () => {
   test('rotates from threshold bfshare sources and distributes rotated shares via bfonboard', async () => {
     test.skip(!process.env.DISPLAY && !process.env.WAYLAND_DISPLAY, 'desktop display is required');
 

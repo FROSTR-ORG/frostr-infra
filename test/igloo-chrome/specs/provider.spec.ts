@@ -12,7 +12,7 @@ const SIGN_EVENT_PAYLOAD = {
 const TEST_COUNTERPARTY_PUBKEY =
   '006008c941d6176a375c72cd08e16502a6a723b4b8b2909b8d7f63807a77c5b6';
 
-test.describe('provider bridge smoke', () => {
+test.describe('provider bridge smoke @fast', () => {
   test('injects window.nostr and resolves getPublicKey after approval', async ({
     context,
     server,

@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 import { launchIglooHome } from '../fixtures/app';
 import { ensureDemoHarness } from '../fixtures/harness';
 
-test.describe('igloo-home rotation update', () => {
+test.describe('igloo-home rotation update @live', () => {
   test('replaces an existing profile in place using a rotated bfonboard package', async () => {
     test.skip(!process.env.DISPLAY && !process.env.WAYLAND_DISPLAY, 'desktop display is required');
 

@@ -22,7 +22,7 @@ function shortId(value: string) {
   return value.slice(0, 8);
 }
 
-test.describe('extension rotate key', () => {
+test.describe('extension rotate key @live', () => {
   test('replaces the active device from settings using a rotated bfonboard package', async ({
     clearExtensionStorage,
     openExtensionPage,

@@ -23,7 +23,7 @@ const LOADERS = [
   },
 ] as const;
 
-test.describe('wasm subresource integrity', () => {
+test.describe('wasm subresource integrity @fast', () => {
   for (const { name, loader, binary } of LOADERS) {
     test(`${name} loader rejects a tampered _bg.wasm`, async ({ page }) => {
       // Flip a byte of the served wasm so its SHA-384 no longer matches the

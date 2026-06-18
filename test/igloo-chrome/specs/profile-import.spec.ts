@@ -5,7 +5,7 @@ import { createGeneratedBrowserArtifacts } from '../../shared/browser-artifacts'
 import { startLocalRelay } from '../../shared/local-relay';
 import { test } from '../fixtures/extension';
 
-test.describe('extension bfprofile import', () => {
+test.describe('extension bfprofile import @live', () => {
   test('imports a bfprofile package into the logged-out workspace and reaches the dashboard', async ({
     clearExtensionStorage,
     openExtensionPage,

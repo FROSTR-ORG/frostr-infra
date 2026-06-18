@@ -43,7 +43,7 @@ function seededDashboardProfile() {
   };
 }
 
-test.describe('igloo-pwa ui-first shell', () => {
+test.describe('igloo-pwa ui-first shell @fast', () => {
   test('creates a generated profile, distributes shares, and finishes setup to the locked welcome', async ({ page }) => {
     const p = pages(page);
     await p.welcome.goto();

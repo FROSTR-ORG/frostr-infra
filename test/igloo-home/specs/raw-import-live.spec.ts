@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 import { launchIglooHome } from '../fixtures/app';
 import { ensureDemoHarness, onboardBobFromAlice, pingBob, signWithBob, waitForAliceSignReady } from '../fixtures/harness';
 
-test.describe('igloo-home live raw import', () => {
+test.describe('igloo-home live raw import @live', () => {
   test('imports Bob raw artifacts and responds to live ping/sign', async () => {
     test.skip(!process.env.DISPLAY && !process.env.WAYLAND_DISPLAY, 'desktop display is required');
 

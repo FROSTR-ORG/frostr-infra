@@ -18,7 +18,7 @@ test.beforeAll(() => {
   mkdirSync(screenshotDir, { recursive: true });
 });
 
-test.describe('igloo-ui Paper reference showcase', () => {
+test.describe('igloo-ui Paper reference showcase @fast', () => {
   test('welcome returning profiles reference screen is visible and captured', async ({ page }) => {
     await loadShowcase(page, welcomeReturningProfiles());
 
