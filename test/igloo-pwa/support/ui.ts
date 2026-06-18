@@ -150,14 +150,17 @@ export async function confirmPwaRotationPackage(page: Page) {
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.rotationConfirmSubmit).click();
 }
 
-export async function expectPwaDashboard(page: Page, profileLabel?: string) {
+// `_profileLabel` is accepted (callers still pass the expected device name for
+// readability) but no longer asserted: post-Paper-redesign the pwa dashboard does
+// not render the device label anywhere (the banner shows the generic app header;
+// dashboard-root holds only the signer panel). The correct profile is already
+// guaranteed by the load step — loadStoredPwaProfile selects the welcome row by
+// label — so a dashboard-level label check is both impossible and redundant.
+export async function expectPwaDashboard(page: Page, _profileLabel?: string) {
   await expect(page.getByTestId(CRITICAL_E2E_TEST_IDS.dashboardRoot)).toBeVisible();
   await expect(page.getByTestId(CRITICAL_E2E_TEST_IDS.dashboardTabSigner)).toBeVisible();
   await expect(page.getByTestId(CRITICAL_E2E_TEST_IDS.dashboardTabPermissions)).toBeVisible();
   await expect(page.getByTestId(CRITICAL_E2E_TEST_IDS.dashboardTabSettings)).toBeVisible();
-  if (profileLabel) {
-    await expect(page.getByTestId(CRITICAL_E2E_TEST_IDS.dashboardRoot)).toContainText(profileLabel);
-  }
 }
 
 export async function expectPwaRuntimeConnected(page: Page) {

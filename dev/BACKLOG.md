@@ -23,14 +23,22 @@ architecture, **Accepted 2026-06-17**) — see it for the sequencing constraints
 rejected alternatives. Remediation is unblocked; start with the P0 items.
 Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarity.
 
-- [ ] (effort: M) **P1 — Un-drift `expectPwaDashboard`'s profile-label assertion**
-  (found 2026-06-18 by the `make test-live` shakedown). 13/15 pwa `@live` specs fail
-  on `expect(dashboard-root).toContainText(<label>)` — the Paper redesign moved the
-  device label out of `dashboard-root` (the runtime loads fine; keys/peers render).
-  Same drift class as the `expectPwaSignerSignReady` fix (P0 #3b). Fix the helper
-  (assert the label where it now renders, or drop it for the structural test-ids),
-  then re-run `make test-live` to confirm the nightly lane is green. **Not a
-  regression from the P1/P2 work** — the assertion predates this session — test/.
+- [x] (effort: M) **DONE (2026-06-18) — P1 — Repair the drifted pwa `@live` lane**
+  (found by the `make test-live` shakedown: 13/15 pwa `@live` specs red, all
+  **pre-existing** drift — not from the P1/P2 work). Two root causes, both fixed:
+  **(1) dashboard label drift** — the Paper redesign renders the device label
+  nowhere on the dashboard, but `expectPwaDashboard` (ui.ts) and the `expectDashboard`
+  page object (pages.ts) still asserted `dashboard-root` contains it; dropped the
+  assertion (the correct profile is guaranteed by the label-filtered load step).
+  **(2) legacy storage key** — `persistedHasSignerName` (settings) and
+  `persistedHasDenyOverride` (permissions) polled the retired `igloo-pwa.state.v2`
+  key instead of the current `PWA_GLOBAL_STORE_KEY` (the 2026-06-16 store split);
+  repointed both at the global store. Validated individually (profile-inventory,
+  create-keyset, settings green); full `make test-live` re-run for final
+  confirmation. Also fixed the **dangling igloo-ui pointer**: `repos/igloo-ui`
+  `fcc0592` (the redesign commit) was local-only — pushed it so recursive
+  checkouts / CI resolve again (was the 37s nightly checkout failure) — test/ +
+  igloo-ui pointer.
 - [x] (effort: S) **DONE (2026-06-18) — Test the test-infra (self-tests).** Added
   unit tests for the shared helpers (`test/shared/process-helpers.unit.ts` via
   `unit.config.ts` + `test:unit:shared`, wired into `test:verify`): idempotent

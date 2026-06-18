@@ -9,6 +9,7 @@ import { startLocalRelay } from '../../shared/local-relay';
 import { LIVE_TEST_TIMEOUT_MS } from '../../shared/playwright-config';
 import { runTestPrebuild } from '../../shared/test-prebuild';
 import { pages, type PeerPolicySelector } from '../support/pages';
+import { PWA_GLOBAL_STORE_KEY } from '../support/state';
 import { startShellSigner, type ShellSigner } from '../support/shell-signer';
 import { expectPwaDashboard, expectPwaSignerSignReady, onboardPwaDevice } from '../support/ui';
 
@@ -30,28 +31,23 @@ const TOGGLED_POLICY: PeerPolicySelector = { direction: 'respond', method: 'ecdh
 // localStorage before we reload (decoupled from the exact partition key).
 async function persistedHasDenyOverride(page: Page, direction: string, method: string): Promise<boolean> {
   return page.evaluate(
-    ({ wantDirection, wantMethod }) => {
-      for (let i = 0; i < window.localStorage.length; i += 1) {
-        const key = window.localStorage.key(i);
-        if (!key || !key.startsWith('igloo-pwa.state.v2')) continue;
-        try {
-          const parsed = JSON.parse(window.localStorage.getItem(key) ?? 'null');
-          const profiles = parsed?.profiles;
-          if (!Array.isArray(profiles)) continue;
-          for (const profile of profiles) {
-            const overrides = profile?.manual_peer_policy_overrides;
-            if (!Array.isArray(overrides)) continue;
-            for (const override of overrides) {
-              if (override?.policy?.[wantDirection]?.[wantMethod] === 'deny') return true;
-            }
-          }
-        } catch {
-          // ignore unparsable partitions
+    ({ wantDirection, wantMethod, storeKey }) => {
+      // Profiles (with their manual peer-policy overrides) live in the GLOBAL store
+      // (post-2026-06-16 split); read it directly, not the retired
+      // `igloo-pwa.state.v2` partition.
+      const parsed = JSON.parse(window.localStorage.getItem(storeKey) ?? 'null');
+      const profiles = parsed?.profiles;
+      if (!Array.isArray(profiles)) return false;
+      for (const profile of profiles) {
+        const overrides = profile?.manual_peer_policy_overrides;
+        if (!Array.isArray(overrides)) continue;
+        for (const override of overrides) {
+          if (override?.policy?.[wantDirection]?.[wantMethod] === 'deny') return true;
         }
       }
       return false;
     },
-    { wantDirection: direction, wantMethod: method },
+    { wantDirection: direction, wantMethod: method, storeKey: PWA_GLOBAL_STORE_KEY },
   );
 }
 

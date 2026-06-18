@@ -272,12 +272,13 @@ export class RecoverPage extends BasePage {
 export type DashboardBannerKind = 'signing-blocked' | 'all-relays-offline' | 'signing-failed';
 
 export class DashboardPage extends BasePage {
-  async expectDashboard(profileLabel?: string): Promise<void> {
+  // `_profileLabel` is accepted for call-site readability but not asserted: the
+  // Paper-redesigned pwa dashboard no longer renders the device label anywhere
+  // (dashboard-root holds only the signer panel). The correct profile is already
+  // guaranteed upstream by the load/create flow. (See expectPwaDashboard in ui.ts.)
+  async expectDashboard(_profileLabel?: string): Promise<void> {
     await expect(this.tid(TID.dashboardRoot)).toBeVisible();
     await expect(this.tid(TID.dashboardTabSigner)).toBeVisible();
-    if (profileLabel) {
-      await expect(this.tid(TID.dashboardRoot)).toContainText(profileLabel);
-    }
   }
   async openTab(tab: 'signer' | 'permissions' | 'settings'): Promise<void> {
     const id =

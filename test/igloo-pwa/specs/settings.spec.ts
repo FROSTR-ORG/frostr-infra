@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { startLocalRelay } from '../../shared/local-relay';
 import { LIVE_TEST_TIMEOUT_MS } from '../../shared/playwright-config';
 import { pages } from '../support/pages';
+import { PWA_GLOBAL_STORE_KEY } from '../support/state';
 import { expectPwaRuntimeConnected } from '../support/ui';
 
 // @live — genuine behavioral coverage of the operator Settings form: edit the
@@ -24,22 +25,13 @@ const NEW_SIGN_TIMEOUT = 45; // default is 30
 // before we reload — decoupled from the exact partition key (storage.ts namespaces
 // by sessionStorage instance id).
 async function persistedHasSignerName(page: Page, label: string): Promise<boolean> {
-  return page.evaluate((wanted) => {
-    for (let i = 0; i < window.localStorage.length; i += 1) {
-      const key = window.localStorage.key(i);
-      if (!key || !key.startsWith('igloo-pwa.state.v2')) continue;
-      try {
-        const parsed = JSON.parse(window.localStorage.getItem(key) ?? 'null');
-        const profiles = parsed?.profiles;
-        if (Array.isArray(profiles) && profiles.some((profile) => profile?.label === wanted)) {
-          return true;
-        }
-      } catch {
-        // ignore unparsable partitions
-      }
-    }
-    return false;
-  }, label);
+  return page.evaluate(({ wanted, storeKey }) => {
+    // The device list lives in the GLOBAL store (post-2026-06-16 split); read it
+    // directly rather than the retired `igloo-pwa.state.v2` partition.
+    const parsed = JSON.parse(window.localStorage.getItem(storeKey) ?? 'null');
+    const profiles = parsed?.profiles;
+    return Array.isArray(profiles) && profiles.some((profile) => profile?.label === wanted);
+  }, { wanted: label, storeKey: PWA_GLOBAL_STORE_KEY });
 }
 
 test.describe('igloo-pwa operator settings persistence @live', () => {
