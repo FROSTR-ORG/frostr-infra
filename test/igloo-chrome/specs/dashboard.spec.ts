@@ -45,9 +45,12 @@ test.describe('extension dashboard smoke', () => {
 
     await expect(page.getByText('Share Public Key')).toBeVisible();
     await expect(page.getByText('Group Public Key')).toBeVisible();
-    // Heading by role: the OperatorSignerPanel help tooltip (HelpHint, igloo-ui
-    // H.8) also contains "pending operations", so a loose getByText() matches two.
-    await expect(page.getByRole('heading', { name: 'Pending Operations' })).toBeVisible();
+    // Cold seeded profile → the Paper-restructured signer panel renders the
+    // stopped Readiness / Next-Step cards, not a live "Pending Operations"
+    // section (that section only exists once the runtime is running). Assert the
+    // stopped-state controls that prove the signer console rendered.
+    await expect(page.getByRole('button', { name: 'Start Signer' })).toBeVisible();
+    await expect(page.getByText('Start signer to restore connectivity.')).toBeVisible();
 
     await page.getByRole('tab', { name: /Permissions/i }).first().click();
     await expect(page.getByRole('heading', { name: 'Site Policies' })).toBeVisible();
@@ -75,13 +78,21 @@ test.describe('extension dashboard smoke', () => {
 
     const page = await openExtensionPage('options.html');
 
-    await expect(page.getByRole('heading', { name: 'Pending Operations' })).toBeVisible();
+    // Live runtime is running → the panel renders the live sections, whose titles
+    // are section-title spans (Paper restructure), not headings.
+    await expect(
+      page.locator('.igloo-dashboard-section-title', { hasText: 'Pending Operations' }),
+    ).toBeVisible();
     await expect(page.getByText('Share Public Key')).toBeVisible();
     await expect(page.getByText('Group Public Key')).toBeVisible();
     // The Peers diagnostics panel renders the peer's full hex pubkey (not a
     // truncated/npub form), so assert the value verbatim.
     await expect(page.getByText(stableLiveSigner.profile.peerPubkey)).toBeVisible();
-    await expect(page.getByText('sign-ready').first()).toBeVisible();
+    // Nonce-pool diagnostics: the Peers header shows the aggregate "~N ready"
+    // capacity and each peer a SIGN capability chip (Paper restructure replaced
+    // the old "sign-ready" label).
+    await expect(page.locator('.igloo-dashboard-count.is-ready')).toBeVisible();
+    await expect(page.getByLabel('SIGN capable').first()).toBeVisible();
 
     await page.close();
   });

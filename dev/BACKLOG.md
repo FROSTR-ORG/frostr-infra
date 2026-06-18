@@ -123,12 +123,15 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## igloo-pwa
 
-- [ ] (effort: S) **Gate the dev-scenario seam behind `import.meta.env.DEV`.**
-  `repos/igloo-pwa/src/lib/dev-scenario.ts` (`resolveDevScenario`) runs in any
+- [ ] (effort: S) **Gate the dev-scenario seam behind a build flag.** Both
+  `repos/igloo-pwa/src/lib/dev-scenario.ts` and
+  `repos/igloo-chrome/src/lib/dev-scenario.ts` (`resolveDevScenario`) run in any
   build when `?__frostr_dev=<scenario>` is present. It's harmless (a fake in-memory
-  profile, no real keys/signing), but a production build shouldn't carry the seam —
-  wrap it in `import.meta.env.DEV` so it tree-shakes out of prod. (Mirror whatever
-  igloo-home does for `resolveVisualScenario`.)
+  profile, no real keys/signing, no storage writes), but a production build shouldn't
+  carry the seam — tree-shake it out of prod. NB: the chrome build has no
+  `import.meta.env.DEV` (it sets `NODE_ENV=production`); use a dedicated define
+  (e.g. `VITE_IGLOO_VISUAL`) for chrome. (Mirror whatever igloo-home does for
+  `resolveVisualScenario`.)
 - [ ] (effort: S) **`agent-screenshot.spec.ts` bypasses the page-object selector
   contract.** It uses raw `getByTestId`/`getByRole`, which `check-e2e-selector-
   contracts.sh` flags (de-gated from PRs, but the nightly `test:guards:full` will
@@ -168,22 +171,29 @@ Group by area. When an item is finished, move a one-line summary to
   directly.** Same legacy-partition seed pattern as the (now-fixed) app-shell specs;
   it's `@cross-client` (runs in no default lane), so it didn't show in the `@fast`
   gate — retarget it to the two-store helper before that lane is ever run — test/.
-- [ ] (effort: M) **RED GATE — chrome `@fast` lane: dashboard smoke specs stale after
-  the Paper restructure.** Confirmed 2026-06-17: two `@fast` specs fail —
-  `dashboard.spec.ts:34` (*configured options page…*) at `getByRole('heading', { name:
-  'Pending Operations' })` and `profile-import.spec.ts:43` at `getByText('Chrome
-  Import', { exact: true })`. The 2026-06-16 Paper dashboard restructure made the
-  OperatorSignerPanel section titles (`Peers` / `Pending Approvals` / `Pending
-  Operations` / `Event Log`) `<span class="igloo-dashboard-section-title">` instead of
-  headings, and reshaped the identity/settings cards (`ContentCard` titles), so the
-  smoke specs' `getByRole('heading', …)` / exact-text assertions no longer match.
-  `ensure_session_failed` in the logs is a benign cold-state warning, not the cause.
-  Pre-existing (chrome + igloo-ui pristine), masked until the pwa half was fixed.
-  Decide: **(a)** modernize the chrome smoke selectors to the restructured DOM
-  (test-side, fastest), or **(b)** treat section-titles-as-spans as an a11y
-  regression and restore heading roles in igloo-ui (submodule change; also fixes the
-  tests). Intersects the open Paper-dashboard-alignment items above — test/ (+ maybe
-  igloo-ui).
+- [ ] (effort: S) **`chrome-pwa-pairing.spec.ts:248-249` `sign-ready` selectors are
+  stale post-restructure.** Both `chromeOptions`/`pwaPage` assert
+  `getByText('sign-ready')`, but the Paper restructure replaced the peer `sign-ready`
+  label with the `~N ready` nonce-pool pill (`.igloo-dashboard-count.is-ready`) + the
+  `SIGN capable` chip (see the now-fixed `@live` diagnostics test for the pattern).
+  The chrome `view.running` fix (2026-06-17) is the prerequisite that makes the chrome
+  dashboard render peers at all. Not edited here because `@cross-client` runs in no
+  default lane and needs a full two-client run to verify — retarget + run that lane.
+- [x] (effort: M) **DONE (2026-06-17) — RED GATE chrome `@fast` lane fixed.** Took
+  fork **(a)** modernize selectors. The render tool (below) showed the cold seeded
+  dashboard renders the stopped **Readiness / Next-Step** cards, not a `Pending
+  Operations` section at all — so fork (b) (restore heading roles) wouldn't have
+  fixed it. `dashboard.spec.ts`: replaced the `Pending Operations` heading assertion
+  with the cold-state `Start Signer` button + `Start signer to restore connectivity.`
+  Readiness copy. `profile-import.spec.ts`: `Chrome Import` is the header chip
+  `Chrome Import (<id>)`, so dropped `{ exact: true }` for a substring match. Also
+  surfaced + fixed a real running-dashboard bug: chrome's `Signer.tsx` never set
+  `view.running`, so a *running* signer rendered the stopped cards (no live peers /
+  pending sections) — added `running: isSignerRunning` (mirrors igloo-pwa). That
+  un-broke the `@live` `signer tab surfaces live nonce pool diagnostics` test, whose
+  `sign-ready` peer label is gone post-restructure → retargeted to the `~N ready`
+  nonce-pool pill + `SIGN capable` chip. `make verify` green; `@live` diagnostics
+  green. chrome `Signer.tsx` (submodule) + test/.
 - [ ] (effort: M) **Cross-tab single-active-signer lock.** The 2026-06-16 move to
   a global profile list (shared `igloo-pwa.profiles.v1`, per-tab session in
   `igloo-pwa.session.v1::<id>`) removed the storage partition that *implicitly*
@@ -323,15 +333,22 @@ Group by area. When an item is finished, move a one-line summary to
   can't see *which* test failed without scraping logs. Have `scripts/verify.sh` emit
   a Playwright `--reporter=json` (and vitest / `cargo --message-format=json`)
   artifact under `.tmp/agent/` so failures are parseable — test/ + scripts/.
-- [ ] (effort: M) **Extend render-and-verify (`make screenshot`) to chrome (+ home).**
-  Added 2026-06-17. Today `make screenshot` renders only the pwa via the
-  `?__frostr_dev=<scenario>` seam → `.tmp/agent/<state>.{png,txt}` + `screenshot.json`.
-  Add a chrome equivalent (then home) so non-pwa dashboards get the same headless
-  render+verify loop: mirror the dev-scenario seam for the chrome options page and a
-  `make screenshot CLIENT=chrome STATE=…` (or `make chrome-screenshot`). Directly
-  supports the chrome `@fast` red gate — it would let an agent *see* the restructured
-  chrome dashboard DOM instead of inferring selectors. igloo-home already has a
-  `currentVisualScenario` seam to model the seam after — test/ + igloo-chrome.
+- [x] (effort: M) **DONE (2026-06-17) — render-and-verify extended to chrome.**
+  `make screenshot CLIENT=chrome STATE=…` renders the extension options page
+  headlessly to `.tmp/agent/chrome-<state>.{png,txt}` + `screenshot.json`. Mirrored
+  the pwa/home seam: `repos/igloo-chrome/src/lib/dev-scenario.ts` `resolveDevScenario`
+  reads `?__frostr_dev=<scenario>` and returns an in-memory `ExtensionStateSnapshot`
+  (dashboard-running / dashboard-stopped / onboarding); `store.tsx` short-circuits the
+  background fetch + guards `loadRuntimeDiagnostics` in scenario mode. New chrome
+  `@agent` capture spec (`test/igloo-chrome/specs/agent-screenshot.spec.ts`, excluded
+  from the chrome `@fast` lane). It paid off immediately — capturing the dashboard DOM
+  fixed the chrome `@fast` red gate and surfaced the `view.running` bug (above).
+  **Home still pending** (igloo-home has the `currentVisualScenario` seam but no
+  `make screenshot CLIENT=home`) — test/ + igloo-chrome.
+- [ ] (effort: S) **Render-and-verify: add `make screenshot CLIENT=home`.** igloo-home
+  already has the `currentVisualScenario` URL-param seam; wire a home `@agent` capture
+  spec + `test:screenshot:home` so the home dashboard gets the same headless loop the
+  pwa and chrome now have — test/.
 - [ ] (effort: S) **Playwright leaks `bifrost-devtools relay` processes.** Found
   2026-06-17: ~16 orphaned `bifrost-devtools relay --host 127.0.0.1 --port <ephemeral>`
   processes (PPID 1, dated back to May 31 / Jun 8) accumulating across e2e/`@live`

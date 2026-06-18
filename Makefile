@@ -11,6 +11,7 @@ IGLOO_HOME_DIR := $(ROOT_DIR)/repos/igloo-home
 PORT ?= 8194
 RELAY ?= 0
 STATE ?= dashboard-running
+CLIENT ?= pwa
 
 .PHONY: \
 	help \
@@ -54,7 +55,7 @@ help:
 		'  make test-demo' \
 		'  make test-e2e' \
 		'  make verify' \
-		'  make screenshot [STATE=dashboard-running|dashboard-stopped|welcome-returning]' \
+		'  make screenshot [CLIENT=pwa|chrome] [STATE=dashboard-running|dashboard-stopped|...]' \
 		'  make test-prep' \
 		'  make test-affected' \
 		'  make test-release' \
@@ -195,12 +196,15 @@ test-e2e:
 verify:
 	@"$(ROOT_DIR)/scripts/verify.sh"
 
-# Render a PWA screen headlessly and write a PNG + visible-text dump to
-# .tmp/agent/. STATE is a dev scenario (dashboard-running, dashboard-stopped,
-# welcome-returning) — the running dashboard renders via a seeded runtimeSnapshot
-# that storage-only seeding can't reach. For agents and humans alike.
+# Render a client screen headlessly and write a PNG + visible-text dump to
+# .tmp/agent/. STATE is a dev scenario; the running dashboard renders via an
+# in-memory runtimeSnapshot that storage-only seeding can't reach. CLIENT selects
+# the client (pwa default; chrome renders the extension options page).
+#   pwa    STATE: dashboard-running | dashboard-stopped | welcome-returning
+#   chrome STATE: dashboard-running | dashboard-stopped | onboarding
+# For agents and humans alike.
 screenshot:
-	@FROSTR_SCREENSHOT_STATE="$(STATE)" npm --prefix "$(TEST_DIR)" run test:screenshot
+	@FROSTR_SCREENSHOT_STATE="$(STATE)" npm --prefix "$(TEST_DIR)" run test:screenshot:$(CLIENT)
 
 pwa-multisig-demo:
 	@"$(TEST_DIR)/scripts/pwa-multisig-demo.sh"

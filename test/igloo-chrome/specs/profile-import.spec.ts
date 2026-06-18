@@ -40,7 +40,9 @@ test.describe('extension bfprofile import', () => {
       );
 
       await expect(page.getByRole('tab', { name: /Signer/i }).first()).toBeVisible();
-      await expect(page.getByText('Chrome Import', { exact: true })).toBeVisible();
+      // The dashboard header chip renders the imported group name as
+      // "Chrome Import (<short id>)", so match the name as a substring.
+      await expect(page.getByText('Chrome Import').first()).toBeVisible();
       await page.close();
     } finally {
       await relay.close();

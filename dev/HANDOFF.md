@@ -1,140 +1,107 @@
-# Hand-off: next = fix the chrome `@fast` red gate + extend render-and-verify to chrome
+# Hand-off: chrome `@fast` red gate fixed + render-and-verify extended to chrome
 
 _Last updated: 2026-06-17_
 
 > **Read this first.** Entry point for a new session in the `frostr-infra`
-> workspace. The **lean dev/test-loop program is complete** (all five threads of
-> `~/.claude/plans/twinkling-tinkering-phoenix.md` shipped; agent-facing commands
-> are in [`AGENTS.md`](../AGENTS.md) → "Verification recipes"). This session also
-> fixed the pwa half of a pre-existing red gate. **The two chosen next tasks:**
-> (1) fix the **chrome `@fast` red gate**, and (2) **extend `make screenshot`
-> (render-and-verify) to chrome** — and (2) makes (1) much easier, so do it first.
+> workspace. The two tasks the previous hand-off queued are **done**: the chrome
+> `@fast` red gate is fixed and `make screenshot` now renders the chrome options
+> page. `make verify` is **green** (pwa + chrome). All work is on `dev`
+> (parent + the `igloo-chrome` submodule) and is **not yet committed or pushed**.
 
 ## TL;DR
 
-`make verify` is green on the pwa lane but **still red on the chrome lane** from a
-pre-existing test-vs-UI drift (the 2026-06-16 Paper dashboard restructure). The
-plan: build a chrome render-and-verify tool (mirror the pwa dev-scenario seam) so
-you can *see* the restructured chrome dashboard DOM, then modernize the two stale
-chrome smoke specs against it. All work this session is on `dev` (parent-only) and
-**not pushed**.
+The chrome `@fast` lane was red from 2026-06-16 Paper-restructure drift. Built a
+chrome render-and-verify seam first (`make screenshot CLIENT=chrome`), used it to
+*see* the restructured dashboard DOM, then modernized the stale smoke selectors.
+Along the way the render tool surfaced a real bug — chrome's running dashboard
+never showed live peers — which is also fixed. `make verify` green;
+`.tmp/agent/verify.json` → `{"ok":true,"exitCode":0}`. The `@live` chrome
+diagnostics test (touched by the bug fix) also passes.
 
 ## The user
 
-`cmdruid` (git), the FROSTR maintainer — senior, terse, wants signal over
-ceremony, decisive on scope. Broad authority for this alpha ("make our development
-cycle fast and lean"). Picks options decisively when asked, prefers the
-**submodule-first → bump-pointer** commit flow, likes a follow-up harvest
-(`dev/BACKLOG.md`). Engages on genuine design forks — surface them with a
-recommendation rather than guessing. He wants the chrome gate green and the
-render-and-verify loop extended to chrome.
+`cmdruid` (git), the FROSTR maintainer — senior, terse, signal over ceremony,
+decisive on scope. Broad authority for this alpha ("make our development cycle
+fast and lean"). Prefers the **submodule-first → bump-pointer** commit flow
+([[workflow-no-new-prs]]) and a follow-up harvest (`dev/BACKLOG.md`). Surface
+genuine design forks with a recommendation. Commits/pushes happen **only when he
+asks** — this session left the tree uncommitted pending his go-ahead.
 
-## The project
+## What shipped this session (uncommitted, on `dev`)
 
-`frostr-infra` is the coordinating workspace for FROSTR: a Rust signing core
-(`repos/bifrost-rs`, native + browser WASM) wrapped by TypeScript `igloo-*`
-clients (`repos/igloo-{shared,ui,pwa,chrome,home,shell,paper}`), all git
-submodules under `repos/`. The **Makefile is the public command surface**;
-`scripts/`, `dev/scripts/`, `test/scripts/` are private impl behind it.
+**igloo-chrome submodule** (`repos/igloo-chrome/`):
+- `src/lib/dev-scenario.ts` (new) — `resolveDevScenario()` reads
+  `?__frostr_dev=<scenario>` and returns an in-memory `ExtensionStateSnapshot`
+  (`dashboard-running` / `dashboard-stopped` / `onboarding`). Mirrors the pwa /
+  igloo-home seams; inert without the param, never writes storage.
+- `src/lib/store.tsx` — bootstrap effect short-circuits the background fetch when
+  a scenario is active; `loadRuntimeDiagnostics` returns an empty snapshot in
+  scenario mode (no background round-trip).
+- `src/pages/Signer.tsx` — **bug fix:** set `view.running: isSignerRunning`. It
+  was never set, so a *running* chrome signer rendered the stopped Readiness /
+  Next-Step cards instead of live peers / pending sections (mirrors igloo-pwa's
+  `running` field). Surfaced by the new render tool.
 
-## Next tasks (priority order)
+**Parent repo:**
+- `test/igloo-chrome/specs/agent-screenshot.spec.ts` (new, `@agent`) — opens
+  `options.html?__frostr_dev=<state>` via the extension fixture, writes
+  `.tmp/agent/chrome-<state>.{png,txt}` + `screenshot.json`.
+- `test/igloo-chrome/specs/dashboard.spec.ts` — `@fast` smoke: replaced the stale
+  `Pending Operations` heading assertion with cold-state `Start Signer` +
+  Readiness copy; `@live` diagnostics: `sign-ready` → `~N ready` nonce pill +
+  `SIGN capable` chip.
+- `test/igloo-chrome/specs/profile-import.spec.ts` — `Chrome Import` is the header
+  chip `Chrome Import (<id>)`; dropped `{ exact: true }`.
+- `test/package.json` — `test:screenshot:{pwa,chrome}` scripts; **`@agent` added
+  to the chrome `@fast` grep-invert** (it was missing, unlike pwa).
+- `Makefile` — `make screenshot CLIENT=pwa|chrome`.
+- `AGENTS.md`, `dev/BACKLOG.md` — docs + follow-ups.
 
-### 1. Extend render-and-verify to chrome (`make screenshot`) — do this first
+## Validation run
 
-`make screenshot` renders only the **pwa** today, via the `?__frostr_dev=<scenario>`
-seam in `repos/igloo-pwa/src/lib/dev-scenario.ts` → writes `.tmp/agent/<state>.{png,txt}`
-+ `screenshot.json` (driven by `test/igloo-pwa/specs/agent-screenshot.spec.ts`,
-tagged `@agent`). Build the **chrome** equivalent:
+- `make verify` → green (`.tmp/agent/verify.json` `ok:true`).
+- `make screenshot CLIENT=chrome STATE=dashboard-running` / `dashboard-stopped` →
+  rendered, artifacts in `.tmp/agent/`.
+- `@live` `signer tab surfaces live nonce pool diagnostics` → 1 passed (57s).
 
-- Mirror the dev-scenario seam for the chrome **options page** (a dev/test-only
-  injected `runtimeSnapshot` so a *running* dashboard can render headlessly).
-  **igloo-home already has a `currentVisualScenario` seam — model it on that.**
-- Add a `make screenshot CLIENT=chrome STATE=…` (or `make chrome-screenshot`) +
-  a chrome `@agent` capture spec writing to `.tmp/agent/`.
-- Payoff: it lets you capture the restructured chrome dashboard DOM directly,
-  which is exactly what task 2 needs (no more inferring selectors from source).
+## What's pending (priority order)
 
-Backlog: "Extend render-and-verify (`make screenshot`) to chrome (+ home)" (M).
-
-### 2. Fix the chrome `@fast` red gate
-
-`make verify` is red on the chrome lane: two smoke specs fail, both stale selectors
-after the **2026-06-16 Paper dashboard restructure** (not a runtime bug — the
-`ensure_session_failed` log line is a benign cold-state warning):
-
-- `test/igloo-chrome/specs/dashboard.spec.ts:34` — `getByRole('heading', { name:
-  'Pending Operations' })`. The OperatorSignerPanel section titles (Peers / Pending
-  Approvals / Pending Operations / Event Log) are now
-  `<span class="igloo-dashboard-section-title">` (see
-  `repos/igloo-ui/src/components/flows/OperatorSignerPanel.tsx:407`), **not** headings.
-  The same test then asserts `Site Policies` / `Peer Policies` (permissions tab) and
-  `Device Profile` (settings tab, now a `ContentCard` title) — likely also drifted;
-  verify each against the real DOM (← task 1's tool).
-- `test/igloo-chrome/specs/profile-import.spec.ts:43` — `getByText('Chrome Import',
-  { exact: true })` (the imported group name) no longer matches; check where/how the
-  identity card renders it now.
-
-**Open fork (decide):** (a) modernize the chrome smoke selectors to the restructured
-DOM (test-side, fastest, no submodule change), or (b) treat section-titles-as-spans
-as an a11y regression and restore heading roles in `igloo-ui` (submodule change +
-pointer bump; also greens the tests). The render tool (task 1) helps you judge (a)
-vs (b). Watch the HelpHint ambiguity noted in the test: a loose `getByText('Pending
-Operations')` matches the help tooltip too — scope to the section-title span.
-
-Full diagnosis: `dev/BACKLOG.md` → "RED GATE — chrome `@fast`".
-
-### 3. Then: push, and the rest
-
-All session commits are local on `dev` (parent-only). Push when the gate is green
-(or knowingly). Other tracked follow-ups: `chrome-pwa-pairing.spec.ts` still seeds
-the legacy `PWA_STORAGE_KEY`; exempt `@agent` specs from the selector contract
-(greens nightly `test:guards:full`); leaked `bifrost-devtools relay` processes;
-de-gated-guard deletion + the visual-doc cleanup that rides with it.
-
-## What shipped this session (all on `dev`, parent-only)
-
-Commits, newest first:
-
-- `bbc2bb6` Backlog: bump-pointers-push + verify-JSON follow-ups.
-- `f500d66` Backlog/handoff: pwa gate fixed, chrome scoped separately.
-- `eafdb4a` **Fix pwa half of the red `@fast` gate** — reseed the two
-  `app-shell.spec.ts` persistence specs via the supported two-store helper
-  (`applyPwaSeed`/`buildPwaPersistedState`), read the settings poll from the global
-  store, add an opt-in `PwaSeedPayload.ifAbsent` for the reloading spec. pwa `@fast`
-  green (20 passed).
-- `09459a0`/`0078594` Handoff + AGENTS.md "Verification recipes" + doc fact fixes.
-- `a9d43c4` Backlog harvest (red gate, relay leak, corrected `test:guards:full`).
-- `9c69312` `.tmp/agent/{dev,screenshot,verify}.json` machine output.
-- `7c06049` `make bump-pointers`. `c61521a` `make install` (the workspace pivot).
-
-**Command surface** (also AGENTS.md → Verification recipes): `make install
-[INSTALL_UPDATE=1]`, `make bump-pointers [MSG= PUSH=1 DRY_RUN=1]`, `make verify`,
-`make screenshot STATE=…` — all write `.tmp/agent/<command>.json`.
+1. **Commit + push (needs the user's go-ahead).** Flow: commit the three
+   `igloo-chrome` src files **inside the submodule first**, then
+   `make bump-pointers MSG="…"` to record the moved pointer, then a parent commit
+   for `test/` + `Makefile` + `package.json` + docs. Push `dev` when he wants.
+2. **`chrome-pwa-pairing.spec.ts:248-249` stale `sign-ready` selectors**
+   (`@cross-client`, no default lane). Same fix pattern as the `@live` diagnostics
+   test; the `view.running` fix is the prerequisite. Needs a full two-client run to
+   verify. Backlog has the detail (also: it still seeds legacy `PWA_STORAGE_KEY`).
+3. **`make screenshot CLIENT=home`** — extend the render loop to igloo-home (it
+   already has the `currentVisualScenario` seam). Backlog item.
+4. Other tracked follow-ups: gate the dev-scenario seams behind a build flag
+   (chrome has no `import.meta.env.DEV` — needs a define); enrich the running
+   fixtures (empty pending/approvals/events); exempt pwa `@agent` spec's
+   `getByTestId` from the selector contract; leaked `bifrost-devtools relay`
+   processes.
 
 ## Critical considerations (the WHY)
 
-- **No npm workspace — by decision.** [[no-npm-workspace-thin-install]]. Hoisting
-  breaks the self-contained leaf build scripts; orchestrate via `make` targets over
-  the leaves, never a root `package.json`/`workspaces`.
-- **The chrome `@fast` failures are pre-existing**, from the Paper restructure — not
-  this session's work (chrome + igloo-ui are pristine) and not environmental
-  (igloo-ui `dist` is gitignored / always rebuilt). `.tmp/agent/verify.json`
-  correctly reports the red, so the machine signal works.
-- **Commit flow:** commit inside the submodule first, then `make bump-pointers`
-  ([[workflow-no-new-prs]]). Non-recursive submodule commands only. The chrome fix,
-  if it touches igloo-ui (fork option b), is a submodule commit + pointer bump.
-- **igloo-ui source-vs-dist:** clients resolve igloo-ui JS from source but CSS from
-  `igloo-ui/dist/styles.css` — rebuild dist (or `make igloo-ui-watch`) after CSS
-  edits ([[igloo-pwa-ui-source-vs-dist]]).
-- **chrome runtime is native-ish:** the background hosts the live signer over the
-  WASM bridge; `ensure_session_failed` for a cold seeded profile is expected, not a
-  failure to fix.
+- **The fork resolved itself to (a).** The render tool showed the *cold* dashboard
+  renders Readiness / Next-Step cards, not a `Pending Operations` section — so fork
+  (b) (restore heading roles in igloo-ui) wouldn't have fixed the cold smoke test.
+  Modernizing selectors test-side was the only correct fix.
+- **`view.running` is a real product fix, not just a test prop.** Without it a live
+  chrome signer shows "Offline / Signing unavailable" — wrong. Confirmed against a
+  live signer.
+- **Chrome tests load the built `dist/`** (`IGLOO_CHROME_DIST_DIR`), and the chrome
+  build sets `NODE_ENV=production` with no `import.meta.env.DEV`. The seam is gated
+  purely on the URL param (like pwa/home), so it ships inert in prod — see the
+  build-flag-gating backlog item.
+- **Commit flow:** submodule first, then `make bump-pointers`, non-recursive only
+  ([[workflow-no-new-prs]]). The chrome src changes are a submodule commit + pointer
+  bump; the test/doc changes are parent-only.
 
 ## Suggested first action
 
-Build the chrome render-and-verify seam (task 1): mirror igloo-home's
-`currentVisualScenario` to inject a running `runtimeSnapshot` into the chrome
-options page, add a chrome `@agent` capture + `make screenshot CLIENT=chrome`, and
-capture the seeded chrome dashboard to `.tmp/agent/`. Use that DOM to modernize the
-two stale chrome smoke specs (task 2), deciding the test-side-vs-igloo-ui-a11y fork.
-Then `make verify` should go fully green; push `dev` when the user wants.
+Confirm with the user whether to commit + push. If yes: commit the three
+`igloo-chrome` src files in the submodule, `make bump-pointers MSG="chrome:
+dev-scenario seam + running-dashboard fix"`, then the parent test/doc commit, then
+push `dev`. Otherwise pick up follow-up #2 (cross-client pairing selectors).

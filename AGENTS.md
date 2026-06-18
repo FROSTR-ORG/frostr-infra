@@ -139,9 +139,13 @@ poll for state instead of scraping logs.
   authoritative; result also in `.tmp/agent/verify.json`.
 - **Run one test by name:** `npm --prefix test run test:e2e:igloo-pwa:fast -- -g "<title>"`
   (swap the lane for `:chrome` / `:live`).
-- **See a screen:** `make screenshot STATE=dashboard-running` → renders a PWA
-  state headlessly to `.tmp/agent/<state>.{png,txt}` + `screenshot.json`. States:
-  `dashboard-running | dashboard-stopped | welcome-returning`.
+- **See a screen:** `make screenshot STATE=dashboard-running` → renders a client
+  state headlessly to `.tmp/agent/` + `screenshot.json`. `CLIENT=pwa` (default)
+  writes `<state>.{png,txt}`, states `dashboard-running | dashboard-stopped |
+  welcome-returning`. `CLIENT=chrome` renders the extension options page to
+  `chrome-<state>.{png,txt}`, states `dashboard-running | dashboard-stopped |
+  onboarding`. The running dashboard renders via an in-memory runtimeSnapshot
+  (the `?__frostr_dev=` dev-scenario seam) that storage-only seeding can't reach.
 - **Live dev loop:** `make dev` — native relay + co-signer + vite in seconds;
   prints `READY <url>` and writes `.tmp/agent/dev.json` when up (Ctrl-C tears
   down). Pair with `make igloo-ui-watch` for CSS hot-reload.
