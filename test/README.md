@@ -91,6 +91,16 @@ individual `test-*` lanes below escalate from it.
 - `live`
   - local relay plus live signer/runtime browser tests
   - command: `npm --prefix test run test:e2e:live`
+- `live smoke` (`@live @smoke`)
+  - per-affected-client integration tripwire (ADR-013 §(b)): one onboarding +
+    signing round-trip per client over an in-process relay (no Docker / external
+    infra). A strict subset of the full `@live` suite — not a replacement for it.
+  - commands: `npm --prefix test run test:e2e:igloo-pwa:smoke`,
+    `…:igloo-chrome:smoke`, `…:igloo-home:smoke`
+  - **gating:** pwa + chrome smoke run **per-PR** (`client-scoped-validation`).
+    The home smoke needs tauri + webkit2gtk + xvfb, which only the nightly
+    `release-validation` job provides, so it is gated **nightly** there; the
+    per-PR home lane stays render/typecheck-only after the lean-CI cut.
 - `demo`
   - Docker-backed browser onboarding and sign-through flow against
     `dev-relay` plus `igloo-demo`
@@ -160,6 +170,13 @@ Cross-client validation is explicit:
 ```bash
 npm --prefix test run test:e2e:igloo-pwa:cross
 ```
+
+**`@cross-client` is manual and non-gated by design** (ADR-013 §(b)). The pure
+cross-client pairing specs (chrome↔pwa, chrome↔home, pwa↔home) run only when
+invoked explicitly above — no per-PR or nightly lane gates them. The one
+exception is the demo 3-way pairing, which is *also* tagged `@demo` and so stays
+covered nightly via `make test-demo`. The documented gap is therefore the
+**non-demo** pairing matrix, not all cross-client coverage.
 
 Full workspace validation still uses:
 

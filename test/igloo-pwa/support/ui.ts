@@ -178,12 +178,16 @@ export async function openFreshPwaPage(browser: Browser): Promise<{ context: Bro
 
 // Tier-2 readiness gate, observed via the LIVE dashboard. The runtime snapshot is
 // intentionally never persisted to localStorage (see igloo-pwa persist-allowlist),
-// so readiness has to be read from the rendered signer panel: each peer row shows
-// a status label, and `sign-ready` means that peer's nonce pool has hydrated and
-// the signer can actually participate in a signature. Use this where a cooperating
-// signer is online; for a single device with no peers use the lighter
-// expectPwaRuntimeConnected. (The `expectedPeers` arg is advisory — at least one
-// sign-ready peer is the meaningful, race-free signal.)
+// so readiness has to be read from the rendered signer panel. Post-Paper-redesign
+// the panel no longer renders a literal "sign-ready" label per peer; sign-readiness
+// now surfaces in the peers summary as a hydrated nonce pool ("N ready", N≥1)
+// alongside at least one online peer, whereas the degraded/no-peer state shows
+// "0 online … 0 ready" under a "Signing unavailable" banner. Gate on a nonzero
+// ready count — the modern equivalent of "the nonce pool has hydrated and the
+// signer can participate in a signature". Use this where a cooperating signer is
+// online; for a single device with no peers use the lighter
+// expectPwaRuntimeConnected. (The `expectedPeers` arg is advisory — a hydrated
+// nonce pool is the meaningful, race-free signal.)
 export async function expectPwaSignerSignReady(page: Page, _expectedPeers = 1): Promise<void> {
-  await expect(page.getByText('sign-ready').first()).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByText(/[1-9]\d*\s+ready\b/).first()).toBeVisible({ timeout: 45_000 });
 }

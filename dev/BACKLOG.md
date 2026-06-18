@@ -51,12 +51,30 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
   Wired the submodule `test:unit` suites into `client-scoped-validation`: shared+pwa
   (pwa job), chrome (chrome job), home (home job). All green locally (shared 151 /
   pwa 71 / chrome 98 / home 25). — test/ + CI.
-- [ ] (effort: M) **P0 #3b — `@live` smoke per-PR + cargo lib-test; document
-  `@cross-client` nightly.** Remaining from #3: add a `@live @smoke` spec per client
-  (one onboarding+signing round-trip; specs use in-process relays so no external CI
-  infra) wired into the per-PR lanes; a lean `cargo test --lib` for bifrost-rs /
-  igloo-shell; and document `@cross-client` as nightly/manual (ADR Q1/Q2). Best as a
-  small reviewed PR (verifies in CI) — test/ + CI.
+- [x] (effort: M) **DONE (2026-06-18) — P0 #3b — `@live` smoke + cargo lib-test;
+  document `@cross-client` nightly.** Added a dedicated `@live @smoke` spec per
+  client over an **in-process relay** (no Docker/external infra):
+  `igloo-pwa/specs/onboarding-smoke.spec.ts` (two-device onboard → both nonce pools
+  hydrate / sign-ready; **verified locally** 13s), `igloo-chrome/specs/signing-smoke.spec.ts`
+  (onboarded live signer → real provider `signEvent` round-trip, verifies group
+  pubkey; **verified locally** 59s), `igloo-home/specs/onboarding-smoke.spec.ts`
+  (bfonboard handshake vs a live inviter session; CI-verified only — desktop host).
+  New `--grep @smoke` lanes (`test:e2e:igloo-{pwa,chrome,home}:smoke`). **Gating:**
+  pwa+chrome smoke run **per-PR** in `client-scoped-validation` (deps already there);
+  the home smoke needs tauri+webkit2gtk+xvfb so it's gated **nightly** in
+  `release-validation` (home e2e ran in *no* CI lane before — pre-existing gap now
+  closed for the smoke). Added `cargo test --lib --workspace` (bifrost-rs) to the
+  pwa+chrome per-PR jobs (**verified locally**, 37 tests). Documented `@cross-client`
+  as manual/non-gated (README + WORKFLOWS). `make verify` green.
+  **Drive-by fix:** `expectPwaSignerSignReady` greped a literal `sign-ready` string
+  the Paper-redesigned dashboard no longer renders; re-pointed it at the modern
+  "N ready" nonce-pool signal. This un-breaks the 6 other `@live` specs that share
+  the helper (onboarding, sign-shell, sign-reload, dashboard-states, approval-queue,
+  permissions, pwa-home-pairing) — they were not independently re-run (nightly).
+  **Deviations from ADR-013 §(b) (intentional, lean-CI):** home smoke is nightly not
+  per-PR; cargo lib-test is bifrost-rs only (igloo-shell is in no per-PR job → stays
+  nightly); smoke is wired into the per-client CI jobs, not literally into `make
+  verify` (kept render-only/fast). — test/ + CI.
 - [ ] (effort: M) **P0 — Enforce WASM provenance** (ADR Q4) — scripts/ + test/.
   **Root cause pinned (2026-06-18):** the test process encrypts with the `.tmp`
   **igloo-shared** scratch WASM (`resolveTestBrowserWasmDir`), but a dist-serving
@@ -84,6 +102,20 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
   bump invalidates the cache; nice-to-have hardening, not required for correctness.
 - [ ] (effort: S) **P1 — Expand the WASM stamp** to cover toolchain + igloo-shared
   build inputs — scripts/. _(depends on WASM provenance)_
+- [ ] (effort: M) **P1 — Promote the home `@live @smoke` to a per-PR gate** (ADR-013
+  §(b) wants smoke per affected client per-PR). Today it's nightly-only because the
+  per-PR `home` job has no tauri/webkit2gtk/xvfb buildout (and adding it to every
+  home/test/shared PR conflicts with the 2026-06-17 lean-CI cut). Either add the
+  desktop toolchain to the per-PR home job or accept nightly as the home tier — CI.
+- [ ] (effort: S) **P1 — Add `cargo test --lib` for igloo-shell** to a per-PR lane.
+  The P0 #3b lib-test covers bifrost-rs (present in the pwa+chrome jobs); igloo-shell
+  is checked out in no per-PR job, so its lib-test stays nightly. Wire it where an
+  igloo-shell-affecting PR would gate — CI.
+- [ ] (effort: S) **P2 — Re-verify the 6 other `@live` specs** that share
+  `expectPwaSignerSignReady` after its P0 #3b drift fix (onboarding, sign-shell,
+  sign-reload, dashboard-states, approval-queue, permissions, pwa-home-pairing).
+  The fix was validated via the new pwa smoke; the rest run nightly and were not
+  individually re-run — confirm green on the next `release-validation` — test/.
 - [ ] (effort: M) **P1 — Type-enforce fixture seeds against the persist allowlist**
   (`PersistableStoredProfile`) so TS rejects discarded seed fields (ADR Q7) — test/
   + igloo-pwa.

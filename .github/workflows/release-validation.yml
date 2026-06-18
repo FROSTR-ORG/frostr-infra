@@ -115,3 +115,11 @@ jobs:
           COMPOSE_BAKE: "true"
           FROSTR_DEMO_COMPOSE_OVERRIDE: compose.ci.yml
         run: xvfb-run -a make test-live
+
+      # Home @live smoke (ADR-013 §(b) per-affected-client signing tripwire). The
+      # desktop host needs tauri + webkit2gtk + xvfb, which only this nightly job
+      # provides, so the home smoke is gated here rather than in the lean per-PR
+      # client lane. It uses an in-process relay (no Docker), so it runs after the
+      # demo gate purely to reuse the toolchain and display.
+      - name: Run home smoke e2e
+        run: xvfb-run -a npm --prefix test run test:e2e:igloo-home:smoke

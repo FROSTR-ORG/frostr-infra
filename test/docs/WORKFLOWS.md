@@ -14,7 +14,14 @@ Start with the narrowest lane that covers the changed surface:
 - Home changes: run Home guards, Home typecheck, and the Home E2E wrapper.
 - Shared browser runtime or WASM changes: run the routine browser-WASM guard,
   the strict browser-WASM guard, and the affected browser client lanes.
+- Behavioral confidence on a single client: run that client's `@live @smoke`
+  lane (`test:e2e:igloo-<client>:smoke`) — one onboarding + signing round-trip
+  over an in-process relay. It is the per-PR tripwire for pwa + chrome (the home
+  smoke is nightly-only; see [`../README.md`](../README.md) tiers).
 - Cross-client behavior changes: run the explicit cross-client PWA lane.
+  `@cross-client` is **manual and non-gated by design** — no per-PR/nightly lane
+  runs the non-demo pairing matrix (the demo 3-way pairing stays covered nightly
+  via `@demo`).
 - Demo-harness changes: run the demo smoke or demo E2E lane.
 - Release-facing coordinated changes: escalate to the root release matrix.
 
