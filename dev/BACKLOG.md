@@ -17,8 +17,10 @@ Group by area. When an item is finished, move a one-line summary to
 ## Test infrastructure remediation (audit 2026-06-17)
 
 Mirrored from [`docs/TEST-AUDIT.md`](./docs/TEST-AUDIT.md) (97 findings, full
-detail there). **Gated on the target-state ADR** — do not start these until the
-ADR locks in the design (the audit's open questions decide sequencing/shape).
+detail there). Design fixed by
+[ADR-013](./adrs/ADR-013-test-infrastructure-architecture.md) (test infrastructure
+architecture, **Accepted 2026-06-17**) — see it for the sequencing constraints and
+rejected alternatives. Remediation is unblocked; start with the P0 items.
 Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarity.
 
 - [ ] (effort: S) **P0 — Gate selector contracts in the global per-PR lane.** Hoist

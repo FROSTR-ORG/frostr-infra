@@ -5,9 +5,10 @@ _Last updated: 2026-06-17_
 > **Read this first.** A full audit of the FROSTR workspace test infrastructure —
 > lanes, fixtures, harnesses, selector/guard contracts, the build/WASM pipeline,
 > CI, per-submodule suites, and reliability. It is the **input to the target-state
-> ADR** (`dev/adrs/`), which will lock in the design before any remediation. Do not
-> start remediation from this doc alone — the roadmap here is provisional until the
-> ADR decides the open questions in [§6](#6-open-questions-for-the-adr).
+> ADR**, [ADR-013](../adrs/ADR-013-test-infrastructure-architecture.md), which locks
+> in the design before any remediation. Do not start remediation from this doc alone
+> — the roadmap here is provisional; the open questions in
+> [§6](#6-open-questions-for-the-adr) are decided in ADR-013.
 
 ## 1. Scope & method
 
@@ -129,7 +130,12 @@ The end-state the ADR will formalize:
 
 ## 6. Open questions for the ADR
 
-These are the genuine design forks the ADR must decide before remediation:
+> **Decided.** All ten were resolved by the maintainer and are recorded with
+> rationale + rejected alternatives in
+> [ADR-013](../adrs/ADR-013-test-infrastructure-architecture.md). Kept here for the
+> audit's traceability.
+
+These were the genuine design forks the ADR had to decide before remediation:
 
 1. **Per-PR `@live`?** Does `@live` (or a `@live` smoke) block every PR, or is
    nightly sufficient for a stable `main`? The central cost/coverage fork.
