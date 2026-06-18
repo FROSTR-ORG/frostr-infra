@@ -23,6 +23,25 @@ architecture, **Accepted 2026-06-17**) — see it for the sequencing constraints
 rejected alternatives. Remediation is unblocked; start with the P0 items.
 Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarity.
 
+- [ ] (effort: M) **P1 — Un-drift `expectPwaDashboard`'s profile-label assertion**
+  (found 2026-06-18 by the `make test-live` shakedown). 13/15 pwa `@live` specs fail
+  on `expect(dashboard-root).toContainText(<label>)` — the Paper redesign moved the
+  device label out of `dashboard-root` (the runtime loads fine; keys/peers render).
+  Same drift class as the `expectPwaSignerSignReady` fix (P0 #3b). Fix the helper
+  (assert the label where it now renders, or drop it for the structural test-ids),
+  then re-run `make test-live` to confirm the nightly lane is green. **Not a
+  regression from the P1/P2 work** — the assertion predates this session — test/.
+- [x] (effort: S) **DONE (2026-06-18) — Test the test-infra (self-tests).** Added
+  unit tests for the shared helpers (`test/shared/process-helpers.unit.ts` via
+  `unit.config.ts` + `test:unit:shared`, wired into `test:verify`): idempotent
+  `closeChild`, `allocatePort`, register/unregister/reap (hermetic temp registry via
+  the new `FROSTR_TEST_PROCESS_REGISTRY_DIR` override). Added adversarial guard
+  fixtures: `persist-contract.expect-error.ts` (a defanged contract fails typecheck)
+  and `check-harness-guards-negative.sh` (a corrupted WASM stamp must fail the guard;
+  wired into `test:guards:full`). Behavioral shakedown (`make test-live`) run: no
+  leaked relays (Phase 2 teardown verified); it surfaced the pre-existing `@live`
+  drift above — test/.
+
 - [x] (effort: S) **DONE (2026-06-18) — P0 — Gate selector contracts in the global
   per-PR lane.** Added `test:guards:selectors` (cross-client-imports + e2e selector
   contract) to `test:guards`, so the global selector contract now runs in `make

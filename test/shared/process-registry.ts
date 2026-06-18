@@ -14,16 +14,22 @@ import { REPO_ROOT_DIR } from './repo-paths';
 // by the next run's teardown; if that PID was recycled in the meantime the kill
 // could hit an unrelated process. The window is small and test hosts are
 // ephemeral, so this is accepted.
-const REGISTRY_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'test-processes');
+// Default registry dir; overridable via env so hermetic unit tests can use a
+// throwaway dir instead of the shared one (reaping the shared dir would kill a
+// concurrent run's live relays).
+function registryDir(): string {
+  return process.env.FROSTR_TEST_PROCESS_REGISTRY_DIR
+    ?? path.join(REPO_ROOT_DIR, '.tmp', 'test-processes');
+}
 
 function markerPath(pid: number): string {
-  return path.join(REGISTRY_DIR, String(pid));
+  return path.join(registryDir(), String(pid));
 }
 
 export function registerProcess(pid: number | undefined): void {
   if (!pid) return;
   try {
-    mkdirSync(REGISTRY_DIR, { recursive: true });
+    mkdirSync(registryDir(), { recursive: true });
     writeFileSync(markerPath(pid), '');
   } catch {
     // best effort — the reaper is a safety net, not a correctness dependency
@@ -42,7 +48,7 @@ export function unregisterProcess(pid: number | undefined): void {
 export function reapRegisteredProcesses(): void {
   let entries: string[];
   try {
-    entries = readdirSync(REGISTRY_DIR);
+    entries = readdirSync(registryDir());
   } catch {
     return; // nothing registered
   }
