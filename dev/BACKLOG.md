@@ -65,6 +65,26 @@ footgun; P1 = visual seam + component convergence; P2 = cleanup.
 - [ ] (effort: S) **P2 — Delete dead `DesktopAppShell`** (and re-evaluate
   `ManagedProfilesPanel`) — igloo-ui · ADR-014 (d).
 
+P0 follow-ups (surfaced during the 2026-06-19 P0 execution):
+
+- [ ] (effort: M) **Guard the consumption contract** — add a `test:guards` check
+  that fails if any client reintroduces an `igloo-ui/dist` reference, an
+  `igloo-ui run build` / `build:ui` script, a local `theme.extend` in a client
+  `tailwind.config`, or diverges the shared `@import "../../igloo-ui/src/styles.css"`
+  CSS entry — test/ guards · keeps ADR-014's "consumed identically" hard cut from
+  silently regressing (P0 showed how easily a dist/build ref creeps back into
+  scripts/specs) · added 2026-06-19.
+- [ ] (effort: S) **Reconcile the two parallel UI audits** — `dev/docs/UI-AUDIT.md`
+  (ADR-014 consumption audit) vs the concurrent `dev/audit/findings/*-2026-06-19.md`
+  + `workspace-audit-synthesis-2026-06-19.md` / the "Anti-slop front-end audit"
+  section above — dedupe so there aren't two divergent UI-audit records · dev/ docs ·
+  added 2026-06-19.
+- [ ] (effort: S) (unsure) **Document igloo-ui's source-only resolution constraint**
+  — `package.json` `main`/`types`/`exports` now point at `src/index.ts`, so igloo-ui
+  only resolves under a TS-aware bundler (Vite/esbuild/vitest); note this in
+  igloo-ui's README so a future Node/plain-JS consumer doesn't trip over it ·
+  repos/igloo-ui · added 2026-06-19.
+
 ## Anti-slop front-end audit (2026-06-19)
 
 Graduated from the front-end anti-slop audit run under
@@ -953,6 +973,12 @@ Priorities: P0 = correctness/coverage risk; P1 = high-friction debt; P2 = clarit
 
 ## Test harness / CI
 
+- [ ] (effort: S) **Showcase spec tag/gate mismatch** —
+  `test/igloo-ui-showcase/specs/reference-screens.spec.ts` is tagged `@fast` but only
+  runs in its own `test:igloo-ui-showcase` lane, not the `make verify` `@fast` gate, so
+  its breakage during the ADR-014 P0 cut went uncaught by `verify` (found only by a
+  manual sweep). Either fold the showcase into the gate or correct the misleading tag
+  — relates to ADR-013 tag taxonomy · test/ · added 2026-06-19.
 - [ ] (effort: S) **Harden the `make dev` daemon socket path (unsure if it ever
   overflows).** `scripts/dev.sh` puts the igloo-shell control socket under an
   ad-hoc `mktemp -d "${TMPDIR}/frostr-dev.XXXXXX"` rather than the codebase's
