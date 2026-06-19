@@ -129,30 +129,44 @@ install_ios_fresh() {
   xcrun simctl install "$UDID" "$APP_BUNDLE" >/dev/null
 }
 
-android_recipient_manual_onboard() {
-  local source_dir="$1"
-  local out="$2"
-  local package password
-  package="$(decode_package_from_qr_evidence "$source_dir")"
-  password="$(password_from_qr_evidence "$source_dir")"
-  mkdir -p "$out"
-  write_package_input_summary "$source_dir" "android" "ws://10.0.2.2:8194" "$package" "$out"
-  install_android_fresh
-  if ! run_maestro "$SERIAL" "$APPS/flows/onboard-android.yaml" "$out" \
-    -e ONBOARD_PACKAGE="$package" \
-    -e ONBOARD_PASSWORD="$password" \
-    -e RELAY_URL="ws://10.0.2.2:8194"; then
-    android_snapshot "$out" "after-manual-onboard-failure"
-    return 1
-  fi
-  android_snapshot "$out" "after-manual-onboard"
+write_ios_debug_onboard_creds() {
+  local package="$1"
+  local password="$2"
+  local relay="$3"
+  local container
+  container="$(xcrun simctl get_app_container "$UDID" "$APP_ID" data 2>/dev/null || true)"
+  [ -n "$container" ] || { echo "[cross-manual-onboard] iOS app container unavailable" >&2; return 1; }
+  mkdir -p "$container/Documents"
+  python3 - "$container/Documents/igloo_test_creds.json" "$package" "$password" "$relay" <<'PY'
+import json
+import sys
+
+path, package, password, relay = sys.argv[1:5]
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(
+        {
+            "package": package,
+            "password": password,
+            "relay": relay,
+            "_focus": "mobile-cross-platform-manual-onboard",
+        },
+        f,
+    )
+    f.write("\n")
+PY
 }
 
-write_ios_manual_onboard_flow() {
+launch_ios_with_onboard_diagnostics() {
+  xcrun simctl terminate "$UDID" "$APP_ID" >/dev/null 2>&1 || true
+  SIMCTL_CHILD_IGLOO_ONBOARD_DIAGNOSTICS=1 xcrun simctl launch "$UDID" "$APP_ID" >/dev/null
+  sleep 4
+}
+
+write_android_manual_onboard_flow() {
   local flow="$1"
   cat > "$flow" <<'EOF'
 appId: com.frostr.igloo.dev
-name: iOS cross-platform manual Connect onboarding
+name: Android cross-platform manual Connect onboarding
 ---
 - launchApp:
     appId: com.frostr.igloo.dev
@@ -191,7 +205,121 @@ name: iOS cross-platform manual Connect onboarding
     text: "${RELAY_URL}"
 - tapOn:
     id: "input_package"
-- eraseText: 2000
+- setClipboard: "${ONBOARD_PACKAGE}"
+- pasteText
+- tapOn:
+    id: "input_password"
+- eraseText: 64
+- setClipboard: "${ONBOARD_PASSWORD}"
+- pasteText
+- waitForAnimationToEnd
+- tapOn:
+    id: "btn_connect"
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "input_device_name"
+    timeout: 240000
+- assertVisible:
+    id: "input_device_name"
+- assertVisible:
+    id: "display_share_pubkey"
+- assertVisible:
+    id: "display_group_pubkey"
+- assertVisible:
+    id: "btn_save_device"
+- tapOn:
+    id: "input_device_name"
+- eraseText: 64
+- inputText:
+    id: "input_device_name"
+    text: "carol-Android"
+- tapOn:
+    id: "btn_save_device"
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "carol-Android"
+    timeout: 30000
+- assertVisible:
+    text: "carol-Android"
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Igloo"
+- scrollUntilVisible:
+    element:
+      text: "carol-Android"
+    timeout: 10000
+- assertVisible:
+    text: "carol-Android"
+EOF
+}
+
+android_recipient_manual_onboard() {
+  local source_dir="$1"
+  local out="$2"
+  local package password
+  package="$(decode_package_from_qr_evidence "$source_dir")"
+  password="$(password_from_qr_evidence "$source_dir")"
+  mkdir -p "$out"
+  write_package_input_summary "$source_dir" "android" "ws://10.0.2.2:8194" "$package" "$out"
+  install_android_fresh
+  local flow="$out/android-manual-onboard.yaml"
+  write_android_manual_onboard_flow "$flow"
+  if ! run_maestro "$SERIAL" "$flow" "$out" \
+    -e ONBOARD_PACKAGE="$package" \
+    -e ONBOARD_PASSWORD="$password" \
+    -e RELAY_URL="ws://10.0.2.2:8194"; then
+    android_snapshot "$out" "after-manual-onboard-failure"
+    return 1
+  fi
+  android_snapshot "$out" "after-manual-onboard"
+}
+
+write_ios_manual_onboard_flow() {
+  local flow="$1"
+  cat > "$flow" <<'EOF'
+appId: com.frostr.igloo.dev
+name: iOS cross-platform manual Connect onboarding
+---
+- assertVisible:
+    text: "Igloo"
+- assertVisible:
+    text: "Onboard Device"
+- tapOn:
+    text: "Onboard Device"
+- scrollUntilVisible:
+    element:
+      id: "btn_connect_entry"
+    timeout: 20000
+- tapOn:
+    id: "btn_connect_entry"
+- scrollUntilVisible:
+    element:
+      id: "input_package"
+    timeout: 20000
+- assertVisible:
+    id: "input_package"
+- assertVisible:
+    id: "input_password"
+- assertVisible:
+    id: "btn_paste_password"
+- assertVisible:
+    id: "input_relay_url"
+- assertVisible:
+    id: "btn_connect"
+- tapOn:
+    id: "input_relay_url"
+- eraseText: 64
+- inputText:
+    id: "input_relay_url"
+    text: "${RELAY_URL}"
+- tapOn:
+    id: "input_package"
 - setClipboard: "${ONBOARD_PACKAGE}"
 - tapOn:
     id: "btn_paste_package"
@@ -214,16 +342,23 @@ name: iOS cross-platform manual Connect onboarding
     element:
       id: "input_password"
     timeout: 10000
+- setClipboard: "${ONBOARD_PASSWORD}"
 - tapOn:
-    id: "input_password"
-- eraseText: 80
-- inputText:
-    id: "input_password"
-    text: "${ONBOARD_PASSWORD}"
-- inputText:
-    id: "input_password"
-    text: "."
-- eraseText: 1
+    id: "btn_paste_password"
+- runFlow:
+    when:
+      visible:
+        text: "Allow Paste"
+    commands:
+      - tapOn: "Allow Paste"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        text: "Allow"
+    commands:
+      - tapOn: "Allow"
+      - waitForAnimationToEnd
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:
@@ -251,9 +386,16 @@ name: iOS cross-platform manual Connect onboarding
 - eraseText: 64
 - inputText:
     id: "input_device_name"
-    text: "bob-iPhone"
+    text: "bobios"
+- pressKey: Enter
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "btn_save_device"
+    timeout: 10000
 - tapOn:
     id: "btn_save_device"
+- waitForAnimationToEnd
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:
@@ -279,12 +421,20 @@ ios_recipient_manual_onboard() {
   install_ios_fresh
   local flow="$out/ios-manual-onboard.yaml"
   write_ios_manual_onboard_flow "$flow"
-  if ! run_maestro "$UDID" "$flow" "$out" \
+  printf '%s' "$package" > /tmp/igloo_test_package.txt
+  write_ios_debug_onboard_creds "$package" "$password" "ws://127.0.0.1:8194"
+  launch_ios_with_onboard_diagnostics
+  set +e
+  run_maestro "$UDID" "$flow" "$out" \
     -e ONBOARD_PACKAGE="$package" \
     -e ONBOARD_PASSWORD="$password" \
-    -e RELAY_URL="ws://127.0.0.1:8194"; then
+    -e RELAY_URL="ws://127.0.0.1:8194"
+  local code=$?
+  set -e
+  rm -f /tmp/igloo_test_package.txt
+  if [ "$code" -ne 0 ]; then
     ios_snapshot "$out" "after-manual-onboard-failure"
-    return 1
+    return "$code"
   fi
   ios_snapshot "$out" "after-manual-onboard"
 }

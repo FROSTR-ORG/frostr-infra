@@ -715,28 +715,44 @@ struct OnboardConnectView: View {
                         // that might prevent the action from firing in Maestro automation.
                         PasteButtonView { newText in
                             packageText = newText
+                            focusedField = .password
                         }
                         .accessibilityIdentifier("btn_paste_package")
                     }
 
-                    NativeTextView(
-                        text: $packageText,
-                        placeholder: "bfonboard10...",
-                        minHeight: 120,
-                        accessibilityId: "input_package"
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: IglooRadii.Md)
-                            .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
-                    )
+                    TextField("bfonboard10...", text: $packageText, axis: .vertical)
+                        .font(IglooTypography.BodyFont)
+                        .foregroundStyle(IglooColors.Slate200)
+                        .autocapitalization(.none)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .lineLimit(4...8)
+                        .padding(IglooSpacing.Sm)
+                        .frame(minHeight: 120, alignment: .topLeading)
+                        .background(IglooColors.Slate900StrongTranslucent)
+                        .cornerRadius(IglooRadii.Md)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: IglooRadii.Md)
+                                .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+                        )
+                        .accessibilityIdentifier("input_package")
+                        .focused($focusedField, equals: .package)
                 }
                 .padding(.horizontal, IglooSpacing.Lg)
 
                 // Password input (VAL-ONBOARD-001).
                 VStack(alignment: .leading, spacing: IglooSpacing.Xs) {
-                    Text("Package Password")
-                        .font(IglooTypography.BodyFont)
-                        .foregroundStyle(IglooColors.Slate400)
+                    HStack {
+                        Text("Package Password")
+                            .font(IglooTypography.BodyFont)
+                            .foregroundStyle(IglooColors.Slate400)
+                        Spacer()
+                        PasswordPasteButtonView { newText in
+                            passwordText = newText
+                            focusedField = nil
+                        }
+                        .accessibilityIdentifier("btn_paste_password")
+                    }
 
                     SecureField("Password", text: $passwordText)
                         .font(IglooTypography.BodyFont)
@@ -5232,11 +5248,13 @@ struct NativeTextView: View {
     var placeholder: String = ""
     var minHeight: CGFloat = 120
     var accessibilityId: String = ""
+    var isFocused: Binding<Bool>? = nil
 
     var body: some View {
         NativeTextViewRepresentable(
             text: $text,
-            placeholder: placeholder
+            placeholder: placeholder,
+            isFocused: isFocused
         )
         .frame(minHeight: minHeight)
         .accessibilityIdentifier(accessibilityId)
@@ -5253,6 +5271,7 @@ struct NativeTextView: View {
 private struct NativeTextViewRepresentable: UIViewRepresentable {
     @Binding var text: String
     var placeholder: String
+    var isFocused: Binding<Bool>?
 
     func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
@@ -5279,6 +5298,7 @@ private struct NativeTextViewRepresentable: UIViewRepresentable {
         textView.smartDashesType = .no
         textView.keyboardType = .asciiCapable
         textView.textContainerInset = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+        textView.delegate = context.coordinator
 
         // Set the initial text from the binding
         textView.text = text
@@ -5289,25 +5309,37 @@ private struct NativeTextViewRepresentable: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
+        context.coordinator.isFocused = isFocused
+
         // Sync external binding changes into the UITextView.
         // This handles both initial state and programmatic updates from outside
         // (e.g., paste button setting packageText = clipboardContent).
         if uiView.text != text {
             uiView.text = text
         }
+
+        if let focusBinding = isFocused {
+            if focusBinding.wrappedValue && !uiView.isFirstResponder {
+                uiView.becomeFirstResponder()
+            } else if !focusBinding.wrappedValue && uiView.isFirstResponder {
+                uiView.resignFirstResponder()
+            }
+        }
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(binding: $text)
+        Coordinator(binding: $text, isFocused: isFocused)
     }
 
-    class Coordinator: NSObject {
+    class Coordinator: NSObject, UITextViewDelegate {
         @Binding var text: String
+        var isFocused: Binding<Bool>?
         weak var textView: UITextView?
         var timer: Timer?
 
-        init(binding: Binding<String>) {
+        init(binding: Binding<String>, isFocused: Binding<Bool>?) {
             self._text = binding
+            self.isFocused = isFocused
             super.init()
         }
 
@@ -5328,14 +5360,25 @@ private struct NativeTextViewRepresentable: UIViewRepresentable {
             timer = nil
         }
 
+        func textViewDidBeginEditing(_ textView: UITextView) {
+            isFocused?.wrappedValue = true
+        }
+
+        func textViewDidEndEditing(_ textView: UITextView) {
+            syncTextFromUITextView()
+            if isFocused?.wrappedValue == true {
+                isFocused?.wrappedValue = false
+            }
+        }
+
+        func textViewDidChange(_ textView: UITextView) {
+            syncTextFromUITextView()
+        }
+
         private func syncTextFromUITextView() {
             guard let textView = self.textView else { return }
             let currentText = textView.text ?? ""
-            // Only update binding if UITextView has more text than binding.
-            // This handles the case where Maestro types into the text view
-            // (UITextView text is set) but the binding hasn't been updated yet.
-            // We never shrink the text (don't update if binding text is longer).
-            if currentText.count > text.count && currentText != text {
+            if currentText != text {
                 #if DEBUG
                 let logger = Logger(subsystem: "com.frostr.igloo", category: "NativeTextView")
                 logger.debug("NativeTextView polling sync: binding len=\(self.text.count) textView len=\(currentText.count)")
@@ -5387,6 +5430,49 @@ struct PasteButtonView: UIViewRepresentable {
         @objc func pasteTapped() {
             if let pasted = readOnboardingPackagePasteText() {
                 onPaste(pasted)
+            }
+        }
+    }
+}
+
+struct PasswordPasteButtonView: UIViewRepresentable {
+    let onPaste: (String) -> Void
+
+    func makeUIView(context: Context) -> UIButton {
+        let button = UIButton(type: .system)
+        button.setTitle("Paste Password", for: .normal)
+        button.setImage(UIImage(systemName: "key.fill"), for: .normal)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 12)
+        button.tintColor = UIColor(red: 56.0/255.0, green: 189.0/255.0, blue: 248.0/255.0, alpha: 1.0)
+        button.contentEdgeInsets = UIEdgeInsets(top: 4, left: 8, bottom: 4, right: 8)
+        button.backgroundColor = UIColor(red: 30.0/255.0, green: 58.0/255.0, blue: 138.0/255.0, alpha: 0.15)
+        button.layer.cornerRadius = 6
+        button.imageEdgeInsets = UIEdgeInsets(top: 0, left: -4, bottom: 0, right: 4)
+        button.accessibilityIdentifier = "btn_paste_password"
+        button.addTarget(context.coordinator, action: #selector(Coordinator.pasteTapped), for: .touchUpInside)
+        return button
+    }
+
+    func updateUIView(_ uiView: UIButton, context: Context) {
+        // No updates needed - button is self-contained.
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onPaste: onPaste)
+    }
+
+    class Coordinator: NSObject {
+        let onPaste: (String) -> Void
+
+        init(onPaste: @escaping (String) -> Void) {
+            self.onPaste = onPaste
+        }
+
+        @objc func pasteTapped() {
+            guard let raw = UIPasteboard.general.string else { return }
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                onPaste(trimmed)
             }
         }
     }
