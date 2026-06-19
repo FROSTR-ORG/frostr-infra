@@ -3,6 +3,7 @@
 ADRs are historical decision records.
 
 - `Accepted` means the architectural decision is still current.
+- `Proposed` means the decision is drafted and awaiting acceptance.
 - `Superseded` means the decision has been replaced by a newer ADR or a living spec.
 
 Current behavior and wire/storage details live in the core docs:
@@ -27,3 +28,4 @@ Current behavior and wire/storage details live in the core docs:
 | [ADR-011](./ADR-011-rotation-preserves-group-public-key.md) | Accepted | Rotation preserves group public key | [ARCHITECTURE.md](../../docs/ARCHITECTURE.md), [ROTATION.md](../../docs/ROTATION.md) |
 | [ADR-012](./ADR-012-trusted-dealer-rotation-and-device-adoption.md) | Accepted | Trusted-dealer rotation and device adoption | [ROTATION.md](../../docs/ROTATION.md), [PROFILE.md](../../docs/PROFILE.md), [RECOVERY.md](../../docs/RECOVERY.md), [ONBOARD.md](../../docs/ONBOARD.md) |
 | [ADR-013](./ADR-013-test-infrastructure-architecture.md) | Accepted | Test infrastructure architecture | [TEST-AUDIT.md](../docs/TEST-AUDIT.md), [test/README.md](../../test/README.md) |
+| [ADR-014](./ADR-014-unified-shared-ui-consumption.md) | Proposed | Unified shared-UI consumption | [UI-AUDIT.md](../docs/UI-AUDIT.md) |

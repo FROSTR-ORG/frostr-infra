@@ -14,6 +14,436 @@ Group by area. When an item is finished, move a one-line summary to
 > the codebase before picking one up. Trivial test-refactor micro-items from the
 > 2026-05 sessions were left in the `HISTORY.md` archive rather than carried here.
 
+## Shared-UI consolidation (audit 2026-06-19)
+
+Mirrored from [`docs/UI-AUDIT.md`](./docs/UI-AUDIT.md) (consumption audit, full
+detail there). Design fixed by
+[ADR-014](./adrs/ADR-014-unified-shared-ui-consumption.md) (unified shared-UI
+consumption, **Accepted 2026-06-19**) — see it for sequencing constraints and
+rejected alternatives. Remediation is unblocked; start with P0. Goal: one UI,
+consumed identically by every client. **Hard cut** (alpha): every item deletes the
+old path in the same change — no deprecation aliases, compat shims, dual paths, or
+flags; no client left on the old model. Priorities: P0 = remove the consumption
+footgun; P1 = visual seam + component convergence; P2 = cleanup.
+
+- [ ] (effort: L) **P0 — Consumption contract + Tailwind preset, atomic hard cut.**
+  One coordinated change across `igloo-ui` + pwa + chrome + home (+ parent pointer
+  bump), because no client may lag onto the old prebuilt path:
+  - Resolve `igloo-ui` + `igloo-shared` (JS **and** CSS) from `src` via a single
+    shared Vite resolution config across all three clients; **delete** the
+    `igloo-ui/styles.css`→`dist` alias — ADR-014 (a).
+  - Ship `igloo-ui/tailwind.preset.js` (theme tokens + plugins) + consumable source
+    `styles.css`; give pwa/home a `tailwind.config` using the preset (chrome already
+    self-builds) — ADR-014 (b).
+  - **Delete** `igloo-ui`'s `dist` build script + prebuilt artifact; repoint its
+    `package.json` `main`/`module`/`types`/`exports` at `src` — ADR-014 (b).
+  - **Delete** the `make igloo-ui-styles` prerequisite (added 2026-06-19 as an
+    interim symptom fix) and the `igloo-ui-watch` target — Makefile · ADR-014 (b).
+- [ ] (effort: M) **P1 — Shared visual/dev seam.** Move pwa's `dev-scenario`
+  seeded-snapshot seam to a shared dev-only surface consumed by every client's
+  bootstrap and **delete the pwa-only copy**; `?__frostr_dev=` +
+  `make screenshot CLIENT=<any>` reach the running dashboard for pwa/chrome/home —
+  igloo-shared + clients · ADR-014 (c); extends ADR-013 (c)/(d).
+- [ ] (effort: S) **P1 — `OperatorDashboardTabs` per-tab `testId`,** then **delete**
+  pwa's local `igloo-dashboard-nav` (+ its `index.css` rules) for it — igloo-ui +
+  igloo-pwa · ADR-014 (d).
+- [ ] (effort: M) **P1 — Shared `Checkbox`/`Toggle` primitive;** **delete** the 6
+  hand-rolled toggles (pwa, home) — igloo-ui + clients · ADR-014 (d).
+- [ ] (effort: M) **P1 — `Alert` API gaps** (first-class `info` tone, optional
+  `dismissible`, title-less), then move the inline alert/banner sites onto it and
+  **delete** the inline markup (+ home's undefined `igloo-shell-alert` class);
+  exclude status badges + code/data boxes — igloo-ui + clients · ADR-014 (d).
+- [ ] (effort: S) **P2 — Lift accidental view-model duplicates** (`toDashboardKey`,
+  a single `buildPendingOperationRows`), **deleting every local copy**; adopt the
+  unused `runtimePeerPermissionStatesToPolicyDashboardView`; keep host-specific glue
+  local — igloo-ui/igloo-shared + clients · ADR-014 (e).
+- [ ] (effort: S) **P2 — Delete dead `DesktopAppShell`** (and re-evaluate
+  `ManagedProfilesPanel`) — igloo-ui · ADR-014 (d).
+
+## Anti-slop front-end audit (2026-06-19)
+
+Graduated from the front-end anti-slop audit run under
+[`audit/findings/`](./audit/findings/) (synthesis:
+[`workspace-audit-synthesis-2026-06-19.md`](./audit/findings/workspace-audit-synthesis-2026-06-19.md);
+per-target reports `igloo-{shared,ui,pwa,chrome,home}-audit-2026-06-19.md`). 53
+findings (12H/25M/16L) across the five TS front-end targets; `bifrost-rs` /
+`igloo-shell` / `igloo-paper` excluded this pass. Every item below carries its
+rule ID + `file:line` evidence and traces to a finding. Buckets are the
+synthesis remediation buckets R1–R6. **Sequencing** (synthesis "Suggested
+sequence"): R5-C1 (leak-now) → R6-C2 (chrome cipher tests) → **R1 quality gate**
+→ R3 dedup → R2 splits → R4 dead-surface at the release cut. Land R1's format
+sweep *alone, first* so the later diffs are pure structure. This overlaps the
+2026-06-13 "Code-health audit" items (god files, formatter) — those two entries
+are the prior, coarser capture of R1+R2; close them out as these land.
+
+### R1 — Quality gate (SPECIFIED now, executed later)
+
+Aggregates `AES-06`/`DOC-06` from all five targets (synthesis C10). A
+ready-to-execute spec; a future session runs it as-is. Land the Prettier sweep
+**first and alone** (it touches many files — never tangle it with logic diffs),
+then the lint/knip/coverage ratchets, then wire into `make verify` + PR CI with a
+**"no NEW violations"** ratchet (existing volume is large; do not hard-fail on the
+baseline).
+
+- [ ] (effort: S) **R1.0 — Prettier baseline, isolated format sweep.** Add a
+  shared root `.prettierrc` (+ `.prettierignore` excluding `dist/`, `wasm/`,
+  vendored blobs) the five leaves extend; add `prettier` devDep + a `format` /
+  `format:check` npm script per leaf. Run `prettier --write` per repo and commit
+  **each repo's sweep as its own isolated commit** with no other change, so the
+  reformat never tangles with a logic diff. Evidence: `AES-06` — no
+  `.prettierrc*`/`.eslintrc*`/`eslint.config.*` in any of
+  `igloo-ui/package.json:1-60`, `igloo-shared/package.json` (no prettier dep),
+  `igloo-pwa/` (no config), `igloo-chrome/package.json`, `igloo-home/` —
+  workspace · synthesis C10/R1. **Do this before R2.**
+- [ ] (effort: M) **R1.1 — ESLint flat config per target
+  (`eslint.config.js`).** Exact packages: `eslint`, `typescript-eslint` (its
+  `recommendedTypeChecked` preset, with `parserOptions.projectService`),
+  `eslint-plugin-react-hooks` (rules-of-hooks + exhaustive-deps),
+  `eslint-plugin-import` (`import/order` + `import/no-cycle`). Enable
+  `@typescript-eslint/no-unused-vars`, `@typescript-eslint/no-floating-promises`,
+  `@typescript-eslint/no-explicit-any`. This also retires the stale
+  `eslint-disable` in `igloo-ui/.../CreateFlow.tsx` that suppresses a rule with no
+  ESLint present. Add a `lint` npm script per leaf. Evidence: `AES-06` (same
+  no-config sites as R1.0); `LEG-04` unused-vars would catch dead
+  `readNumber` (`igloo-pwa/src/App.tsx:281-288`) + `introMessage`
+  (`igloo-ui/src/components/flows/OperatorSignerPanel.tsx:19-21`) — workspace ·
+  synthesis C10/R1.
+- [ ] (effort: M) **R1.2 — `knip` per repo (dead exports/files/deps).** Add
+  `knip` devDep + a `knip` npm script per leaf with a per-repo `knip.json`. It is
+  the enforcement net for R4: it flags the four orphan igloo-ui flow exports and
+  the unused `PeerList`/`PeerPolicy` barrel entries. Evidence: `LEG-04` —
+  `igloo-ui/src/index.ts:179,202,208,231` (orphan flow exports),
+  `igloo-ui/src/index.ts:118-119` (`PeerList`/`PeerPolicy`) — workspace ·
+  synthesis C7/R1.
+- [ ] (effort: M) **R1.3 — vitest v8 coverage ratchet.** Add
+  `@vitest/coverage-v8`; set `coverage.provider: 'v8'` + a per-repo baseline
+  threshold (measure current, set threshold at-or-just-below it) used as a
+  **ratchet, not a hard cliff** — fail only on regression below baseline. Pairs
+  with R6 (raising the floor is how the adversarial tests get enforced).
+  Evidence: render-only blind spot named in `TST-02`/`TST-05` across all five —
+  workspace · synthesis C4/R1.
+- [ ] (effort: M) **R1.4 — Wire-up + ratchet.** Per leaf expose
+  `lint` / `format:check` / `knip` npm scripts; fold them into `make verify`
+  (`scripts/verify.sh`) and the PR CI `client-scoped-validation` jobs. Establish
+  the **"no NEW violations"** ratchet (baseline the existing count; gate only on
+  net-new) given existing volume. Convert each frozen
+  version + perpetual `[Unreleased]` changelog to a release-bumped process tied to
+  `dev/docs/RELEASE.md`. Evidence `DOC-06`: `igloo-ui/package.json:13` (`0.0.0`) +
+  `CHANGELOG.md:7`; `igloo-shared/package.json:3` (`0.1.0`) + `CHANGELOG.md:7`
+  (2026-03-27); `igloo-chrome/package.json:4` (`0.3.0`) + `CHANGELOG.md:7`;
+  `igloo-home/package.json` + `src-tauri/tauri.conf.json` (`0.2.0`) +
+  `CHANGELOG.md:7-16` — workspace · synthesis C10/R1.
+
+### R2 — God-file decomposition (ranked; synthesis R2 table reproduced)
+
+The C3 monoliths (`ARC-01`/`ARC-02`). **Not one batch** — payoff/risk/safety-net
+differ per file. For each RECOMMEND-NOW file, write the named characterization
+tests to pin behavior *first*, then extract along the listed seams; DEFER files
+record seams + rationale. Land **after R1.0** so diffs are pure structure.
+
+- [ ] (effort: M) **RECOMMEND NOW — `igloo-ui/src/components/flows/CreateFlow.tsx`
+  (1727 LOC, 6 seams, Low risk).** Seams: generate / rotate / local-save /
+  distribution / onboard-import / recover / onboard-handshake. Safety-net is
+  **good and already in place** — `test/CreateFlow.test.tsx` (786 LOC) imports
+  through the barrel and survives a re-export-preserving split, so the split is
+  mechanical: split into `flows/create/{generate,rotate,local-save,distribution,
+  onboard-import,recover,onboard-handshake}.tsx` + a `create/types.ts`, re-export
+  from a thin `flows/create/index.ts` so the public barrel
+  (`igloo-ui/src/index.ts:143-178`, 31 entries) is unchanged. Best payoff/risk
+  ratio; do first. Rule `ARC-01` · evidence `CreateFlow.tsx:1-1727` —
+  igloo-ui · synthesis R2 row 1.
+- [ ] (effort: L) **RECOMMEND NOW (seam-first) — `igloo-home/src/App.tsx`
+  (2086 LOC, 7 views, Medium risk).** Characterize FIRST: the `extract*` parsers
+  (`extractRuntimePeers`/`extractPeerPermissionStates`/`extractPendingOperations`/
+  `extractPendingApprovals`, `App.tsx:341-452`) are pure → pull into a tested
+  `lib/runtime-status.ts` with unit tests, the low-risk independently-testable
+  seam, *before* moving views. Then lift the 7 views into `src/pages/` following
+  the existing `CreatePage.tsx:1-201` precedent (`LoadProfilePage`,
+  `RecoverKeyPage`, `OnboardConnectPage`+`OnboardSavePage`, `DashboardPage`).
+  Current net is thin: `App.test.tsx` (292 LOC) renders shell + peer-refresh, no
+  flow handler unit-covered — so add R6-C4 home adversarial tests before touching
+  the unlock/onboard/rotate handlers. Rule `ARC-01` · evidence
+  `igloo-home/src/App.tsx:1-2086` — igloo-home · synthesis R2 row 4.
+- [ ] (effort: L) **RECOMMEND NOW (staged) — `igloo-pwa/src/lib/store.tsx`
+  (2161 LOC, 8 slices, Medium risk).** Start with the mechanical, safe slices:
+  the pure hydration/normalization (`store.tsx:312-456`) + the
+  `updateDraft`/`updateSecret` collapse of ~25 methods (R3.2). Re-key the action
+  `useMemo` off stable dispatchers, not whole `state` (`store.tsx:715-2146`, dep
+  array `:2145`). **Add the R6 import/onboard adversarial decrypt tests
+  (`store.tsx:1557-1596`, `:1664-1706`) BEFORE touching those journey slices** —
+  the riskiest decrypt boundaries are happy-path-only today. Rule `ARC-01` —
+  igloo-pwa · synthesis R2 row 2.
+- [ ] (effort: M) **RECOMMEND NOW (after store.tsx) — `igloo-pwa/src/App.tsx`
+  (1719 LOC, 16 `renderX` + 10 derivers, Medium risk).** Move the
+  `derive*DashboardView` functions (`App.tsx:145-235`) into a React-free
+  `lib/dashboard-view.ts` neighbor (unit-testable) FIRST, then promote the 16
+  `renderX` closures (`App.tsx:461-1604`) to `views/*.tsx` and make the
+  `activeView` switch (`App.tsx:1692-1708`) a thin router. Do after the store
+  split so each view's props are settled. Rule `ARC-01`/`ARC-02` — igloo-pwa ·
+  synthesis R2 row 5.
+- [ ] (effort: L) **DEFER (extract pure helpers only) —
+  `igloo-shared/src/wasm-bridge-node.ts` (1656 LOC, 6 seams, HIGH risk, THIN
+  net).** Every host's signing path routes here; `emit`/`emitLog` side effects
+  throughout `pumpRuntime` (`:1399-1544`); header asserts "not separable without a
+  behavior-changing rewrite." No unit coverage of the 4 bootstrap modes /
+  sign / ECDH / ping / pump dispatch. **Extract only the already-pure pieces now**
+  — `requestOnboardResponse` (`:1177-1360`), the device-config builder
+  (`:414-432`), `buildProfileBootstrap` (`:1133-1175`) — each with a test added
+  per extraction; **defer** the `connect`-mode split (`:365-557`) into
+  `bootstrapPersisted`/`Profile`/`Onboarding` until the R6 failure-path tests
+  exist. Rule `ARC-01` — igloo-shared · synthesis R2 row 3.
+- [ ] (effort: M) **DEFER — `igloo-chrome/src/pages/Onboarding.tsx` (471 LOC, 6
+  flows sharing one `error` slot).** Connect / save / import / activate / unlock /
+  delete (`Onboarding.tsx:111-225`) + 6 bare-string password slices
+  (`:50-66`). Smaller + lower-traffic than the others; 24 unit suites but the
+  crypto path is mocked (C2). **Fold into the per-flow split AFTER R6-C2's cipher
+  tests land** so the unlock flow can be split with real coverage. Split into
+  `OnboardConnect`/`ImportProfile`/`UnlockProfile`/`ProfileList`. Rule
+  `ARC-02` — igloo-chrome · synthesis R2 row 6.
+
+### R3 — Dedup & divergence (each duplicate names BOTH sites)
+
+C6 (`CQ-04`/`ARC-05`/`ARC-06`/`RS-01`). Several are the seams the R2 splits
+need — interleave with R2.
+
+- [ ] (effort: S) **R3.1 — One `toErrorMessage`; delete the 4 forks + pwa's
+  5th.** Canonical: `igloo-shared/src/runtime-internal.ts:81` (richest — also
+  reads `.error`/`.reason`). Delete/redirect:
+  `igloo-shared/src/browser-profile/save/common.ts:14` (fallback required) and
+  `igloo-shared/src/browser-profile/session-orchestration/warning.ts:3` (returns
+  `string | null` — express `?? undefined` at the call site, don't fork the
+  return type); `igloo-pwa/src/App.tsx:99-113` (`formatUiError` — fold its
+  `JSON.stringify` branch into a thin UI wrapper) and
+  `igloo-pwa/src/lib/page-runtime-host.ts:138-145` (consume the shared export).
+  Rule `CQ-04` — igloo-shared + igloo-pwa · synthesis C6.
+- [ ] (effort: S) **R3.2 — Collapse the ~25 `updateXForm`/`updateXPassword`
+  draft updaters into one `updateDraft`/`updateSecret` pair.** The secret/
+  persistable partition must be enforced in **one** place + asserted by one test.
+  Evidence `igloo-pwa/src/lib/store.tsx:758-1132` + the secret-routing variants
+  `:1139-1147,1548-1556,1719-1727`. Rule `CQ-04`/`RS-02`. (Also shrinks R2's
+  store.tsx materially.) — igloo-pwa · synthesis C6.
+- [ ] (effort: S) **R3.3 — Resolve the two `PeerPolicy` types + unify peer-data
+  models toward `buildPeerReadinessRows`.** Two same-named, structurally-divergent
+  public types bridged by `as` casts: `igloo-shared/src/wasm-bridge-node.ts:108-113`
+  (loose, index-signature; `fetchPeers` returns ui-shape via `as PeerPolicy` at
+  `:732,738`) vs `igloo-ui/src/components/ui/peer-list.tsx:7-19` (structured). Have
+  igloo-shared return a typed `RuntimePeerStatus[]`/permission read model and let
+  the ui projection build from it (removing the index signature + casts). And the
+  TWO parallel peer-permission normalizers re-modeling one wire shape:
+  `igloo-home/src/lib/dashboard-view.ts:18-41` + inline `extract*`
+  (`igloo-home/src/App.tsx:341-440`) vs `igloo-pwa/src/lib/types.ts:54-66` +
+  `igloo-pwa/src/lib/local-adapter/common.ts:124-207` — promote one normalizer
+  into igloo-shared/igloo-ui (the canonical `buildPeerReadinessRows` projection,
+  `igloo-ui/src/adapters/runtime-view-models.ts`) both hosts consume. Also retire
+  the unused dual peer model `igloo-ui/src/models/view-models.ts:77-98`
+  (`PeerReadinessRowModel`) vs `peer-list.tsx` `PeerPolicy` — pick
+  `OperatorSignerPanel.PeerRow` (`OperatorSignerPanel.tsx:187-303`) as canonical.
+  Rule `ARC-06`/`ARC-05`/`CQ-04` — igloo-shared + igloo-ui + igloo-home +
+  igloo-pwa · synthesis C6.
+- [ ] (effort: S) **R3.4 — One `lib/format.ts` for pubkey-truncation +
+  epoch-normalization.** Four truncators at three widths + a copy-pasted
+  seconds/ms heuristic (named-constant the `10_000_000_000` threshold):
+  `igloo-ui/src/adapters/runtime-view-models.ts:386-387` (`6/4`) + `:416-418`;
+  `igloo-ui/src/components/flows/OperatorSignerPanel.tsx:323-325` (`6/4`);
+  `igloo-ui/src/components/flows/CreateFlow.tsx:853-857` (`shortKey`, `10/6` —
+  same name different width, `RS-01`);
+  `igloo-ui/src/components/ui/peer-list.tsx:29` (`14/8`) + `:31-41`;
+  `igloo-ui/src/components/flows/ManagedProfilesPanel.tsx:37` (third ts
+  convention, no guard). Add `truncatePubkey`/`formatEpoch`. Rule
+  `CQ-04`/`RS-01`/`CQ-06` — igloo-ui · synthesis C6.
+- [ ] (effort: S) **R3.5 — One shared `downloadText` + error-coercion util;
+  collapse the low-level hex/relay helpers.** `downloadText` lives in 3 repos:
+  `igloo-home/src/App.tsx:198-208`, `igloo-chrome/.../SettingsPanel.tsx:75,134,
+  158,175`, `igloo-pwa/src/lib/file-save.ts` — one home in igloo-shared. Plus the
+  twice-defined divergent primitives: `normalizeHex32`
+  (`igloo-shared/src/runtime-internal.ts:110` vs `browser-profile/core/keys.ts:12`,
+  trailing-period text diverges), `hexToBytes` (`runtime-internal.ts:118` any
+  even-length vs `keys.ts:3` 32-byte-only — opposite acceptance sets, name into
+  `hexToBytes32`), `normalizeRelays` (`relay-transport.ts:20` `{relays,errors}` vs
+  `rotation.ts:63` throws — build the throw shape on the canonical result). Rule
+  `CQ-04` — igloo-shared + all hosts · synthesis C6.
+- [ ] (effort: S) **R3.6 — Rename chrome's triple-`profileKey` by meaning.**
+  `igloo-chrome/src/background/utils.ts:36-51` (group+relays fingerprint →
+  `profileFingerprint`) vs `igloo-chrome/src/lib/runtime-host/helpers.ts:18-20`
+  (lowercased id → `profileIdKey`) vs the `SignerSession.profileKey` field
+  (`igloo-chrome/src/lib/runtime-host/controller.ts:69,72,116`, third meaning).
+  Feeds cache keys (`controller.ts:179`) + `profile_key` log fields — a mix-up is
+  a silent session-reuse/dedup bug. Rule `RS-01`/`CQ-04` — igloo-chrome ·
+  synthesis C6.
+
+### R4 — Dead-surface removal (each with its removal trigger)
+
+C7 (`LEG-04`). **Trigger: at the next release cut, if no host imports it** —
+enforced by R1.2 knip.
+
+- [ ] (effort: S) **R4.1 — Delete the four orphan igloo-ui flow components +
+  barrel exports + tests (~734 LOC).** Zero host consumers (cross-repo grep):
+  `CreateImportPanel.tsx:1-361`, `ManagedProfilesPanel.tsx:1-164`,
+  `RecoveryWorkspace.tsx:1-92`, `DesktopAppShell.tsx:1-117` (the last is actively
+  misleading — igloo-home uses `HostFlowShell`, `igloo-home/src/App.tsx:19,1508`,
+  not it); barrel entries `igloo-ui/src/index.ts:179,202,208,231`. **Resolve the
+  R5-C1 nsec leak inside `CreateImportPanel` BEFORE deciding its fate — or delete
+  it and the leak goes with it.** Trigger: no host import by the next release cut.
+  Rule `LEG-04` — igloo-ui · synthesis C7/R4.
+- [ ] (effort: S) **R4.2 — Delete the unused `PeerList`/`PeerPolicy` primitive**
+  (only `test/ui/peer-list.test.tsx` + `test/axe/primitives.test.tsx` render it)
+  once `OperatorSignerPanel.PeerRow` is confirmed canonical (R3.3). Barrel
+  `igloo-ui/src/index.ts:118-119`; type+renderer
+  `igloo-ui/src/components/ui/peer-list.tsx:7-19,71-261`. Trigger: R3.3 picks the
+  canonical model. Rule `LEG-04` — igloo-ui · synthesis C7/R4.
+- [ ] (effort: S) **R4.3 — Delete dead `introMessage` prop** (declared
+  "retained for API compatibility … no longer rendered," not destructured, no
+  caller): `igloo-ui/src/components/flows/OperatorSignerPanel.tsx:19-21`. Rule
+  `LEG-04` — igloo-ui · synthesis C7/R4.
+- [ ] (effort: S) **R4.4 — Delete dead `readNumber`** (zero callers; `tsc` stays
+  green only because `noUnusedLocals` is off — also enable it):
+  `igloo-pwa/src/App.tsx:281-288`. Rule `LEG-04` — igloo-pwa · synthesis C7/R4.
+
+### R5 — Secret hygiene (thread `Secret<T>`/`SecretBytes`; unmask the nsec)
+
+C1 + C5 + C8 (`SEC-01`/`SEC-03`/`RS-06`). The C1 leak leads the whole audit
+sequence.
+
+- [ ] (effort: S) **R5.1 — C1 (leak-NOW): mask the recovered nsec in all three
+  recovery UIs.** A full root private key rendered in a bare `<dd>` while the
+  *less* sensitive package JSON beside it is wrapped in `SensitiveTextarea` —
+  inverted threat model, in a "tested" component:
+  `igloo-ui/src/components/flows/CreateImportPanel.tsx:300-301` (vs `:304,320`
+  masked). Same bare nsec at `igloo-home/src/App.tsx:1719-1740` and in pwa React
+  state (`igloo-pwa/src/App.tsx:469,538-541`). Route through
+  `SensitiveField`/`SensitiveTextarea`. **Land first** + pair with the R6.1
+  mask assertion as the regression net. Rule `SEC-01` — igloo-ui + igloo-home +
+  igloo-pwa · synthesis C1/R5.
+- [ ] (effort: M) **R5.2 — C5: thread `Secret<T>`/`ShareSecretHex` through
+  rotation/recovery + decide the snapshot-wire `seckey` policy.** Discipline
+  stops at the onboarding boundary (wrapped: `wire/onboarding.ts:18`) but
+  rotation/recovery pass bare `string[]` and return bare nsec:
+  `igloo-shared/src/rotation.ts:78-84,87-96,150-157` (inputs `shareSecrets:
+  string[]`), `:139-173` (`BrowserRecoveredKey { nsec; signingKeyHex }` bare);
+  bare snapshot `seckey` at `igloo-shared/src/wire/runtime.ts:240,251,262`
+  (wrap, or write a one-line exemption rationale at `:238`). Wrapping at the
+  shared boundary propagates to the unwrapped consumers
+  (`igloo-pwa/.../local-adapter/profile-generate.ts`,
+  `igloo-chrome/.../background/router-profiles.ts`). Rule `SEC-01` — igloo-shared
+  + consumers · synthesis C5/R5.
+- [ ] (effort: M) **R5.3 — C2-half: keep chrome's derived master key
+  non-extractable; pass the `CryptoKey` handle, not a base64 string.**
+  `igloo-chrome/src/lib/profile-blob.ts:89` (`extractable: true`) + `:107`
+  (`exportSessionKey`) deliberately serialize the blob's unlock key to bare
+  base64, which then persists as a plain string (`extension/storage.ts:159-186`,
+  `runtime-service/types.ts:17` `SignerSession.sessionKeyB64`) and is
+  reconstructed every `runtime-status` tick (`snapshot-persistence.ts:25-34`,
+  decrypt→reencrypt of the share plaintext). Thread the `CryptoKey` through
+  `SignerSession`; separate the snapshot-stamp path so a tick doesn't round-trip
+  the share plaintext. (KDF-home decision is in R6.2's "then de-divergence.")
+  Rule `SEC-03`/`SEC-01` — igloo-chrome · synthesis C2/R5.
+- [ ] (effort: S) **R5.4 — Minimal JS transient-secret helper for the browser/
+  Tauri frontends.** Frontends hold passphrases/nsec/share-passwords as
+  un-zeroizable bare `string`: `igloo-pwa/src/lib/types.ts:171,187,294-303`,
+  `igloo-pwa/src/lib/store.tsx:124,1007-1035`; `igloo-home/src/App.tsx:598-600`
+  (+ landing/onboard/save/load draft passphrases). A shared "transient secret"
+  convention (prefer `Uint8Array` so it can be `.fill(0)`-wiped; centralize
+  lifetime/length discipline) serves both. Plus add the missing scrub-on-leave
+  test (R6.4). Rule `SEC-01` — igloo-pwa + igloo-home + igloo-shared · synthesis
+  C5/R5.
+- [ ] (effort: S) **R5.5 — C8: replace fabricated onboard-handshake metadata
+  with parsed values or a neutral state.** The panel hardcodes `"My Signing
+  Key"`, `"2/3"`, and `Share #0`
+  (`igloo-ui/src/components/flows/CreateFlow.tsx:1541-1542,1554,1563`) and the PWA
+  passes the literals during a LIVE handshake
+  (`igloo-pwa/src/App.tsx:1069-1070,1092-1093`) — a 3/5 keyset is shown "2/3" as
+  fact, masking a wrong-package mistake. Make `keysetName`/`thresholdLabel`/
+  `shareIndex` required (or render only when supplied); parse from the package or
+  show a neutral "Validating package…". Rule `RS-06`/`DOC-05` — igloo-ui +
+  igloo-pwa · synthesis C8/R5.
+- [ ] (effort: S) **R5.6 — Clipboard secret has no auto-clear; copy/remask
+  duplicated.** Reveal auto-remasks at 30s but `copyToClipboard` writes the
+  secret to the system clipboard with no expiry, and the copy+remask block is
+  duplicated verbatim with a magic `30000`:
+  `igloo-ui/src/components/ui/sensitive-textarea.tsx:39-43,54,76-84` and
+  `sensitive-field.tsx:35-36,49,70-77`. Factor a `useSensitiveReveal` hook (name
+  `SENSITIVE_AUTO_MASK_MS`); best-effort clipboard clear or document it. Rule
+  `SEC-01`/`CQ-04`/`CQ-06` — igloo-ui · synthesis C1/R5.
+
+### R6 — Testing depth (adversarial/KAT gaps; the render-only blind spot)
+
+C2 + C4 (`TST-02`/`TST-03`/`TST-05`). `make test-fast` is render-only, so a
+green pre-push coexists with a broken cipher or bypassed guard — these tests are
+the safety net R2's decomposition depends on.
+
+- [ ] (effort: S) **R6.1 — Secret-mask/scrub assertions (regression net for
+  R5.1).** Assert the generated share + recovered nsec are NOT in the initial DOM
+  text (masked by default) and are cleared on view-leave. igloo-ui flow tests are
+  render-only (`igloo-ui/test/CreateFlow.test.tsx`,
+  `CreateImportPanel.test.tsx:1-43`) — masking is proven only on the primitive in
+  isolation (`test/ui/sensitive.test.tsx`), nothing asserts `CreateImportPanel`
+  routes the nsec through it (which is why C1 passes green). Home: the
+  scrub-on-leave effect (`igloo-home/src/App.tsx:742-748,753-760`) is asserted
+  nowhere — `RecoverKey.test.tsx:122-145` asserts the nsec *appears* and stops.
+  Rule `TST-02` — igloo-ui + igloo-home · synthesis C4/R6.
+- [ ] (effort: M) **R6.2 — Direct `profile-blob.test.ts` for chrome + unwrap the
+  mocks (HIGHEST value).** The host's only real crypto is `vi.fn()`-mocked out of
+  every test (`igloo-chrome/tests/unit/background/profile-service.test.ts:19-20,
+  49-50,81-82`) and `profile-blob.ts` has zero direct importer — so PBKDF2
+  derivation, AES-GCM round-trip, **wrong-password reject, and GCM-tag-flip
+  (single-bit ciphertext flip) are entirely unasserted.** Add: round-trip,
+  wrong-password reject, corrupted-ciphertext reject, and a recorded **KAT
+  vector** pinning the KDF/cipher params; unwrap the profile-service mocks. Also
+  cover the untested reject arms: `provider-execution.ts:18-42` +
+  `nostr-provider.ts:78-107`. **Do this BEFORE the R5.3 de-divergence** so the
+  security-critical change has a net. Rule `TST-05`/`TST-03`/`TST-02` —
+  igloo-chrome · synthesis C2/R6.
+- [ ] (effort: M) **R6.3 — Adversarial import/onboard decrypt tests (pwa).** The
+  two riskiest trust boundaries decrypt attacker-supplied package text but have
+  only happy-path coverage; their `load-error`/`onboard-failed` routing is
+  untested: `igloo-pwa/src/lib/store.tsx:1557-1596` (`loadBfProfile`),
+  `:1664-1706` (`connectOnboardingPackage`); current tests assert success only
+  (`test/frontend/App.test.tsx:726`,
+  `test/igloo-pwa/specs/profile-import.spec.ts:9`). Feed corrupted/truncated
+  ciphertext + wrong import password → assert the error view + preserved-secret
+  cleanup. **Land before splitting store.tsx's import/onboard slices (R2).** Rule
+  `TST-02`/`SEC-04` — igloo-pwa · synthesis C4/R6.
+- [ ] (effort: M) **R6.4 — Adversarial unlock/onboard/rotate tests (home).**
+  Unlock (start-session), onboard-finalize, and rotate-apply have no end-to-end
+  frontend test and every existing test asserts success only
+  (`igloo-home/test/frontend/App.test.tsx:162-291`, etc.). Mock
+  `startProfileSession`/`importProfileFromBfprofile` to reject with each
+  `HomeErrorPayload` kind and assert the user-facing banner reaches the operator
+  through `run()`/`rethrowHomeError`; assert the confirm-password-mismatch +
+  empty-passphrase guards (`igloo-home/src/App.tsx:1046,1118`). Rule
+  `TST-02`/`TST-01` — igloo-home · synthesis C4/R6.
+- [ ] (effort: M) **R6.5 — Failure-path unit tests for the bridge node
+  orchestration (shared), added AS each R2 seam is extracted.** Untested at unit
+  layer (only `@live`/E2E — the render-only blind spot): `signNostrEvent`
+  verify-fail (`igloo-shared/src/wasm-bridge-node.ts:819-840,835`),
+  `nip44Encrypt/Decrypt` on ECDH-command reject (`:842-874`), `pumpRuntime`
+  failure-drain rejecting a pending sign (`:1399-1544,1522-1534`). Current suite
+  (`wasm-bridge-node.test.ts`) covers construction/emitter/guards/shutdown only.
+  Prioritize the ECDH-reject + sign-verify-fail (security-relevant) paths. Rule
+  `TST-02` — igloo-shared · synthesis C4/R6 (the safety net for R2 row 3).
+
+### Rust-shell tail (igloo-home-local; alongside R3/R6)
+
+C9 (`ARC-06`/`CQ-02`) — not a front-end bucket but graduated here from the same
+run.
+
+- [ ] (effort: S) **Derive the test-dispatch command set from the real
+  registration.** The hand-maintained `EXPECTED_DISPATCH_COMMANDS` (24 entries,
+  `igloo-home/src-tauri/src/app/test_dispatch.rs:303-331`) is missing 5+ real
+  commands incl. the security-relevant `resolve_approval` + `update_peer_policy`
+  (+ `list_relay_profiles`, `resolve_close_request`,
+  `update_profile_operator_settings`); the real surface is
+  `commands.rs:393-668` registered via `bootstrap.rs:79` `generate_handler!`. Make
+  one `const COMMANDS: &[&str]` both consume, or assert every `*_command` has a
+  dispatch arm. Rule `ARC-06` — igloo-home · synthesis C9.
+- [ ] (effort: S) **Funnel `lock().unwrap()` through one poison-mapping helper.**
+  25 `.lock().unwrap()` on IPC-reachable paths turn a poisoned mutex into a hard
+  backend crash: `igloo-home/src-tauri/src/session/controller.rs:33`,
+  `app/commands.rs:233,262,374` (profiles.rs ×6, controller.rs ×6, paths.rs ×3,
+  …). Map `PoisonError` → a typed `HomeError` (or `into_inner()` where state is
+  consistent) so it surfaces as a renderable error, not a panic. Rule `CQ-02` —
+  igloo-home · synthesis C9.
+
 ## Test infrastructure remediation (audit 2026-06-17)
 
 Mirrored from [`docs/TEST-AUDIT.md`](./docs/TEST-AUDIT.md) (97 findings, full
