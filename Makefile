@@ -23,7 +23,7 @@ CLIENT ?= pwa
 	test-smoke test-fast test-live test-demo test-e2e verify screenshot test-prep test-affected test-release \
 	pwa-multisig-demo \
 	browser-wasm-refresh browser-wasm-sync browser-wasm-check wasm-toolchain-check \
-	igloo-paper-sync igloo-paper-verify igloo-paper-usage-coverage-sync igloo-ui-paper-token-sync igloo-ui-paper-token-check igloo-ui-watch \
+	igloo-paper-sync igloo-paper-verify igloo-paper-usage-coverage-sync igloo-ui-paper-token-sync igloo-ui-paper-token-check igloo-ui-styles igloo-ui-watch \
 	igloo-chrome-dev igloo-chrome-build igloo-chrome-test-unit igloo-chrome-test-e2e \
 	igloo-pwa-dev igloo-pwa-build igloo-pwa-test-unit igloo-pwa-test-e2e \
 	igloo-home-dev igloo-home-tauri-dev igloo-home-build igloo-home-typecheck igloo-home-test-unit \
@@ -269,6 +269,17 @@ igloo-ui-paper-token-sync:
 igloo-ui-paper-token-check:
 	@cd "$(ROOT_DIR)" && node dev/scripts/sync-igloo-paper-tokens-to-ui.mjs check
 
+# One-shot rebuild of igloo-ui's dist/styles.css. Client vite configs resolve
+# igloo-ui JS from src but load its CSS from dist, so a dev server launched
+# against a stale dist renders stale shared styles. Used as a prerequisite of the
+# client dev targets so the shared CSS is current at launch. The tailwind build
+# is cheap and idempotent, so we rebuild unconditionally rather than risk an
+# under-specified staleness check silently skipping a needed rebuild (which would
+# reintroduce the exact stale-CSS bug). For live editing while a dev loop runs,
+# use igloo-ui-watch instead.
+igloo-ui-styles:
+	@cd "$(IGLOO_UI_DIR)" && npx tailwindcss -c ./tailwind.config.js -i ./src/styles.css -o ./dist/styles.css
+
 # Rebuild igloo-ui's dist/styles.css on every CSS source change. The pwa dev
 # server loads igloo-ui CSS from dist (JS already resolves to src via vite), so
 # run this alongside `make igloo-pwa-dev` for instant CSS hot-reload instead of a
@@ -300,10 +311,10 @@ igloo-pwa-test-unit:
 igloo-pwa-test-e2e:
 	@npm --prefix "$(IGLOO_PWA_DIR)" run test:e2e
 
-igloo-home-dev:
+igloo-home-dev: igloo-ui-styles
 	@npm --prefix "$(IGLOO_HOME_DIR)" run dev
 
-igloo-home-tauri-dev:
+igloo-home-tauri-dev: igloo-ui-styles
 	@npm --prefix "$(IGLOO_HOME_DIR)" run tauri -- dev
 
 igloo-home-build:
