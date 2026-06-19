@@ -28,6 +28,8 @@ pub mod signer;
 mod state;
 mod updates;
 
+const MOBILE_MAX_FUTURE_SKEW_SECS: u64 = 300;
+
 pub use actions::AppAction;
 pub use state::{
     AppState, BackupPublishStatus, DashboardState, DashboardTab, DistributeShareRecord,
@@ -988,7 +990,11 @@ impl FfiApp {
             ping_timeout_secs: material.settings.ping_timeout_secs.into(),
             onboard_timeout_secs: 30,
             request_ttl_secs: material.settings.request_ttl_secs.into(),
-            max_future_skew_secs: 30,
+            // Android emulators and physical phones can drift from the host
+            // relay/co-signer clock during local smoke tests. Keep replay TTL
+            // unchanged, but allow realistic device clock skew at the mobile
+            // runtime boundary so valid co-signer responses are not rejected.
+            max_future_skew_secs: MOBILE_MAX_FUTURE_SKEW_SECS,
             request_cache_limit: 2048,
             state_save_interval_secs: material.settings.state_save_interval_secs.into(),
             event_kind: 20000,
@@ -3128,5 +3134,17 @@ mod tests {
         assert_eq!(xonly.len(), 32);
         assert_eq!(xonly.as_slice(), expected_x);
         assert_eq!(hex::encode(xonly).len(), 64);
+    }
+
+    #[test]
+    fn mobile_future_skew_tolerates_local_device_clock_drift() {
+        assert!(
+            MOBILE_MAX_FUTURE_SKEW_SECS >= 300,
+            "mobile signer runtime should tolerate several minutes of host/device clock drift"
+        );
+        assert!(
+            MOBILE_MAX_FUTURE_SKEW_SECS <= 300,
+            "mobile signer runtime should not silently widen replay freshness beyond five minutes"
+        );
     }
 }

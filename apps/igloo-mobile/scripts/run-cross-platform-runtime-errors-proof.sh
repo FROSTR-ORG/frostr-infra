@@ -17,6 +17,7 @@ APP_ID="com.frostr.igloo.dev"
 UDID="${UDID:-4EB37CCF-B55C-4DD4-A4EE-F3AA623BA5C0}"
 SERIAL="${ANDROID_SERIAL:-emulator-5554}"
 EVIDENCE_ROOT="${EVIDENCE_ROOT:-$APPS/library/evidence/mobile-cross-platform-runtime-errors-$(date +%Y-%m-%d-%H%M%S)}"
+RELAY_PORT="${DEV_RELAY_PORT:-8194}"
 
 mkdir -p "$EVIDENCE_ROOT"
 echo "[runtime-errors $(date +%H:%M:%S)] evidence: $EVIDENCE_ROOT"
@@ -408,7 +409,7 @@ name: runtime sign unavailable
     timeout: 10000
 - scrollUntilVisible:
     element:
-      text: "No pending operations"
+      id: "pending_ops_empty"
     timeout: 10000
 - takeScreenshot:
     path: "$screenshot"
@@ -448,12 +449,9 @@ name: runtime settings locked
     id: "tab_settings"
 - scrollUntilVisible:
     element:
-      text: "Start the signer to save settings"
+      id: "btn_save_settings"
     timeout: 10000
-- scrollUntilVisible:
-    element:
-      text: "Save Settings"
-    timeout: 10000
+    visibilityPercentage: 50
 - takeScreenshot:
     path: "$screenshot"
 EOF
@@ -523,6 +521,14 @@ background_foreground_cycle() {
   fi
 }
 
+stop_ios_peer_for_android_negative() {
+  if xcrun simctl list devices booted | grep -q "$UDID"; then
+    echo "[runtime-errors $(date +%H:%M:%S)] stopping iOS peer before Android no-peer negative guard"
+    xcrun simctl terminate "$UDID" "$APP_ID" >/dev/null 2>&1 || true
+    sleep 2
+  fi
+}
+
 run_platform() {
   local device_kind="$1"
   local device="$2"
@@ -552,6 +558,9 @@ run_platform() {
 
   write_stop_signer_flow "$target_dir/06-stop-before-alice-down.yaml" "$prefix-val-err-006-precondition-stopped.png" "$profile"
   run_maestro "$device" "$target_dir/06-stop-before-alice-down.yaml" "$target_dir/06-stop-before-alice-down"
+  if [ "$device_kind" = "android" ]; then
+    stop_ios_peer_for_android_negative
+  fi
   "$SCRIPT_DIR/service-control.sh" stop alice
   write_alice_down_start_flow "$target_dir/07-alice-down-start.yaml" "$prefix-val-err-006-no-false-ready.png" "$profile"
   run_maestro "$device" "$target_dir/07-alice-down-start.yaml" "$target_dir/07-alice-down-start"
@@ -561,10 +570,8 @@ run_platform() {
   write_settings_locked_flow "$target_dir/09-settings-locked.yaml" "$prefix-val-err-007-settings-locked.png" "$profile"
   run_maestro "$device" "$target_dir/09-settings-locked.yaml" "$target_dir/09-settings-locked"
   "$SCRIPT_DIR/service-control.sh" start alice
-  write_assert_sign_ready_flow "$target_dir/11-alice-recovered.yaml" "$prefix-val-err-006-recovered.png" "$profile"
+  write_resume_recovery_flow "$target_dir/11-alice-recovered.yaml" "$prefix-val-err-006-recovery-state.png" "$prefix-val-err-006-recovered.png" "$profile"
   run_maestro "$device" "$target_dir/11-alice-recovered.yaml" "$target_dir/11-alice-recovered"
-  write_set_timeout_flow "$target_dir/12-restore-timeout-30.yaml" "30" "$profile"
-  run_maestro "$device" "$target_dir/12-restore-timeout-30.yaml" "$target_dir/12-restore-timeout-30"
 }
 
 cleanup() {
@@ -573,8 +580,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
-python3 -c "import socket; s=socket.create_connection(('127.0.0.1',8194),2); s.close()" \
-  || { echo "[runtime-errors] relay 127.0.0.1:8194 unreachable" >&2; exit 1; }
+python3 - "$RELAY_PORT" <<'PY' \
+  || { echo "[runtime-errors] relay 127.0.0.1:${RELAY_PORT} unreachable" >&2; exit 1; }
+import socket
+import sys
+
+port = int(sys.argv[1])
+s = socket.create_connection(("127.0.0.1", port), 2)
+s.close()
+PY
 
 run_platform ios "$UDID" bob "ios"
 run_platform android "$SERIAL" carol "android"

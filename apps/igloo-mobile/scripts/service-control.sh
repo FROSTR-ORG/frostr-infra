@@ -49,12 +49,14 @@ start_relay() {
 
 stop_alice() {
     echo "[service-control] Stopping alice co-signer (igloo-demo)..."
+    "${COMPOSE[@]}" update --restart no igloo-demo >/dev/null 2>&1 || true
     "${COMPOSE[@]}" stop igloo-demo 2>/dev/null || true
     echo "[service-control] alice co-signer stopped"
 }
 
 start_alice() {
     echo "[service-control] Starting alice co-signer (igloo-demo)..."
+    "${COMPOSE[@]}" update --restart unless-stopped igloo-demo >/dev/null 2>&1 || true
     "${COMPOSE[@]}" start igloo-demo 2>/dev/null || true
     # Wait for alice to be healthy (socket and onboard files exist)
     local attempt=0

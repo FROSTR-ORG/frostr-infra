@@ -21,6 +21,9 @@ APP_BUNDLE="${APP_BUNDLE:-$HOME/Library/Developer/Xcode/DerivedData/IglooMobile-
 APK="$APPS/android/app/build/outputs/apk/debug/app-debug.apk"
 HARNESS_DIR="$ROOT/.tmp/test-harness"
 EVIDENCE_DIR="${EVIDENCE_DIR:-$APPS/library/evidence/mobile-runtime-profile-seed-$(date +%Y-%m-%d-%H%M%S)}"
+RELAY_PORT="${DEV_RELAY_PORT:-8194}"
+IOS_RELAY_URL="ws://127.0.0.1:${RELAY_PORT}"
+ANDROID_RELAY_URL="ws://10.0.2.2:${RELAY_PORT}"
 
 mkdir -p "$EVIDENCE_DIR"
 echo "[runtime-seed $(date +%H:%M:%S)] evidence: $EVIDENCE_DIR"
@@ -91,7 +94,7 @@ seed_ios_bob() {
   package="$(tr -d '\r\n' < "$HARNESS_DIR/onboard-bob.txt")"
   password="$(tr -d '\r\n' < "$HARNESS_DIR/onboard-bob.password.txt")"
   package_b64="$(printf '%s' "$package" | b64)"
-  relay="ws://127.0.0.1:8194"
+  relay="$IOS_RELAY_URL"
   relay_enc="$(urlencode "$relay")"
   device="bob"
   device_enc="$(urlencode "$device")"
@@ -120,7 +123,7 @@ seed_android_carol() {
   local package password relay device
   package="$(tr -d '\r\n' < "$HARNESS_DIR/onboard-carol.txt")"
   password="$(tr -d '\r\n' < "$HARNESS_DIR/onboard-carol.password.txt")"
-  relay="ws://10.0.2.2:8194"
+  relay="$ANDROID_RELAY_URL"
   device="carol"
 
   echo "[runtime-seed $(date +%H:%M:%S)] Android fresh install"
@@ -160,9 +163,9 @@ xcrun simctl list devices booted | grep -q "$UDID" || { echo "[runtime-seed] iOS
 
 {
   echo "ios_profile=bob"
-  echo "ios_relay=ws://127.0.0.1:8194"
+  echo "ios_relay=$IOS_RELAY_URL"
   echo "android_profile=carol"
-  echo "android_relay=ws://10.0.2.2:8194"
+  echo "android_relay=$ANDROID_RELAY_URL"
   echo "bob_package_length=$(wc -c < "$HARNESS_DIR/onboard-bob.txt" | tr -d ' ')"
   echo "carol_package_length=$(wc -c < "$HARNESS_DIR/onboard-carol.txt" | tr -d ' ')"
 } > "$EVIDENCE_DIR/input.txt"

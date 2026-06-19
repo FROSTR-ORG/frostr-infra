@@ -4584,6 +4584,7 @@ fun EventLogRow(index: Int, entry: com.frostr.igloo.rust.LogEntry) {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun PendingOpsSection(
     pendingOps: List<com.frostr.igloo.rust.PendingOp>,
@@ -4603,6 +4604,10 @@ fun PendingOpsSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "pending_ops_empty"
+                    }
                     .background(IglooColors.Slate900StrongTranslucent, RoundedCornerShape(IglooRadii.md.dp))
                     .padding(IglooSpacing.md.dp),
                 verticalAlignment = Alignment.CenterVertically
