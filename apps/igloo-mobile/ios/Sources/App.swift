@@ -278,6 +278,26 @@ struct IglooMobileApp: App {
                             )
                         }
                     }
+
+                    if url.scheme == "igloo" && url.host == "test-keyset-distribute-submit" {
+                        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+                            let shareIdx = components.queryItems?
+                                .first(where: { $0.name == "share_idx" })?
+                                .value
+                                .flatMap(UInt16.init) ?? 0
+                            let method = components.queryItems?
+                                .first(where: { $0.name == "method" })?
+                                .value ?? "copy"
+                            manager.testKeysetDistributeSubmit(
+                                shareIdx: shareIdx,
+                                method: method
+                            )
+                        }
+                    }
+
+                    if url.scheme == "igloo" && url.host == "test-keyset-distribute-finish" {
+                        manager.testKeysetDistributeFinish()
+                    }
                 }
         }
     }

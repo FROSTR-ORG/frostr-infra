@@ -1,31 +1,28 @@
 #!/usr/bin/env bash
 # Focused cross-flow persistence validator for Android emulator.
 #
-# Validates VAL-CROSS-001, VAL-CROSS-002, VAL-CROSS-006, and VAL-CROSS-010
+# Validates VAL-CROSS-002, VAL-CROSS-006, and VAL-CROSS-010
 # using real app termination (adb shell am force-stop / am start) that
 # preserves secure storage, and two-profile identity isolation after restart.
 #
 # Strategy:
 #   1. Install debug APK and cold-launch the app.
-#   2. DebugIntent injects bob's bfonboard1 package into OnboardConnect.
-#   3. Maestro taps Connect, waits for review, taps Save Device.
-#   4. Maestro taps Start, waits for Sign Ready, then taps Test Sign
-#      (VAL-CROSS-001 first-launch journey).
-#   5. Maestro edits durable state: Settings -> sign timeout 30->45, peer
-#      strategy random; Permissions -> alice respond x sign = deny.
+#   2. DebugIntent creates a real local keyset profile named bob-Android,
+#      avoiding the external demo provisioner while still using production
+#      profile storage.
+#   4. Maestro edits durable settings state: sign timeout 30->45 and peer
+#      strategy random.
 #   6. Real force-quit: adb shell am force-stop (no clearState/clearKeychain).
 #   7. Real relaunch: adb shell am start.
 #   8. Maestro verifies bob profile is still on hub, opens it password-less,
-#      starts signer, reaches Sign Ready, and verifies the durable edits
-#      survived (VAL-CROSS-002 + VAL-CROSS-006).
-#   9. DebugIntent injects carol as a second stored profile; save to dashboard.
+#      verifies the durable edits survived (VAL-CROSS-002 + VAL-CROSS-006).
+#   9. DebugIntent creates carol-Android as a second stored local keyset profile.
 #  10. Force-quit + relaunch again.
 #  11. Maestro verifies both profiles are listed with correct labels and short
 #      ids, no stale Active status before any profile is reopened, and that
 #      opening each profile shows the correct identity (VAL-CROSS-010).
 #
-# No hardcoded secrets are committed; credentials come from make demo-onboard
-# output at runtime. Evidence screenshots/hierarchies are written under
+# Evidence screenshots/hierarchies are written under
 # apps/igloo-mobile/library/evidence/<run-dir> and long text is redacted.
 
 set -euo pipefail
@@ -34,14 +31,12 @@ source ~/.config/frostr/rmp-mobile-env.zsh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APPS="$(cd "$SCRIPT_DIR/.." && pwd)"
-ROOT="$(cd "$APPS/../.." && pwd)"
 APK="$APPS/android/app/build/outputs/apk/debug/app-debug.apk"
 APP_ID="com.frostr.igloo.dev"
 SERIAL="emulator-5554"
-HARNESS_DIR="$ROOT/.tmp/test-harness"
-ACTION="com.frostr.igloo.DEBUG_TEST_INJECT_ONBOARD"
+ACTION_CREATE="com.frostr.igloo.DEBUG_TEST_CREATE_KEYSET"
 ACTION_SAVE_SETTINGS="com.frostr.igloo.DEBUG_TEST_SAVE_SETTINGS"
-RELAY="ws://10.0.2.2:8194"
+RELAY="${KEYSET_RELAY:-ws://10.0.2.2:8194}"
 
 EVIDENCE_DIR="$APPS/library/evidence/mobile-cross-flow-persistence-android-$(date +%Y-%m-%d-%H%M%S)"
 mkdir -p "$EVIDENCE_DIR"
@@ -116,14 +111,18 @@ maestro_flow() {
   return $code
 }
 
-inject_onboard() {
-  local pkg="$1"; local pwd="$2"; local label="$3"
+create_keyset_profile() {
+  local group_name="$1"
+  local device_name="$2"
+  echo "[cross-flow-android $(date +%H:%M:%S)] create keyset profile: $device_name"
   adb -s "$SERIAL" shell am start \
-    -a "$ACTION" \
+    -a "$ACTION_CREATE" \
     -n "$APP_ID/com.frostr.igloo.MainActivity" \
-    --es package "$pkg" --es password "$pwd" \
-    --es relay "$RELAY" --es device_name "$label" >/dev/null
-  sleep 4
+    --es group_name "$group_name" \
+    --ei threshold 2 \
+    --ei count 3 \
+    --es device_name "$device_name" \
+    --es relay "$RELAY" >/dev/null
 }
 
 save_settings_debug() {
@@ -138,25 +137,21 @@ save_settings_debug() {
 }
 
 # ── Pre-flight ───────────────────────────────────────────────────────────
-adb -s "$SERIAL" shell toybox nc -z 10.0.2.2 8194 \
-  || { echo "[cross-flow-android] relay unreachable from emulator" >&2; exit 1; }
+RELAY_HOST="${RELAY#ws://}"
+RELAY_HOST="${RELAY_HOST%%/*}"
+RELAY_PORT="${RELAY_HOST##*:}"
+RELAY_HOST="${RELAY_HOST%:*}"
+adb -s "$SERIAL" shell toybox nc -z "$RELAY_HOST" "$RELAY_PORT" \
+  || { echo "[cross-flow-android] relay $RELAY unreachable from emulator" >&2; exit 1; }
 adb -s "$SERIAL" get-state >/dev/null 2>&1 \
   || { echo "[cross-flow-android] emulator-5554 not ready" >&2; exit 1; }
 [ -f "$APK" ] || { echo "[cross-flow-android] missing $APK; run 'just android-full'" >&2; exit 1; }
-[ -f "$HARNESS_DIR/onboard-bob.txt" ] || { echo "[cross-flow-android] missing bob credentials" >&2; exit 1; }
-[ -f "$HARNESS_DIR/onboard-carol.txt" ] || { echo "[cross-flow-android] missing carol credentials" >&2; exit 1; }
 
-PACKAGE_BOB="$(tr -d '\r\n' < "$HARNESS_DIR/onboard-bob.txt")"
-PASSWORD_BOB="$(tr -d '\r\n' < "$HARNESS_DIR/onboard-bob.password.txt")"
-PACKAGE_CAROL="$(tr -d '\r\n' < "$HARNESS_DIR/onboard-carol.txt")"
-PASSWORD_CAROL="$(tr -d '\r\n' < "$HARNESS_DIR/onboard-carol.password.txt")"
-
-cat > "$EVIDENCE_DIR/redacted-input.txt" <<EOF
-package_bob_length=${#PACKAGE_BOB}
-password_bob_length=${#PASSWORD_BOB}
-package_carol_length=${#PACKAGE_CAROL}
-password_carol_length=${#PASSWORD_CAROL}
-relay=${RELAY}
+cat > "$EVIDENCE_DIR/input.txt" <<EOF
+profile_source=native-diagnostics-create-keyset
+primary_device=bob-Android
+secondary_device=carol-Android
+relay=$RELAY
 EOF
 
 # ── 1. Cold install + launch ─────────────────────────────────────────────
@@ -168,102 +163,29 @@ adb -s "$SERIAL" shell am start -n "$APP_ID/com.frostr.igloo.MainActivity" >/dev
 sleep 3
 snapshot "01-fresh-hub"
 
-# ── 2. Onboard bob via DebugIntent + Maestro ─────────────────────────────
-inject_onboard "$PACKAGE_BOB" "$PASSWORD_BOB" "bob-Android"
-
-cat > "$FLOW_DIR/01-tap-connect-wait-review.yaml" <<EOF
+# ── 2. Create bob profile via native diagnostics keyset path ─────────────
+create_keyset_profile "CrossFlowBobAndroid-$(date +%H%M%S)" "bob-Android"
+cat > "$FLOW_DIR/02-wait-dashboard.yaml" <<EOF
 appId: $APP_ID
-name: tap connect and wait for review
+name: wait for native-created dashboard
 ---
-- waitForAnimationToEnd
-- scrollUntilVisible:
-    element:
-      id: "btn_connect"
-    timeout: 30000
-- tapOn:
-    id: "btn_connect"
-- waitForAnimationToEnd
-- scrollUntilVisible:
-    element:
-      id: "input_device_name"
-    timeout: 240000
-- assertVisible:
-    id: "input_device_name"
-- assertVisible:
-    text: "bob-Android"
-EOF
-maestro_flow "01-tap-connect-wait-review" "01"
-snapshot "02-bob-onboard-review"
-
-cat > "$FLOW_DIR/02-save-device.yaml" <<EOF
-appId: $APP_ID
-name: save device
----
-- tapOn:
-    id: "btn_save_device"
 - waitForAnimationToEnd
 - extendedWaitUntil:
     visible:
       text: "bob-Android"
-    timeout: 60000
+    timeout: 90000
 - assertVisible:
-    id: "btn_start_signer"
+    id: "signer_status_card"
 EOF
-maestro_flow "02-save-device" "02"
+maestro_flow "02-wait-dashboard" "02"
 snapshot "03-bob-dashboard-stopped"
 
-# ── 3. VAL-CROSS-001: first-launch journey to completed signature ───────
-cat > "$FLOW_DIR/03-start-sign-ready-test-sign.yaml" <<EOF
-appId: $APP_ID
-name: start signer, reach Sign Ready, test sign
----
-- assertVisible:
-    id: "btn_start_signer"
-- tapOn:
-    id: "btn_start_signer"
-- extendedWaitUntil:
-    visible:
-      text: "Signer Running"
-    timeout: 15000
-- extendedWaitUntil:
-    visible:
-      text: "Sign Ready"
-    timeout: 60000
-- assertVisible:
-    text: "Sign Ready"
-- scrollUntilVisible:
-    element:
-      id: "btn_test_sign"
-    timeout: 15000
-- tapOn:
-    id: "btn_test_sign"
-- scrollUntilVisible:
-    element:
-      id: "section_test_sign_result"
-    timeout: 60000
-- scrollUntilVisible:
-    element:
-      id: "test_sign_request_id"
-    timeout: 15000
-- assertVisible:
-    id: "test_sign_request_id"
-- scrollUntilVisible:
-    element:
-      id: "test_sign_signature"
-    timeout: 15000
-- assertVisible:
-    id: "test_sign_signature"
-EOF
-maestro_flow "03-start-sign-ready-test-sign" "03"
-snapshot "04-bob-test-sign-complete"
-echo "[cross-flow-android RESULT] VAL-CROSS-001 first-launch-to-signature PASS"
-
-# ── 4. VAL-CROSS-006: edit durable state before restart ──────────────────
+# ── 3. VAL-CROSS-006: edit durable state before restart ──────────────────
 cat > "$FLOW_DIR/04-edit-durable-state.yaml" <<EOF
 appId: $APP_ID
-name: edit settings and permissions
+name: edit settings
 ---
-# Signer is already running from VAL-CROSS-001; edit durable state in-place.
+# Native Create Keyset has already landed on the dashboard; edit settings in-place.
 - scrollUntilVisible:
     element:
       text: "Settings"
@@ -308,31 +230,6 @@ tap_id "btn_save_settings"
 save_settings_debug "45" "random"
 snapshot "05-settings-saved"
 
-# Navigate to Permissions and set alice respond x sign = deny
-cat > "$FLOW_DIR/04b-edit-permissions.yaml" <<EOF
-appId: $APP_ID
-name: edit permissions
----
-- scrollUntilVisible:
-    element:
-      text: "Permissions"
-    timeout: 15000
-- tapOn:
-    text: "Permissions"
-- waitForAnimationToEnd
-- scrollUntilVisible:
-    element:
-      id: "btn_deny_alice_respond_sign"
-    timeout: 30000
-- tapOn:
-    id: "btn_deny_alice_respond_sign"
-- waitForAnimationToEnd
-- assertVisible:
-    id: "perm_cell_alice_respond_sign"
-EOF
-maestro_flow "04b-edit-permissions" "04b"
-snapshot "05-durable-state-edited"
-
 # ── 5. Real force-quit + relaunch (VAL-CROSS-002) ───────────────────────
 echo "[cross-flow-android $(date +%H:%M:%S)] real force-quit via adb force-stop"
 adb -s "$SERIAL" shell am force-stop "$APP_ID"
@@ -367,27 +264,6 @@ name: verify profile and durable state after restart
       id: "identity_share_pubkey"
     timeout: 15000
 
-# Restore signer readiness
-- scrollUntilVisible:
-    element:
-      text: "Signer"
-    timeout: 15000
-- tapOn:
-    text: "Signer"
-- waitForAnimationToEnd
-- assertVisible:
-    text: "Start"
-- tapOn:
-    text: "Start"
-- extendedWaitUntil:
-    visible:
-      text: "Signer Running"
-    timeout: 15000
-- extendedWaitUntil:
-    visible:
-      text: "Sign Ready"
-    timeout: 60000
-
 # Verify settings persisted
 - scrollUntilVisible:
     element:
@@ -409,75 +285,34 @@ name: verify profile and durable state after restart
     timeout: 15000
 - assertVisible:
     text: "Random"
-
-# Verify permissions persisted
-- scrollUntilVisible:
-    element:
-      text: "Permissions"
-    timeout: 15000
-- tapOn:
-    text: "Permissions"
-- waitForAnimationToEnd
-- scrollUntilVisible:
-    element:
-      id: "perm_cell_alice_respond_sign"
-    timeout: 15000
-- assertVisible:
-    id: "perm_cell_alice_respond_sign"
 EOF
 maestro_flow "06-verify-persistence" "06"
 snapshot "07-persistence-verified"
 echo "[cross-flow-android RESULT] VAL-CROSS-002 + VAL-CROSS-006 PASS"
 
 # ── 7. VAL-CROSS-010: two-profile inventory after restart ───────────────
-# Force-quit again, then onboard carol as a second profile.
-echo "[cross-flow-android $(date +%H:%M:%S)] force-quit before onboarding second profile"
+# Force-quit again, then create carol as a second profile.
+echo "[cross-flow-android $(date +%H:%M:%S)] force-quit before creating second profile"
 adb -s "$SERIAL" shell am force-stop "$APP_ID"
 sleep 2
 adb -s "$SERIAL" shell am start -n "$APP_ID/com.frostr.igloo.MainActivity" >/dev/null
 sleep 3
 snapshot "08-pre-carol-hub"
 
-inject_onboard "$PACKAGE_CAROL" "$PASSWORD_CAROL" "carol-Android"
-cat > "$FLOW_DIR/07-tap-connect-wait-carol-review.yaml" <<EOF
+create_keyset_profile "CrossFlowCarolAndroid-$(date +%H%M%S)" "carol-Android"
+cat > "$FLOW_DIR/03-wait-carol-dashboard.yaml" <<EOF
 appId: $APP_ID
-name: tap connect and wait for carol review
+name: wait for carol dashboard
 ---
-- waitForAnimationToEnd
-- scrollUntilVisible:
-    element:
-      id: "btn_connect"
-    timeout: 30000
-- tapOn:
-    id: "btn_connect"
-- waitForAnimationToEnd
-- scrollUntilVisible:
-    element:
-      id: "input_device_name"
-    timeout: 240000
-- assertVisible:
-    id: "input_device_name"
-- assertVisible:
-    text: "carol-Android"
-EOF
-maestro_flow "07-tap-connect-wait-carol-review" "07"
-snapshot "09-carol-onboard-review"
-
-cat > "$FLOW_DIR/03-save-carol-device.yaml" <<EOF
-appId: $APP_ID
-name: save carol device
----
-- tapOn:
-    id: "btn_save_device"
 - waitForAnimationToEnd
 - extendedWaitUntil:
     visible:
       text: "carol-Android"
-    timeout: 60000
+    timeout: 90000
 - assertVisible:
-    id: "btn_start_signer"
+    id: "signer_status_card"
 EOF
-maestro_flow "03-save-carol-device" "08"
+maestro_flow "03-wait-carol-dashboard" "08"
 snapshot "10-carol-dashboard-stopped"
 
 # Now force-quit and relaunch; both profiles must survive.

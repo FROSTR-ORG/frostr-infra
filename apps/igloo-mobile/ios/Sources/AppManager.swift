@@ -518,6 +518,12 @@ final class AppManager: AppReconciler {
                     package: pkg,
                     method: method
                 ))
+                self.writeDebugKeysetDistributePackage(
+                    shareIdx: shareIdx,
+                    shareLabel: shareLabel,
+                    method: method,
+                    package: pkg
+                )
                 if method == "qr" {
                     self.distributionQrPayload = pkg
                     self.distributionQrShareLabel = shareLabel
@@ -1406,6 +1412,70 @@ final class AppManager: AppReconciler {
         ))
         KeysetDiagnostics.shared.recordEvent(
             "test_keyset_distribute_password: share_idx=\(shareIdx) pwd_len=\(password.count)"
+        )
+        #endif
+    }
+
+    /// Debug + diagnostics-gated Distribute-row package submitter.
+    ///
+    /// This gives shell validators a public automation route for the same
+    /// Copy/QR/Save action a user taps, without depending on SwiftUI button
+    /// automation. The package itself is emitted by `performKeysetDistribution`
+    /// and written to app-private debug storage only in DEBUG diagnostics runs.
+    func testKeysetDistributeSubmit(shareIdx: UInt16, method: String) {
+        #if DEBUG
+        guard isKeysetDiagnosticsEnabled else { return }
+        let trimmedMethod = method.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedMethod == "copy" || trimmedMethod == "qr" || trimmedMethod == "save" else {
+            return
+        }
+        let _ = dispatch(.createKeysetDistributeSubmit(
+            shareIdx: shareIdx,
+            method: trimmedMethod
+        ))
+        KeysetDiagnostics.shared.recordEvent(
+            "test_keyset_distribute_submit: share_idx=\(shareIdx) method=\(trimmedMethod)"
+        )
+        #endif
+    }
+
+    /// Debug + diagnostics-gated Create Keyset finish action.
+    func testKeysetDistributeFinish() {
+        #if DEBUG
+        guard isKeysetDiagnosticsEnabled else { return }
+        let _ = dispatch(.createKeysetDistributeFinish)
+        KeysetDiagnostics.shared.recordEvent("test_keyset_distribute_finish")
+        #endif
+    }
+
+    private func writeDebugKeysetDistributePackage(
+        shareIdx: UInt16,
+        shareLabel: String,
+        method: String,
+        package: String
+    ) {
+        #if DEBUG
+        guard isKeysetDiagnosticsEnabled,
+              let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return
+        }
+        try? package.write(
+            to: documents.appendingPathComponent("debug-last-keyset-distribute-package.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+        let proof = [
+            "produced=yes",
+            "share_idx=\(shareIdx)",
+            "method=\(method)",
+            "share_label=\(shareLabel)",
+            "package_length=\(package.count)",
+            "package_prefix=\(String(package.prefix(10)))"
+        ].joined(separator: "\n")
+        try? proof.write(
+            to: documents.appendingPathComponent("debug-last-keyset-distribute-package-proof.txt"),
+            atomically: true,
+            encoding: .utf8
         )
         #endif
     }

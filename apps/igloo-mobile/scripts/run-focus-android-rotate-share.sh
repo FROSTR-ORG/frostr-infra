@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Focused Android Rotate Share validator using real demo bfonboard artifacts.
+# Focused Android Rotate Share validator using a native-generated bfonboard package.
 
 set -euo pipefail
 
@@ -7,45 +7,45 @@ source ~/.config/frostr/rmp-mobile-env.zsh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APPS="$(cd "$SCRIPT_DIR/.." && pwd)"
-ROOT="$(cd "$APPS/../.." && pwd)"
 APK="$APPS/android/app/build/outputs/apk/debug/app-debug.apk"
 APP_ID="com.frostr.igloo.dev"
 ACTIVITY="$APP_ID/com.frostr.igloo.MainActivity"
 SERIAL="${ANDROID_SERIAL:-emulator-5554}"
-HARNESS_DIR="$ROOT/.tmp/test-harness"
-RELAY="ws://10.0.2.2:8194"
+RELAY="${ROTATE_RELAY:-${KEYSET_RELAY:-ws://10.0.2.2:8194}}"
+SHARE_IDX="${SHARE_IDX:-2}"
 
-ACTION_INJECT="com.frostr.igloo.DEBUG_TEST_INJECT_ONBOARD"
-ACTION_SAVE_TO_DASHBOARD="com.frostr.igloo.DEBUG_TEST_SAVE_TO_DASHBOARD"
+ACTION_CREATE="com.frostr.igloo.DEBUG_TEST_CREATE_KEYSET"
+ACTION_SEED_PASSWORD="com.frostr.igloo.DEBUG_TEST_KEYSET_DISTRIBUTE_PASSWORD"
+ACTION_DISTRIBUTE_SUBMIT="com.frostr.igloo.DEBUG_TEST_KEYSET_DISTRIBUTE_SUBMIT"
+ACTION_DISTRIBUTE_FINISH="com.frostr.igloo.DEBUG_TEST_KEYSET_DISTRIBUTE_FINISH"
 ACTION_ROTATE="com.frostr.igloo.DEBUG_TEST_ROTATE_SHARE"
 ACTION_ROTATE_REPLACE="com.frostr.igloo.DEBUG_TEST_ROTATE_SHARE_REPLACE"
 
-[ -f "$APK" ] || { echo "[focus-rotate-android] missing $APK; run just android-full first" >&2; exit 1; }
+[ -f "$APK" ] || { echo "[focus-rotate-android] missing $APK; run just android-assemble first" >&2; exit 1; }
 adb -s "$SERIAL" get-state >/dev/null 2>&1 || { echo "[focus-rotate-android] $SERIAL not booted" >&2; exit 1; }
-adb -s "$SERIAL" shell toybox nc -z 10.0.2.2 8194 \
-  || { echo "[focus-rotate-android] relay unreachable from emulator; run make demo-start first" >&2; exit 1; }
-[ -f "$HARNESS_DIR/onboard-bob.txt" ] || { echo "[focus-rotate-android] missing bob package; run make demo-onboard" >&2; exit 1; }
-[ -f "$HARNESS_DIR/onboard-bob.password.txt" ] || { echo "[focus-rotate-android] missing bob password; run make demo-onboard" >&2; exit 1; }
-[ -f "$HARNESS_DIR/onboard-carol.txt" ] || { echo "[focus-rotate-android] missing carol package; run make demo-onboard" >&2; exit 1; }
-[ -f "$HARNESS_DIR/onboard-carol.password.txt" ] || { echo "[focus-rotate-android] missing carol password; run make demo-onboard" >&2; exit 1; }
 
-PACKAGE_BOB="$(tr -d '\r\n' < "$HARNESS_DIR/onboard-bob.txt")"
-PASSWORD_BOB="$(tr -d '\r\n' < "$HARNESS_DIR/onboard-bob.password.txt")"
-PACKAGE_CAROL="$(tr -d '\r\n' < "$HARNESS_DIR/onboard-carol.txt")"
-PASSWORD_CAROL="$(tr -d '\r\n' < "$HARNESS_DIR/onboard-carol.password.txt")"
-DEVICE_NAME="rotate-bob-android"
+RELAY_HOST="${RELAY#ws://}"
+RELAY_HOST="${RELAY_HOST%%/*}"
+RELAY_PORT="${RELAY_HOST##*:}"
+RELAY_HOST="${RELAY_HOST%:*}"
+adb -s "$SERIAL" shell toybox nc -z "$RELAY_HOST" "$RELAY_PORT" \
+  || { echo "[focus-rotate-android] relay $RELAY unreachable from emulator; start the local relay first" >&2; exit 1; }
 
+RUN_TAG="$(date +%H%M%S)"
+GROUP_NAME="RotateAndroid-${RUN_TAG}"
+DEVICE_NAME="RotateAndroid-${RUN_TAG}"
+PASSWORD="rotateandroid${RUN_TAG}"
 EVIDENCE_DIR="$APPS/library/evidence/mobile-android-rotate-share-$(date +%Y-%m-%d-%H%M%S)"
 mkdir -p "$EVIDENCE_DIR"
 echo "[focus-rotate-android $(date +%H:%M:%S)] evidence: $EVIDENCE_DIR"
 
-cat > "$EVIDENCE_DIR/redacted-input.txt" <<EOF
-package_bob_length=${#PACKAGE_BOB}
-password_bob_length=${#PASSWORD_BOB}
-package_carol_length=${#PACKAGE_CAROL}
-password_carol_length=${#PASSWORD_CAROL}
-relay=$RELAY
+cat > "$EVIDENCE_DIR/input.txt" <<EOF
+group_name=$GROUP_NAME
 device_name=$DEVICE_NAME
+share_idx=$SHARE_IDX
+password_length=${#PASSWORD}
+relay=$RELAY
+package_source=native-create-keyset-distribute
 EOF
 
 snapshot() {
@@ -92,6 +92,32 @@ wait_for_text() {
   done
 }
 
+wait_for_distribute_package() {
+  local timeout_secs="$1"
+  local started
+  local tmp="$EVIDENCE_DIR/.native-replacement-package.txt"
+  started="$(date +%s)"
+  while true; do
+    if adb -s "$SERIAL" exec-out run-as "$APP_ID" cat files/debug-last-keyset-distribute-package.txt \
+      > "$tmp" 2>/dev/null \
+      && [ -s "$tmp" ] \
+      && grep -Fq "bfonboard1" "$tmp"; then
+      adb -s "$SERIAL" exec-out run-as "$APP_ID" cat files/debug-last-keyset-distribute-package-proof.txt \
+        > "$EVIDENCE_DIR/distribute-package-proof.txt" 2>/dev/null || true
+      tr -d '\r\n' < "$tmp"
+      rm -f "$tmp"
+      return 0
+    fi
+    if [ $(( $(date +%s) - started )) -ge "$timeout_secs" ]; then
+      rm -f "$tmp"
+      echo "[focus-rotate-android] timed out waiting for native distribute package" >&2
+      snapshot "failure-distribute-package"
+      return 1
+    fi
+    sleep 1
+  done
+}
+
 wait_for_rotate_proof() {
   local timeout_secs="$1"
   local started
@@ -119,35 +145,62 @@ adb -s "$SERIAL" shell am start -n "$ACTIVITY" >/dev/null
 sleep 3
 snapshot "01-launch"
 
-echo "[focus-rotate-android $(date +%H:%M:%S)] onboard bob"
+echo "[focus-rotate-android $(date +%H:%M:%S)] create local keyset to Distribute"
 adb -s "$SERIAL" shell am start \
-  -a "$ACTION_INJECT" \
+  -a "$ACTION_CREATE" \
   -n "$ACTIVITY" \
-  --es package "$PACKAGE_BOB" \
-  --es password "$PASSWORD_BOB" \
-  --es relay "$RELAY" \
+  --es group_name "$GROUP_NAME" \
+  --ei threshold 2 \
+  --ei count 3 \
   --es device_name "$DEVICE_NAME" \
-  --ez connect true >/dev/null
-wait_for_text "$DEVICE_NAME" 180
-snapshot "02-onboard-review"
+  --es relay "$RELAY" \
+  --ez auto_finish false >/dev/null
+wait_for_text "Distribute" 90
+wait_for_text "Package password" 30
+snapshot "02-distribute"
 
+echo "[focus-rotate-android $(date +%H:%M:%S)] generate native replacement package"
 adb -s "$SERIAL" shell am start \
-  -a "$ACTION_SAVE_TO_DASHBOARD" \
+  -a "$ACTION_SEED_PASSWORD" \
   -n "$ACTIVITY" \
-  --es device_name "$DEVICE_NAME" >/dev/null
-wait_for_text "Signer Stopped" 60
+  --ei share_idx "$SHARE_IDX" \
+  --es password "$PASSWORD" >/dev/null
+sleep 1
+adb -s "$SERIAL" shell am start \
+  -a "$ACTION_DISTRIBUTE_SUBMIT" \
+  -n "$ACTIVITY" \
+  --ei share_idx "$SHARE_IDX" \
+  --es method copy >/dev/null
+PACKAGE_REPLACEMENT="$(wait_for_distribute_package 90)"
+[ "${PACKAGE_REPLACEMENT:0:10}" = "bfonboard1" ] \
+  || { echo "[focus-rotate-android] native replacement package has unexpected prefix" >&2; exit 1; }
+[ "${#PACKAGE_REPLACEMENT}" -ge 600 ] \
+  || { echo "[focus-rotate-android] native replacement package too short: ${#PACKAGE_REPLACEMENT}" >&2; exit 1; }
+printf '%s' "$PACKAGE_REPLACEMENT" | shasum -a 256 | awk '{ print "replacement_package_sha256=" $1 }' > "$EVIDENCE_DIR/replacement-package-redacted-proof.txt"
+{
+  echo "replacement_package_prefix=${PACKAGE_REPLACEMENT:0:10}"
+  echo "replacement_package_length=${#PACKAGE_REPLACEMENT}"
+} >> "$EVIDENCE_DIR/replacement-package-redacted-proof.txt"
+
+echo "[focus-rotate-android $(date +%H:%M:%S)] finish keyset and land on dashboard"
+adb -s "$SERIAL" shell am start \
+  -a "$ACTION_DISTRIBUTE_FINISH" \
+  -n "$ACTIVITY" >/dev/null
+wait_for_text "$DEVICE_NAME" 60
+wait_for_text "Signer" 60
 snapshot "03-dashboard-before-rotate"
 
-echo "[focus-rotate-android $(date +%H:%M:%S)] connect replacement package"
+echo "[focus-rotate-android $(date +%H:%M:%S)] connect native replacement package"
 adb -s "$SERIAL" shell am start \
   -a "$ACTION_ROTATE" \
   -n "$ACTIVITY" \
-  --es package "$PACKAGE_CAROL" \
-  --es password "$PASSWORD_CAROL" \
+  --es package "$PACKAGE_REPLACEMENT" \
+  --es password "$PASSWORD" \
   --es relay "$RELAY" >/dev/null
 sleep 4
 adb -s "$SERIAL" shell input swipe 540 2200 540 600 800 >/dev/null
 wait_for_text "Replacement Preview" 180
+wait_for_text "$DEVICE_NAME" 60
 snapshot "04-replacement-preview"
 
 echo "[focus-rotate-android $(date +%H:%M:%S)] replace share"
@@ -167,8 +220,11 @@ grep -Fq "$ROTATED_SHORT_ID" "$EVIDENCE_DIR/hierarchy-05-dashboard-after-rotate.
   || { echo "[focus-rotate-android] dashboard did not render rotated short id $ROTATED_SHORT_ID" >&2; exit 1; }
 
 cat > "$EVIDENCE_DIR/summary.txt" <<EOF
+group_name=$GROUP_NAME
 device_name=$DEVICE_NAME
 relay=$RELAY
+share_idx=$SHARE_IDX
+replacement_package_length=${#PACKAGE_REPLACEMENT}
 rotated_short_id=$ROTATED_SHORT_ID
 result=pass
 EOF

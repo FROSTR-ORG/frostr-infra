@@ -58,7 +58,7 @@ name: Onboard Device - iOS Validation (Paste Button)
 # ~86-char paste limitation that affects Maestro's pasteText.
 # NOTE: Tapping paste button immediately triggers onboardConnectPackage which
 # sets isLoading=true and hides the package/password fields behind a spinner.
-# The password is read from the package itself (4ad39a696510276798af27e41aa71ab9).
+# The password is supplied at runtime by the validation command.
 - tapOn:
     id: "btn_paste_package"
 
@@ -147,7 +147,7 @@ name: Onboard Device - iOS Validation (Paste Button)
 - eraseText: 64
 - inputText:
     id: "input_password"
-    text: "4ad39a696510276798af27e41aa71ab9"
+    text: "${ONBOARD_PASSWORD}"
 - pressKey: back
 - tapOn:
     id: "btn_connect"

@@ -54,10 +54,10 @@ run_step() {
   echo "[e2e-1-5 $(date +%H:%M:%S)] pass: $label"
 }
 
-refresh_demo_packages() {
+ensure_relay_service() {
   local label="$1"
   local log="$EVIDENCE_ROOT/${label}.log"
-  echo "[e2e-1-5 $(date +%H:%M:%S)] refresh demo packages: $label"
+  echo "[e2e-1-5 $(date +%H:%M:%S)] ensure relay service: $label"
   (
     cd "$ROOT"
     TIMEOUT_SECS="${TIMEOUT_SECS:-180}" make demo-start
@@ -67,17 +67,13 @@ refresh_demo_packages() {
 require_preflight() {
   python3 -c "import socket; s=socket.create_connection(('127.0.0.1',8194),2); s.close()" \
     || { echo "[e2e-1-5] relay 127.0.0.1:8194 unreachable; run make demo-start" >&2; exit 1; }
-  [ -f "$ROOT/.tmp/test-harness/onboard-bob.txt" ] \
-    || { echo "[e2e-1-5] missing bob demo package; run make demo-onboard" >&2; exit 1; }
-  [ -f "$ROOT/.tmp/test-harness/onboard-carol.txt" ] \
-    || { echo "[e2e-1-5] missing carol demo package; run make demo-onboard" >&2; exit 1; }
   adb -s "${ANDROID_SERIAL:-emulator-5554}" get-state >/dev/null 2>&1 \
     || { echo "[e2e-1-5] Android emulator not ready" >&2; exit 1; }
   xcrun simctl list devices booted | grep -q "${UDID:-4EB37CCF-B55C-4DD4-A4EE-F3AA623BA5C0}" \
     || { echo "[e2e-1-5] iOS simulator not booted" >&2; exit 1; }
 }
 
-refresh_demo_packages "00-refresh-demo-preflight"
+ensure_relay_service "00-ensure-relay-preflight"
 require_preflight
 
 run_step "00-ios-build" just ios-build
@@ -104,11 +100,9 @@ ANDROID_LOAD_IOS_EXPORT="$(latest_dir 'mobile-load-profile-artifacts-android-*')
 record "lane_1_android_load_ios_export" "$ANDROID_LOAD_IOS_EXPORT"
 
 # 2. Rotate-share replacement on both shells.
-refresh_demo_packages "02-refresh-demo-ios-rotate-share"
 run_step "02-ios-rotate-share" just focus-ios-rotate-share
 record "lane_2_ios_rotate_share" "$(latest_dir 'mobile-ios-rotate-share-*')"
 
-refresh_demo_packages "02-refresh-demo-android-rotate-share"
 run_step "02-android-rotate-share" just focus-android-rotate-share
 record "lane_2_android_rotate_share" "$(latest_dir 'mobile-android-rotate-share-*')"
 
@@ -121,11 +115,9 @@ run_step "04-cross-platform-failure-recovery" just focus-cross-platform-failure-
 record "lane_4_cross_platform_failure_recovery" "$(latest_dir 'mobile-cross-platform-failure-recovery-*')"
 
 # 5. Durable cross-flow persistence on both shells.
-refresh_demo_packages "05-refresh-demo-ios-cross-flow-persistence"
 run_step "05-ios-cross-flow-persistence" just focus-cross-flow-ios
 record "lane_5_ios_cross_flow_persistence" "$(latest_dir 'mobile-cross-flow-persistence-ios-*')"
 
-refresh_demo_packages "05-refresh-demo-android-cross-flow-persistence"
 run_step "05-android-cross-flow-persistence" just focus-cross-flow-android
 record "lane_5_android_cross_flow_persistence" "$(latest_dir 'mobile-cross-flow-persistence-android-*')"
 
