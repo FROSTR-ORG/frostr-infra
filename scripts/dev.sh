@@ -22,7 +22,7 @@ RELAY_URL="ws://127.0.0.1:${PORT}"
 DEV_PASSPHRASE="devpass"
 KS_DIR="${ROOT_DIR}/dev/fixtures/dev-keyset"
 DEVTOOLS_BIN="${ROOT_DIR}/repos/bifrost-rs/target/debug/bifrost-devtools"
-SHELL_BIN="${ROOT_DIR}/build/igloo-shell-target/debug/igloo-shell"
+SHELL_BIN="${ROOT_DIR}/build/igloo-shell-target/release/igloo-shell"
 PWA_URL="http://localhost:1430"
 AGENT_DIR="${ROOT_DIR}/.tmp/agent"
 DEV_STATUS="${AGENT_DIR}/dev.json"
@@ -32,10 +32,17 @@ if [[ ! -d "${KS_DIR}" ]]; then
   exit 1
 fi
 
-if [[ ! -x "${DEVTOOLS_BIN}" || ! -x "${SHELL_BIN}" ]]; then
-  echo "==> Building native bifrost-devtools + igloo-shell (first run)" >&2
-  bash "${ROOT_DIR}/scripts/test-prebuild.sh" sync shared >&2
-fi
+# Build the native binaries directly. cargo's own freshness check is the
+# change-detector: a near-instant no-op when nothing changed, an incremental
+# rebuild when sources change. The relay does no KDF, so it stays debug; the
+# co-signer runs the Argon2id KDF on import + daemon start, so it must be a
+# release build or bring-up is ~10x slower.
+echo "==> Ensuring native relay (debug) + co-signer (release) are current" >&2
+cargo build --manifest-path "${ROOT_DIR}/repos/bifrost-rs/Cargo.toml" \
+  --offline --locked -p bifrost-devtools --bin bifrost-devtools >&2
+env CARGO_TARGET_DIR="${ROOT_DIR}/build/igloo-shell-target" \
+  cargo build --release --manifest-path "${ROOT_DIR}/repos/igloo-shell/Cargo.toml" \
+  --offline -p igloo-shell-cli --bin igloo-shell >&2
 
 # Ephemeral co-signer home. The daemon binds its control socket at
 # $XDG_RUNTIME_DIR/igloo-shell-<hash>.sock (~30 chars), which must fit the unix
