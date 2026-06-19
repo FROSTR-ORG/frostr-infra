@@ -720,23 +720,20 @@ struct OnboardConnectView: View {
                         .accessibilityIdentifier("btn_paste_package")
                     }
 
-                    TextField("bfonboard10...", text: $packageText, axis: .vertical)
-                        .font(IglooTypography.BodyFont)
-                        .foregroundStyle(IglooColors.Slate200)
-                        .autocapitalization(.none)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                        .lineLimit(4...8)
-                        .padding(IglooSpacing.Sm)
-                        .frame(minHeight: 120, alignment: .topLeading)
-                        .background(IglooColors.Slate900StrongTranslucent)
-                        .cornerRadius(IglooRadii.Md)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: IglooRadii.Md)
-                                .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+                    NativeTextView(
+                        text: $packageText,
+                        placeholder: "bfonboard10...",
+                        minHeight: 120,
+                        accessibilityId: "input_package",
+                        isFocused: Binding(
+                            get: { focusedField == .package },
+                            set: { focusedField = $0 ? .package : nil }
                         )
-                        .accessibilityIdentifier("input_package")
-                        .focused($focusedField, equals: .package)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: IglooRadii.Md)
+                            .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+                    )
                 }
                 .padding(.horizontal, IglooSpacing.Lg)
 
@@ -982,11 +979,13 @@ struct OnboardConnectView: View {
                 .accessibilityIdentifier("btn_connect")
                 .padding(.horizontal, IglooSpacing.Lg)
 
+                #if DEBUG
                 // Debug-gated diagnostic panel (only visible when IGLOO_ONBOARD_DIAGNOSTICS=1)
                 if isOnboardDiagnosticsEnabled {
                     OnboardDiagnosticPanel(manager: manager)
                         .padding(.horizontal, IglooSpacing.Lg)
                 }
+                #endif
             }
             .padding(.vertical, IglooSpacing.Sm)
             .background(IglooColors.Gray950)
@@ -5236,6 +5235,8 @@ struct DiagRow: View {
     }
 }
 
+#endif
+
 // MARK: - NativeTextView
 /// A SwiftUI wrapper around UITextView that properly triggers @State binding
 /// updates when programmatic text input (e.g., Maestro `inputText`) writes into
@@ -5479,8 +5480,6 @@ struct PasswordPasteButtonView: UIViewRepresentable {
         }
     }
 }
-
-#endif
 
 // MARK: - Rotate Share View (VAL-ROTATE-005..011)
 

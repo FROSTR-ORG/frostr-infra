@@ -167,6 +167,27 @@ focus-cross-platform-failure-recovery:
 focus-cross-platform-e2e-1-5:
   scripts/run-cross-platform-e2e-1-5.sh
 
+# Validate visual screenshots, accessibility/layout, migration, release guards,
+# QR fallback, and runtime-error hardening lanes 6-10.
+focus-cross-platform-e2e-6-10:
+  scripts/run-cross-platform-e2e-6-10.sh
+
+# Validate cross-platform visual screenshots and accessibility/layout resilience.
+focus-cross-platform-visual-a11y:
+  scripts/run-cross-platform-visual-a11y-proof.sh
+
+# Validate profile/settings survival across reinstall-without-clear upgrade.
+focus-cross-platform-upgrade-migration:
+  scripts/run-cross-platform-upgrade-migration-proof.sh
+
+# Validate debug diagnostic entry points stay out of release artifacts.
+focus-cross-platform-release-diagnostic-guard:
+  scripts/run-cross-platform-release-diagnostic-guard.sh
+
+# Validate QR display plus no-camera scan fallback onboarding.
+focus-cross-platform-qr-permission-fallback:
+  scripts/run-cross-platform-qr-permission-fallback-proof.sh
+
 # ── Utilities ────────────────────────────────────────────────────────────────
 
 # Rebuild Rust + regenerate bindings for all platforms (no platform build).

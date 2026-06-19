@@ -968,7 +968,7 @@ impl FfiApp {
 
         // Build device state — restore handshake bootstrap state when available,
         // otherwise fall back to a fresh state for legacy/imported material.
-        let device_state = if material.device_state_hex.is_empty() {
+        let mut device_state = if material.device_state_hex.is_empty() {
             DeviceState::new(material.share_idx, share_seckey_bytes)
         } else {
             match decode_device_state_hex(&material.device_state_hex, share_seckey_bytes) {
@@ -976,6 +976,10 @@ impl FfiApp {
                 Err(_) => return false,
             }
         };
+        // Liveness is session evidence, not durable capability. Keep persisted
+        // nonce inventory, but require each fresh signer start to observe peers
+        // again before surfacing Sign Ready.
+        device_state.peer_last_seen.clear();
 
         // Build device config with the stored relay list.
         let device_config = DeviceConfig {

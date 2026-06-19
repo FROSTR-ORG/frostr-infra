@@ -18,26 +18,24 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 COMPOSE_FILE="${ROOT_DIR}/compose.test.yml"
 RELAY_PORT="${DEV_RELAY_PORT:-8194}"
-
-# Project name used by demo.sh
-COMPOSE_PROJECT="$(basename "${ROOT_DIR}")"
+COMPOSE=(docker compose -f "${COMPOSE_FILE}")
 
 stop_relay() {
     echo "[service-control] Stopping dev-relay (port ${RELAY_PORT})..."
-    docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" stop dev-relay 2>/dev/null || true
+    "${COMPOSE[@]}" stop dev-relay 2>/dev/null || true
     echo "[service-control] dev-relay stopped"
 }
 
 start_relay() {
     echo "[service-control] Starting dev-relay (port ${RELAY_PORT})..."
-    docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" start dev-relay 2>/dev/null || true
+    "${COMPOSE[@]}" start dev-relay 2>/dev/null || true
     # Wait for relay to be healthy
     local attempt=0
     while [ "${attempt}" -lt 30 ]; do
-        if docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" exec -T dev-relay \
+        if "${COMPOSE[@]}" exec -T dev-relay \
             bash -lc "exec 3<>/dev/tcp/127.0.0.1/${RELAY_PORT} && exec 3>&-" >/dev/null 2>&1; then
             echo "[service-control] dev-relay is healthy"
             return 0
@@ -51,13 +49,13 @@ start_relay() {
 
 stop_alice() {
     echo "[service-control] Stopping alice co-signer (igloo-demo)..."
-    docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" stop igloo-demo 2>/dev/null || true
+    "${COMPOSE[@]}" stop igloo-demo 2>/dev/null || true
     echo "[service-control] alice co-signer stopped"
 }
 
 start_alice() {
     echo "[service-control] Starting alice co-signer (igloo-demo)..."
-    docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" start igloo-demo 2>/dev/null || true
+    "${COMPOSE[@]}" start igloo-demo 2>/dev/null || true
     # Wait for alice to be healthy (socket and onboard files exist)
     local attempt=0
     local socket_path="${FROSTR_TEST_HARNESS_DIR:-${ROOT_DIR}/.tmp/test-harness}/igloo-shell-alice.sock"
@@ -77,14 +75,14 @@ start_alice() {
 status() {
     echo "[service-control] Demo stack status:"
     echo ""
-    docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" ps 2>/dev/null || \
+    "${COMPOSE[@]}" ps 2>/dev/null || \
     echo "  (no running containers)"
     echo ""
 }
 
 logs() {
     echo "[service-control] Demo stack logs:"
-    docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" logs --tail=50 -f 2>/dev/null || \
+    "${COMPOSE[@]}" logs --tail=50 -f 2>/dev/null || \
     echo "  (no running containers)"
 }
 

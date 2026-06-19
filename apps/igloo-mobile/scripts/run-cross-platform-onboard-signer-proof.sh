@@ -24,6 +24,11 @@ UDID="${UDID:-4EB37CCF-B55C-4DD4-A4EE-F3AA623BA5C0}"
 SERIAL="${ANDROID_SERIAL:-emulator-5554}"
 APP_BUNDLE="${APP_BUNDLE:-$HOME/Library/Developer/Xcode/DerivedData/IglooMobile-faosiupznygiukgrbhnfhsccmhkg/Build/Products/Debug-iphonesimulator/IglooMobile.app}"
 APK="$APPS/android/app/build/outputs/apk/debug/app-debug.apk"
+HOST_RELAY_IP="${HOST_RELAY_IP:-$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)}"
+SHARED_RELAY_URL="${SHARED_RELAY_URL:-ws://${HOST_RELAY_IP:-127.0.0.1}:8194}"
+CROSS_KEYSET_THRESHOLD="${CROSS_KEYSET_THRESHOLD:-2}"
+CROSS_KEYSET_COUNT="${CROSS_KEYSET_COUNT:-2}"
+CROSS_SHARE_IDX="${CROSS_SHARE_IDX:-2}"
 
 EVIDENCE_ROOT="${EVIDENCE_ROOT:-$APPS/library/evidence/mobile-cross-platform-onboard-signer-$(date +%Y-%m-%d-%H%M%S)}"
 mkdir -p "$EVIDENCE_ROOT"
@@ -35,6 +40,17 @@ require_preflight() {
   command -v zbarimg >/dev/null || { echo "[cross-onboard-signer] missing zbarimg; brew install zbar" >&2; exit 1; }
   python3 -c "import socket; s=socket.create_connection(('127.0.0.1',8194),2); s.close()" \
     || { echo "[cross-onboard-signer] relay 127.0.0.1:8194 unreachable" >&2; exit 1; }
+  python3 - "$SHARED_RELAY_URL" <<'PY' \
+    || { echo "[cross-onboard-signer] shared relay ${SHARED_RELAY_URL} unreachable" >&2; exit 1; }
+import socket
+import sys
+from urllib.parse import urlparse
+url = urlparse(sys.argv[1])
+host = url.hostname or "127.0.0.1"
+port = url.port or 80
+s = socket.create_connection((host, port), 2)
+s.close()
+PY
   adb -s "$SERIAL" get-state >/dev/null 2>&1 \
     || { echo "[cross-onboard-signer] Android device $SERIAL not ready" >&2; exit 1; }
   xcrun simctl list devices booted | grep -q "$UDID" \
@@ -89,6 +105,43 @@ open(dst, "w", encoding="utf-8").write(data)
 PY
 }
 
+close_ios_source_qr_modal() {
+  local dir="$1"
+  local flow="$dir/close-ios-source-qr.yaml"
+  cat > "$flow" <<'EOF'
+appId: com.frostr.igloo.dev
+name: close iOS source QR modal
+---
+- tapOn:
+    point: "90%,18%"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Distribute"
+- assertVisible:
+    text: "Signer Running"
+EOF
+  run_maestro "$UDID" "$flow" "$dir/close-source-qr"
+  ios_snapshot "$dir" "04-source-signer-running"
+}
+
+close_android_source_qr_modal() {
+  local dir="$1"
+  local flow="$dir/close-android-source-qr.yaml"
+  cat > "$flow" <<'EOF'
+appId: com.frostr.igloo.dev
+name: close Android source QR modal
+---
+- pressKey: back
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Distribute"
+- assertVisible:
+    text: "Signer Running"
+EOF
+  run_maestro "$SERIAL" "$flow" "$dir/close-source-qr"
+  android_snapshot "$dir" "04-source-signer-running"
+}
+
 decode_package_from_qr_evidence() {
   local evidence="$1"
   zbarimg --quiet --raw "$evidence/03-qr-modal.png" 2>/dev/null \
@@ -138,12 +191,12 @@ android_recipient_onboard_qr() {
   package="$(decode_package_from_qr_evidence "$source_dir")"
   password="$(password_from_qr_evidence "$source_dir")"
   mkdir -p "$out"
-  write_package_input_summary "$source_dir" "android" "ws://10.0.2.2:8194" "$package" "$out"
+  write_package_input_summary "$source_dir" "android" "$SHARED_RELAY_URL" "$package" "$out"
   install_android_fresh
   run_maestro "$SERIAL" "$APPS/flows/qr-scan-android.yaml" "$out" \
     -e ONBOARD_PACKAGE="$package" \
     -e ONBOARD_PASSWORD="$password" \
-    -e RELAY_URL="ws://10.0.2.2:8194"
+    -e RELAY_URL="$SHARED_RELAY_URL"
   android_snapshot "$out" "after-onboard"
 }
 
@@ -154,14 +207,14 @@ ios_recipient_onboard_qr() {
   package="$(decode_package_from_qr_evidence "$source_dir")"
   password="$(password_from_qr_evidence "$source_dir")"
   mkdir -p "$out"
-  write_package_input_summary "$source_dir" "ios" "ws://127.0.0.1:8194" "$package" "$out"
+  write_package_input_summary "$source_dir" "ios" "$SHARED_RELAY_URL" "$package" "$out"
   printf '%s' "$package" > /tmp/igloo_test_package.txt
   install_ios_fresh
   set +e
   run_maestro "$UDID" "$APPS/flows/qr-scan-ios.yaml" "$out" \
     -e ONBOARD_PACKAGE="$package" \
     -e ONBOARD_PASSWORD="$password" \
-    -e RELAY_URL="ws://127.0.0.1:8194"
+    -e RELAY_URL="$SHARED_RELAY_URL"
   local code=$?
   set -e
   rm -f /tmp/igloo_test_package.txt
@@ -498,7 +551,13 @@ run_ios_to_android() {
   local source_dir="$EVIDENCE_ROOT/ios-source-qr"
   local lane_dir="$EVIDENCE_ROOT/ios-to-android"
   echo "[cross-onboard-signer $(date +%H:%M:%S)] lane: iOS source -> Android recipient"
-  EVIDENCE_DIR="$source_dir" "$APPS/scripts/run-focus-ios-qr-display.sh"
+  RELAY_URL="$SHARED_RELAY_URL" \
+    KEYSET_THRESHOLD="$CROSS_KEYSET_THRESHOLD" \
+    KEYSET_COUNT="$CROSS_KEYSET_COUNT" \
+    SHARE_IDX="$CROSS_SHARE_IDX" \
+    EVIDENCE_DIR="$source_dir" \
+    "$APPS/scripts/run-focus-ios-qr-display.sh"
+  close_ios_source_qr_modal "$source_dir"
   android_recipient_onboard_qr "$source_dir" "$lane_dir"
   android_signer_proof "$lane_dir"
   {
@@ -513,7 +572,13 @@ run_android_to_ios() {
   local source_dir="$EVIDENCE_ROOT/android-source-qr"
   local lane_dir="$EVIDENCE_ROOT/android-to-ios"
   echo "[cross-onboard-signer $(date +%H:%M:%S)] lane: Android source -> iOS recipient"
-  EVIDENCE_DIR="$source_dir" "$APPS/scripts/run-focus-android-qr-display.sh"
+  RELAY_URL="$SHARED_RELAY_URL" \
+    KEYSET_THRESHOLD="$CROSS_KEYSET_THRESHOLD" \
+    KEYSET_COUNT="$CROSS_KEYSET_COUNT" \
+    SHARE_IDX="$CROSS_SHARE_IDX" \
+    EVIDENCE_DIR="$source_dir" \
+    "$APPS/scripts/run-focus-android-qr-display.sh"
+  close_android_source_qr_modal "$source_dir"
   ios_recipient_onboard_qr "$source_dir" "$lane_dir"
   ios_signer_proof "$lane_dir"
   {

@@ -13,6 +13,7 @@ ACTIVITY="$APP_ID/com.frostr.igloo.MainActivity"
 SERIAL="${ANDROID_SERIAL:-emulator-5554}"
 ACTION_CREATE="com.frostr.igloo.DEBUG_TEST_CREATE_KEYSET"
 ACTION_SEED_PASSWORD="com.frostr.igloo.DEBUG_TEST_KEYSET_DISTRIBUTE_PASSWORD"
+ACTION_DISTRIBUTE_SUBMIT="com.frostr.igloo.DEBUG_TEST_KEYSET_DISTRIBUTE_SUBMIT"
 
 [ -f "$APK" ] || { echo "[focus-qr-android] missing $APK; run just android-full first" >&2; exit 1; }
 adb -s "$SERIAL" get-state >/dev/null 2>&1 || { echo "[focus-qr-android] $SERIAL not booted" >&2; exit 1; }
@@ -22,8 +23,10 @@ RUN_TAG="$(date +%H%M%S)"
 GROUP_NAME="QrDisplayAndroid-${RUN_TAG}"
 DEVICE_NAME="QrDisplayAndroid-${RUN_TAG}"
 PASSWORD="qrdisplay${RUN_TAG}"
-SHARE_IDX="2"
-RELAY="ws://10.0.2.2:8194"
+KEYSET_THRESHOLD="${KEYSET_THRESHOLD:-2}"
+KEYSET_COUNT="${KEYSET_COUNT:-3}"
+SHARE_IDX="${SHARE_IDX:-2}"
+RELAY="${RELAY_URL:-ws://10.0.2.2:8194}"
 EVIDENCE_DIR="${EVIDENCE_DIR:-$APPS/library/evidence/mobile-android-qr-display-$(date +%Y-%m-%d-%H%M%S)}"
 mkdir -p "$EVIDENCE_DIR"
 
@@ -92,8 +95,8 @@ adb -s "$SERIAL" shell am start \
   -a "$ACTION_CREATE" \
   -n "$ACTIVITY" \
   --es group_name "$GROUP_NAME" \
-  --ei threshold 2 \
-  --ei count 3 \
+  --ei threshold "$KEYSET_THRESHOLD" \
+  --ei count "$KEYSET_COUNT" \
   --es device_name "$DEVICE_NAME" \
   --es relay "$RELAY" \
   --ez auto_finish false >/dev/null
@@ -110,16 +113,18 @@ adb -s "$SERIAL" shell am start \
   --es password "$PASSWORD" >/dev/null
 sleep 2
 
+echo "[focus-qr-android $(date +%H:%M:%S)] open QR modal via diagnostics submit"
+adb -s "$SERIAL" shell am start \
+  -a "$ACTION_DISTRIBUTE_SUBMIT" \
+  -n "$ACTIVITY" \
+  --ei share_idx "$SHARE_IDX" \
+  --es method qr >/dev/null
+sleep 2
+
 FLOW="$EVIDENCE_DIR/qr-display-android.yaml"
 cat > "$FLOW" <<EOF
 appId: $APP_ID
 ---
-- scrollUntilVisible:
-    element:
-      text: "QR"
-    timeout: 30000
-- tapOn:
-    text: "QR"
 - scrollUntilVisible:
     element:
       id: "qr_payload_text"
@@ -130,7 +135,7 @@ appId: $APP_ID
     id: "qr_image"
 EOF
 
-echo "[focus-qr-android $(date +%H:%M:%S)] open QR modal"
+echo "[focus-qr-android $(date +%H:%M:%S)] verify QR modal"
 maestro --device "$SERIAL" test "$FLOW" --debug-output "$EVIDENCE_DIR/maestro" 2>&1 \
   | tee "$EVIDENCE_DIR/maestro.log"
 snapshot "03-qr-modal"

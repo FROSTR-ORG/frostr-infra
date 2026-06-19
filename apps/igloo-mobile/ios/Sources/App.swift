@@ -9,6 +9,7 @@ struct IglooMobileApp: App {
             ContentView(manager: manager)
                 .onOpenURL { url in
                     #if DEBUG
+                    #if DEBUG
                     if isAutomationDiagnosticsEnabled {
                         OnboardDiagnostics.shared.recordEvent(
                             "open_url: host=\(url.host ?? "nil") path_len=\(url.path.count) query_len=\(url.query?.count ?? 0)"
@@ -298,6 +299,7 @@ struct IglooMobileApp: App {
                     if url.scheme == "igloo" && url.host == "test-keyset-distribute-finish" {
                         manager.testKeysetDistributeFinish()
                     }
+                    #endif
                 }
         }
     }

@@ -10,8 +10,8 @@ packages from one platform consumed by the other.
 
 | Flow | Command | Status | Notes |
 | --- | --- | --- | --- |
-| iOS QR package -> Android QR fallback onboard -> Android Test Sign/ECDH | `just focus-cross-platform-onboard-signer` | PASS | Evidence: `library/evidence/mobile-cross-platform-onboard-signer-2026-06-18-150948/ios-to-android` |
-| Android QR package -> iOS QR fallback onboard -> iOS Test Sign/ECDH | `just focus-cross-platform-onboard-signer` | PASS | Evidence: `library/evidence/mobile-cross-platform-onboard-signer-2026-06-18-150948/android-to-ios` |
+| iOS QR package -> Android QR fallback onboard -> Android Test Sign/ECDH | `just focus-cross-platform-onboard-signer` | GAP | Historical pass: `library/evidence/mobile-cross-platform-onboard-signer-2026-06-18-150948/ios-to-android`. Current revalidation fails after Android reaches `Sign Ready`: Test Sign times out. Evidence: `library/evidence/mobile-cross-platform-onboard-signer-2026-06-19-093331/ios-to-android/signer-proof/sign`. |
+| Android QR package -> iOS QR fallback onboard -> iOS Test Sign/ECDH | `just focus-cross-platform-onboard-signer` | PARTIAL | iOS QR fallback onboard now passes after direct password entry. Evidence: `library/evidence/mobile-cross-platform-onboard-signer-2026-06-19-083744/android-to-ios-rerun-password-entry`. Full iOS Test Sign/ECDH still needs rerun after the Android recipient timeout is resolved. |
 | iOS QR package -> Android manual Connect onboard | `just focus-cross-platform-manual-onboard` | PASS | Evidence: `library/evidence/mobile-cross-platform-manual-onboard-2026-06-18-152952/ios-to-android-manual` |
 | Android QR package -> iOS manual Connect onboard | `just focus-cross-platform-manual-onboard` | PASS | Evidence: `library/evidence/mobile-cross-platform-manual-onboard-2026-06-18-205112/android-to-ios-manual` |
 | Cross-platform E2E lanes 1-5 umbrella | `just focus-cross-platform-e2e-1-5` | PASS | Evidence: `library/evidence/mobile-cross-platform-e2e-1-5-2026-06-19-031231`; lanes 1-5 passed with native rotate-share packages and native-created persistence profiles. |
@@ -40,8 +40,18 @@ packages from one platform consumed by the other.
 | --- | --- | --- | --- |
 | Android rotate-share replacement | `just focus-android-rotate-share` | PASS | Evidence: `library/evidence/mobile-android-rotate-share-2026-06-19-031922`; replacement package is generated natively from Create Keyset distribution. |
 | iOS rotate-share replacement | `just focus-ios-rotate-share` | PASS | Evidence: `library/evidence/mobile-ios-rotate-share-2026-06-19-031649`; replacement package is generated natively from Create Keyset distribution. |
-| Android runtime error resilience | `maestro --device emulator-5554 test flows/runtime-errors-android.yaml` | Existing flow | Run when navigation, error cards, or recovery UX changes. |
-| iOS runtime error resilience | `maestro --device <UDID> test flows/runtime-errors-ios.yaml` | Existing flow | Run when navigation, error cards, or recovery UX changes. |
+| Android runtime error resilience | `maestro --device emulator-5554 test flows/runtime-errors-android.yaml` | Flow repaired, blocked by profile seed | Flow syntax was updated for Maestro 2.6.0 (`takeScreenshot`, valid document shape, wrapper scripts). Runtime execution now reaches app UI; deeper phases require deterministic `carol` profile seeding. |
+| iOS runtime error resilience | `maestro --device <UDID> test flows/runtime-errors-ios.yaml` | Flow repaired, blocked by profile seed | Flow syntax was updated for Maestro 2.6.0 (`takeScreenshot`, valid document shape, wrapper scripts). Runtime execution proves rapid navigation stability, then requires deterministic `bob` profile seeding. Evidence: `library/evidence/mobile-cross-platform-runtime-errors-2026-06-19-083552`. |
+
+## P2 Polish Hardening
+
+| Flow | Command | Status | Notes |
+| --- | --- | --- | --- |
+| Cross-platform visual screenshot + accessibility/layout proof | `just focus-cross-platform-visual-a11y` | PASS | Evidence: `library/evidence/mobile-cross-platform-visual-a11y-2026-06-19-073219`; captures hub, entry, dashboard, and settings on both shells with iOS `accessibility-large` content size and Android `font_scale=1.3`. |
+| Cross-platform reinstall/upgrade migration | `just focus-cross-platform-upgrade-migration` | PASS | Evidence: `library/evidence/mobile-cross-platform-upgrade-migration-2026-06-19-073842`; creates persisted profiles/settings, reinstalls the same latest bundle/APK without clearing app state, and verifies device/settings survival on both shells. |
+| Release diagnostic guard | `just focus-cross-platform-release-diagnostic-guard` | PASS | Evidence: `library/evidence/mobile-cross-platform-release-diagnostic-guard-2026-06-19-074206`; builds Android/iOS release artifacts and verifies debug package IDs, debug intent filters, and iOS diagnostic URL strings do not leak into release surfaces. |
+| QR display + no-camera scan fallback handoff | `just focus-cross-platform-qr-permission-fallback` | PASS | Evidence: `library/evidence/mobile-cross-platform-qr-permission-fallback-2026-06-19-082741`; runs QR display decode on both shells, then verifies no-camera scan fallback controls hand a pasted `bfonboard1` payload back to the Connect form on iOS and Android. |
+| Cross-platform E2E hardening lanes 6-10 umbrella | `just focus-cross-platform-e2e-6-10` | BLOCKED | Blocked by runtime-error profile seeding and the current live signer timeout tracked in P0. Individual lanes 6-9 pass. |
 
 ## Follow-Ups
 
@@ -50,3 +60,12 @@ packages from one platform consumed by the other.
 - Lane 5 persistence now uses diagnostics-created local keysets and focuses on
   storage/settings/two-profile identity. Live signer Test Sign/ECDH remains
   covered by lane 3's bidirectional cross-platform onboard proof.
+- Lanes 6-10 are the UI-polish hardening lanes. Treat their evidence as a
+  regression-review artifact: screenshots are not pixel-golden, but each run
+  captures the surfaces a human should inspect when visual polish changes.
+- Current live signer gap: Android recipient from an iOS-created QR package
+  reaches `Sign Ready`, but Test Sign fails with `operation timed out`.
+  Revalidation tried both platform-local relay URLs and shared host relay
+  `ws://192.168.1.179:8194`; source iOS logs show `startSigner` returning true.
+  Next step is instrumenting the source/recipient runtime event path to explain
+  why the request does not complete.
