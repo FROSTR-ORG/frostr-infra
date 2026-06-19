@@ -15,8 +15,8 @@ ACTION_LOAD="com.frostr.igloo.DEBUG_TEST_LOAD_PROFILE"
 ACTION_CONFIRM="com.frostr.igloo.DEBUG_TEST_LOAD_PROFILE_CONFIRM"
 EXPORT_PASSWORD="validator-export-pwd"
 
-EXPORT_DIR="$(ls -td "$APPS"/library/evidence/mobile-export-artifact-validation-android-* 2>/dev/null | head -1 || true)"
-[ -n "$EXPORT_DIR" ] || { echo "[focus-load-android] no Android export evidence found; run just focus-android-export first" >&2; exit 1; }
+EXPORT_DIR="${EXPORT_DIR:-$(ls -td "$APPS"/library/evidence/mobile-export-artifact-validation-android-* 2>/dev/null | head -1 || true)}"
+[ -n "$EXPORT_DIR" ] || { echo "[focus-load-android] no export evidence found; run just focus-android-export first or pass EXPORT_DIR" >&2; exit 1; }
 [ -f "$EXPORT_DIR/clipboard-profile.txt" ] || { echo "[focus-load-android] missing clipboard-profile.txt in $EXPORT_DIR" >&2; exit 1; }
 [ -f "$EXPORT_DIR/clipboard-share.txt" ] || { echo "[focus-load-android] missing clipboard-share.txt in $EXPORT_DIR" >&2; exit 1; }
 [ -f "$APK" ] || { echo "[focus-load-android] missing $APK; run just android-full first" >&2; exit 1; }

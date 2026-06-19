@@ -1162,6 +1162,10 @@ final class AppManager: AppReconciler {
         #if DEBUG
         guard isOnboardDiagnosticsEnabled else { return }
 
+        if state.router.screen != .onboardConnect {
+            dispatch(.navigateOnboardConnect)
+        }
+
         // DEBUG + diagnostics-gated bootstrap: stash the device_name hint so the
         // OnboardReviewView (which is rendered after the handshake completes)
         // can prefill the TextField from sandboxed test data, without depending

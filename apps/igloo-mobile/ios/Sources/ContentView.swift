@@ -916,10 +916,12 @@ struct OnboardConnectView: View {
                     // focused gate can land in OnboardReview without depending on
                     // Maestro's inputText/SecureField timing on iOS Simulator. Real
                     // users never have this file and the path is no-op for them.
-                    if effectivePassword.isEmpty,
+                    let shouldUseDebugCreds = effectivePassword.isEmpty || manager.state.onboarding.error != nil
+                    if shouldUseDebugCreds,
                        let injected = loadDebugInjectCredsIfPresent() {
                         effectivePassword = injected.password
-                        if effectivePackage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        if manager.state.onboarding.error != nil ||
+                           effectivePackage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             effectivePackage = injected.package
                         }
                     }

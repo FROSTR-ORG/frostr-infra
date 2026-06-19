@@ -21,8 +21,8 @@ if [ -z "${UDID:-}" ]; then
   exit 1
 fi
 
-EXPORT_DIR="$(ls -td "$APPS"/library/evidence/mobile-export-artifact-validation-ios-* 2>/dev/null | head -1 || true)"
-[ -n "$EXPORT_DIR" ] || { echo "[focus-load-ios] no iOS export evidence found; run just focus-ios-export first" >&2; exit 1; }
+EXPORT_DIR="${EXPORT_DIR:-$(ls -td "$APPS"/library/evidence/mobile-export-artifact-validation-ios-* 2>/dev/null | head -1 || true)}"
+[ -n "$EXPORT_DIR" ] || { echo "[focus-load-ios] no export evidence found; run just focus-ios-export first or pass EXPORT_DIR" >&2; exit 1; }
 [ -f "$EXPORT_DIR/clipboard-profile.txt" ] || { echo "[focus-load-ios] missing clipboard-profile.txt in $EXPORT_DIR" >&2; exit 1; }
 [ -f "$EXPORT_DIR/clipboard-share.txt" ] || { echo "[focus-load-ios] missing clipboard-share.txt in $EXPORT_DIR" >&2; exit 1; }
 [ -d "$APP_BUNDLE" ] || { echo "[focus-load-ios] missing $APP_BUNDLE; run just ios-build first" >&2; exit 1; }

@@ -159,6 +159,14 @@ focus-cross-platform-onboard-signer:
 focus-cross-platform-manual-onboard:
   scripts/run-cross-platform-manual-onboard-proof.sh
 
+# Validate wrong-password failure followed by valid retry recovery on both shells.
+focus-cross-platform-failure-recovery:
+  scripts/run-cross-platform-failure-recovery-proof.sh
+
+# Validate cross-platform E2E lanes 1-5.
+focus-cross-platform-e2e-1-5:
+  scripts/run-cross-platform-e2e-1-5.sh
+
 # ── Utilities ────────────────────────────────────────────────────────────────
 
 # Rebuild Rust + regenerate bindings for all platforms (no platform build).
