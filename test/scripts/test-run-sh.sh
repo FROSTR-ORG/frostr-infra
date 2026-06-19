@@ -349,7 +349,6 @@ TRACE_FILE="${TRACE_FILE}" \
   "${ROOT_DIR}/scripts/test-prebuild.sh" sync pwa-runtime >/dev/null
 assert_trace_contains "args=--prefix ${ROOT_DIR}/repos/igloo-shared run build:browser-wasm"
 assert_trace_contains "args=--prefix ${ROOT_DIR}/repos/igloo-pwa run build:browser-wasm"
-assert_trace_contains "args=--prefix ${ROOT_DIR}/repos/igloo-ui run build"
 assert_trace_not_contains "args=--prefix ${ROOT_DIR}/repos/igloo-chrome run build:browser-wasm"
 assert_trace_not_contains "args=--prefix ${ROOT_DIR}/repos/igloo-pwa run build:app"
 test -f "${PWA_RUNTIME_PREBUILD_DIR}/stamps/pwa-runtime.state"
@@ -366,7 +365,6 @@ TRACE_FILE="${TRACE_FILE}" \
   "${ROOT_DIR}/scripts/test-prebuild.sh" sync chrome-runtime >/dev/null
 assert_trace_contains "args=--prefix ${ROOT_DIR}/repos/igloo-shared run build:browser-wasm"
 assert_trace_contains "args=--prefix ${ROOT_DIR}/repos/igloo-chrome run build:browser-wasm"
-assert_trace_contains "args=--prefix ${ROOT_DIR}/repos/igloo-ui run build"
 assert_trace_not_contains "args=--prefix ${ROOT_DIR}/repos/igloo-pwa run build:browser-wasm"
 assert_trace_not_contains "args=--prefix ${ROOT_DIR}/repos/igloo-chrome run build:app"
 test -f "${CHROME_RUNTIME_PREBUILD_DIR}/stamps/chrome-runtime.state"

@@ -299,7 +299,6 @@ collect_input_paths() {
     entries_ref+=(
       "${ROOT_DIR}/repos/igloo-ui/package.json"
       "${ROOT_DIR}/repos/igloo-ui/package-lock.json"
-      "${ROOT_DIR}/repos/igloo-ui/scripts/build.mjs"
       "${ROOT_DIR}/repos/igloo-ui/tailwind.config.js"
       "${ROOT_DIR}/repos/igloo-ui/tsconfig.json"
       "${ROOT_DIR}/repos/igloo-ui/src"
@@ -406,10 +405,6 @@ render_output_state() {
     fi
   fi
 
-  if selected_has ui; then
-    append_dir_state "${ROOT_DIR}/repos/igloo-ui/dist"
-  fi
-
   if selected_has pwa; then
     append_dir_state "${ROOT_DIR}/repos/igloo-pwa/dist"
   fi
@@ -504,10 +499,6 @@ fi
 
 if selected_has browser-wasm || selected_has shared; then
   run_step "Prepare browser wasm artifacts" env FROSTR_BROWSER_WASM_PREPARE_DIR="${BROWSER_WASM_PREBUILD_DIR}" "${ROOT_DIR}/scripts/prepare-browser-wasm.sh" prepare "$(browser_wasm_scope)"
-fi
-
-if selected_has ui; then
-  run_step "Build igloo-ui shared assets" npm --prefix "${ROOT_DIR}/repos/igloo-ui" run build
 fi
 
 if selected_has pwa; then

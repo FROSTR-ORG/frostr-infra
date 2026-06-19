@@ -151,7 +151,8 @@ poll for state instead of scraping logs.
   / `?__igloo_visual=` dev-scenario seam) that storage-only seeding can't reach.
 - **Live dev loop:** `make dev` — native relay + co-signer + vite in seconds;
   prints `READY <url>` and writes `.tmp/agent/dev.json` when up (Ctrl-C tears
-  down). Pair with `make igloo-ui-watch` for CSS hot-reload.
+  down). CSS hot-reloads directly from `igloo-ui` source (consumed source-only
+  via a Tailwind preset), so no separate watch target is needed.
 - **Bump submodule pointers:** commit inside each submodule first, then
   `make bump-pointers` records every moved pointer in one parent commit
   (`MSG="…"`, `PUSH=1`, `DRY_RUN=1`).

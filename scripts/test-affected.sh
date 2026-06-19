@@ -170,10 +170,8 @@ fi
 if [[ "${run_ui}" -eq 1 ]]; then
   if [[ "${DRY_RUN}" == "1" ]]; then
     print_command "npm --prefix ${ROOT_DIR}/repos/igloo-ui test"
-    print_command "npm --prefix ${ROOT_DIR}/repos/igloo-ui run build"
   else
     npm --prefix "${ROOT_DIR}/repos/igloo-ui" test
-    npm --prefix "${ROOT_DIR}/repos/igloo-ui" run build
   fi
 fi
 
