@@ -18,6 +18,15 @@ struct IglooPressButtonStyle: ButtonStyle {
 }
 
 extension View {
+    @ViewBuilder
+    func iglooAccessibilityIdentifier(_ identifier: String?) -> some View {
+        if let identifier {
+            self.accessibilityIdentifier(identifier)
+        } else {
+            self
+        }
+    }
+
     func iglooPanel(
         radius: CGFloat = IglooRadii.Lg,
         fill: Color = IglooColors.Slate900StrongTranslucent,
@@ -72,6 +81,7 @@ struct IglooControlButton: View {
     let systemName: String
     let enabled: Bool
     let accessibilityId: String
+    var iconAccessibilityId: String? = nil
     let action: () -> Void
 
     var body: some View {
@@ -79,6 +89,7 @@ struct IglooControlButton: View {
             HStack(spacing: IglooSpacing.Xs) {
                 Image(systemName: systemName)
                     .font(.system(size: 15, weight: .semibold))
+                    .iglooAccessibilityIdentifier(iconAccessibilityId)
                 Text(title)
                     .font(IglooTypography.BodyFont)
                     .lineLimit(1)
@@ -1287,6 +1298,8 @@ struct KeyDisplayRow: View {
     let label: String
     let value: String
     let accessibilityId: String
+    var leadingSystemName: String? = nil
+    var leadingAccessibilityId: String? = nil
 
     @State private var copied: Bool = false
 
@@ -1297,7 +1310,17 @@ struct KeyDisplayRow: View {
                 .foregroundStyle(IglooColors.Slate400)
                 .lineLimit(1)
 
-            HStack {
+            HStack(spacing: IglooSpacing.Md) {
+                if let leadingSystemName {
+                    IglooIconTile(
+                        systemName: leadingSystemName,
+                        tint: IglooColors.Blue400,
+                        fill: IglooColors.Blue900.opacity(0.18),
+                        stroke: IglooColors.Blue900FocusBorder.opacity(0.42)
+                    )
+                    .iglooAccessibilityIdentifier(leadingAccessibilityId)
+                }
+
                 Text(value)
                     .font(IglooTypography.ValueDataFont)
                     .foregroundStyle(IglooColors.Slate200)
@@ -1844,6 +1867,128 @@ struct StepProgressStrip: View {
     }
 }
 
+struct CreateKeysetChoiceButton: View {
+    let title: String
+    let subtitle: String
+    let systemName: String
+    let iconAccessibilityId: String
+    let accessibilityId: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: IglooSpacing.Md) {
+                IglooIconTile(
+                    systemName: systemName,
+                    tint: IglooColors.Blue400,
+                    fill: IglooColors.Blue900.opacity(0.18),
+                    stroke: IglooColors.Blue900FocusBorder.opacity(0.42)
+                )
+                .accessibilityIdentifier(iconAccessibilityId)
+
+                VStack(alignment: .leading, spacing: IglooSpacing.Xs) {
+                    Text(title)
+                        .font(IglooTypography.H3Font)
+                        .foregroundStyle(IglooColors.Slate200)
+                    Text(subtitle)
+                        .font(IglooTypography.BodyFont)
+                        .foregroundStyle(IglooColors.Slate400)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                IglooChevron()
+            }
+            .padding(IglooSpacing.Md)
+            .frame(maxWidth: .infinity, minHeight: 92)
+            .iglooPanel(radius: IglooRadii.Lg)
+            .contentShape(RoundedRectangle(cornerRadius: IglooRadii.Lg, style: .continuous))
+        }
+        .accessibilityIdentifier(accessibilityId)
+        .buttonStyle(IglooPressButtonStyle())
+    }
+}
+
+struct CreateKeysetModeButton: View {
+    let title: String
+    let systemName: String
+    let selected: Bool
+    let accessibilityId: String
+    let iconAccessibilityId: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: IglooSpacing.Xs) {
+                Image(systemName: systemName)
+                    .font(.system(size: 15, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(selected ? IglooColors.Gray950 : IglooColors.Blue400)
+                    .frame(width: 20, height: 20)
+                    .accessibilityIdentifier(iconAccessibilityId)
+
+                Text(title)
+                    .font(IglooTypography.BodyFont)
+                    .foregroundStyle(selected ? IglooColors.Gray950 : IglooColors.Slate200)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.86)
+            }
+            .frame(minHeight: 44)
+            .padding(.horizontal, IglooSpacing.Md)
+            .background(selected ? IglooColors.Blue400 : IglooColors.Slate900StrongTranslucent)
+            .cornerRadius(IglooRadii.Sm)
+            .overlay(
+                RoundedRectangle(cornerRadius: IglooRadii.Sm)
+                    .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: IglooRadii.Sm, style: .continuous))
+        }
+        .accessibilityIdentifier(accessibilityId)
+        .buttonStyle(IglooPressButtonStyle())
+    }
+}
+
+struct CreateKeysetReviewSummaryRow: View {
+    let label: String
+    let value: String
+    let systemName: String
+    let iconAccessibilityId: String
+    let accessibilityId: String
+    var monospace: Bool = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: IglooSpacing.Md) {
+            IglooIconTile(
+                systemName: systemName,
+                tint: IglooColors.Blue400,
+                fill: IglooColors.Blue900.opacity(0.18),
+                stroke: IglooColors.Blue900FocusBorder.opacity(0.42)
+            )
+            .accessibilityIdentifier(iconAccessibilityId)
+
+            VStack(alignment: .leading, spacing: IglooSpacing.Xs) {
+                Text(label)
+                    .font(IglooTypography.BodyFont)
+                    .foregroundStyle(IglooColors.Slate400)
+                Text(value)
+                    .font(monospace ? IglooTypography.MonoLabelFont : IglooTypography.H3Font)
+                    .foregroundStyle(IglooColors.Slate200)
+                    .lineLimit(monospace ? 3 : 2)
+                    .minimumScaleFactor(0.82)
+                    .accessibilityIdentifier(accessibilityId)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(IglooSpacing.Md)
+        .iglooPanel(
+            radius: IglooRadii.Md,
+            fill: IglooColors.Slate900StrongTranslucent,
+            stroke: IglooColors.Blue900PanelBorder,
+            shadowOpacity: 0.08
+        )
+    }
+}
+
 struct CreateKeysetEntryView: View {
     @Bindable var manager: AppManager
 
@@ -1855,45 +2000,25 @@ struct CreateKeysetEntryView: View {
                 onBack: { manager.navigateBack() }
             )
             VStack(spacing: IglooSpacing.Md) {
-                Button {
+                CreateKeysetChoiceButton(
+                    title: "Create New Keyset",
+                    subtitle: "Generate a fresh group + threshold keyset from a new signing key.",
+                    systemName: "plus.circle.fill",
+                    iconAccessibilityId: "create_keyset_create_icon",
+                    accessibilityId: "btn_create_new_keyset"
+                ) {
                     manager.dispatch(.createKeysetSelectCreate)
-                } label: {
-                    VStack(alignment: .leading, spacing: IglooSpacing.Xs) {
-                        Text("Create New Keyset")
-                            .font(IglooTypography.H3Font)
-                            .foregroundStyle(IglooColors.Slate200)
-                        Text("Generate a fresh group + threshold keyset from a new signing key.")
-                            .font(IglooTypography.BodyFont)
-                            .foregroundStyle(IglooColors.Slate400)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(IglooSpacing.Lg)
-                    .background(IglooColors.Slate900StrongTranslucent)
-                    .cornerRadius(IglooRadii.Lg)
-                    .overlay(RoundedRectangle(cornerRadius: IglooRadii.Lg)
-                              .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1))
                 }
-                .accessibilityIdentifier("btn_create_new_keyset")
 
-                Button {
+                CreateKeysetChoiceButton(
+                    title: "Rotate Existing Keyset",
+                    subtitle: "Re-split the signing key behind a stored profile. Group public key is preserved.",
+                    systemName: "arrow.triangle.2.circlepath.circle.fill",
+                    iconAccessibilityId: "create_keyset_rotate_icon",
+                    accessibilityId: "btn_rotate_keyset"
+                ) {
                     manager.dispatch(.createKeysetSelectRotate)
-                } label: {
-                    VStack(alignment: .leading, spacing: IglooSpacing.Xs) {
-                        Text("Rotate Existing Keyset")
-                            .font(IglooTypography.H3Font)
-                            .foregroundStyle(IglooColors.Slate200)
-                        Text("Re-split the signing key behind a stored profile. Group public key is preserved.")
-                            .font(IglooTypography.BodyFont)
-                            .foregroundStyle(IglooColors.Slate400)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(IglooSpacing.Lg)
-                    .background(IglooColors.Slate900StrongTranslucent)
-                    .cornerRadius(IglooRadii.Lg)
-                    .overlay(RoundedRectangle(cornerRadius: IglooRadii.Lg)
-                              .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1))
                 }
-                .accessibilityIdentifier("btn_rotate_keyset")
             }
             .padding(.horizontal, IglooSpacing.Lg)
             Spacer()
@@ -1938,38 +2063,25 @@ struct CreateKeysetGenerateView: View {
                         .font(IglooTypography.BodyFont)
                         .foregroundStyle(IglooColors.Slate400)
                     HStack(spacing: IglooSpacing.Md) {
-                        Button {
+                        CreateKeysetModeButton(
+                            title: "New keyset",
+                            systemName: "plus.circle.fill",
+                            selected: manager.state.keyset.mode == .create,
+                            accessibilityId: "btn_mode_create",
+                            iconAccessibilityId: "create_mode_create_icon"
+                        ) {
                             manager.dispatch(.createKeysetUpdateMode(mode: "create"))
-                        } label: {
-                            Text("New keyset")
-                                .font(IglooTypography.BodyFont)
-                                .foregroundStyle(manager.state.keyset.mode == .create
-                                                  ? IglooColors.Gray950 : IglooColors.Slate200)
-                                .padding(.horizontal, IglooSpacing.Md)
-                                .padding(.vertical, IglooSpacing.Sm)
-                                .background(manager.state.keyset.mode == .create
-                                            ? IglooColors.Blue400 : IglooColors.Slate900StrongTranslucent)
-                                .cornerRadius(IglooRadii.Sm)
-                                .overlay(RoundedRectangle(cornerRadius: IglooRadii.Sm)
-                                          .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1))
                         }
-                        .accessibilityIdentifier("btn_mode_create")
-                        Button {
+
+                        CreateKeysetModeButton(
+                            title: "Rotate",
+                            systemName: "arrow.triangle.2.circlepath",
+                            selected: manager.state.keyset.mode == .rotate,
+                            accessibilityId: "btn_mode_rotate",
+                            iconAccessibilityId: "create_mode_rotate_icon"
+                        ) {
                             manager.dispatch(.createKeysetUpdateMode(mode: "rotate"))
-                        } label: {
-                            Text("Rotate")
-                                .font(IglooTypography.BodyFont)
-                                .foregroundStyle(manager.state.keyset.mode == .rotate
-                                                  ? IglooColors.Gray950 : IglooColors.Slate200)
-                                .padding(.horizontal, IglooSpacing.Md)
-                                .padding(.vertical, IglooSpacing.Sm)
-                                .background(manager.state.keyset.mode == .rotate
-                                            ? IglooColors.Blue400 : IglooColors.Slate900StrongTranslucent)
-                                .cornerRadius(IglooRadii.Sm)
-                                .overlay(RoundedRectangle(cornerRadius: IglooRadii.Sm)
-                                          .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1))
                         }
-                        .accessibilityIdentifier("btn_mode_rotate")
                     }
                 }
                 .padding(.horizontal, IglooSpacing.Lg)
@@ -2325,44 +2437,41 @@ struct CreateKeysetReviewView: View {
                     .accessibilityIdentifier("step_indicator")
 
                 if let local = localShare, let bundle = bundle {
-                    VStack(alignment: .leading, spacing: IglooSpacing.Md) {
-                        Text("Profile Name")
-                            .font(IglooTypography.BodyFont)
-                            .foregroundStyle(IglooColors.Slate400)
-                        Text(manager.state.keyset.deviceName)
-                            .font(IglooTypography.H3Font)
-                            .foregroundStyle(IglooColors.Slate200)
-                            .accessibilityIdentifier("display_device_name")
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    CreateKeysetReviewSummaryRow(
+                        label: "Profile Name",
+                        value: manager.state.keyset.deviceName,
+                        systemName: "person.crop.circle.fill",
+                        iconAccessibilityId: "create_review_profile_icon",
+                        accessibilityId: "display_device_name"
+                    )
                     .padding(.horizontal, IglooSpacing.Lg)
 
                     KeyDisplayRow(
                         label: "Device Share Public Key",
                         value: local.sharePubkey,
-                        accessibilityId: "display_share_pubkey"
+                        accessibilityId: "display_share_pubkey",
+                        leadingSystemName: "key.fill",
+                        leadingAccessibilityId: "create_review_share_key_icon"
                     )
                     .padding(.horizontal, IglooSpacing.Lg)
 
                     KeyDisplayRow(
                         label: "Group Public Key",
                         value: bundle.groupPubkey,
-                        accessibilityId: "display_group_pubkey"
+                        accessibilityId: "display_group_pubkey",
+                        leadingSystemName: "person.3.fill",
+                        leadingAccessibilityId: "create_review_group_key_icon"
                     )
                     .padding(.horizontal, IglooSpacing.Lg)
 
-                    VStack(alignment: .leading, spacing: IglooSpacing.Xs) {
-                        Text("Relays")
-                            .font(IglooTypography.BodyFont)
-                            .foregroundStyle(IglooColors.Slate400)
-                        ForEach(manager.state.keyset.relays, id: \.self) { relay in
-                            Text(relay)
-                                .font(IglooTypography.MonoLabelFont)
-                                .foregroundStyle(IglooColors.Slate200)
-                                .padding(.vertical, IglooSpacing.Xs)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    CreateKeysetReviewSummaryRow(
+                        label: "Relays",
+                        value: manager.state.keyset.relays.joined(separator: "\n"),
+                        systemName: "link.circle.fill",
+                        iconAccessibilityId: "create_review_relays_icon",
+                        accessibilityId: "display_relays",
+                        monospace: true
+                    )
                     .padding(.horizontal, IglooSpacing.Lg)
                 } else {
                     Text("Review state unavailable.")
@@ -2571,39 +2680,35 @@ struct DistributeShareCard: View {
             .accessibilityIdentifier("distribute_confirm_\(row.shareIdx)")
 
             HStack(spacing: IglooSpacing.Md) {
-                Button {
+                IglooControlButton(
+                    title: "Copy",
+                    systemName: "doc.on.doc",
+                    enabled: canEmit,
+                    accessibilityId: "distribute_copy_\(row.shareIdx)",
+                    iconAccessibilityId: "distribute_copy_icon_\(row.shareIdx)"
+                ) {
                     manager.dispatch(.createKeysetDistributeSubmit(shareIdx: row.shareIdx, method: "copy"))
-                } label: {
-                    Label("Copy", systemImage: "doc.on.doc")
-                        .font(IglooTypography.BodyFont)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(canEmit ? IglooColors.Blue400 : IglooColors.Slate500)
-                .disabled(!canEmit)
-                .accessibilityIdentifier("distribute_copy_\(row.shareIdx)")
 
-                Button {
+                IglooControlButton(
+                    title: "QR",
+                    systemName: "qrcode",
+                    enabled: canEmit,
+                    accessibilityId: "distribute_qr_\(row.shareIdx)",
+                    iconAccessibilityId: "distribute_qr_icon_\(row.shareIdx)"
+                ) {
                     manager.dispatch(.createKeysetDistributeSubmit(shareIdx: row.shareIdx, method: "qr"))
-                } label: {
-                    Label("QR", systemImage: "qrcode")
-                        .font(IglooTypography.BodyFont)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(canEmit ? IglooColors.Blue400 : IglooColors.Slate500)
-                .disabled(!canEmit)
-                .accessibilityIdentifier("distribute_qr_\(row.shareIdx)")
 
-                Button {
+                IglooControlButton(
+                    title: "Save",
+                    systemName: "square.and.arrow.down",
+                    enabled: canEmit,
+                    accessibilityId: "distribute_save_\(row.shareIdx)",
+                    iconAccessibilityId: "distribute_save_icon_\(row.shareIdx)"
+                ) {
                     manager.dispatch(.createKeysetDistributeSubmit(shareIdx: row.shareIdx, method: "save"))
-                } label: {
-                    Label("Save", systemImage: "square.and.arrow.down")
-                        .font(IglooTypography.BodyFont)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(canEmit ? IglooColors.Blue400 : IglooColors.Slate500)
-                .disabled(!canEmit)
-                .accessibilityIdentifier("distribute_save_\(row.shareIdx)")
-                Spacer()
             }
         }
         .padding(IglooSpacing.Md)

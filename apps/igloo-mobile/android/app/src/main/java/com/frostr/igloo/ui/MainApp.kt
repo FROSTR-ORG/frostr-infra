@@ -159,12 +159,14 @@ private fun Modifier.iglooPressScale(interactionSource: MutableInteractionSource
     return this.scale(pressScale)
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun IglooIconTile(
     icon: String,
     tint: Color = IglooColors.Blue400,
     fill: Color = IglooColors.Blue900.copy(alpha = 0.26f),
-    stroke: Color = IglooColors.Blue900FocusBorder.copy(alpha = 0.7f)
+    stroke: Color = IglooColors.Blue900FocusBorder.copy(alpha = 0.7f),
+    accessibilityId: String? = null
 ) {
     Box(
         modifier = Modifier
@@ -173,7 +175,13 @@ fun IglooIconTile(
                 radius = 10f,
                 fill = fill,
                 stroke = stroke
-            ),
+            )
+            .semantics {
+                if (accessibilityId != null) {
+                    testTagsAsResourceId = true
+                    testTag = accessibilityId
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         IglooSymbol(icon = icon, tint = tint, modifier = Modifier.size(25.dp))
@@ -307,7 +315,8 @@ fun IglooControlButton(
     enabled: Boolean,
     accessibilityId: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    iconAccessibilityId: String? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     Box(
@@ -345,7 +354,18 @@ fun IglooControlButton(
             horizontalArrangement = Arrangement.spacedBy(IglooSpacing.xs.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IglooSymbol(icon = icon, tint = if (enabled) IglooColors.Blue400 else IglooColors.Slate500, modifier = Modifier.size(18.dp))
+            IglooSymbol(
+                icon = icon,
+                tint = if (enabled) IglooColors.Blue400 else IglooColors.Slate500,
+                modifier = Modifier
+                    .size(18.dp)
+                    .semantics {
+                        if (iconAccessibilityId != null) {
+                            testTagsAsResourceId = true
+                            testTag = iconAccessibilityId
+                        }
+                    }
+            )
             Text(
                 text = title,
                 style = IglooTypography.body,
@@ -636,7 +656,8 @@ fun EntryTile(
     subtitle: String,
     icon: String,
     onClick: () -> Unit,
-    accessibilityId: String
+    accessibilityId: String,
+    iconAccessibilityId: String? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     Row(
@@ -665,7 +686,7 @@ fun EntryTile(
         horizontalArrangement = Arrangement.spacedBy(IglooSpacing.md.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IglooIconTile(icon = icon)
+        IglooIconTile(icon = icon, accessibilityId = iconAccessibilityId)
 
         Column(
             modifier = Modifier.weight(1f),
@@ -2238,7 +2259,8 @@ fun CreateKeysetEntryScreen(manager: AppManager) {
                 subtitle = "Generate a fresh group + threshold keyset from a new signing key.",
                 icon = "[+]",
                 onClick = { manager.dispatch(AppAction.CreateKeysetSelectCreate) },
-                accessibilityId = "btn_create_new_keyset"
+                accessibilityId = "btn_create_new_keyset",
+                iconAccessibilityId = "create_keyset_create_icon"
             )
 
             EntryTile(
@@ -2246,7 +2268,8 @@ fun CreateKeysetEntryScreen(manager: AppManager) {
                 subtitle = "Re-split the signing key behind a stored profile. Group public key is preserved.",
                 icon = "[R]",
                 onClick = { manager.dispatch(AppAction.CreateKeysetSelectRotate) },
-                accessibilityId = "btn_rotate_keyset"
+                accessibilityId = "btn_rotate_keyset",
+                iconAccessibilityId = "create_keyset_rotate_icon"
             )
         }
 
@@ -2303,16 +2326,20 @@ fun CreateKeysetGenerateScreen(manager: AppManager) {
         Row(horizontalArrangement = Arrangement.spacedBy(IglooSpacing.md.dp)) {
             ModeChip(
                 label = "New keyset",
+                icon = "[+]",
                 selected = keysetState.mode == com.frostr.igloo.rust.KeysetFlowMode.CREATE,
                 accessibilityId = "btn_mode_create",
+                iconAccessibilityId = "create_mode_create_icon",
                 onClick = {
                     manager.dispatch(AppAction.CreateKeysetUpdateMode(mode = "create"))
                 }
             )
             ModeChip(
                 label = "Rotate",
+                icon = "[R]",
                 selected = keysetState.mode == com.frostr.igloo.rust.KeysetFlowMode.ROTATE,
                 accessibilityId = "btn_mode_rotate",
+                iconAccessibilityId = "create_mode_rotate_icon",
                 onClick = {
                     manager.dispatch(AppAction.CreateKeysetUpdateMode(mode = "rotate"))
                 }
@@ -2383,7 +2410,10 @@ fun CreateKeysetGenerateScreen(manager: AppManager) {
         inlineKeysetErrorMessage(keysetState)?.let { msg ->
             Spacer(modifier = Modifier.height(IglooSpacing.sm.dp))
             Row(
-                modifier = Modifier.semantics { testTag = "validation_error" },
+                modifier = Modifier.semantics {
+                    testTagsAsResourceId = true
+                    testTag = "validation_error"
+                },
                 verticalAlignment = Alignment.Top
             ) {
                 Text(
@@ -2422,7 +2452,10 @@ fun CreateKeysetGenerateScreen(manager: AppManager) {
             enabled = !isBusy,
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { testTag = "btn_generate" },
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = "btn_generate"
+                },
             colors = if (isBusy) ButtonDefaults.buttonColors(
                 containerColor = IglooColors.Slate500
             ) else ButtonDefaults.buttonColors(containerColor = IglooColors.Blue400)
@@ -2651,7 +2684,10 @@ fun CreateKeysetDeviceProfileScreen(manager: AppManager) {
             enabled = canAdvance,
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { testTag = "btn_continue_to_review" },
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = "btn_continue_to_review"
+                },
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (canAdvance) IglooColors.Blue400 else IglooColors.Slate500
             )
@@ -2667,6 +2703,7 @@ fun CreateKeysetDeviceProfileScreen(manager: AppManager) {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CreateKeysetReviewScreen(manager: AppManager) {
     val keysetState = manager.state.keyset
@@ -2691,45 +2728,40 @@ fun CreateKeysetReviewScreen(manager: AppManager) {
         Spacer(modifier = Modifier.height(IglooSpacing.lg.dp))
 
         if (localShare != null && bundle != null) {
-            Text(
-                text = "Profile Name",
-                style = IglooTypography.body,
-                color = IglooColors.Slate400
-            )
-            Text(
-                text = keysetState.deviceName,
-                style = IglooTypography.h3,
-                color = IglooColors.Slate200,
-                modifier = Modifier.semantics { testTag = "display_device_name" }
+            CreateKeysetReviewSummaryRow(
+                label = "Profile Name",
+                value = keysetState.deviceName,
+                icon = "[P]",
+                iconAccessibilityId = "create_review_profile_icon",
+                accessibilityId = "display_device_name"
             )
 
             Spacer(modifier = Modifier.height(IglooSpacing.lg.dp))
             KeyDisplayRow(
                 label = "Device Share Public Key",
                 value = localShare.sharePubkey,
-                accessibilityId = "display_share_pubkey"
+                accessibilityId = "display_share_pubkey",
+                leadingIcon = "[K]",
+                leadingIconAccessibilityId = "create_review_share_key_icon"
             )
             Spacer(modifier = Modifier.height(IglooSpacing.md.dp))
             KeyDisplayRow(
                 label = "Group Public Key",
                 value = bundle.groupPubkey,
-                accessibilityId = "display_group_pubkey"
+                accessibilityId = "display_group_pubkey",
+                leadingIcon = "[K]",
+                leadingIconAccessibilityId = "create_review_group_key_icon"
             )
 
             Spacer(modifier = Modifier.height(IglooSpacing.md.dp))
-            Text(
-                text = "Relays",
-                style = IglooTypography.body,
-                color = IglooColors.Slate400
+            CreateKeysetReviewSummaryRow(
+                label = "Relays",
+                value = keysetState.relays.joinToString("\n"),
+                icon = "signal",
+                iconAccessibilityId = "create_review_relays_icon",
+                accessibilityId = "display_relays",
+                monospace = true
             )
-            keysetState.relays.forEach { relay ->
-                Text(
-                    text = relay,
-                    style = IglooTypography.monoLabel,
-                    color = IglooColors.Slate200,
-                    modifier = Modifier.padding(vertical = IglooSpacing.xs.dp)
-                )
-            }
         } else {
             Text(
                 text = "Review state unavailable.",
@@ -2745,7 +2777,10 @@ fun CreateKeysetReviewScreen(manager: AppManager) {
             enabled = canAccept,
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { testTag = "btn_accept_review" },
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = "btn_accept_review"
+                },
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (canAccept) IglooColors.Blue400 else IglooColors.Slate500
             )
@@ -2761,6 +2796,7 @@ fun CreateKeysetReviewScreen(manager: AppManager) {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CreateKeysetDistributeScreen(manager: AppManager) {
     val rows = manager.state.keyset.distribute
@@ -2852,7 +2888,10 @@ fun CreateKeysetDistributeScreen(manager: AppManager) {
         manager.state.keyset.lastErrorMessage?.let { message ->
             Row(
                 modifier = Modifier
-                    .semantics { testTag = "distribute_error" }
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = "distribute_error"
+                    }
                     .padding(vertical = IglooSpacing.sm.dp),
                 verticalAlignment = Alignment.Top
             ) {
@@ -2875,7 +2914,10 @@ fun CreateKeysetDistributeScreen(manager: AppManager) {
             onClick = { manager.dispatch(AppAction.CreateKeysetDistributeFinish) },
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { testTag = "btn_finish_distribute" },
+                .semantics {
+                    testTagsAsResourceId = true
+                    testTag = "btn_finish_distribute"
+                },
             colors = ButtonDefaults.buttonColors(containerColor = IglooColors.Blue400)
         ) {
             Text(
@@ -2929,25 +2971,119 @@ fun StepProgressStrip(current: Int, steps: List<String>) {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun ModeChip(label: String, selected: Boolean, accessibilityId: String, onClick: () -> Unit) {
+fun CreateKeysetReviewSummaryRow(
+    label: String,
+    value: String,
+    icon: String,
+    iconAccessibilityId: String,
+    accessibilityId: String,
+    monospace: Boolean = false
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .iglooPanelSurface(
+                radius = IglooRadii.md,
+                fill = IglooColors.Slate900StrongTranslucent,
+                stroke = IglooColors.Blue900PanelBorder
+            )
+            .padding(IglooSpacing.md.dp),
+        horizontalArrangement = Arrangement.spacedBy(IglooSpacing.md.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        IglooIconTile(
+            icon = icon,
+            fill = IglooColors.Blue900.copy(alpha = 0.18f),
+            stroke = IglooColors.Blue900FocusBorder.copy(alpha = 0.42f),
+            accessibilityId = iconAccessibilityId
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(IglooSpacing.xs.dp)
+        ) {
+            Text(
+                text = label,
+                style = IglooTypography.body,
+                color = IglooColors.Slate400
+            )
+            Text(
+                text = value,
+                style = if (monospace) IglooTypography.monoLabel else IglooTypography.h3,
+                color = IglooColors.Slate200,
+                maxLines = if (monospace) 3 else 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.semantics {
+                    testTagsAsResourceId = true
+                    testTag = accessibilityId
+                }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun ModeChip(
+    label: String,
+    icon: String,
+    selected: Boolean,
+    accessibilityId: String,
+    iconAccessibilityId: String,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
     Surface(
         modifier = Modifier
-            .semantics { testTag = accessibilityId }
-            .clickable(onClick = onClick),
+            .heightIn(min = 44.dp)
+            .iglooPressScale(interactionSource)
+            .semantics {
+                testTagsAsResourceId = true
+                testTag = accessibilityId
+                contentDescription = label
+                role = Role.Button
+                onClick(label = label) {
+                    onClick()
+                    true
+                }
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.Button,
+                onClick = onClick
+            ),
         shape = RoundedCornerShape(IglooRadii.sm.dp),
         color = if (selected) IglooColors.Blue400 else IglooColors.Slate900StrongTranslucent,
         border = BorderStroke(1.dp, IglooColors.Blue900PanelBorder)
     ) {
-        Text(
-            text = label,
+        Row(
             modifier = Modifier.padding(
                 horizontal = IglooSpacing.md.dp,
                 vertical = IglooSpacing.sm.dp
             ),
-            color = if (selected) IglooColors.Gray950 else IglooColors.Slate200,
-            style = IglooTypography.body
-        )
+            horizontalArrangement = Arrangement.spacedBy(IglooSpacing.xs.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IglooSymbol(
+                icon = icon,
+                tint = if (selected) IglooColors.Gray950 else IglooColors.Blue400,
+                modifier = Modifier
+                    .size(18.dp)
+                    .semantics {
+                        testTagsAsResourceId = true
+                        testTag = iconAccessibilityId
+                    }
+            )
+            Text(
+                text = label,
+                color = if (selected) IglooColors.Gray950 else IglooColors.Slate200,
+                style = IglooTypography.body,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -3083,33 +3219,37 @@ fun DistributeShareCard(
                 colors = textFieldOutlinedColors()
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(IglooSpacing.sm.dp)) {
-                Button(
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(IglooSpacing.sm.dp)
+            ) {
+                IglooControlButton(
+                    title = "Copy",
+                    icon = "doc",
+                    enabled = canEmit,
+                    accessibilityId = "distribute_copy_${row.shareIdx}",
                     onClick = { onSubmit("copy") },
+                    modifier = Modifier.weight(1f),
+                    iconAccessibilityId = "distribute_copy_icon_${row.shareIdx}"
+                )
+                IglooControlButton(
+                    title = "QR",
+                    icon = "[K]",
                     enabled = canEmit,
-                    modifier = Modifier.semantics { testTag = "distribute_copy_${row.shareIdx}" },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (canEmit) IglooColors.Blue400 else IglooColors.Slate500
-                    )
-                ) { Text("Copy", color = IglooColors.Gray950) }
-                Button(
-                    onClick = {
-                        onSubmit("qr")
-                    },
+                    accessibilityId = "distribute_qr_${row.shareIdx}",
+                    onClick = { onSubmit("qr") },
+                    modifier = Modifier.weight(1f),
+                    iconAccessibilityId = "distribute_qr_icon_${row.shareIdx}"
+                )
+                IglooControlButton(
+                    title = "Save",
+                    icon = "[L]",
                     enabled = canEmit,
-                    modifier = Modifier.semantics { testTag = "distribute_qr_${row.shareIdx}" },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (canEmit) IglooColors.Blue400 else IglooColors.Slate500
-                    )
-                ) { Text("QR", color = IglooColors.Gray950) }
-                Button(
+                    accessibilityId = "distribute_save_${row.shareIdx}",
                     onClick = { onSubmit("save") },
-                    enabled = canEmit,
-                    modifier = Modifier.semantics { testTag = "distribute_save_${row.shareIdx}" },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (canEmit) IglooColors.Blue400 else IglooColors.Slate500
-                    )
-                ) { Text("Save", color = IglooColors.Gray950) }
+                    modifier = Modifier.weight(1f),
+                    iconAccessibilityId = "distribute_save_icon_${row.shareIdx}"
+                )
             }
         }
     }
@@ -4665,11 +4805,13 @@ fun PendingOpsSection(
 fun KeyDisplayRow(
     label: String,
     value: String,
-    accessibilityId: String
+    accessibilityId: String,
+    leadingIcon: String? = null,
+    leadingIconAccessibilityId: String? = null
 ) {
     val displayValue = if (value.length > 16) value.take(16) + "..." else value
 
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .iglooPanelSurface(
@@ -4677,27 +4819,39 @@ fun KeyDisplayRow(
                 fill = IglooColors.Gray900,
                 stroke = IglooColors.Slate400MutedBorder
             )
-            .padding(IglooSpacing.sm.dp)
+            .padding(IglooSpacing.sm.dp),
+        horizontalArrangement = Arrangement.spacedBy(IglooSpacing.md.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = label,
-            style = IglooTypography.small,
-            color = IglooColors.Slate400,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = displayValue,
-            style = IglooTypography.valueData,
-            color = IglooColors.Slate200,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.semantics {
-                testTagsAsResourceId = true
-                testTag = accessibilityId
-                contentDescription = value
-            }
-        )
+        if (leadingIcon != null) {
+            IglooIconTile(
+                icon = leadingIcon,
+                fill = IglooColors.Blue900.copy(alpha = 0.18f),
+                stroke = IglooColors.Blue900FocusBorder.copy(alpha = 0.42f),
+                accessibilityId = leadingIconAccessibilityId
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = IglooTypography.small,
+                color = IglooColors.Slate400,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = displayValue,
+                style = IglooTypography.valueData,
+                color = IglooColors.Slate200,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.semantics {
+                    testTagsAsResourceId = true
+                    testTag = accessibilityId
+                    contentDescription = value
+                }
+            )
+        }
     }
 }
 
