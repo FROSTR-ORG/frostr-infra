@@ -7,15 +7,29 @@ import { expect, test, type Page } from '@playwright/test';
 import { IGLOO_UI_DIR, REPO_ROOT_DIR } from '../../shared/repo-paths';
 
 const screenshotDir = path.join(REPO_ROOT_DIR, '.tmp', 'igloo-ui-showcase');
-const stylesPath = path.join(IGLOO_UI_DIR, 'dist', 'styles.css');
+const stylesPath = path.join(screenshotDir, 'styles.css');
 
 test.beforeAll(() => {
-  execFileSync('npm', ['run', 'build'], {
-    cwd: IGLOO_UI_DIR,
-    env: { ...process.env, BROWSERSLIST_IGNORE_OLD_DATA: '1' },
-    stdio: 'inherit',
-  });
   mkdirSync(screenshotDir, { recursive: true });
+  // igloo-ui is source-only (no dist build). Compile its source styles through the
+  // shared Tailwind preset into a temp file for the showcase to inline.
+  execFileSync(
+    'npx',
+    [
+      'tailwindcss',
+      '-c',
+      path.join(IGLOO_UI_DIR, 'tailwind.config.js'),
+      '-i',
+      path.join(IGLOO_UI_DIR, 'src', 'styles.css'),
+      '-o',
+      stylesPath,
+    ],
+    {
+      cwd: IGLOO_UI_DIR,
+      env: { ...process.env, BROWSERSLIST_IGNORE_OLD_DATA: '1' },
+      stdio: 'inherit',
+    },
+  );
 });
 
 test.describe('igloo-ui Paper reference showcase @fast', () => {

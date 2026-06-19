@@ -26,7 +26,12 @@ old path in the same change — no deprecation aliases, compat shims, dual paths
 flags; no client left on the old model. Priorities: P0 = remove the consumption
 footgun; P1 = visual seam + component convergence; P2 = cleanup.
 
-- [ ] (effort: L) **P0 — Consumption contract + Tailwind preset, atomic hard cut.**
+- [x] (effort: L) **DONE (2026-06-19) — P0 — Consumption contract + Tailwind preset,
+  atomic hard cut.** Landed: igloo-ui ships `tailwind.preset.js` (canonical tokens) +
+  source `styles.css`; pwa/home/chrome all resolve igloo-ui JS+CSS from source via the
+  preset (postcss-import entry, fonts rebased); igloo-ui `dist` build + exports + the
+  `make igloo-ui-styles`/`igloo-ui-watch` band-aids deleted; orphaned build refs purged
+  from the test harness; `make verify` green. Per-client renders verified from source.
   One coordinated change across `igloo-ui` + pwa + chrome + home (+ parent pointer
   bump), because no client may lag onto the old prebuilt path:
   - Resolve `igloo-ui` + `igloo-shared` (JS **and** CSS) from `src` via a single

@@ -3,7 +3,6 @@ SHELL := /usr/bin/env bash
 
 ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 TEST_DIR := $(ROOT_DIR)/test
-IGLOO_UI_DIR := $(ROOT_DIR)/repos/igloo-ui
 IGLOO_PAPER_DIR := $(ROOT_DIR)/repos/igloo-paper
 IGLOO_PWA_DIR := $(ROOT_DIR)/repos/igloo-pwa
 IGLOO_CHROME_DIR := $(ROOT_DIR)/repos/igloo-chrome
