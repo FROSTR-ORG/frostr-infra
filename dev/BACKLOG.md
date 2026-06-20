@@ -59,6 +59,16 @@ footgun; P1 = visual seam + component convergence; P2 = cleanup.
   scenario registry, retire home's `?__igloo_visual=`). Has test-lane blast radius
   (home's visual specs reference the old param) — its own task · clients + test/ ·
   added 2026-06-19.
+- [ ] (effort: S) **P1c follow-up — extend the shared fixture to the other scenarios.**
+  `igloo-shared/testing/dev-fixtures` only covers `dashboard-running`; pwa/chrome still
+  build `dashboard-stopped` / `onboarding` from local fixtures. Lift those too so every
+  seeded state is single-sourced — igloo-shared + clients · added 2026-06-19.
+- [ ] (effort: S) **P1c follow-up — polish the dev-fixtures nits** flagged in review:
+  annotate `FIXTURE_SIGNER_SETTINGS: SignerSettings` (matches `FIXTURE_READINESS`);
+  comment that the peer keys are synthetic + the 3-member group structure
+  (idx 0/self-1/2); rename pwa's `_fixtureRuntimeStatus` (the `_` reads as unused);
+  fix chrome dev-scenario's comment that says "cast" where there is none —
+  igloo-shared/testing/dev-fixtures.ts + pwa/chrome dev-scenario.ts · added 2026-06-19.
 - [ ] (effort: S) **P1 — `OperatorDashboardTabs` per-tab `testId`,** then **delete**
   pwa's local `igloo-dashboard-nav` (+ its `index.css` rules) for it — igloo-ui +
   igloo-pwa · ADR-014 (d).
