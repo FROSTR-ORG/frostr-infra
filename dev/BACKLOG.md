@@ -44,11 +44,21 @@ footgun; P1 = visual seam + component convergence; P2 = cleanup.
     `package.json` `main`/`module`/`types`/`exports` at `src` — ADR-014 (b).
   - **Delete** the `make igloo-ui-styles` prerequisite (added 2026-06-19 as an
     interim symptom fix) and the `igloo-ui-watch` target — Makefile · ADR-014 (b).
-- [ ] (effort: M) **P1 — Shared visual/dev seam.** Move pwa's `dev-scenario`
-  seeded-snapshot seam to a shared dev-only surface consumed by every client's
-  bootstrap and **delete the pwa-only copy**; `?__frostr_dev=` +
-  `make screenshot CLIENT=<any>` reach the running dashboard for pwa/chrome/home —
-  igloo-shared + clients · ADR-014 (c); extends ADR-013 (c)/(d).
+- [x] (effort: M) **DONE (2026-06-19) — P1 — Shared visual/dev seam (option A).**
+  Added `igloo-shared/testing/dev-fixtures` (canonical seeded profile +
+  `RuntimeStatusSummary`); pwa/chrome/home all build their `dashboard-running` fixture
+  from it; **fixed home** — it was stuck on "Starting signer…/Loading…" because its
+  fixture seeded a malformed `runtime_status` with no `peers[]` that `parseRuntimeStatus`
+  rejected; now renders the running dashboard (verified). Plan:
+  `dev/plans/shared-visual-seam-p1c-plan-2026-06-19.md`; landed as pointer bump 1bca660.
+  _Option A only_: shared fixture DATA, not a full seam merge — param/scenario-name
+  unification (pwa/chrome `?__frostr_dev=` vs home `?__igloo_visual=`) was deliberately
+  deferred (see follow-up below).
+- [ ] (effort: S) **P1 follow-up — unify the dev-scenario param + scenario names** across
+  the three clients (the deferred "option C": one `?__frostr_dev=` param + shared
+  scenario registry, retire home's `?__igloo_visual=`). Has test-lane blast radius
+  (home's visual specs reference the old param) — its own task · clients + test/ ·
+  added 2026-06-19.
 - [ ] (effort: S) **P1 — `OperatorDashboardTabs` per-tab `testId`,** then **delete**
   pwa's local `igloo-dashboard-nav` (+ its `index.css` rules) for it — igloo-ui +
   igloo-pwa · ADR-014 (d).
@@ -84,6 +94,22 @@ P0 follow-ups (surfaced during the 2026-06-19 P0 execution):
   only resolves under a TS-aware bundler (Vite/esbuild/vitest); note this in
   igloo-ui's README so a future Node/plain-JS consumer doesn't trip over it ·
   repos/igloo-ui · added 2026-06-19.
+- [ ] (effort: M) **P0 regression — chrome's local `npm run typecheck` is red.**
+  After P0's all-source consumption, chrome's `typecheck:local` (`bunx tsc`) reports
+  ~18 duplicate `@types/react`/`csstype` errors (it now type-checks igloo-ui SOURCE,
+  pulling in `igloo-ui/node_modules/@types/react`, a different copy than chrome's).
+  The CI **gate is green** (`make verify` → `test:typecheck:chrome` via
+  `tsconfig.chrome.json` dedups/skips it), so this is a per-client DX break, not a gate
+  failure. Fix: dedupe `@types/react` + `csstype` to one copy (npm dedupe / hoist), or
+  align chrome's local tsconfig with the gate's. Check pwa/home local typecheck too ·
+  repos/igloo-chrome (+ shared) · found during P1c · added 2026-06-19.
+- [ ] (effort: M) (pre-existing) **Dev-scenario seams ship inert in prod bundles.**
+  The `dev-scenario`/`visualMode` fixtures appear in all three clients' production
+  bundles (verified pre-existing: present at pre-P1c base too). pwa/chrome gate at
+  runtime via `import.meta.env.DEV`/`?__frostr_dev=` but the code isn't DCE'd;
+  home's `visualMode` is **not** DEV-gated at all. Harmless (runtime-gated → never
+  activates in prod) but unclean + a few KB of dead weight. Restructure the seams so
+  the fixtures tree-shake (and DEV-gate home's visualMode) · clients · added 2026-06-19.
 
 ## Anti-slop front-end audit (2026-06-19)
 
