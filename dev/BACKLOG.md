@@ -75,12 +75,21 @@ footgun; P1 = visual seam + component convergence; P2 = cleanup.
   dirty-settings guard preserved via `onChangeTab`. **No igloo-ui change needed** — the
   component already emits the `dashboard-tab-${key}` test-ids pwa's E2E specs require
   (the planned per-tab `testId` extension was unnecessary). igloo-pwa aca9d71; e2e 6/6.
-- [ ] (effort: M) **P1 — Shared `Checkbox`/`Toggle` primitive;** **delete** the 6
-  hand-rolled toggles (pwa, home) — igloo-ui + clients · ADR-014 (d).
-- [ ] (effort: M) **P1 — `Alert` API gaps** (first-class `info` tone, optional
-  `dismissible`, title-less), then move the inline alert/banner sites onto it and
-  **delete** the inline markup (+ home's undefined `igloo-shell-alert` class);
-  exclude status badges + code/data boxes — igloo-ui + clients · ADR-014 (d).
+- [x] (effort: M) **DONE (2026-06-20) — P1 — Shared `Checkbox` primitive.** Added
+  `igloo-ui` `Checkbox` (emits the existing `igloo-toggle-row` markup); migrated the
+  5 `igloo-toggle-row` toggles (pwa settings ×3 incl. the `settingsAutoOpenToggle`
+  testid; home ×2). igloo-ui 576b35c · pwa 9f79aa7 · home daf4498.
+- [ ] (effort: S) **P1 follow-up — migrate pwa's recovery "Encrypt Key" toggle to
+  `Checkbox`.** Deferred from the Checkbox pass: it uses a DISTINCT defined class
+  `igloo-recover-encrypt-toggle` (not `igloo-toggle-row`), so a clean migration needs
+  a `Checkbox` variant whose row class REPLACES the base (current `rowClassName` is
+  additive). Either add that variant or restyle — repos/igloo-pwa + igloo-ui · added 2026-06-20.
+- [x] (effort: M) **DONE (2026-06-20) — P1 — Inline alerts routed through shared `Alert`.**
+  Migrated the 8 genuine alert banners (home ×2 — also fixing the undefined
+  `igloo-shell-alert` class; chrome ×6 across popup/Onboarding/runtime-state-sections),
+  excluding badges/code-boxes/field-errors/empty-states. **No `Alert` API change needed** —
+  the existing `danger`/`warning`/`default` tones + optional `title` covered every site
+  (the planned `info`/`dismissible`/title-less additions were unnecessary). home daf4498 · chrome 3d0f36a.
 - [ ] (effort: S) **P2 — Lift accidental view-model duplicates** (`toDashboardKey`,
   a single `buildPendingOperationRows`), **deleting every local copy**; adopt the
   unused `runtimePeerPermissionStatesToPolicyDashboardView`; keep host-specific glue
