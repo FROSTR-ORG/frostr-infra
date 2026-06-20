@@ -57,6 +57,10 @@ run_step() {
 ensure_relay_service() {
   local label="$1"
   local log="$EVIDENCE_ROOT/${label}.log"
+  if python3 -c "import socket; s=socket.create_connection(('127.0.0.1',8194),2); s.close()" >/dev/null 2>&1; then
+    echo "[e2e-1-5 $(date +%H:%M:%S)] reuse existing relay: 127.0.0.1:8194" | tee "$log"
+    return
+  fi
   echo "[e2e-1-5 $(date +%H:%M:%S)] ensure relay service: $label"
   (
     cd "$ROOT"

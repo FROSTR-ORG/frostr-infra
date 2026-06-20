@@ -19,6 +19,8 @@ EVIDENCE_ROOT="${EVIDENCE_ROOT:-$APPS/library/evidence/mobile-cross-platform-e2e
 mkdir -p "$EVIDENCE_ROOT"
 SUMMARY="$EVIDENCE_ROOT/summary.txt"
 : > "$SUMMARY"
+RUNTIME_HARNESS_DIR="${RUNTIME_HARNESS_DIR:-$ROOT/.tmp/mobile-runtime-harness}"
+RUNTIME_RELAY_START_PORT="${RUNTIME_RELAY_PORT:-8195}"
 
 echo "[e2e-6-10 $(date +%H:%M:%S)] evidence: $EVIDENCE_ROOT"
 
@@ -47,6 +49,10 @@ run_step() {
 
 ensure_relay_service() {
   local log="$EVIDENCE_ROOT/00-ensure-relay.log"
+  if python3 -c "import socket; s=socket.create_connection(('127.0.0.1',8194),2); s.close()" >/dev/null 2>&1; then
+    echo "[e2e-6-10 $(date +%H:%M:%S)] reuse existing relay: 127.0.0.1:8194" | tee "$log"
+    return
+  fi
   (
     cd "$ROOT"
     TIMEOUT_SECS="${TIMEOUT_SECS:-180}" make demo-start
@@ -60,6 +66,40 @@ require_preflight() {
     || { echo "[e2e-6-10] Android emulator not ready" >&2; exit 1; }
   xcrun simctl list devices booted | grep -q "${UDID:-4EB37CCF-B55C-4DD4-A4EE-F3AA623BA5C0}" \
     || { echo "[e2e-6-10] iOS simulator not booted" >&2; exit 1; }
+}
+
+pick_runtime_relay_port() {
+  python3 - "$RUNTIME_RELAY_START_PORT" <<'PY'
+import socket
+import sys
+
+start = int(sys.argv[1])
+for port in range(start, start + 100):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(("127.0.0.1", port))
+        except OSError:
+            continue
+    print(port)
+    break
+else:
+    raise SystemExit(f"no free runtime relay port in {start}-{start + 99}")
+PY
+}
+
+prepare_runtime_demo() {
+  local port="$1"
+  local log="$EVIDENCE_ROOT/10-runtime-demo-start.log"
+  mkdir -p "$RUNTIME_HARNESS_DIR"
+  echo "[e2e-6-10 $(date +%H:%M:%S)] start runtime demo: port=$port harness=$RUNTIME_HARNESS_DIR"
+  (
+    cd "$ROOT"
+    FROSTR_TEST_HARNESS_DIR="$RUNTIME_HARNESS_DIR" \
+      TIMEOUT_SECS="${TIMEOUT_SECS:-180}" \
+      make demo-start PORT="$port"
+  ) 2>&1 | tee "$log"
+  echo "[e2e-6-10 $(date +%H:%M:%S)] pass: runtime demo"
 }
 
 ensure_relay_service
@@ -80,10 +120,21 @@ record "lane_8_release_diagnostic_guard" "$(latest_dir 'mobile-cross-platform-re
 run_step "09-qr-permission-fallback" just focus-cross-platform-qr-permission-fallback
 record "lane_9_qr_permission_fallback" "$(latest_dir 'mobile-cross-platform-qr-permission-fallback-*')"
 
-run_step "10-runtime-profile-seed" bash scripts/seed-runtime-error-profiles.sh
+RUNTIME_RELAY_PORT="$(pick_runtime_relay_port)"
+record "lane_10_runtime_relay" "ws://127.0.0.1:$RUNTIME_RELAY_PORT"
+record "lane_10_runtime_harness" "$RUNTIME_HARNESS_DIR"
+prepare_runtime_demo "$RUNTIME_RELAY_PORT"
+
+run_step "10-runtime-profile-seed" env \
+  DEV_RELAY_PORT="$RUNTIME_RELAY_PORT" \
+  FROSTR_TEST_HARNESS_DIR="$RUNTIME_HARNESS_DIR" \
+  bash scripts/seed-runtime-error-profiles.sh
 record "lane_10_runtime_profile_seed" "$(latest_dir 'mobile-runtime-profile-seed-*')"
 
-run_step "10-runtime-errors" bash scripts/run-cross-platform-runtime-errors-proof.sh
+run_step "10-runtime-errors" env \
+  DEV_RELAY_PORT="$RUNTIME_RELAY_PORT" \
+  FROSTR_TEST_HARNESS_DIR="$RUNTIME_HARNESS_DIR" \
+  bash scripts/run-cross-platform-runtime-errors-proof.sh
 record "lane_10_runtime_errors" "$(latest_dir 'mobile-cross-platform-runtime-errors-*')"
 
 record "result" "pass"

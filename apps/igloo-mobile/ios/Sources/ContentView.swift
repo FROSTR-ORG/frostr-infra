@@ -2716,7 +2716,6 @@ struct DistributeShareCard: View {
         .cornerRadius(IglooRadii.Lg)
         .overlay(RoundedRectangle(cornerRadius: IglooRadii.Lg)
                   .stroke(IglooColors.Blue900PanelBorder, lineWidth: 1))
-        .accessibilityIdentifier("distribute_card_\(row.shareIdx)")
     }
 }
 

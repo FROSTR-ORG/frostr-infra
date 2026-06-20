@@ -75,9 +75,10 @@ name: QR fallback controls - iOS
     id: "btn_qr_paste_clipboard"
 - assertVisible:
     id: "btn_qr_scan_back"
-- setClipboard: "bfonboard1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
 - tapOn:
-    id: "btn_qr_paste_clipboard"
+    id: "input_qr_fallback_package"
+- setClipboard: "bfonboard1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+- pasteText
 - runFlow:
     when:
       visible:

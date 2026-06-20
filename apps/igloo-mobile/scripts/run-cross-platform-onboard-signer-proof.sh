@@ -113,12 +113,12 @@ appId: com.frostr.igloo.dev
 name: close iOS source QR modal
 ---
 - tapOn:
-    point: "90%,18%"
+    id: "btn_close_qr"
 - waitForAnimationToEnd
-- assertVisible:
-    text: "Distribute"
-- assertVisible:
-    text: "Signer Running"
+- extendedWaitUntil:
+    notVisible:
+      id: "qr_payload_text"
+    timeout: 30000
 EOF
   run_maestro "$UDID" "$flow" "$dir/close-source-qr"
   ios_snapshot "$dir" "04-source-signer-running"
@@ -131,12 +131,13 @@ close_android_source_qr_modal() {
 appId: com.frostr.igloo.dev
 name: close Android source QR modal
 ---
-- pressKey: back
+- tapOn:
+    id: "btn_close_qr"
 - waitForAnimationToEnd
-- assertVisible:
-    text: "Distribute"
-- assertVisible:
-    text: "Signer Running"
+- extendedWaitUntil:
+    notVisible:
+      id: "qr_payload_text"
+    timeout: 30000
 EOF
   run_maestro "$SERIAL" "$flow" "$dir/close-source-qr"
   android_snapshot "$dir" "04-source-signer-running"

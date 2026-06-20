@@ -119,6 +119,10 @@ focus-ios-keyset:
 focus-android-keyset:
   scripts/run-focus-android-keyset-debug-intent.sh
 
+# Validate visible iOS + Android Create Keyset wizard completion.
+focus-cross-platform-create-keyset-manual:
+  scripts/run-cross-platform-create-keyset-manual-proof.sh
+
 # Validate iOS bfprofile1 / bfshare1 export artifacts.
 focus-ios-export:
   scripts/run-focus-export-artifact-validation-ios.sh

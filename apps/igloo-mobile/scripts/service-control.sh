@@ -58,12 +58,20 @@ start_alice() {
     echo "[service-control] Starting alice co-signer (igloo-demo)..."
     "${COMPOSE[@]}" update --restart unless-stopped igloo-demo >/dev/null 2>&1 || true
     "${COMPOSE[@]}" start igloo-demo 2>/dev/null || true
-    # Wait for alice to be healthy (socket and onboard files exist)
+    # Wait for Docker health plus onboarding artifacts. The control socket is a
+    # container-local symlink on macOS, so host-side `test -S` is not reliable.
     local attempt=0
-    local socket_path="${FROSTR_TEST_HARNESS_DIR:-${ROOT_DIR}/.tmp/test-harness}/igloo-shell-alice.sock"
+    local harness_dir="${FROSTR_TEST_HARNESS_DIR:-${ROOT_DIR}/.tmp/test-harness}"
+    local container_id health
     while [ "${attempt}" -lt 60 ]; do
-        if [ -S "${socket_path}" ] && \
-           [ -s "${FROSTR_TEST_HARNESS_DIR:-${ROOT_DIR}/.tmp/test-harness}/onboard-bob.txt" ]; then
+        container_id="$("${COMPOSE[@]}" ps -q igloo-demo 2>/dev/null || true)"
+        health=""
+        if [ -n "${container_id}" ]; then
+            health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "${container_id}" 2>/dev/null || true)"
+        fi
+        if { [ "${health}" = "healthy" ] || [ "${health}" = "running" ]; } && \
+           [ -s "${harness_dir}/onboard-bob.txt" ] && \
+           [ -s "${harness_dir}/onboard-carol.txt" ]; then
             echo "[service-control] alice co-signer is healthy"
             return 0
         fi

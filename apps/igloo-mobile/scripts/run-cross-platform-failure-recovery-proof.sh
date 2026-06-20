@@ -274,6 +274,35 @@ name: iOS valid onboarding retry recovery
           timeout: 20000
 - scrollUntilVisible:
     element:
+      id: "input_package"
+    timeout: 20000
+- assertVisible:
+    id: "input_package"
+- assertVisible:
+    id: "input_password"
+- assertVisible:
+    id: "input_relay_url"
+- assertVisible:
+    id: "btn_paste_package"
+- tapOn:
+    id: "btn_paste_package"
+- runFlow:
+    when:
+      visible:
+        text: "Allow Paste"
+    commands:
+      - tapOn: "Allow Paste"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        text: "Allow"
+    commands:
+      - tapOn: "Allow"
+      - waitForAnimationToEnd
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
       id: "btn_connect"
     timeout: 20000
 - tapOn:

@@ -31,6 +31,26 @@ run_maestro() {
   maestro --device "$device" test "$flow" --debug-output "$out/maestro" 2>&1 | tee "$out/maestro.log"
 }
 
+assert_settings_locked_hierarchy() {
+  local device="$1"
+  local output="$2"
+  local timeout="${3:-30}"
+  local started
+  started="$(date +%s)"
+  while true; do
+    maestro --device "$device" hierarchy > "$output" 2>&1 || true
+    if grep -Fq "Start the signer to save settings" "$output" && \
+       grep -Fq "Save Settings" "$output"; then
+      return 0
+    fi
+    if [ $(( $(date +%s) - started )) -ge "$timeout" ]; then
+      echo "[runtime-errors] timed out waiting for Settings locked hierarchy on $device" >&2
+      return 1
+    fi
+    sleep 2
+  done
+}
+
 write_common_start_flow() {
   local flow="$1"
   local profile="$2"
@@ -447,11 +467,15 @@ name: runtime settings locked
     timeout: 10000
 - tapOn:
     id: "tab_settings"
-- scrollUntilVisible:
-    element:
-      id: "btn_save_settings"
-    timeout: 10000
-    visibilityPercentage: 50
+- waitForAnimationToEnd
+- swipe:
+    direction: UP
+    duration: 500
+- waitForAnimationToEnd
+- swipe:
+    direction: UP
+    duration: 500
+- waitForAnimationToEnd
 - takeScreenshot:
     path: "$screenshot"
 EOF
@@ -569,6 +593,7 @@ run_platform() {
   run_maestro "$device" "$target_dir/08-alice-down-sign-failure.yaml" "$target_dir/08-alice-down-sign-failure"
   write_settings_locked_flow "$target_dir/09-settings-locked.yaml" "$prefix-val-err-007-settings-locked.png" "$profile"
   run_maestro "$device" "$target_dir/09-settings-locked.yaml" "$target_dir/09-settings-locked"
+  assert_settings_locked_hierarchy "$device" "$target_dir/09-settings-locked-hierarchy.txt"
   "$SCRIPT_DIR/service-control.sh" start alice
   write_resume_recovery_flow "$target_dir/11-alice-recovered.yaml" "$prefix-val-err-006-recovery-state.png" "$prefix-val-err-006-recovered.png" "$profile"
   run_maestro "$device" "$target_dir/11-alice-recovered.yaml" "$target_dir/11-alice-recovered"
