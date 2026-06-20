@@ -104,15 +104,14 @@ P0 follow-ups (surfaced during the 2026-06-19 P0 execution):
   only resolves under a TS-aware bundler (Vite/esbuild/vitest); note this in
   igloo-ui's README so a future Node/plain-JS consumer doesn't trip over it ·
   repos/igloo-ui · added 2026-06-19.
-- [ ] (effort: M) **P0 regression — chrome's local `npm run typecheck` is red.**
-  After P0's all-source consumption, chrome's `typecheck:local` (`bunx tsc`) reports
-  ~18 duplicate `@types/react`/`csstype` errors (it now type-checks igloo-ui SOURCE,
-  pulling in `igloo-ui/node_modules/@types/react`, a different copy than chrome's).
-  The CI **gate is green** (`make verify` → `test:typecheck:chrome` via
-  `tsconfig.chrome.json` dedups/skips it), so this is a per-client DX break, not a gate
-  failure. Fix: dedupe `@types/react` + `csstype` to one copy (npm dedupe / hoist), or
-  align chrome's local tsconfig with the gate's. Check pwa/home local typecheck too ·
-  repos/igloo-chrome (+ shared) · found during P1c · added 2026-06-19.
+- [x] (effort: M) **DONE (2026-06-19) — P0 regression — chrome's local `npm run typecheck`
+  was red.** Root cause was a version skew: chrome pinned `@types/react@18.3.26` +
+  `csstype@3.1.3` while igloo-ui (and home) use `18.3.28` + `csstype@3.2.3`; under P0
+  all-source consumption chrome's tsc type-checked igloo-ui source and hit the
+  incompatible csstype CSSProperties → ~18 errors. Fixed by bumping chrome's
+  `@types/react` to `^18.3.31` (pulls `csstype@3.2.3`, matching igloo-ui/home). chrome's
+  local typecheck + the gate + build all green. Confirmed chrome-only: pwa has no local
+  typecheck script, home's was already clean (same versions) · igloo-chrome 0d59395.
 - [ ] (effort: M) (pre-existing) **Dev-scenario seams ship inert in prod bundles.**
   The `dev-scenario`/`visualMode` fixtures appear in all three clients' production
   bundles (verified pre-existing: present at pre-P1c base too). pwa/chrome gate at
