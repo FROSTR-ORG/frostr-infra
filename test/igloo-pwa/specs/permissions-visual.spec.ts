@@ -49,17 +49,32 @@ function buildPermissionsProfile() {
   };
 }
 
-function buildRunningSnapshot() {
+function buildRunningSnapshot(
+  profile: ReturnType<typeof buildPermissionsProfile>,
+  peerPermissionStates: ReturnType<typeof peerState>[],
+) {
   return {
     active: true,
+    profile,
     readiness: { runtime_ready: true, restore_complete: true, sign_ready: true, ecdh_ready: true, threshold: 2 },
-    runtime_status: { metadata: { peers: ['02'.repeat(32), '04'.repeat(32)] } },
+    runtime_status: { metadata: { peers: peerPermissionStates.map((peer) => peer.pubkey) } },
+    peer_permission_states: peerPermissionStates,
     runtime_log_lines: [],
+    runtime_host: {
+      profile_id: profile.id,
+      mode: 'browser',
+      log_source: 'visual-harness',
+      started_at: 1_700_000_000,
+      signer_pubkey: profile.share_public_key,
+    },
   };
 }
 
-function peerState(pubkey: string) {
-  const all = { ping: true, onboard: true, sign: true, ecdh: true };
+function peerState(
+  pubkey: string,
+  policy: Partial<Record<'sign' | 'ecdh' | 'ping' | 'onboard', boolean>> = {},
+) {
+  const all = { ping: true, onboard: true, sign: true, ecdh: true, ...policy };
   const unset = { ping: 'unset', onboard: 'unset', sign: 'unset', ecdh: 'unset' } as const;
   return {
     pubkey,
@@ -75,6 +90,13 @@ async function seedState(page: Page, state: unknown) {
   await page.reload();
 }
 
+async function injectPermissionVisualState(page: Page, state: unknown) {
+  await page.addInitScript((visualState) => {
+    (window as unknown as { __IGLOO_TEST_PERMISSION_STATE__?: unknown }).__IGLOO_TEST_PERMISSION_STATE__ =
+      visualState;
+  }, state);
+}
+
 async function capture(page: Page, fileName: string) {
   await mkdir(PERMISSIONS_CAPTURE_DIR, { recursive: true });
   await page.screenshot({ path: path.join(PERMISSIONS_CAPTURE_DIR, fileName), fullPage: true });
@@ -85,6 +107,14 @@ test.describe('igloo-pwa Paper Permissions visual harness @visual', () => {
     await page.setViewportSize({ width: 1440, height: 1080 });
 
     const profile = buildPermissionsProfile();
+    const peerPermissionStates = [
+      peerState('02'.repeat(32), { onboard: false }),
+      peerState('04'.repeat(32), { ecdh: false }),
+    ];
+    await injectPermissionVisualState(page, {
+      runtimeSnapshot: buildRunningSnapshot(profile, peerPermissionStates),
+      peerPermissionStates,
+    });
     await seedState(
       page,
       buildPwaPersistedState({
@@ -92,8 +122,7 @@ test.describe('igloo-pwa Paper Permissions visual harness @visual', () => {
         selectedProfileId: profile.id,
         activeView: 'dashboard',
         activeDashboardTab: 'signer',
-        runtimeSnapshot: buildRunningSnapshot(),
-        peerPermissionStates: [peerState('02'.repeat(32)), peerState('04'.repeat(32))],
+        peerPermissionStates,
       }),
     );
 
@@ -104,6 +133,24 @@ test.describe('igloo-pwa Paper Permissions visual harness @visual', () => {
     // website/origin "Signer Permissions" section must not appear.
     await dashboard.expectPeerPermissions();
     await dashboard.expectNoSignerPermissions();
+    await expect(page.locator('.igloo-permission-token[data-method="sign"][data-state="active"]').first()).toHaveCSS(
+      'color',
+      'rgb(34, 197, 94)',
+    );
+    await expect(page.locator('.igloo-permission-token[data-method="ecdh"][data-state="active"]').first()).toHaveCSS(
+      'color',
+      'rgb(34, 211, 238)',
+    );
+    await expect(page.locator('.igloo-permission-token[data-method="ping"][data-state="active"]').first()).toHaveCSS(
+      'color',
+      'rgb(168, 85, 247)',
+    );
+    await expect(page.locator('.igloo-permission-token[data-method="onboard"][data-state="active"]').first()).toHaveCSS(
+      'color',
+      'rgb(251, 191, 36)',
+    );
+    await expect(page.locator('.igloo-permission-token[data-method="onboard"][data-state="inactive"]').first()).toBeVisible();
+    await expect(page.locator('.igloo-permission-token[data-method="ecdh"][data-state="inactive"]').first()).toBeVisible();
 
     await capture(page, '02-permissions.png');
   });

@@ -15,7 +15,7 @@
       "output": ".tmp/visual/igloo-pwa/dashboard/02-permissions.png",
       "paperReference": "repos/igloo-paper/screens/dashboard/1c-permissions/screenshot.png",
       "status": "aligned",
-      "notes": "Aligned to the decided peer-only scope: the PWA signer is standalone, so Paper's site/origin 'Signer Permissions' section (a NIP-07 website-bridge concept owned by igloo-chrome) is intentionally absent and the default-policy selector is deferred. The capture shows the empty 'start the signer' state. Open product question, not a defect: whether the routed page should carry Paper's shared signer/identity card header (dev/plans/dashboard-settings-export-paper-redesign-2026-06-01.md)."
+      "notes": "Aligned to the decided peer-only scope: the PWA signer is standalone, so Paper's site/origin 'Signer Permissions' section (a NIP-07 website-bridge concept owned by igloo-chrome) is intentionally absent and the default-policy selector is deferred. The capture uses a DEV-only active-runtime projection so the four peer permission methods can be verified in their Paper colors, including dimmed inactive states. Open product question, not a defect: whether the routed page should carry Paper's shared signer/identity card header (dev/plans/dashboard-settings-export-paper-redesign-2026-06-01.md)."
     },
     {
       "name": "dashboard-settings",
