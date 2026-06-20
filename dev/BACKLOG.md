@@ -29,6 +29,30 @@ Group by area. When an item is finished, move a one-line summary to
   `igloo-paper` + `igloo-ui`.
 - [ ] (effort: S) Confirm whether `Export Profile`/`Export Share` should keep a
   quick unencrypted copy-to-clipboard alongside the password modal — product call.
+- [ ] (effort: L) Define and implement post-setup **Onboard a Device** sponsorship
+  from Settings — the current sidebar action can only show an explanatory modal
+  because stored browser profiles do not retain undistributed remote share secrets.
+  `igloo-shared` now exposes the readiness/status helper used by PWA and a
+  source-share package builder for callers that already hold the correct remote
+  member source material. The `bfonboard` producer itself is already defined:
+  `igloo-pwa` uses `createOnboardingPackageForShare` during create/distribute,
+  `igloo-home` exposes `createGeneratedOnboardingPackage`, and `bifrost-rs`
+  owns `encode_bfonboard_package`. The missing work is the Paper sponsor flow
+  and a Settings-time way to obtain explicit target-member source material after
+  setup.
+  Restore/create/export the Paper sponsor screens first; current `igloo-paper`
+  metadata includes recipient Onboard screens only. `igloo-paper`'s AppHeader
+  component doc records sponsor artboards `1B3Q-0`, `1B5X-0`, `1B84-0`,
+  `1BAB-0`, and `1BCI-0`, but a live Paper MCP inspection on 2026-06-20 found
+  those IDs are stale references absent from the current `igloo-ui-shared` file.
+  Then add a shared/app capability that can drive the existing builder from
+  explicit source material without persisting raw remote shares.
+  Preserve the secret boundary; do not fake this by cloning the local share. Audit:
+  [`settings-sidebar-alignment-audit-2026-06-19.md`](./reports/settings-sidebar-alignment-audit-2026-06-19.md).
+  Unblock plan:
+  [`settings-onboard-sponsor-unblock-plan-2026-06-19.md`](./plans/settings-onboard-sponsor-unblock-plan-2026-06-19.md).
+  — `igloo-paper` + `igloo-ui` + `igloo-shared` +
+  `igloo-pwa` · surfaced 2026-06-19 during Settings sidebar alignment.
 
 ## bifrost-rs / igloo-shared runtime
 
@@ -69,8 +93,7 @@ Group by area. When an item is finished, move a one-line summary to
   drives `store.activeDashboardTab`; URL deep-linking / back-button is a separate
   refactor with route-guard considerations for sensitive unlocked states.
 - [ ] (effort: L) Deferred dashboard screens: error/empty states (loading,
-  load-failed, all-relays-offline, signing-blocked, signing-failed) + the Clear
-  Credentials modal (`3b`, needs a destructive "clear this device" store action).
+  load-failed, all-relays-offline, signing-blocked, signing-failed).
 - [ ] (effort: M) Tailored Recover "Collect Shares" panel (Paper `49W`) instead of
   reusing `RotateKeysetPanel` with an inert Source-Profile dropdown; until then
   `recover-collect-shares` stays `needs-work`.

@@ -70,7 +70,14 @@ When aligning implementation to Paper designs:
 Run `npm --prefix test run test:guards:visual` after changing visual capture
 names, outputs, viewport dimensions, statuses, or Paper reference mappings.
 The visual guard also runs a `.tmp` fixture that proves missing Paper
-references fail when Paper reference checks are required.
+references fail when Paper reference checks are required, and that aligned
+manifest entries cannot point at missing generated captures when capture checks
+are explicitly enabled.
+
+After running `npm --prefix test run test:e2e:igloo-pwa:visual`, run
+`npm --prefix test run test:guards:visual:captures` before generating or sharing
+the comparison report. This opt-in guard checks only generated `.tmp` artifacts,
+so it is not part of the always-on manifest-shape guard.
 
 PWA scoped CI uploads visual artifacts for review.
 

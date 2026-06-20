@@ -54,4 +54,38 @@ if ! grep -Fq "paperReference does not exist: repos/igloo-paper/screens/missing-
   exit 1
 fi
 
-echo "ok: visual manifest checker rejects missing Paper references"
+cat >"${MANIFEST_PATH}" <<'EOF'
+{
+  "suite": "igloo-pwa-paper-visuals",
+  "screens": [
+    {
+      "name": "aligned-missing-capture",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/missing/aligned-missing-capture.png",
+      "paperReference": "repos/igloo-paper/design/components/settings-sidebar/screenshot.png",
+      "status": "aligned"
+    }
+  ]
+}
+EOF
+
+set +e
+FROSTR_PWA_VISUAL_MANIFEST_PATH="${MANIFEST_PATH}" \
+  FROSTR_PWA_VISUAL_REQUIRE_ALIGNED_OUTPUTS=1 \
+  node "${ROOT_DIR}/test/scripts/check-pwa-visual-manifest.mjs" >"${OUTPUT_PATH}" 2>&1
+status="$?"
+set -e
+
+if [[ "${status}" -eq 0 ]]; then
+  echo "expected visual manifest checker to fail for a missing aligned PWA capture" >&2
+  cat "${OUTPUT_PATH}" >&2
+  exit 1
+fi
+
+if ! grep -Fq "output does not exist for aligned screen aligned-missing-capture" "${OUTPUT_PATH}"; then
+  echo "expected missing aligned PWA capture failure message" >&2
+  cat "${OUTPUT_PATH}" >&2
+  exit 1
+fi
+
+echo "ok: visual manifest checker rejects missing Paper references and missing aligned PWA captures"

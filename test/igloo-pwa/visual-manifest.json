@@ -19,11 +19,59 @@
     },
     {
       "name": "dashboard-settings",
-      "viewport": "1440x1080",
+      "viewport": "1440x1210",
       "output": ".tmp/visual/igloo-pwa/dashboard/03-settings.png",
       "paperReference": "repos/igloo-paper/screens/dashboard/3-settings-lock-profile/screenshot.png",
       "status": "aligned",
-      "notes": "Aligned to the plan-revised design: a routed page (Paper's slide-over is a prototype affordance, not adopted), the Advanced numeric section expanded by default, 'Logout' instead of 'Lock Profile', and the Replace Share / Export Profile / Export Share sections; the Group Profile read-only card and the 'Onboard a Device' entry are intentionally dropped from PWA scope. Open product question, not a defect: the PWA-only 'Browser Settings' toggles (Remember browser state / Open signer after import / Prefer install prompt) have no Paper counterpart (dev/plans/dashboard-settings-export-paper-redesign-2026-06-01.md)."
+      "notes": "Settings now opens a right-side slide-over over the dashboard, with Device Profile, Group Profile, Onboard Device, Replace Share, Export Profile, Export Share, Logout, and Clear Credentials housed in the shared igloo-ui sidebar. The Group Profile table includes Keyset Name, Keyset npub, Threshold, Created, and Updated from PWA profile metadata. Onboard a Device uses the shared explicit bfshare sponsorship flow for post-setup bfonboard package generation. PWA-only Runtime Settings / Browser Settings are no longer rendered in the Paper Settings sidebar."
+    },
+    {
+      "name": "dashboard-settings-security",
+      "viewport": "1440x1210",
+      "output": ".tmp/visual/igloo-pwa/dashboard/03b-settings-security.png",
+      "paperReference": "repos/igloo-paper/design/components/settings-sidebar/screenshot.png",
+      "status": "aligned",
+      "notes": "Scrolled-bottom capture for the shared Settings sidebar, covering the lower Export & Backup and Profile Security actions that are below the fold in the dashboard-height capture."
+    },
+    {
+      "name": "dashboard-settings-onboard-device",
+      "viewport": "1440x1210",
+      "output": ".tmp/visual/igloo-pwa/dashboard/03c-settings-onboard-device.png",
+      "paperReference": "repos/igloo-paper/screens/dashboard/3d-onboard-device-modal/screenshot.png",
+      "status": "aligned",
+      "notes": "The Settings Onboard Device action opens the shared igloo-ui configure dialog for creating a bfonboard handoff from an explicit protected bfshare source package."
+    },
+    {
+      "name": "dashboard-clear-credentials",
+      "viewport": "1440x1210",
+      "output": ".tmp/visual/igloo-pwa/dashboard/03d-clear-credentials-modal.png",
+      "paperReference": "repos/igloo-paper/screens/dashboard/3b-clear-credentials-modal/screenshot.png",
+      "status": "aligned",
+      "notes": "The Profile Security Clear Credentials action now uses a shared igloo-ui dialog with the Paper title, irreversible warning copy, red profile summary strip, Cancel, and Clear Credentials confirmation. The PWA confirm path stops the signer, deletes the selected saved profile, clears the unlock passphrase, and returns to the profile list."
+    },
+    {
+      "name": "dashboard-settings-unsaved-changes",
+      "viewport": "1440x1210",
+      "output": ".tmp/visual/igloo-pwa/dashboard/03e-unsaved-changes-modal.png",
+      "paperReference": "repos/igloo-paper/screens/dashboard/3c-unsaved-changes-modal/screenshot.png",
+      "status": "aligned",
+      "notes": "The Settings dirty-exit guard now uses a shared igloo-ui dialog matching Paper's clear-creds shell, with the canonical Settings copy plus Keep editing and Discard actions."
+    },
+    {
+      "name": "dashboard-profile-password",
+      "viewport": "1440x1210",
+      "output": ".tmp/visual/igloo-pwa/dashboard/03f-profile-password-modal.png",
+      "paperReference": "repos/igloo-paper/design/components/overlays-feedback/screenshot.png",
+      "status": "aligned",
+      "notes": "The Settings Profile Password action now uses a shared igloo-ui dialog based on Paper's profile-password overlay treatment: lock icon, local profile encryption context, Current Password, New Password, Confirm New Password, Cancel, and Change Password. Paper has the unlock modal as the component source of truth, so the change-password copy is action-specific."
+    },
+    {
+      "name": "dashboard-settings-mobile",
+      "viewport": "390x844",
+      "output": ".tmp/visual/igloo-pwa/dashboard/03g-settings-mobile.png",
+      "paperReference": "repos/igloo-paper/design/components/settings-sidebar/screenshot.png",
+      "status": "aligned",
+      "notes": "Narrow-viewport guard for the shared Settings sidebar. The slide-over becomes full-width on phone-sized screens, keeps the Paper section order, and asserts that the panel and scroll body do not introduce horizontal overflow."
     },
     {
       "name": "dashboard-export-profile",
@@ -31,7 +79,39 @@
       "output": ".tmp/visual/igloo-pwa/dashboard/04-export-profile-modal.png",
       "paperReference": "repos/igloo-paper/screens/dashboard/4-export-profile/screenshot.png",
       "status": "aligned",
-      "notes": "The Export Profile password modal matches Paper: title, the 'Share #N (Index N) · Keyset · N relays · N peers' summary line, Export Password + Confirm Password with strength meter, and Cancel/Export. The only difference is the backdrop (the Settings routed page vs Paper's slide-over), which is an intentional surface decision."
+      "notes": "The Export Profile password modal matches Paper: title, the 'Share #N (Index N) · Keyset · N relays · N peers' summary line, Export Password + Confirm Password with strength meter, and Cancel/Export. It now launches from the Settings slide-over backdrop."
+    },
+    {
+      "name": "dashboard-replace-share-entry",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/dashboard/05-replace-share-entry.png",
+      "paperReference": "repos/igloo-paper/design/patterns/replace-share/screenshot.png",
+      "status": "aligned",
+      "notes": "Settings Replace Share launches the shared igloo-ui package-entry section with Paper terminology and bare flow shell treatment. After package validation the active PWA flow now moves directly into Paper's Applying Replacement state and starts replacing the local share; no extra post-validation confirmation step remains."
+    },
+    {
+      "name": "dashboard-replace-share-applying",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/dashboard/05b-replace-share-applying.png",
+      "paperReference": "repos/igloo-paper/design/patterns/replace-share/screenshot.png",
+      "status": "aligned",
+      "notes": "DEV-only visual seam renders the runtime-only Applying Replacement state without persisting the pending bfonboard connection. The shared igloo-ui panel shows the Paper timeline labels, package summary, and Cancel Replacement action while the replacement is in progress."
+    },
+    {
+      "name": "dashboard-replace-share-failed",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/dashboard/05c-replace-share-failed.png",
+      "paperReference": "repos/igloo-paper/design/patterns/replace-share/screenshot.png",
+      "status": "aligned",
+      "notes": "DEV-only visual seam renders the runtime-only Replacement Failed state with the Paper warning card, Retry, and Back to Replace Share actions."
+    },
+    {
+      "name": "dashboard-replace-share-success",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/dashboard/05d-replace-share-success.png",
+      "paperReference": "repos/igloo-paper/design/patterns/replace-share/screenshot.png",
+      "status": "aligned",
+      "notes": "DEV-only visual seam renders the Share Replaced state with the Paper success card, replacement summary, unchanged group key/profile labels, old/new share key rows, and Return to Signer action."
     },
     {
       "name": "welcome-first-launch",
@@ -122,7 +202,8 @@
       "viewport": "1440x1080",
       "output": ".tmp/visual/igloo-pwa/import/02-save-profile.png",
       "paperReference": "repos/igloo-paper/screens/import/2-save-profile/screenshot.png",
-      "status": "aligned"
+      "status": "needs-work",
+      "notes": "The old seed-and-reload capture for the Import Save Profile step was dropped because pendingLoadConfirmation carries a passphrase and is intentionally cleared during store normalization. The flow is covered behaviorally by app-shell tests, but visual coverage needs a non-persisting test seam before this can be promoted back to aligned."
     },
     {
       "name": "import-error",
@@ -157,7 +238,8 @@
       "viewport": "1440x1080",
       "output": ".tmp/visual/igloo-pwa/onboard/04-save-profile.png",
       "paperReference": "repos/igloo-paper/screens/onboard/3-save-profile/screenshot.png",
-      "status": "aligned"
+      "status": "needs-work",
+      "notes": "The old seed-and-reload capture for the Onboard Save Profile step was dropped because pendingOnboardConnection carries a passphrase and is intentionally cleared during store normalization. The flow is covered behaviorally by app-shell tests, but visual coverage needs a non-persisting test seam before this can be promoted back to aligned."
     },
     {
       "name": "recover-collect-shares",

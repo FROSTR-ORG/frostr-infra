@@ -41,6 +41,7 @@ const outputs = new Set();
 const paperPopulated = pathExists(path.join(PAPER_DIR, 'design')) || pathExists(path.join(PAPER_DIR, 'screens'));
 const requirePaperReferences = process.env.FROSTR_PWA_VISUAL_REQUIRE_PAPER === '1';
 const checkPaperReferences = paperPopulated || requirePaperReferences;
+const requireAlignedOutputs = process.env.FROSTR_PWA_VISUAL_REQUIRE_ALIGNED_OUTPUTS === '1';
 
 for (const [index, screen] of screens.entries()) {
   const label = `screen[${index}]`;
@@ -86,6 +87,15 @@ for (const [index, screen] of screens.entries()) {
 
   if (typeof status !== 'string' || !ALLOWED_STATUSES.has(status)) {
     fail(`${label}.status must be one of: ${Array.from(ALLOWED_STATUSES).join(', ')}`);
+  } else if (
+    requireAlignedOutputs
+    && status === 'aligned'
+    && typeof output === 'string'
+    && output.startsWith('.tmp/visual/igloo-pwa/')
+    && output.endsWith('.png')
+    && !pathExists(path.join(ROOT_DIR, output))
+  ) {
+    fail(`${label}.output does not exist for aligned screen ${name}: ${output}`);
   }
 }
 
@@ -96,4 +106,7 @@ if (process.exitCode) {
 console.log(`ok: validated ${screens.length} PWA visual manifest entries`);
 if (!checkPaperReferences) {
   console.log('ok: skipped Paper reference existence checks because repos/igloo-paper is not populated');
+}
+if (requireAlignedOutputs) {
+  console.log('ok: aligned PWA visual captures exist');
 }

@@ -131,7 +131,10 @@ and `repos/igloo-pwa`. It does not require `repos/igloo-chrome`,
 The visual command captures Welcome, Create, and Onboard screenshots under
 `./.tmp/visual/igloo-pwa/` and is included in PWA scoped CI as artifact
 evidence. `test/igloo-pwa/visual-manifest.json` maps each capture to its Paper
-reference and current alignment status.
+reference and current alignment status. After a local visual capture run, use
+`npm --prefix test run test:guards:visual:captures` to confirm every manifest
+entry marked `aligned` has a generated PWA screenshot before reviewing
+`npm --prefix test run test:visual:report`.
 
 Chrome-only and Home-only validation:
 

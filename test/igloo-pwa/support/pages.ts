@@ -256,10 +256,18 @@ export class DashboardPage extends BasePage {
     return this.tid(TID.settingsAutoOpenToggle);
   }
   async expectSettingsActions(): Promise<void> {
+    await expect(this.tid(TID.settingsProfilePassword)).toBeVisible();
+    await expect(this.tid(TID.settingsOnboardDevice)).toBeVisible();
     await expect(this.tid(TID.settingsCopyProfile)).toBeVisible();
     await expect(this.tid(TID.settingsCopyShare)).toBeVisible();
     await expect(this.tid(TID.maintenanceRotateShare)).toBeVisible();
     await expect(this.tid(TID.settingsLogout)).toBeVisible();
+    await expect(this.tid(TID.settingsClearCredentials)).toBeVisible();
+  }
+  async scrollSettingsSidebarToBottom(): Promise<void> {
+    await this.tid(TID.dashboardSettingsSidebarBody).evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+    });
   }
   async logout(): Promise<void> {
     await this.tid(TID.settingsLogout).click();
@@ -289,17 +297,125 @@ export class DashboardPage extends BasePage {
     // The PWA signer has no website/origin permissions, so that section must not render.
     await expect(this.page.getByRole('heading', { name: 'Signer Permissions' })).toHaveCount(0);
   }
-  // Settings page (Paper-aligned section layout).
+  // Settings sidebar (Paper-aligned section layout).
   async expectSettingsSections(): Promise<void> {
+    const sidebar = this.tid(TID.dashboardSettingsSidebar);
+    await expect(sidebar).toBeVisible();
     await expect(this.page.getByRole('heading', { name: 'Device Profile', exact: true })).toBeVisible();
-    await expect(this.page.getByRole('heading', { name: 'Replace Share', exact: true })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Group Profile', exact: true })).toBeVisible();
+    await expect(sidebar.getByText('2 of 3', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Updated', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Nov 15, 2023', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('threshold n/a', { exact: true })).toHaveCount(0);
+    await expect(this.page.getByRole('heading', { name: 'Onboard Device', exact: true })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Replace Share', exact: true }).first()).toBeVisible();
     await expect(this.page.getByRole('heading', { name: 'Export Profile', exact: true })).toBeVisible();
     await expect(this.page.getByRole('heading', { name: 'Export Share', exact: true })).toBeVisible();
     await expect(this.page.getByRole('heading', { name: 'Logout', exact: true })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Clear Credentials', exact: true })).toBeVisible();
+  }
+  async expectSettingsSidebarFitsViewport(): Promise<void> {
+    const sidebar = this.tid(TID.dashboardSettingsSidebar);
+    const body = this.tid(TID.dashboardSettingsSidebarBody);
+    const viewportWidth = await this.page.evaluate(() => window.innerWidth);
+    await expect(sidebar).toBeVisible();
+    await expect.poll(async () => sidebar.evaluate(readCssBackgroundAlpha)).toBe(1);
+    await expect
+      .poll(async () => this.page.evaluate(() => document.documentElement.scrollWidth))
+      .toBe(viewportWidth);
+    await expect
+      .poll(async () =>
+        sidebar.evaluate((node) => {
+          const rect = node.getBoundingClientRect();
+          return {
+            left: Math.round(rect.left),
+            right: Math.round(rect.right),
+            viewportWidth: window.innerWidth,
+          };
+        }),
+      )
+      .toEqual(
+        expect.objectContaining({
+          left: 0,
+          right: viewportWidth,
+        }),
+      );
+    await expect
+      .poll(async () => body.evaluate((node) => node.scrollWidth - node.clientWidth))
+      .toBe(0);
   }
   // Export package modal (Phase B step 4).
   async openExportProfile(): Promise<void> {
     await this.tid(TID.settingsCopyProfile).click();
+  }
+  async openOnboardDevice(): Promise<void> {
+    await this.tid(TID.settingsOnboardDevice).click();
+  }
+  async expectOnboardDeviceConfigureForm(): Promise<void> {
+    const dialog = this.page.getByRole('dialog', { name: 'Onboard a Device' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: 'Configure Device' })).toBeVisible();
+    await expect(dialog.getByText(/remote-member bfshare/i)).toBeVisible();
+    await expect(this.tid(TID.settingsOnboardDeviceLabel)).toBeVisible();
+    await expect(this.tid(TID.settingsOnboardSourcePackage)).toBeVisible();
+    await expect(this.tid(TID.settingsOnboardSourcePassword)).toBeVisible();
+    await expect(this.tid(TID.settingsOnboardPackagePassword)).toBeVisible();
+    await expect(this.tid(TID.settingsOnboardPackageConfirm)).toBeVisible();
+    await expect(this.tid(TID.settingsOnboardCreate)).toBeDisabled();
+  }
+  async closeOnboardDeviceConfigureForm(): Promise<void> {
+    await this.page.getByRole('dialog', { name: 'Onboard a Device' }).getByRole('button', { name: 'Cancel' }).click();
+  }
+  async openProfilePassword(): Promise<void> {
+    await this.tid(TID.settingsProfilePassword).click();
+  }
+  async expectProfilePasswordModal(): Promise<void> {
+    const dialog = this.page.getByRole('dialog', { name: 'Change Profile Password' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText(/Re-encrypt this device profile/i)).toBeVisible();
+    await expect(this.tid(TID.settingsPasswordCurrent)).toBeVisible();
+    await expect(this.tid(TID.settingsPasswordNext)).toBeVisible();
+    await expect(this.tid(TID.settingsPasswordConfirm)).toBeVisible();
+  }
+  async cancelProfilePassword(): Promise<void> {
+    await this.page
+      .getByRole('dialog', { name: 'Change Profile Password' })
+      .getByRole('button', { name: 'Cancel' })
+      .click();
+  }
+  async openClearCredentials(): Promise<void> {
+    await this.tid(TID.settingsClearCredentials).click();
+  }
+  async expectClearCredentialsModal(): Promise<void> {
+    const dialog = this.page.getByRole('dialog', { name: 'Clear Credentials' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText(/This action cannot be undone/i)).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Clear Credentials' })).toBeVisible();
+  }
+  async cancelClearCredentials(): Promise<void> {
+    await this.page.getByRole('dialog', { name: 'Clear Credentials' }).getByRole('button', { name: 'Cancel' }).click();
+  }
+  async openReplaceShare(): Promise<void> {
+    await this.tid(TID.maintenanceRotateShare).click();
+  }
+  async expectReplaceShareApplying(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Applying Replacement' })).toBeVisible();
+    await expect(this.page.getByText('Validated package')).toBeVisible();
+    await expect(this.page.getByText('Matched Group Profile')).toBeVisible();
+    await expect(this.page.getByText('Replacing local share')).toBeVisible();
+    await expect(this.page.getByText('Saving updated local share')).toBeVisible();
+  }
+  async expectReplaceShareFailed(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Replacement Failed' })).toBeVisible();
+    await expect(this.page.getByText('Onboarding package did not apply')).toBeVisible();
+    await expect(this.page.getByRole('button', { name: 'Retry' })).toBeVisible();
+    await expect(this.page.getByText('Back to Replace Share', { exact: true })).toBeVisible();
+  }
+  async expectReplaceShareSuccess(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Share Replaced' })).toBeVisible();
+    await expect(this.page.getByText('Replacement share is active on this device')).toBeVisible();
+    await expect(this.page.getByText('Replacement Summary')).toBeVisible();
+    await expect(this.page.getByText('Return to Signer', { exact: true })).toBeVisible();
   }
   async expectExportModalEntry(): Promise<void> {
     await expect(this.tid(TID.exportPassword)).toBeVisible();
@@ -312,7 +428,11 @@ export class DashboardPage extends BasePage {
   }
   // Unsaved-changes guard modal (leaving Settings with edits).
   async expectUnsavedGuard(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: 'Discard unsaved changes?' })).toBeVisible();
+    const dialog = this.page.getByRole('dialog', { name: 'Discard unsaved changes?' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('You have unsaved changes in Settings. Close without saving?')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Keep editing' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Discard' })).toBeVisible();
   }
   async keepEditing(): Promise<void> {
     await this.page.getByRole('button', { name: 'Keep editing' }).click();
@@ -331,6 +451,21 @@ export class DashboardPage extends BasePage {
     await expect(result).toBeVisible({ timeout: 30_000 });
     return (await result.textContent()) ?? '';
   }
+}
+
+function readCssBackgroundAlpha(node: Element): number {
+  const backgroundColor = window.getComputedStyle(node).backgroundColor;
+  const rgbMatch = backgroundColor.match(/^rgba?\((.+)\)$/);
+  if (rgbMatch) {
+    const channels = rgbMatch[1].split(',').map((part) => part.trim());
+    return channels.length >= 4 ? Number.parseFloat(channels[3]) : 1;
+  }
+  const colorFunctionAlphaMatch = backgroundColor.match(/\/\s*([0-9.]+%?)/);
+  if (colorFunctionAlphaMatch) {
+    const rawAlpha = colorFunctionAlphaMatch[1];
+    return rawAlpha.endsWith('%') ? Number.parseFloat(rawAlpha) / 100 : Number.parseFloat(rawAlpha);
+  }
+  return backgroundColor === 'transparent' ? 0 : 1;
 }
 
 export interface PwaPages {

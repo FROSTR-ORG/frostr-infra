@@ -44,6 +44,10 @@ function renderScreen(screen) {
     '',
   ];
 
+  if (typeof screen.notes === 'string' && screen.notes.trim()) {
+    lines.push('### Notes', '', screen.notes.trim(), '');
+  }
+
   if (paper.exists) {
     lines.push('### Paper', '', `![${screen.name} Paper reference](${paper.relativePath})`, '');
   }

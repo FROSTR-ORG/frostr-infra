@@ -297,6 +297,7 @@ test.describe('igloo-pwa ui-first shell', () => {
     await page.goto('/');
     const dashboard = pages(page).dashboard;
     await dashboard.expectDashboard();
+    await dashboard.openTab('settings');
     await dashboard.editSignerName('Edited Name');
 
     // Leaving Settings with unsaved edits opens the guard; Keep editing stays put.

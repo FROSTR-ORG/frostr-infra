@@ -9,6 +9,110 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
+## 2026-06-20 — Settings sponsor producer clarified
+
+Searched `igloo-pwa`, `igloo-home`, `igloo-ui`, `igloo-shared`, and
+`bifrost-rs` for the Settings `Onboard a Device` producer path. The
+`bfonboard` producer is already defined in code: PWA creates packages during
+create/distribute, Home exposes the same operation through Tauri, `igloo-shared`
+owns the shared sponsorship builder, and `bifrost-rs` owns the encoder. Updated
+the Settings audit, unblock plan, and backlog to clarify that the remaining
+blocker is Settings-time access to explicit target-member source material, not
+an undefined package format or encoder.
+
+## 2026-06-20 — Settings sponsor live Paper check
+
+Inspected the live `igloo-ui-shared` Paper file through Paper MCP while
+revisiting the Settings `Onboard a Device` blocker. The file currently has 70
+artboards and no Onboard Sponsor artboards; the old sponsor IDs remain only in
+the AppHeader usage documentation as stale references. Updated the Settings
+audit, unblock plan, and backlog so the next pass starts by restoring,
+recreating, or explicitly retiring those sponsor screens before implementation.
+
+## 2026-06-19 — Settings sidebar audit and visual guard
+
+Recorded the Settings sidebar alignment audit and the follow-up unblock plan for
+the remaining `Onboard a Device` sponsor gap. The audit confirms the shared
+Settings sidebar, profile security actions, Replace Share states, and responsive
+PWA coverage are implemented, while the sponsor action still intentionally shows
+a safe package-producer boundary until Paper sponsor screens and a real
+source-material contract exist. Also tightened the PWA visual manifest/report
+guarding so aligned rows cannot silently point at missing capture artifacts, and
+confirmed strict Paper reconciliation passes with only recipient Onboard screens
+exported.
+
+## 2026-06-19 — Settings sidebar responsive guard
+
+Added a narrow-viewport PWA visual capture for the shared Settings sidebar and
+an explicit Playwright guard that fails when the document, sidebar panel, or
+sidebar scroll body introduces horizontal overflow. The guard surfaced a real
+mobile-width overflow in the dashboard header action slot, fixed by letting the
+shared `igloo-ui` app header action area and the PWA dashboard nav wrap
+compactly on phone-sized screens. The shared sidebar panel surface is now
+opaque as well, matching Paper's solid Settings panel and preventing underlying
+dashboard copy from bleeding through the mobile capture. The Settings Onboard
+Device action row now uses the same compact outline action treatment as the
+other Paper sidebar rows instead of a full-width primary button.
+
+## 2026-06-19 — Settings sidebar Paper-only API
+
+Relaxed the shared `igloo-ui` `OperatorSettingsSidebar` API so the Paper
+sidebar can render without runtime/Advanced settings props. Runtime settings now
+render only when explicitly supplied, while the PWA path keeps
+`showAdvancedSettings={false}` for the Paper `502-0` sidebar. The component also
+accepts the Paper-named `lockProfileAction` prop while preserving `logoutAction`
+as a compatibility alias for older consumers, and exports
+`OperatorSettingsSidebarProps` for downstream apps that need to type the shared
+sidebar surface directly.
+
+## 2026-06-19 — Settings sponsorship package contract
+
+Added a host-neutral `igloo-shared` sponsorship package builder for the future
+Settings `Onboard a Device` producer path. The helper creates a valid
+`bfonboard` package only when a caller supplies explicit remote member source
+material, validates that the source share matches the target group member, and
+returns the canonical shared preview shape. The readiness model and shared
+`igloo-ui` producer-ready panel now distinguish a real outside-runtime package
+producer from explicit source-share package producers. PWA's existing
+create/distribute package path now consumes the shared builder and strips the
+secret-bearing shared preview field before returning its public app preview,
+while Settings continues to show the safe producer-required boundary until a
+real app-side package producer exists.
+
+## 2026-06-19 — Settings Onboard Device readiness boundary
+
+Moved the Settings `Onboard a Device` unavailable decision into a host-neutral
+`igloo-shared` readiness helper and wired PWA to render the shared `igloo-ui`
+sponsorship dialog with that status. The readiness model now names the missing
+remote-share package producer, the required NSEC-or-threshold source material,
+the saved-profile local-share-only boundary, and the safe fallback actions. This
+preserves the current security boundary while leaving the real post-setup
+package-producer contract in [`BACKLOG.md`](./BACKLOG.md). The shared
+`igloo-ui` dialog also has a producer-ready branch for the eventual package
+producer contract, covered by package-local tests. The UI props now use a
+discriminated readiness union that is structurally compatible with the
+`igloo-shared` helper, so future producer-state drift fails at compile time
+instead of falling through loose string fields.
+
+## 2026-06-19 — Settings Replace Share visual coverage
+
+Added deterministic PWA visual captures for the Settings-launched Replace Share
+runtime states: Applying Replacement, Replacement Failed, and Share Replaced.
+The captures use a DEV-only in-memory visual seam so the pending onboarding
+connection and passphrase remain non-persistable, and the shared `igloo-ui`
+success summary now matches Paper by avoiding a duplicate Group Profile
+`Unchanged` tag. The active PWA Replace Share path now also moves directly
+from validated package entry into Applying Replacement, matching Paper without
+an extra post-validation confirmation step.
+
+## 2026-06-19 — Settings Clear Credentials alignment
+
+Aligned the PWA Settings `Clear Credentials` action with Paper screen `3b` by
+moving the destructive confirmation into a shared `igloo-ui` dialog, wiring the
+PWA confirm path to stop the signer, delete the selected saved profile, clear
+the unlock passphrase, and return to the profile list, and adding a visual
+manifest capture for the modal.
+
 ## 2026-06-09 — Paper↔runtime design-sync reconciliation
 
 Re-ran the PWA visual loop after the dashboard/settings/export work landed and

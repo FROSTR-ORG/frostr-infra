@@ -13,6 +13,7 @@
     "test:guards:wasm:strict": "bash ./scripts/check-test-prebuild-nonmutating.sh",
     "test:guards:selectors": "bash ./scripts/check-cross-client-imports.sh && bash ./scripts/check-e2e-selector-contracts.sh",
     "test:guards:visual": "node ./scripts/check-pwa-visual-manifest.mjs && bash ./scripts/check-pwa-visual-manifest-negative.sh",
+    "test:guards:visual:captures": "FROSTR_PWA_VISUAL_REQUIRE_ALIGNED_OUTPUTS=1 node ./scripts/check-pwa-visual-manifest.mjs",
     "test:guards:pwa": "bash ./scripts/check-browser-wasm-artifacts.sh pwa && bash ./scripts/check-e2e-selector-contracts.sh pwa && bash ./scripts/test-affected.sh",
     "test:guards:chrome": "bash ./scripts/check-browser-wasm-artifacts.sh chrome && bash ./scripts/check-e2e-selector-contracts.sh chrome && bash ./scripts/test-affected.sh",
     "test:guards:home": "bash ./scripts/test-igloo-home-run-e2e.sh && bash ./scripts/test-affected.sh",

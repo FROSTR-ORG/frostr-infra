@@ -91,7 +91,7 @@ test.describe('igloo-pwa Paper Permissions visual harness @visual', () => {
         profiles: [profile],
         selectedProfileId: profile.id,
         activeView: 'dashboard',
-        activeDashboardTab: 'permissions',
+        activeDashboardTab: 'signer',
         runtimeSnapshot: buildRunningSnapshot(),
         peerPermissionStates: [peerState('02'.repeat(32)), peerState('04'.repeat(32))],
       }),
@@ -99,6 +99,7 @@ test.describe('igloo-pwa Paper Permissions visual harness @visual', () => {
 
     const dashboard = pages(page).dashboard;
     await dashboard.expectNavLinks();
+    await dashboard.openTab('permissions');
     // PWA Permissions is peer-only: Peer Permissions renders; the chrome-only
     // website/origin "Signer Permissions" section must not appear.
     await dashboard.expectPeerPermissions();

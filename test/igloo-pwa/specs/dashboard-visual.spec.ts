@@ -104,7 +104,7 @@ test.describe('igloo-pwa Paper Dashboard visual harness @visual', () => {
     );
 
     const dashboard = pages(page).dashboard;
-    // Header nav: Dashboard active (pill), Permissions, Settings.
+    // Header nav: Dashboard active (pill), Permissions routed, Settings opens the Paper sidebar.
     await dashboard.expectNavLinks();
     // Merged card: both keys shown as deterministic npub displays, split copy present.
     await dashboard.expectKeyDisplays(
