@@ -9,6 +9,7 @@ struct IglooMobileApp: App {
             ContentView(manager: manager)
                 .onOpenURL { url in
                     #if DEBUG
+                    #if DEBUG
                     if isAutomationDiagnosticsEnabled {
                         OnboardDiagnostics.shared.recordEvent(
                             "open_url: host=\(url.host ?? "nil") path_len=\(url.path.count) query_len=\(url.query?.count ?? 0)"
@@ -278,6 +279,27 @@ struct IglooMobileApp: App {
                             )
                         }
                     }
+
+                    if url.scheme == "igloo" && url.host == "test-keyset-distribute-submit" {
+                        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+                            let shareIdx = components.queryItems?
+                                .first(where: { $0.name == "share_idx" })?
+                                .value
+                                .flatMap(UInt16.init) ?? 0
+                            let method = components.queryItems?
+                                .first(where: { $0.name == "method" })?
+                                .value ?? "copy"
+                            manager.testKeysetDistributeSubmit(
+                                shareIdx: shareIdx,
+                                method: method
+                            )
+                        }
+                    }
+
+                    if url.scheme == "igloo" && url.host == "test-keyset-distribute-finish" {
+                        manager.testKeysetDistributeFinish()
+                    }
+                    #endif
                 }
         }
     }

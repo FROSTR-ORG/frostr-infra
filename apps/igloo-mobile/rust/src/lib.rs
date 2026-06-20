@@ -28,6 +28,8 @@ pub mod signer;
 mod state;
 mod updates;
 
+const MOBILE_MAX_FUTURE_SKEW_SECS: u64 = 300;
+
 pub use actions::AppAction;
 pub use state::{
     AppState, BackupPublishStatus, DashboardState, DashboardTab, DistributeShareRecord,
@@ -180,6 +182,7 @@ pub enum AppUpdate {
     PerformKeysetDistribution {
         share_idx: u16,
         share_secret_hex: String,
+        peer_pk_hex: String,
         relays: Vec<String>,
         label: String,
         password: String,
@@ -967,7 +970,7 @@ impl FfiApp {
 
         // Build device state — restore handshake bootstrap state when available,
         // otherwise fall back to a fresh state for legacy/imported material.
-        let device_state = if material.device_state_hex.is_empty() {
+        let mut device_state = if material.device_state_hex.is_empty() {
             DeviceState::new(material.share_idx, share_seckey_bytes)
         } else {
             match decode_device_state_hex(&material.device_state_hex, share_seckey_bytes) {
@@ -975,6 +978,10 @@ impl FfiApp {
                 Err(_) => return false,
             }
         };
+        // Liveness is session evidence, not durable capability. Keep persisted
+        // nonce inventory, but require each fresh signer start to observe peers
+        // again before surfacing Sign Ready.
+        device_state.peer_last_seen.clear();
 
         // Build device config with the stored relay list.
         let device_config = DeviceConfig {
@@ -983,7 +990,11 @@ impl FfiApp {
             ping_timeout_secs: material.settings.ping_timeout_secs.into(),
             onboard_timeout_secs: 30,
             request_ttl_secs: material.settings.request_ttl_secs.into(),
-            max_future_skew_secs: 30,
+            // Android emulators and physical phones can drift from the host
+            // relay/co-signer clock during local smoke tests. Keep replay TTL
+            // unchanged, but allow realistic device clock skew at the mobile
+            // runtime boundary so valid co-signer responses are not rejected.
+            max_future_skew_secs: MOBILE_MAX_FUTURE_SKEW_SECS,
             request_cache_limit: 2048,
             state_save_interval_secs: material.settings.state_save_interval_secs.into(),
             event_kind: 20000,
@@ -1555,13 +1566,7 @@ impl FfiApp {
         let target_seckey = k256::SecretKey::random(&mut rand::rngs::OsRng);
         let target_pubkey = target_seckey.public_key();
         // Get 32-byte x-only public key (strip the 0x02/0x03 prefix byte).
-        let target_pubkey_bytes: [u8; 32] = {
-            let encoded = target_pubkey.to_encoded_point(false);
-            let bytes = encoded.as_bytes();
-            let mut arr = [0u8; 32];
-            arr.copy_from_slice(&bytes[1..]); // skip prefix byte
-            arr
-        };
+        let target_pubkey_bytes = xonly_public_key_bytes(&target_pubkey);
         let target_pubkey_hex = hex::encode(target_pubkey_bytes);
 
         // Call the bridge ecdh method. The bridge derives the shared secret
@@ -2025,6 +2030,7 @@ impl FfiApp {
     pub fn encode_distribute_onboard(
         &self,
         share_secret_hex: String,
+        peer_pk_hex: String,
         relays: Vec<String>,
         _share_label: String,
         password: String,
@@ -2032,17 +2038,19 @@ impl FfiApp {
         if password.is_empty() {
             return "error:empty_password".to_string();
         }
-        // The Distribute form's "peer_pk" slot needs a placeholder until
-        // the runtime handshake completes. We use the all-zero x-only hex
-        // so the envelope remains valid; the onboarding flow will rewrite
-        // this slot from the live peer handshake. The validator's
-        // bfonboard1 well-formedness assertion (VAL-CREATE-014) only
-        // checks the package and password, not the receiver peer.
-        let placeholder_pk = "00".repeat(32);
+        let peer_pk = peer_pk_hex.trim().to_ascii_lowercase();
+        if peer_pk.len() != 64
+            || peer_pk == "00".repeat(32)
+            || hex::decode(&peer_pk)
+                .map(|bytes| bytes.len() != 32)
+                .unwrap_or(true)
+        {
+            return "error:invalid_peer_pk".to_string();
+        }
         let payload = frostr_utils::BfOnboardPayload {
             share_secret: share_secret_hex,
             relays,
-            peer_pk: placeholder_pk,
+            peer_pk,
         };
         frostr_utils::encode_bfonboard_package(&payload, &password)
             .unwrap_or_else(|e| format!("error:encode:{e}"))
@@ -2530,15 +2538,25 @@ pub(crate) fn parse_keyset_bundle(
     if group.threshold == 0 || count == 0 || group.threshold > count {
         return Err("invalid_bundle_shape".to_string());
     }
+    let member_pubkeys_by_idx = group
+        .members
+        .iter()
+        .map(|member| (member.idx, member.pubkey.to_ascii_lowercase()))
+        .collect::<std::collections::HashMap<_, _>>();
     let mut shares = Vec::with_capacity(exported.shares.len());
     for share in exported.shares {
         // Derive the x-only public key from the share secret so the share
         // picker can list each share by its stable identity.
         let pubkey = derive_share_pubkey_from_hex_secret(&share.seckey)
             .map_err(|e| format!("invalid_bundle_share:{e}"))?;
+        let compressed_pubkey = member_pubkeys_by_idx
+            .get(&share.idx)
+            .cloned()
+            .unwrap_or_else(|| compressed_member_pubkey(&pubkey));
         shares.push(crate::state::GeneratedShare {
             share_idx: share.idx,
             share_pubkey: pubkey,
+            share_pubkey_compressed: compressed_pubkey,
             share_secret_hex: share.seckey.clone(),
             default_label: default_device_label(&group.group_name, share.idx),
         });
@@ -2576,14 +2594,14 @@ pub(crate) fn build_keyset_material(
         .shares
         .iter()
         .filter(|s| s.share_idx != keyset.local_share_idx)
-        .map(|s| compressed_member_pubkey(&s.share_pubkey))
+        .map(|s| s.share_pubkey.clone())
         .collect();
     let members: Vec<MaterialMember> = bundle
         .shares
         .iter()
         .map(|s| MaterialMember {
             idx: s.share_idx,
-            pubkey_hex: compressed_member_pubkey(&s.share_pubkey),
+            pubkey_hex: compressed_member_pubkey(&s.share_pubkey_compressed),
         })
         .collect();
     let material = OnboardProfileMaterial {
@@ -2659,11 +2677,18 @@ fn hex_to_bytes(hex: &str) -> Result<[u8; 32], String> {
 fn derive_share_pubkey_from_secret(seckey_bytes: &[u8; 32]) -> Result<String, String> {
     let sk = SecretKey::from_slice(seckey_bytes).map_err(|_| "malformed_package".to_string())?;
     let pk = sk.public_key();
+    let out = xonly_public_key_bytes(&pk);
+    Ok(hex::encode(out))
+}
+
+fn xonly_public_key_bytes(pk: &k256::PublicKey) -> [u8; 32] {
     let ep = pk.to_encoded_point(false);
-    let x_bytes = ep.x().ok_or("malformed_package".to_string())?;
+    let x_bytes = ep
+        .x()
+        .expect("uncompressed SEC1 public key includes an x-coordinate");
     let mut out = [0u8; 32];
     out.copy_from_slice(x_bytes.as_ref());
-    Ok(hex::encode(out))
+    out
 }
 
 // ── Rotate keyset FFI helpers (VAL-ROTATE-004) ────────────────────────────
@@ -3086,4 +3111,40 @@ pub(crate) async fn fetch_latest_backup_event(
         Some(msg) => anyhow::anyhow!("relay_unreachable:{msg}"),
         None => anyhow::anyhow!("no_backup_found"),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn xonly_public_key_bytes_uses_only_the_sec1_x_coordinate() {
+        let secret = SecretKey::from_slice(&[7u8; 32]).expect("test secret is valid");
+        let public_key = secret.public_key();
+        let uncompressed = public_key.to_encoded_point(false);
+
+        assert_eq!(
+            uncompressed.as_bytes()[1..].len(),
+            64,
+            "uncompressed SEC1 body contains x+y and must not be copied into a 32-byte buffer"
+        );
+
+        let xonly = xonly_public_key_bytes(&public_key);
+        let expected_x: &[u8] = uncompressed.x().unwrap().as_ref();
+        assert_eq!(xonly.len(), 32);
+        assert_eq!(xonly.as_slice(), expected_x);
+        assert_eq!(hex::encode(xonly).len(), 64);
+    }
+
+    #[test]
+    fn mobile_future_skew_tolerates_local_device_clock_drift() {
+        assert!(
+            MOBILE_MAX_FUTURE_SKEW_SECS >= 300,
+            "mobile signer runtime should tolerate several minutes of host/device clock drift"
+        );
+        assert!(
+            MOBILE_MAX_FUTURE_SKEW_SECS <= 300,
+            "mobile signer runtime should not silently widen replay freshness beyond five minutes"
+        );
+    }
 }

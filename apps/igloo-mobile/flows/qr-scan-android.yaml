@@ -74,6 +74,8 @@ name: QR Scan / Paste Fallback - Android (VAL-QR-002/003)
 # VAL-QR-003: paste clipboard into the fallback field, then surface the
 # trimmed bfonboard envelope via "Use This Package" so OnboardConnect
 # receives the same payload it would have after a real scan.
+# Maestro's Android `setClipboard` is reliable for pasteText into Compose,
+# but not for app-side reads through ClipboardManager in this emulator lane.
 - tapOn:
     id: "input_qr_fallback_package"
 - setClipboard: "${ONBOARD_PACKAGE}"

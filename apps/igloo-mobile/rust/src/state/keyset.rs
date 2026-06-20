@@ -109,10 +109,13 @@ pub struct RotationSourceRow {
 pub struct GeneratedShare {
     /// Identifier inside the keyset (matches `SharePackage.idx`).
     pub share_idx: u16,
-    /// 64-char lowercase-hex compressed public key (33-byte form is rendered
-    /// as x-only here so mobile validators can compare via accessibility
-    /// value or copy affordance).
+    /// 64-char lowercase-hex x-only public key. The UI displays this compact
+    /// identity while signer material uses `share_pubkey_compressed`.
     pub share_pubkey: String,
+    /// 66-char lowercase-hex SEC1 compressed public key from the generated
+    /// group member list. This preserves the real 02/03 prefix needed by
+    /// onboarding response validation.
+    pub share_pubkey_compressed: String,
     /// 32-byte share secret as 64-char lowercase hex. Kept here so the
     /// wizard can re-encode the share via the `bfonboard1` envelope on the
     /// Distribute step. Lives only inside the actor state; never sent to

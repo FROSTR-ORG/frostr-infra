@@ -196,9 +196,9 @@ cleanup_shell_home() {
     # the writable `/tmp` indirection it points at instead (see
     # prepare_shell_home). Root containers remove the link directly.
     if [ -L "${IGLOO_SHELL_DEMO_STATE_LINK}" ]; then
-      rm -f "$(readlink "${IGLOO_SHELL_DEMO_STATE_LINK}")"
+      rm -rf "$(readlink "${IGLOO_SHELL_DEMO_STATE_LINK}")"
     else
-      rm -f "${IGLOO_SHELL_DEMO_STATE_LINK}"
+      rm -rf "${IGLOO_SHELL_DEMO_STATE_LINK}"
     fi
   fi
 }

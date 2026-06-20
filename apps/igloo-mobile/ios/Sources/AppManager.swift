@@ -331,11 +331,12 @@ final class AppManager: AppReconciler {
         case .performKeysetGeneration(let groupName, let threshold, let count, let mode):
             performKeysetGeneration(groupName: groupName, threshold: threshold, count: count, mode: mode)
 
-        case .performKeysetDistribution(let shareIdx, let shareSecretHex, let relays, let shareLabel, let password, let method):
+        case .performKeysetDistribution(let shareIdx, let shareSecretHex, let peerPkHex, let relays, let shareLabel, let password, let method):
             // VAL-CREATE-014/015/016 — encode bfonboard1 + update chip.
             performKeysetDistribution(
                 shareIdx: shareIdx,
                 shareSecretHex: shareSecretHex,
+                peerPkHex: peerPkHex,
                 relays: relays,
                 shareLabel: shareLabel,
                 password: password,
@@ -488,6 +489,7 @@ final class AppManager: AppReconciler {
     private func performKeysetDistribution(
         shareIdx: UInt16,
         shareSecretHex: String,
+        peerPkHex: String,
         relays: [String],
         shareLabel: String,
         password: String,
@@ -497,6 +499,7 @@ final class AppManager: AppReconciler {
         Thread.detachNewThread {
             let pkg = rust.encodeDistributeOnboard(
                 shareSecretHex: shareSecretHex,
+                peerPkHex: peerPkHex,
                 relays: relays,
                 shareLabel: shareLabel,
                 password: password
@@ -515,6 +518,12 @@ final class AppManager: AppReconciler {
                     package: pkg,
                     method: method
                 ))
+                self.writeDebugKeysetDistributePackage(
+                    shareIdx: shareIdx,
+                    shareLabel: shareLabel,
+                    method: method,
+                    package: pkg
+                )
                 if method == "qr" {
                     self.distributionQrPayload = pkg
                     self.distributionQrShareLabel = shareLabel
@@ -1159,6 +1168,10 @@ final class AppManager: AppReconciler {
         #if DEBUG
         guard isOnboardDiagnosticsEnabled else { return }
 
+        if state.router.screen != .onboardConnect {
+            dispatch(.navigateOnboardConnect)
+        }
+
         // DEBUG + diagnostics-gated bootstrap: stash the device_name hint so the
         // OnboardReviewView (which is rendered after the handshake completes)
         // can prefill the TextField from sandboxed test data, without depending
@@ -1399,6 +1412,70 @@ final class AppManager: AppReconciler {
         ))
         KeysetDiagnostics.shared.recordEvent(
             "test_keyset_distribute_password: share_idx=\(shareIdx) pwd_len=\(password.count)"
+        )
+        #endif
+    }
+
+    /// Debug + diagnostics-gated Distribute-row package submitter.
+    ///
+    /// This gives shell validators a public automation route for the same
+    /// Copy/QR/Save action a user taps, without depending on SwiftUI button
+    /// automation. The package itself is emitted by `performKeysetDistribution`
+    /// and written to app-private debug storage only in DEBUG diagnostics runs.
+    func testKeysetDistributeSubmit(shareIdx: UInt16, method: String) {
+        #if DEBUG
+        guard isKeysetDiagnosticsEnabled else { return }
+        let trimmedMethod = method.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedMethod == "copy" || trimmedMethod == "qr" || trimmedMethod == "save" else {
+            return
+        }
+        let _ = dispatch(.createKeysetDistributeSubmit(
+            shareIdx: shareIdx,
+            method: trimmedMethod
+        ))
+        KeysetDiagnostics.shared.recordEvent(
+            "test_keyset_distribute_submit: share_idx=\(shareIdx) method=\(trimmedMethod)"
+        )
+        #endif
+    }
+
+    /// Debug + diagnostics-gated Create Keyset finish action.
+    func testKeysetDistributeFinish() {
+        #if DEBUG
+        guard isKeysetDiagnosticsEnabled else { return }
+        let _ = dispatch(.createKeysetDistributeFinish)
+        KeysetDiagnostics.shared.recordEvent("test_keyset_distribute_finish")
+        #endif
+    }
+
+    private func writeDebugKeysetDistributePackage(
+        shareIdx: UInt16,
+        shareLabel: String,
+        method: String,
+        package: String
+    ) {
+        #if DEBUG
+        guard isKeysetDiagnosticsEnabled,
+              let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return
+        }
+        try? package.write(
+            to: documents.appendingPathComponent("debug-last-keyset-distribute-package.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+        let proof = [
+            "produced=yes",
+            "share_idx=\(shareIdx)",
+            "method=\(method)",
+            "share_label=\(shareLabel)",
+            "package_length=\(package.count)",
+            "package_prefix=\(String(package.prefix(10)))"
+        ].joined(separator: "\n")
+        try? proof.write(
+            to: documents.appendingPathComponent("debug-last-keyset-distribute-package-proof.txt"),
+            atomically: true,
+            encoding: .utf8
         )
         #endif
     }

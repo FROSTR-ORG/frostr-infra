@@ -19,9 +19,11 @@ RUN_TAG="$(date +%H%M%S)"
 GROUP_NAME="QrDisplayIOS-${RUN_TAG}"
 DEVICE_NAME="QrDisplayIOS-${RUN_TAG}"
 PASSWORD="qrdisplay${RUN_TAG}"
-SHARE_IDX="2"
-RELAY="ws://127.0.0.1:8194"
-RELAY_ENC="$(python3 -c 'import urllib.parse; print(urllib.parse.quote("ws://127.0.0.1:8194"))')"
+KEYSET_THRESHOLD="${KEYSET_THRESHOLD:-2}"
+KEYSET_COUNT="${KEYSET_COUNT:-3}"
+SHARE_IDX="${SHARE_IDX:-2}"
+RELAY="${RELAY_URL:-ws://127.0.0.1:8194}"
+RELAY_ENC="$(python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' "$RELAY")"
 EVIDENCE_DIR="${EVIDENCE_DIR:-$APPS/library/evidence/mobile-ios-qr-display-$(date +%Y-%m-%d-%H%M%S)}"
 mkdir -p "$EVIDENCE_DIR"
 
@@ -82,7 +84,7 @@ SIMCTL_CHILD_IGLOO_KEYSET_DIAGNOSTICS=1 xcrun simctl launch "$UDID" "$APP_ID" >/
 sleep 3
 snapshot "01-launch"
 
-URL="igloo://test-create-keyset?group_name=${GROUP_NAME}&threshold=2&count=3&device_name=${DEVICE_NAME}&relay=${RELAY_ENC}&auto_finish=false"
+URL="igloo://test-create-keyset?group_name=${GROUP_NAME}&threshold=${KEYSET_THRESHOLD}&count=${KEYSET_COUNT}&device_name=${DEVICE_NAME}&relay=${RELAY_ENC}&auto_finish=false"
 echo "[focus-qr-ios $(date +%H:%M:%S)] create keyset to Distribute"
 xcrun simctl openurl "$UDID" "$URL" > "$EVIDENCE_DIR/openurl.txt" 2>&1
 wait_for_text "Distribute" 90
@@ -95,16 +97,15 @@ echo "[focus-qr-ios $(date +%H:%M:%S)] seed distribute password"
 xcrun simctl openurl "$UDID" "$SEED_URL" >> "$EVIDENCE_DIR/openurl.txt" 2>&1
 sleep 2
 
+echo "[focus-qr-ios $(date +%H:%M:%S)] open QR modal via diagnostics submit"
+xcrun simctl openurl "$UDID" "igloo://test-keyset-distribute-submit?share_idx=${SHARE_IDX}&method=qr" \
+  >> "$EVIDENCE_DIR/openurl.txt" 2>&1
+sleep 2
+
 FLOW="$EVIDENCE_DIR/qr-display-ios.yaml"
 cat > "$FLOW" <<EOF
 appId: $APP_ID
 ---
-- scrollUntilVisible:
-    element:
-      text: "QR"
-    timeout: 30000
-- tapOn:
-    text: "QR"
 - scrollUntilVisible:
     element:
       id: "qr_payload_text"
@@ -115,7 +116,7 @@ appId: $APP_ID
     id: "qr_payload_text"
 EOF
 
-echo "[focus-qr-ios $(date +%H:%M:%S)] open QR modal"
+echo "[focus-qr-ios $(date +%H:%M:%S)] verify QR modal"
 maestro --device "$UDID" test "$FLOW" --debug-output "$EVIDENCE_DIR/maestro" 2>&1 \
   | tee "$EVIDENCE_DIR/maestro.log"
 snapshot "03-qr-modal"

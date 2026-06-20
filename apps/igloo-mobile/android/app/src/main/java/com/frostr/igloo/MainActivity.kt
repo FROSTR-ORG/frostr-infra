@@ -118,6 +118,18 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        if (intent.action == ACTION_DEBUG_TEST_KEYSET_DISTRIBUTE_SUBMIT) {
+            val shareIdx = intent.getIntExtra(EXTRA_SHARE_IDX, -1)
+            val method = intent.getStringExtra(EXTRA_METHOD)?.trim().orEmpty().ifEmpty { "copy" }
+            manager.testKeysetDistributeSubmit(shareIdx = shareIdx, method = method)
+            return
+        }
+
+        if (intent.action == ACTION_DEBUG_TEST_KEYSET_DISTRIBUTE_FINISH) {
+            manager.testKeysetDistributeFinish()
+            return
+        }
+
         if (intent.action == ACTION_DEBUG_TEST_ROTATE_SHARE) {
             val packageExtra = intent.getStringExtra(EXTRA_PACKAGE)?.trim().orEmpty()
             val password = intent.getStringExtra(EXTRA_PASSWORD).orEmpty()
@@ -186,6 +198,10 @@ class MainActivity : ComponentActivity() {
             "com.frostr.igloo.DEBUG_TEST_CREATE_KEYSET"
         internal const val ACTION_DEBUG_TEST_KEYSET_DISTRIBUTE_PASSWORD =
             "com.frostr.igloo.DEBUG_TEST_KEYSET_DISTRIBUTE_PASSWORD"
+        internal const val ACTION_DEBUG_TEST_KEYSET_DISTRIBUTE_SUBMIT =
+            "com.frostr.igloo.DEBUG_TEST_KEYSET_DISTRIBUTE_SUBMIT"
+        internal const val ACTION_DEBUG_TEST_KEYSET_DISTRIBUTE_FINISH =
+            "com.frostr.igloo.DEBUG_TEST_KEYSET_DISTRIBUTE_FINISH"
         internal const val ACTION_DEBUG_TEST_ROTATE_SHARE =
             "com.frostr.igloo.DEBUG_TEST_ROTATE_SHARE"
         internal const val ACTION_DEBUG_TEST_ROTATE_SHARE_REPLACE =
@@ -205,6 +221,7 @@ class MainActivity : ComponentActivity() {
         internal const val EXTRA_COUNT = "count"
         internal const val EXTRA_AUTO_FINISH = "auto_finish"
         internal const val EXTRA_SHARE_IDX = "share_idx"
+        internal const val EXTRA_METHOD = "method"
 
         // Default relay URL used when the test intent omits `relay`. The
         // Android emulator's host loopback is 10.0.2.2 by convention.

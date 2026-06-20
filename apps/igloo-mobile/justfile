@@ -119,6 +119,10 @@ focus-ios-keyset:
 focus-android-keyset:
   scripts/run-focus-android-keyset-debug-intent.sh
 
+# Validate visible iOS + Android Create Keyset wizard completion.
+focus-cross-platform-create-keyset-manual:
+  scripts/run-cross-platform-create-keyset-manual-proof.sh
+
 # Validate iOS bfprofile1 / bfshare1 export artifacts.
 focus-ios-export:
   scripts/run-focus-export-artifact-validation-ios.sh
@@ -150,6 +154,43 @@ focus-ios-qr-display:
 # Validate Android Create Keyset bfonboard QR display/decode.
 focus-android-qr-display:
   scripts/run-focus-android-qr-display.sh
+
+# Validate bidirectional native QR onboarding, then Test Sign + Test ECDH.
+focus-cross-platform-onboard-signer:
+  scripts/run-cross-platform-onboard-signer-proof.sh
+
+# Validate bidirectional native-created packages through the manual Connect form.
+focus-cross-platform-manual-onboard:
+  scripts/run-cross-platform-manual-onboard-proof.sh
+
+# Validate wrong-password failure followed by valid retry recovery on both shells.
+focus-cross-platform-failure-recovery:
+  scripts/run-cross-platform-failure-recovery-proof.sh
+
+# Validate cross-platform E2E lanes 1-5.
+focus-cross-platform-e2e-1-5:
+  scripts/run-cross-platform-e2e-1-5.sh
+
+# Validate visual screenshots, accessibility/layout, migration, release guards,
+# QR fallback, and runtime-error hardening lanes 6-10.
+focus-cross-platform-e2e-6-10:
+  scripts/run-cross-platform-e2e-6-10.sh
+
+# Validate cross-platform visual screenshots and accessibility/layout resilience.
+focus-cross-platform-visual-a11y:
+  scripts/run-cross-platform-visual-a11y-proof.sh
+
+# Validate profile/settings survival across reinstall-without-clear upgrade.
+focus-cross-platform-upgrade-migration:
+  scripts/run-cross-platform-upgrade-migration-proof.sh
+
+# Validate debug diagnostic entry points stay out of release artifacts.
+focus-cross-platform-release-diagnostic-guard:
+  scripts/run-cross-platform-release-diagnostic-guard.sh
+
+# Validate QR display plus no-camera scan fallback onboarding.
+focus-cross-platform-qr-permission-fallback:
+  scripts/run-cross-platform-qr-permission-fallback-proof.sh
 
 # ── Utilities ────────────────────────────────────────────────────────────────
 

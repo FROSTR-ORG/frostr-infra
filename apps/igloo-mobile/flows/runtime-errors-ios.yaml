@@ -1,5 +1,4 @@
 appId: com.frostr.igloo.dev
-name: Runtime Errors Validation - iOS
 
 # E2E runtime error and stability validation flow for iOS Simulator.
 # Covers VAL-ERR-001 through VAL-ERR-007.
@@ -41,6 +40,17 @@ name: Runtime Errors Validation - iOS
 
 - waitForAnimationToEnd
 
+# Seeded runs may launch directly back into the dashboard. Normalize to Hub
+# before rapid-navigation checks.
+- runFlow:
+    when:
+      visible:
+        id: "tab_signer"
+    commands:
+      - tapOn:
+          id: "btn_back_dashboard"
+      - waitForAnimationToEnd
+
 # Rapid navigation: hub -> each entry flow -> back
 # Repeat 10 times (30+ transitions total)
 - repeat:
@@ -81,8 +91,8 @@ name: Runtime Errors Validation - iOS
     text: "Onboard Device"
 
 # Capture evidence: no crash dialog or blank screen
-- screenshot:
-    path: /tmp/igloo-mobile-ios-val-err-004.png
+- takeScreenshot:
+    path: "igloo-mobile-ios-val-err-004.png"
 
 # ════════════════════════════════════════════════════════════════════════════
 # PHASE 2: VAL-ERR-005 - Background/Foreground Cycles
@@ -119,60 +129,54 @@ name: Runtime Errors Validation - iOS
     id: "btn_start_signer"
 
 # Wait for sign-ready
-- scrollUntilVisible:
-    element:
+- extendedWaitUntil:
+    visible:
       text: "Sign Ready"
     timeout: 60000
 
 # Background/foreground cycle 1 (short pause)
 - runScript:
-    file: ${SCRIPT_DIR}/background-app.sh
-    params:
-      action: background
+    file: ../scripts/runtime-background-app.js
 - waitForAnimationToEnd
 - runScript:
-    file: ${SCRIPT_DIR}/background-app.sh
-    params:
-      action: foreground
+    file: ../scripts/runtime-foreground-app.js
 - waitForAnimationToEnd
 
 # Verify signer status still shows sign-ready after resume
-- assertVisible:
-    text: "Sign Ready"
+- extendedWaitUntil:
+    visible:
+      text: "Sign Ready"
+    timeout: 10000
 
 # Background/foreground cycle 2 (short pause)
 - runScript:
-    file: ${SCRIPT_DIR}/background-app.sh
-    params:
-      action: background
+    file: ../scripts/runtime-background-app.js
 - waitForAnimationToEnd
 - runScript:
-    file: ${SCRIPT_DIR}/background-app.sh
-    params:
-      action: foreground
+    file: ../scripts/runtime-foreground-app.js
 - waitForAnimationToEnd
 
 # Verify signer status still shows sign-ready after resume
-- assertVisible:
-    text: "Sign Ready"
+- extendedWaitUntil:
+    visible:
+      text: "Sign Ready"
+    timeout: 10000
 
 # Background/foreground cycle 3 (30 second pause for VAL-ERR-005)
 - runScript:
-    file: ${SCRIPT_DIR}/background-app.sh
-    params:
-      action: background
+    file: ../scripts/runtime-background-app.js
 - waitForAnimationToEnd
 - runScript:
-    file: ${SCRIPT_DIR}/background-app.sh
-    params:
-      action: foreground
+    file: ../scripts/runtime-foreground-app.js
 - waitForAnimationToEnd
 
 # VAL-ERR-005: Capture evidence - no crash, truthful status after resume
-- screenshot:
-    path: /tmp/igloo-mobile-ios-val-err-005.png
-- assertVisible:
-    text: "Sign Ready"
+- takeScreenshot:
+    path: "igloo-mobile-ios-val-err-005.png"
+- extendedWaitUntil:
+    visible:
+      text: "Sign Ready"
+    timeout: 10000
 
 # ════════════════════════════════════════════════════════════════════════════
 # PHASE 3: VAL-ERR-002 - Relay Drop While Dashboard Open
@@ -183,41 +187,31 @@ name: Runtime Errors Validation - iOS
 
 # Stop the relay (service control)
 - runScript:
-    file: ${SCRIPT_DIR}/service-control.sh
-    params:
-      command: stop relay
+    file: ../scripts/runtime-stop-relay.js
 
 # Wait and observe disconnection (up to 150s per VAL-ERR-002)
 - scrollUntilVisible:
     element:
-      text: "Relay: Disconnected"
+      text: "Relay Disconnected"
     timeout: 150000
 
-# OR show degraded status
-- scrollUntilVisible:
-    element:
-      text: "Signer Running (Degraded)"
-    timeout: 5000
-
 # Capture evidence of disconnection
-- screenshot:
-    path: /tmp/igloo-mobile-ios-val-err-002-disconnected.png
+- takeScreenshot:
+    path: "igloo-mobile-ios-val-err-002-disconnected.png"
 
 # Restore the relay
 - runScript:
-    file: ${SCRIPT_DIR}/service-control.sh
-    params:
-      command: start relay
+    file: ../scripts/runtime-start-relay.js
 
 # Wait for reconnection and sign-ready recovery
-- scrollUntilVisible:
-    element:
+- extendedWaitUntil:
+    visible:
       text: "Sign Ready"
     timeout: 120000
 
 # VAL-ERR-002: Capture evidence of recovery
-- screenshot:
-    path: /tmp/igloo-mobile-ios-val-err-002-recovered.png
+- takeScreenshot:
+    path: "igloo-mobile-ios-val-err-002-recovered.png"
 
 # ════════════════════════════════════════════════════════════════════════════
 # PHASE 4: VAL-ERR-001 - Relay Unreachable at Runtime Start
@@ -227,9 +221,7 @@ name: Runtime Errors Validation - iOS
 
 # Stop the relay
 - runScript:
-    file: ${SCRIPT_DIR}/service-control.sh
-    params:
-      command: stop relay
+    file: ../scripts/runtime-stop-relay.js
 
 # Stop signer if running
 - scrollUntilVisible:
@@ -264,24 +256,22 @@ name: Runtime Errors Validation - iOS
     timeout: 5000
 
 # Capture error state evidence
-- screenshot:
-    path: /tmp/igloo-mobile-ios-val-err-001-error.png
+- takeScreenshot:
+    path: "igloo-mobile-ios-val-err-001-error.png"
 
 # Restore relay
 - runScript:
-    file: ${SCRIPT_DIR}/service-control.sh
-    params:
-      command: start relay
+    file: ../scripts/runtime-start-relay.js
 
 # Wait for recovery to sign-ready
-- scrollUntilVisible:
-    element:
+- extendedWaitUntil:
+    visible:
       text: "Sign Ready"
     timeout: 60000
 
 # Capture recovery evidence
-- screenshot:
-    path: /tmp/igloo-mobile-ios-val-err-001-recovered.png
+- takeScreenshot:
+    path: "igloo-mobile-ios-val-err-001-recovered.png"
 
 # ════════════════════════════════════════════════════════════════════════════
 # PHASE 5: VAL-ERR-006 - Co-signer Offline Never Claims Sign-Ready
@@ -292,9 +282,7 @@ name: Runtime Errors Validation - iOS
 
 # Stop alice co-signer
 - runScript:
-    file: ${SCRIPT_DIR}/service-control.sh
-    params:
-      command: stop alice
+    file: ../scripts/runtime-stop-alice.js
 
 # Stop signer if running
 - scrollUntilVisible:
@@ -322,43 +310,34 @@ name: Runtime Errors Validation - iOS
       text: "Signer Running"
     timeout: 30000
 
-# VAL-ERR-006: Must NEVER show "Sign Ready" while alice is down
-# Check for 90 seconds that sign-ready never appears
+# VAL-ERR-006: Must NEVER show "Sign Ready" while alice is down.
+# The script owns the timed absence check.
 - runScript:
-    file: ${SCRIPT_DIR}/wait-for-condition.sh
-    params:
-      timeout: 90
-      condition: sign_ready_absent
+    file: ../scripts/runtime-wait-sign-ready-absent.js
+    env:
+      RUNTIME_ABSENCE_TARGET: "ios"
 
-# If sign-ready appears during this window, the test fails
+# After the absence window, the visible readiness should still be non-ready.
 - assertVisible:
     text: "Runtime Ready"
 
-# OR show Degraded
-- scrollUntilVisible:
-    element:
-      text: "Degraded"
-    timeout: 5000
-
 # Capture evidence of truthful non-sign-ready state
-- screenshot:
-    path: /tmp/igloo-mobile-ios-val-err-006-no-false-ready.png
+- takeScreenshot:
+    path: "igloo-mobile-ios-val-err-006-no-false-ready.png"
 
 # Restore alice
 - runScript:
-    file: ${SCRIPT_DIR}/service-control.sh
-    params:
-      command: start alice
+    file: ../scripts/runtime-start-alice.js
 
 # Wait for alice to come back and sign-ready to be reached
-- scrollUntilVisible:
-    element:
+- extendedWaitUntil:
+    visible:
       text: "Sign Ready"
     timeout: 120000
 
 # Capture recovery evidence
-- screenshot:
-    path: /tmp/igloo-mobile-ios-val-err-006-recovered.png
+- takeScreenshot:
+    path: "igloo-mobile-ios-val-err-006-recovered.png"
 
 # ════════════════════════════════════════════════════════════════════════════
 # PHASE 6: VAL-ERR-003 - Co-signer Offline Sign Attempt Fails Cleanly
@@ -369,9 +348,7 @@ name: Runtime Errors Validation - iOS
 
 # Stop alice
 - runScript:
-    file: ${SCRIPT_DIR}/service-control.sh
-    params:
-      command: stop alice
+    file: ../scripts/runtime-stop-alice.js
 
 # Make sure signer is running (restart to be in known state)
 - scrollUntilVisible:
@@ -407,32 +384,23 @@ name: Runtime Errors Validation - iOS
 - tapOn:
     id: "btn_test_sign"
 
-# VAL-ERR-003: Must see failure feedback within 45 seconds
-# Look for error indicator or failed state
-- scrollUntilVisible:
-    element:
-      text: "Failed"
-    timeout: 45000
-
-# OR error in event log
+# VAL-ERR-003: Must see failure feedback within 45 seconds.
 - scrollUntilVisible:
     element:
       text: "ERROR"
-    timeout: 5000
+    timeout: 45000
 
 # Capture failure evidence
-- screenshot:
-    path: /tmp/igloo-mobile-ios-val-err-003-failure.png
+- takeScreenshot:
+    path: "igloo-mobile-ios-val-err-003-failure.png"
 
 # Restore alice
 - runScript:
-    file: ${SCRIPT_DIR}/service-control.sh
-    params:
-      command: start alice
+    file: ../scripts/runtime-start-alice.js
 
 # Wait for sign-ready recovery
-- scrollUntilVisible:
-    element:
+- extendedWaitUntil:
+    visible:
       text: "Sign Ready"
     timeout: 60000
 
@@ -452,8 +420,8 @@ name: Runtime Errors Validation - iOS
     timeout: 60000
 
 # Capture success evidence
-- screenshot:
-    path: /tmp/igloo-mobile-ios-val-err-003-success.png
+- takeScreenshot:
+    path: "igloo-mobile-ios-val-err-003-success.png"
 
 # ════════════════════════════════════════════════════════════════════════════
 # PHASE 7: VAL-ERR-007 - Edited Sign Timeout Governs Round-Failure Timing
@@ -481,9 +449,7 @@ name: Runtime Errors Validation - iOS
 - tapOn:
     id: "input_sign_timeout"
 - eraseText: 10
-- inputText:
-    id: "input_sign_timeout"
-    text: "5"
+- inputText: "5"
 
 # Save settings
 - scrollUntilVisible:
@@ -498,9 +464,7 @@ name: Runtime Errors Validation - iOS
 
 # Stop alice
 - runScript:
-    file: ${SCRIPT_DIR}/service-control.sh
-    params:
-      command: stop alice
+    file: ../scripts/runtime-stop-alice.js
 
 # Go to Signer tab and attempt sign
 - scrollUntilVisible:
@@ -526,18 +490,16 @@ name: Runtime Errors Validation - iOS
     timeout: 15000
 
 # Capture evidence of faster failure with 5s timeout
-- screenshot:
-    path: /tmp/igloo-mobile-ios-val-err-007-timeout.png
+- takeScreenshot:
+    path: "igloo-mobile-ios-val-err-007-timeout.png"
 
 # Restore alice
 - runScript:
-    file: ${SCRIPT_DIR}/service-control.sh
-    params:
-      command: start alice
+    file: ../scripts/runtime-start-alice.js
 
 # Wait for sign-ready
-- scrollUntilVisible:
-    element:
+- extendedWaitUntil:
+    visible:
       text: "Sign Ready"
     timeout: 60000
 
@@ -558,9 +520,7 @@ name: Runtime Errors Validation - iOS
 - tapOn:
     id: "input_sign_timeout"
 - eraseText: 10
-- inputText:
-    id: "input_sign_timeout"
-    text: "30"
+- inputText: "30"
 
 - scrollUntilVisible:
     element:

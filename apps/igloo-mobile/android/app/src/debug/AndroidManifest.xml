@@ -53,6 +53,14 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
             <intent-filter>
+                <action android:name="com.frostr.igloo.DEBUG_TEST_KEYSET_DISTRIBUTE_SUBMIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.frostr.igloo.DEBUG_TEST_KEYSET_DISTRIBUTE_FINISH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
                 <action android:name="com.frostr.igloo.DEBUG_TEST_ROTATE_SHARE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>

@@ -70,14 +70,27 @@ name: QR Scan / Paste Fallback - iOS (VAL-QR-002/003)
 - assertVisible:
     id: "btn_qr_scan_back"
 
-# VAL-QR-003: paste clipboard into the fallback field, then surface the
-# trimmed bfonboard envelope via "Use This Package" so OnboardConnectView
-# receives the same payload a real scan would have produced.
-- tapOn:
-    id: "input_qr_fallback_package"
-- eraseText: 1000
+# VAL-QR-003: load the clipboard through the product paste button, then
+# surface the trimmed bfonboard envelope via "Use This Package" so
+# OnboardConnectView receives the same payload a real scan would have produced.
+# Raw Maestro paste into SwiftUI's long fallback field can corrupt/truncate
+# bech32m text on iOS simulators; the app button uses the same robust paste
+# helper as the main connect form.
 - setClipboard: "${ONBOARD_PACKAGE}"
-- pasteText
+- tapOn:
+    id: "btn_qr_paste_clipboard"
+- runFlow:
+    when:
+      visible:
+        text: "Allow Paste"
+    commands:
+      - tapOn: "Allow Paste"
+- runFlow:
+    when:
+      visible:
+        text: "Allow"
+    commands:
+      - tapOn: "Allow"
 - tapOn:
     id: "btn_qr_fallback_use"
 
@@ -96,16 +109,14 @@ name: QR Scan / Paste Fallback - iOS (VAL-QR-002/003)
     id: "input_relay_url"
     text: "${RELAY_URL}"
 
-# Password via setClipboard + pasteText. iOS Maestro paste timing on iOS 26.5
-# SwiftUI TextEditor is documented to be flaky; on iOS we can use the
-# btn_paste_package product-grade paste button + reset state path. For
-# VAL-QR-003 we deliberately keep the same entry pattern as the existing
-# onboarding paths so the comparison stays apples-to-apples.
+# Password entry is typed from the Maestro env var after focusing the secure
+# field. Native paste buttons can report a successful tap while the SecureField
+# remains empty on iOS Simulator 26.5, which produces a false wrong-password
+# failure in the reverse Android-source -> iOS lane.
 - tapOn:
     id: "input_password"
 - eraseText: 64
-- setClipboard: "${ONBOARD_PASSWORD}"
-- pasteText
+- inputText: "${ONBOARD_PASSWORD}"
 
 # Drive the handshake through the standard Connect button.
 - waitForAnimationToEnd

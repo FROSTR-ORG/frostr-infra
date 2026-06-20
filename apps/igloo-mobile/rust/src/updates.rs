@@ -1059,7 +1059,7 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
             // Pull the share secret + relays from the bundle so the shell
             // can call FfiApp.encode_distribute_onboard without holding
             // any in-Rust secret material beyond this actor turn.
-            let (share_secret_hex, relays) = match next.keyset.bundle.as_ref() {
+            let (share_secret_hex, peer_pk_hex, relays) = match next.keyset.bundle.as_ref() {
                 Some(bundle) => {
                     let secret = bundle
                         .shares
@@ -1067,16 +1067,23 @@ pub fn update(state: &AppState, action: &AppAction) -> (AppState, Option<AppUpda
                         .find(|s| s.share_idx == *share_idx)
                         .map(|s| s.share_secret_hex.clone())
                         .unwrap_or_default();
-                    if secret.is_empty() {
+                    let peer_pk = bundle
+                        .shares
+                        .iter()
+                        .find(|s| s.share_idx == next.keyset.local_share_idx)
+                        .map(|s| s.share_pubkey.clone())
+                        .unwrap_or_default();
+                    if secret.is_empty() || peer_pk.is_empty() {
                         return (next, side_effect);
                     }
-                    (secret, next.keyset.relays.clone())
+                    (secret, peer_pk, next.keyset.relays.clone())
                 }
                 None => return (next, side_effect),
             };
             side_effect = Some(AppUpdate::PerformKeysetDistribution {
                 share_idx: *share_idx,
                 share_secret_hex,
+                peer_pk_hex,
                 relays,
                 label,
                 password,

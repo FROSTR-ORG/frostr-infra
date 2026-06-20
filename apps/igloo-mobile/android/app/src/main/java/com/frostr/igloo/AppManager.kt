@@ -537,6 +537,7 @@ class AppManager private constructor(context: Context) : AppReconciler {
                 is AppUpdate.PerformKeysetDistribution -> {
                     val shareIdx = update.shareIdx
                     val shareSecretHex = update.shareSecretHex
+                    val peerPkHex = update.peerPkHex
                     val relays = update.relays
                     val label = update.label
                     val password = update.password
@@ -544,6 +545,7 @@ class AppManager private constructor(context: Context) : AppReconciler {
                     Thread {
                         val pkg = rust.encodeDistributeOnboard(
                             shareSecretHex = shareSecretHex,
+                            peerPkHex = peerPkHex,
                             relays = relays,
                             shareLabel = label,
                             password = password
@@ -563,6 +565,12 @@ class AppManager private constructor(context: Context) : AppReconciler {
                                         `package` = pkg,
                                         method = method
                                     )
+                                )
+                                writeDebugKeysetDistributePackage(
+                                    shareIdx = shareIdx.toInt(),
+                                    shareLabel = label,
+                                    method = method,
+                                    pkg = pkg
                                 )
                                 if (method == "qr") {
                                     distributionQrPayload = pkg
@@ -825,6 +833,26 @@ class AppManager private constructor(context: Context) : AppReconciler {
         val idx = shareIdx.toUShort()
         dispatch(AppAction.CreateKeysetDistributeSetPassword(shareIdx = idx, password = password))
         dispatch(AppAction.CreateKeysetDistributeSetConfirm(shareIdx = idx, confirm = password))
+    }
+
+    /** Debug-only Distribute-row submitter for native-package validators. */
+    fun testKeysetDistributeSubmit(shareIdx: Int, method: String) {
+        if (!BuildConfig.DEBUG) return
+        if (shareIdx < 0 || shareIdx > UShort.MAX_VALUE.toInt()) return
+        val trimmedMethod = method.trim()
+        if (trimmedMethod != "copy" && trimmedMethod != "qr" && trimmedMethod != "save") return
+        dispatch(
+            AppAction.CreateKeysetDistributeSubmit(
+                shareIdx = shareIdx.toUShort(),
+                method = trimmedMethod
+            )
+        )
+    }
+
+    /** Debug-only Create Keyset finish action for native-package validators. */
+    fun testKeysetDistributeFinish() {
+        if (!BuildConfig.DEBUG) return
+        dispatch(AppAction.CreateKeysetDistributeFinish)
     }
 
     fun navigateBack() {
@@ -1488,6 +1516,29 @@ class AppManager private constructor(context: Context) : AppReconciler {
                     "profile_id_length=${profileId.length}",
                     "label=$label",
                     "short_id=$shortId"
+                ).joinToString("\n"),
+                Charsets.UTF_8
+            )
+    }
+
+    private fun writeDebugKeysetDistributePackage(
+        shareIdx: Int,
+        shareLabel: String,
+        method: String,
+        pkg: String
+    ) {
+        if (!BuildConfig.DEBUG) return
+        java.io.File(appContext.filesDir, "debug-last-keyset-distribute-package.txt")
+            .writeText(pkg, Charsets.UTF_8)
+        java.io.File(appContext.filesDir, "debug-last-keyset-distribute-package-proof.txt")
+            .writeText(
+                listOf(
+                    "produced=yes",
+                    "share_idx=$shareIdx",
+                    "method=$method",
+                    "share_label=$shareLabel",
+                    "package_length=${pkg.length}",
+                    "package_prefix=${pkg.take(10)}"
                 ).joinToString("\n"),
                 Charsets.UTF_8
             )
