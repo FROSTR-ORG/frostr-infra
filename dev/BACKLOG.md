@@ -69,9 +69,12 @@ footgun; P1 = visual seam + component convergence; P2 = cleanup.
   (idx 0/self-1/2); rename pwa's `_fixtureRuntimeStatus` (the `_` reads as unused);
   fix chrome dev-scenario's comment that says "cast" where there is none —
   igloo-shared/testing/dev-fixtures.ts + pwa/chrome dev-scenario.ts · added 2026-06-19.
-- [ ] (effort: S) **P1 — `OperatorDashboardTabs` per-tab `testId`,** then **delete**
-  pwa's local `igloo-dashboard-nav` (+ its `index.css` rules) for it — igloo-ui +
-  igloo-pwa · ADR-014 (d).
+- [x] (effort: S) **DONE (2026-06-19) — P1 — pwa adopts shared `OperatorDashboardTabs`.**
+  Retired pwa's local `igloo-dashboard-nav` (`renderDashboardNav()` + `index.css` rules);
+  pwa now renders the same boxed tabs below the header as home/chrome, with its
+  dirty-settings guard preserved via `onChangeTab`. **No igloo-ui change needed** — the
+  component already emits the `dashboard-tab-${key}` test-ids pwa's E2E specs require
+  (the planned per-tab `testId` extension was unnecessary). igloo-pwa aca9d71; e2e 6/6.
 - [ ] (effort: M) **P1 — Shared `Checkbox`/`Toggle` primitive;** **delete** the 6
   hand-rolled toggles (pwa, home) — igloo-ui + clients · ADR-014 (d).
 - [ ] (effort: M) **P1 — `Alert` API gaps** (first-class `info` tone, optional
