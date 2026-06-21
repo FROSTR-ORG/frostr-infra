@@ -523,7 +523,7 @@ C2 + C4 (`TST-02`/`TST-03`/`TST-05`). `make test-fast` is render-only, so a
 green pre-push coexists with a broken cipher or bypassed guard — these tests are
 the safety net R2's decomposition depends on.
 
-- [~] (effort: S) **PARTIAL (2026-06-21) — R6.1 — Secret-mask/scrub assertions (regression net for
+- [x] (effort: S) **DONE (2026-06-21) — R6.1 — Secret-mask/scrub assertions (regression net for
   R5.1).** Assert the generated share + recovered nsec are NOT in the initial DOM
   text (masked by default) and are cleared on view-leave. igloo-ui flow tests are
   render-only (`igloo-ui/test/CreateFlow.test.tsx`,
@@ -537,10 +537,12 @@ the safety net R2's decomposition depends on.
     `igloo-home` `a1ecb05`) and pwa (`App.test.tsx`, `igloo-pwa` `3646fd1`) now
     assert the recovered nsec/signing key are not in the DOM until revealed (pwa
     also asserts HRP-only masking).
-  - **STILL OPEN:** the *scrub-on-leave* assertions (home `activeView` change +
-    pwa 60s/navigate-away clear), and the igloo-ui flow-level mask assertion for
-    the generated share.
-- [ ] (effort: M) **R6.2 — Direct `profile-blob.test.ts` for chrome + unwrap the
+  - **DONE (2026-06-21):** the *scrub-on-leave* assertions — home navigate-away
+    clears `recoveredKey` (`igloo-home` `bf8048f`) + pwa 60s auto-clear fake-timer
+    test (`igloo-pwa` `40bca95`).
+  - **STILL OPEN:** only the igloo-ui flow-level mask assertion for the *generated
+    share* in the create/distribute flow (the recovery-view nsec is fully covered).
+- [x] (effort: M) **DONE (2026-06-21) — R6.2 — Direct `profile-blob.test.ts` for chrome + unwrap the
   mocks (HIGHEST value).** The host's only real crypto is `vi.fn()`-mocked out of
   every test (`igloo-chrome/tests/unit/background/profile-service.test.ts:19-20,
   49-50,81-82`) and `profile-blob.ts` has zero direct importer — so PBKDF2
@@ -552,6 +554,14 @@ the safety net R2's decomposition depends on.
   `nostr-provider.ts:78-107`. **Do this BEFORE the R5.3 de-divergence** so the
   security-critical change has a net. Rule `TST-05`/`TST-03`/`TST-02` —
   igloo-chrome · synthesis C2/R6.
+  - **DONE (2026-06-21):** `tests/unit/lib/profile-blob.test.ts` exercises the real
+    cipher (password + session-key round-trip, a parameter pin, an independent-path
+    KAT, wrong-password / single-bit-flip / wrong-session-key rejects) and
+    `tests/unit/lib/runtime-host/provider-execution.test.ts` covers the
+    signEvent/nip44 validation arms (`igloo-chrome` `5844363`). The profile-service
+    mocks were left in place — the direct test now covers the crypto, so mocking
+    the dependency in the *service* test stays correct. The `nostr-provider.ts`
+    response-shape arms remain a small follow-up.
 - [ ] (effort: M) **R6.3 — Adversarial import/onboard decrypt tests (pwa).** The
   two riskiest trust boundaries decrypt attacker-supplied package text but have
   only happy-path coverage; their `load-error`/`onboard-failed` routing is
@@ -586,15 +596,20 @@ the safety net R2's decomposition depends on.
 C9 (`ARC-06`/`CQ-02`) — not a front-end bucket but graduated here from the same
 run.
 
-- [ ] (effort: S) **Derive the test-dispatch command set from the real
-  registration.** The hand-maintained `EXPECTED_DISPATCH_COMMANDS` (24 entries,
-  `igloo-home/src-tauri/src/app/test_dispatch.rs:303-331`) is missing 5+ real
-  commands incl. the security-relevant `resolve_approval` + `update_peer_policy`
-  (+ `list_relay_profiles`, `resolve_close_request`,
-  `update_profile_operator_settings`); the real surface is
-  `commands.rs:393-668` registered via `bootstrap.rs:79` `generate_handler!`. Make
-  one `const COMMANDS: &[&str]` both consume, or assert every `*_command` has a
-  dispatch arm. Rule `ARC-06` — igloo-home · synthesis C9.
+- [~] (effort: S) **PARTIAL (2026-06-21) — Derive the test-dispatch command set from the real
+  registration.** The hand-maintained `EXPECTED_DISPATCH_COMMANDS`
+  (`igloo-home/src-tauri/src/app/test_dispatch.rs`) had drifted from the real
+  Tauri registration. Make one `const COMMANDS: &[&str]` both consume, or assert
+  every `*_command` has a dispatch arm. Rule `ARC-06` — igloo-home · synthesis C9.
+  - **DONE (2026-06-21):** the security-relevant `resolve_approval` +
+    `update_peer_policy` (and `list_relay_profiles`) now have dispatcher arms +
+    no-app-guard + expected-list entries; the `every_expected_command` self-test
+    covers them (`igloo-home` `289d3b3`).
+  - **STILL OPEN:** `get_settings` / `update_settings` (settings module, need
+    AppHandle threading) + `update_profile_operator_settings` /
+    `resolve_close_request`; and the *structural* fix — derive the expected set
+    from the registration so future drift fails automatically (the list is still
+    hand-maintained, just no longer behind on the permission writes).
 - [ ] (effort: S) **Funnel `lock().unwrap()` through one poison-mapping helper.**
   25 `.lock().unwrap()` on IPC-reachable paths turn a poisoned mutex into a hard
   backend crash: `igloo-home/src-tauri/src/session/controller.rs:33`,
@@ -602,6 +617,13 @@ run.
   …). Map `PoisonError` → a typed `HomeError` (or `into_inner()` where state is
   consistent) so it surfaces as a renderable error, not a panic. Rule `CQ-02` —
   igloo-home · synthesis C9.
+  - **Deferred (2026-06-21):** intentionally left as a single focused pass — the 25
+    sites span 9 files with per-site nuance (the IPC fns return `anyhow::Result`
+    so `.lock().map_err(|_| anyhow!(...))?` fits most, but `get_settings` &c. are
+    non-`Result` and need `into_inner()`, and the `paths.rs` env locks are
+    test-only). Convert them all at once with a `LockExt::lock_safe()` helper rather
+    than piecemeal, so there is no half-hardened state. Lower severity (only trips
+    on a panic-while-locked).
 
 ## Test infrastructure remediation (audit 2026-06-17)
 
