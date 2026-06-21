@@ -131,6 +131,38 @@ P0 follow-ups (surfaced during the 2026-06-19 P0 execution):
   home's `visualMode` is **not** DEV-gated at all. Harmless (runtime-gated → never
   activates in prod) but unclean + a few KB of dead weight. Restructure the seams so
   the fixtures tree-shake (and DEV-gate home's visualMode) · clients · added 2026-06-19.
+- [x] (effort: L) **DONE (2026-06-20) — P1 — Unified landing across all three clients.**
+  Root cause of the recurring "home shows old UI" report: home + chrome never adopted
+  the shared `WelcomeEntryHero`/`WelcomeReturningHero` that pwa uses — they still rendered
+  the old `StoredProfilesLandingCard` + `HostEntryTile` grid. (Hid for 5 sessions because
+  verification only screenshotted `dashboard-running`, never the landing.) Generalized the
+  igloo-ui heroes to be host-adapted (`productLabel`/`tagline`/`footer` + declarative
+  `primaryAction`/`secondaryActions` + per-profile `canRotate`/`canRecover`/`canDelete`;
+  empty meta fields omitted host-agnostically), migrated pwa (prop-shape only), home, and
+  chrome onto them + the shared `WelcomeUnlock`/`WelcomeDeleteModal`, added home's missing
+  header logo, and hard-cut `StoredProfilesLandingCard` + `HostEntryTile`. `make verify`
+  green; 3-app visual convergence confirmed. Design + plan:
+  `dev/plans/landing-unification-shared-welcome-2026-06-20-{design,plan}.md`. Pointer bumps
+  45f9d57→4571a47 (igloo-ui 576b35c→6eecffc, pwa →e6e8ae2, home →44c0889, chrome →043e863).
+- [ ] (effort: S) **chrome: dead `activatingProfileId`/`deletingProfileId` + no row in-flight
+  feedback.** After the landing migration these are write-only (the old card read them for
+  `loadDisabled`/"Loading…/Deleting…"); the shared hero's Unlock/Delete buttons have no
+  busy/disabled state (the unlock modal carries `submitting`, so this is minor). Remove the
+  dead state or wire row-level busy feedback · repos/igloo-chrome · added 2026-06-20.
+- [ ] (effort: S) **home: per-profile ⋮ Rotate doesn't seed rotate mode.** `onRotate` lands on
+  the `create` view with `createForm.mode` still `'new'` and no source profile — user must
+  re-pick Rotate + source manually. pwa routes Rotate to a dedicated `rotate-connect` view;
+  give home the equivalent · repos/igloo-home · added 2026-06-20.
+- [ ] (effort: S) **Sweep orphaned igloo-ui landing leftovers.** Post hard-cut, `StoredProfileCardModel`
+  (`src/models/view-models.ts`, re-exported in `index.ts`) + the `storedProfileEntry`/
+  `storedProfileLoad`/`storedProfileUnlockSubmit` e2e test ids have zero consumers across
+  all repos + the harness (design-scoped-out of the landing change). Remove them ·
+  repos/igloo-ui · added 2026-06-20.
+- [ ] (effort: S) **chrome: Onboard/Import forms opened from the returning hero have no
+  collapse/cancel.** `showOnboard`/`showImport` are one-way booleans — once a returning user
+  reveals a form there's no way to dismiss it short of reload (not a regression; the old
+  always-visible layout had no cancel either). Add a cancel/collapse affordance ·
+  repos/igloo-chrome · added 2026-06-20.
 
 ## Anti-slop front-end audit (2026-06-19)
 
