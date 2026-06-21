@@ -5,10 +5,15 @@ set -euo pipefail
 # future change can't silently defang them (mirrors
 # check-pwa-visual-manifest-negative.sh). The persist-contract guard's negative
 # test is the compiled fixture test/shared/persist-contract.expect-error.ts; this
-# script covers the browser-WASM stamp drift guard.
+# script covers the browser-WASM stamp drift guard and the landing-convergence
+# guard.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${ROOT_DIR}"
+
+# ---------------------------------------------------------------------------
+# Case 1: browser-WASM stamp drift guard
+# ---------------------------------------------------------------------------
 
 stamp="test/browser-wasm-source.stamp"
 guard="test/scripts/check-browser-wasm-stamp.sh"
@@ -42,3 +47,42 @@ if ! bash "${guard}" >/dev/null 2>&1; then
 fi
 
 echo "ok: harness guards reject drift (browser-WASM stamp drift detected)"
+
+# ---------------------------------------------------------------------------
+# Case 2: landing-convergence guard
+# ---------------------------------------------------------------------------
+
+pwa_app="repos/igloo-pwa/src/App.tsx"
+landing_guard="test/scripts/check-landing-convergence.sh"
+
+[[ -f "${pwa_app}" ]] || { echo "not ok: ${pwa_app} is missing" >&2; exit 1; }
+
+# Precondition: the committed landing file passes the guard.
+if ! bash "${landing_guard}" >/dev/null 2>&1; then
+  echo "not ok: landing-convergence guard fails on committed files (precondition)" >&2
+  exit 1
+fi
+
+# Save and restore via a temp file (multi-line source file).
+pwa_backup="$(mktemp)"
+cp "${pwa_app}" "${pwa_backup}"
+restore_pwa() { cp "${pwa_backup}" "${pwa_app}"; rm -f "${pwa_backup}"; }
+trap restore_pwa EXIT
+
+# Inject a deleted bespoke component reference and confirm the guard catches it.
+printf '\n// negative-test: StoredProfilesLandingCard\n' >> "${pwa_app}"
+if bash "${landing_guard}" >/dev/null 2>&1; then
+  echo "not ok: landing-convergence guard PASSED with a bespoke component injected — the divergence check is defanged" >&2
+  exit 1
+fi
+
+restore_pwa
+trap - EXIT
+
+# Sanity: the restored file passes again.
+if ! bash "${landing_guard}" >/dev/null 2>&1; then
+  echo "not ok: pwa App.tsx did not restore cleanly" >&2
+  exit 1
+fi
+
+echo "ok: harness guards reject drift (landing-convergence divergence detected)"
