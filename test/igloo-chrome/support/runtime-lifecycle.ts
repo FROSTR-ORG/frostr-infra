@@ -211,7 +211,8 @@ export async function unlockStoredProfileInContext(
   const page = await context.newPage();
   try {
     await gotoExtensionPage(page, extensionId, 'options.html');
-    await pwExpect(page.getByText('Stored Profiles', { exact: true })).toBeVisible();
+    // Wait for the WelcomeReturningHero to appear (replaces old StoredProfilesLandingCard)
+    await pwExpect(page.locator('[aria-labelledby="igloo-welcome-returning-title"]').first()).toBeVisible();
     await loadSelectedChromeStoredProfile(page);
     await unlockChromeStoredProfile(page, password);
     await pwExpect(page.getByRole('tab', { name: /Signer/i }).first()).toBeVisible();

@@ -21,7 +21,12 @@ test('@agent capture', async ({ openExtensionPage }) => {
   if (STATE.startsWith('dashboard')) {
     await page.getByRole('tab', { name: /Signer/i }).first().waitFor({ state: 'visible', timeout: 15_000 });
   } else {
-    await page.getByRole('heading', { name: 'Onboard Device' }).waitFor({ state: 'visible', timeout: 15_000 });
+    // Onboarding state: may show WelcomeEntryHero (no profiles) or
+    // WelcomeReturningHero (stored profiles present) — wait for either.
+    await Promise.race([
+      page.locator('[aria-labelledby="igloo-welcome-returning-title"]').waitFor({ state: 'visible', timeout: 15_000 }),
+      page.locator('[aria-labelledby="igloo-welcome-entry-title"]').waitFor({ state: 'visible', timeout: 15_000 }),
+    ]);
   }
 
   const { png } = await captureAgentArtifact(page, { client: 'chrome', state: STATE });

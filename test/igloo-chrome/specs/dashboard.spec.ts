@@ -11,6 +11,8 @@ test.describe('extension dashboard smoke', () => {
 
     const page = await openExtensionPage('options.html');
 
+    // No stored profiles → WelcomeEntryHero + Onboard Device form shown by default
+    await expect(page.getByRole('heading', { name: 'Onboard New Device' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Onboard Device' })).toBeVisible();
     await expect(page.getByPlaceholder('bfonboard1...')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Connect' })).toBeDisabled();
@@ -168,14 +170,11 @@ test.describe('extension dashboard smoke', () => {
     await clearSessionUnlocks();
 
     const page = await openExtensionPage('options.html');
-    const storedProfilesCard = page
-      .getByRole('heading', { name: 'Stored Profiles' })
-      .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')
-      .first();
-
-    await expect(storedProfilesCard).toBeVisible();
-    await expect(storedProfilesCard.getByRole('button', { name: /Playwright Smoke/ })).toBeVisible();
-    await expect(storedProfilesCard.getByRole('button', { name: 'Load Profile' })).toBeVisible();
+    // Stored profiles → WelcomeReturningHero with profile rows
+    const hero = page.locator('[aria-labelledby="igloo-welcome-returning-title"]').first();
+    await expect(hero).toBeVisible();
+    await expect(hero.getByRole('heading', { name: /Playwright Smoke/ })).toBeVisible();
+    await expect(hero.getByRole('button', { name: 'Unlock' }).first()).toBeVisible();
 
     await loadSelectedChromeStoredProfile(page);
     await unlockChromeStoredProfile(page, 'wrongpass');
@@ -194,19 +193,18 @@ test.describe('extension dashboard smoke', () => {
     await seedProfile({ publicKey: TEST_PUBLIC_KEY });
 
     const page = await openExtensionPage('options.html');
-    const storedProfilesCard = page
-      .getByRole('heading', { name: 'Stored Profiles' })
-      .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')
-      .first();
 
     await expect(page.getByRole('tab', { name: /Settings/i }).first()).toBeVisible();
     await page.getByRole('tab', { name: /Settings/i }).first().click();
     await page.getByRole('button', { name: 'Logout' }).click();
 
-    await expect(storedProfilesCard).toBeVisible();
-    await expect(storedProfilesCard.getByRole('button', { name: /Playwright Smoke/ })).toBeVisible();
-    await expect(storedProfilesCard.getByRole('button', { name: 'Load Profile' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Onboard Device' })).toBeVisible();
+    // After logout, WelcomeReturningHero shows with the stored profile
+    const hero = page.locator('[aria-labelledby="igloo-welcome-returning-title"]').first();
+    await expect(hero).toBeVisible();
+    await expect(hero.getByRole('heading', { name: /Playwright Smoke/ })).toBeVisible();
+    await expect(hero.getByRole('button', { name: 'Unlock' }).first()).toBeVisible();
+    // Secondary action to onboard another device is still accessible
+    await expect(hero.getByRole('button', { name: 'Onboard New Device' })).toBeVisible();
 
     await page.close();
   });

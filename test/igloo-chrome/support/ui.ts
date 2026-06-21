@@ -1,35 +1,45 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { CRITICAL_E2E_TEST_IDS } from '../../../repos/igloo-ui/src/lib/e2e-test-ids';
 
+/**
+ * Returns the welcome returning-hero section that lists stored profiles.
+ * This replaces the old StoredProfilesLandingCard anchor.
+ */
 export async function getChromeStoredProfilesCard(page: Page) {
-  const storedProfilesCard = page
-    .getByRole('heading', { name: 'Stored Profiles' })
-    .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')
+  const hero = page
+    .locator('[aria-labelledby="igloo-welcome-returning-title"]')
     .first();
-  await expect(storedProfilesCard).toBeVisible();
-  return storedProfilesCard;
+  await expect(hero).toBeVisible();
+  return hero;
 }
 
 export async function selectChromeStoredProfile(page: Page, label: string) {
-  const storedProfilesCard = await getChromeStoredProfilesCard(page);
-  const selector = storedProfilesCard.locator('button[aria-pressed]').filter({ hasText: label }).first();
-  await selector.click();
-  return selector.locator(`xpath=ancestor::*[@data-testid="${CRITICAL_E2E_TEST_IDS.storedProfileEntry}"][1]`);
+  const hero = await getChromeStoredProfilesCard(page);
+  return hero
+    .locator(`[data-testid="${CRITICAL_E2E_TEST_IDS.welcomeProfileRow}"]`)
+    .filter({ hasText: label })
+    .first();
 }
 
+/**
+ * Clicks the "Unlock" button on the first profile row in the returning hero,
+ * opening the WelcomeUnlockModal.
+ */
 export async function loadSelectedChromeStoredProfile(page: Page) {
-  const storedProfilesCard = await getChromeStoredProfilesCard(page);
-  const selectedEntry = storedProfilesCard
-    .locator('button[aria-pressed="true"]')
+  const hero = await getChromeStoredProfilesCard(page);
+  await hero
+    .getByTestId(CRITICAL_E2E_TEST_IDS.welcomeProfileUnlock)
     .first()
-    .locator(`xpath=ancestor::*[@data-testid="${CRITICAL_E2E_TEST_IDS.storedProfileEntry}"][1]`);
-  await selectedEntry.getByTestId(CRITICAL_E2E_TEST_IDS.storedProfileLoad).click();
+    .click();
 }
 
+/**
+ * Fills the WelcomeUnlockModal password field and submits.
+ */
 export async function unlockChromeStoredProfile(page: Page, password: string) {
-  await expect(page.getByText('Unlock Stored Profile')).toBeVisible();
-  await page.getByPlaceholder('Enter profile password').fill(password);
-  await page.getByTestId(CRITICAL_E2E_TEST_IDS.storedProfileUnlockSubmit).click();
+  await expect(page.getByTestId(CRITICAL_E2E_TEST_IDS.welcomeUnlockPassword)).toBeVisible();
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.welcomeUnlockPassword).fill(password);
+  await page.getByTestId(CRITICAL_E2E_TEST_IDS.welcomeUnlockSubmit).click();
 }
 
 export function getChromeRotateShareCard(page: Page): Locator {
