@@ -450,8 +450,14 @@ enforced by R1.2 knip.
 C1 + C5 + C8 (`SEC-01`/`SEC-03`/`RS-06`). The C1 leak leads the whole audit
 sequence.
 
-- [ ] (effort: S) **R5.1 — C1 (leak-NOW): mask the recovered nsec in all three
-  recovery UIs.** A full root private key rendered in a bare `<dd>` while the
+- [x] (effort: S) **DONE (2026-06-21) — R5.1 — C1 (leak-NOW): mask the recovered
+  nsec in all three recovery UIs.** On verification the leak was already closed:
+  the igloo-ui `CreateImportPanel` was deleted (R4.1), and home + pwa already
+  masked by default (home via `SensitiveTextarea`, pwa via a reveal toggle). The
+  remaining gap — pwa showed a 10-char prefix (`nsec1` + ~5 key chars) — is now
+  masked to the bech32 HRP alone (`igloo-pwa` `3646fd1`). Regression net added
+  under R6.1 below. The original (now-stale) finding: a full root private key
+  rendered in a bare `<dd>` while the
   *less* sensitive package JSON beside it is wrapped in `SensitiveTextarea` —
   inverted threat model, in a "tested" component:
   `igloo-ui/src/components/flows/CreateImportPanel.tsx:300-301` (vs `:304,320`
@@ -517,7 +523,7 @@ C2 + C4 (`TST-02`/`TST-03`/`TST-05`). `make test-fast` is render-only, so a
 green pre-push coexists with a broken cipher or bypassed guard — these tests are
 the safety net R2's decomposition depends on.
 
-- [ ] (effort: S) **R6.1 — Secret-mask/scrub assertions (regression net for
+- [~] (effort: S) **PARTIAL (2026-06-21) — R6.1 — Secret-mask/scrub assertions (regression net for
   R5.1).** Assert the generated share + recovered nsec are NOT in the initial DOM
   text (masked by default) and are cleared on view-leave. igloo-ui flow tests are
   render-only (`igloo-ui/test/CreateFlow.test.tsx`,
@@ -527,6 +533,13 @@ the safety net R2's decomposition depends on.
   scrub-on-leave effect (`igloo-home/src/App.tsx:742-748,753-760`) is asserted
   nowhere — `RecoverKey.test.tsx:122-145` asserts the nsec *appears* and stops.
   Rule `TST-02` — igloo-ui + igloo-home · synthesis C4/R6.
+  - **DONE (2026-06-21):** the *masking* assertions — home (`RecoverKey.test.tsx`,
+    `igloo-home` `a1ecb05`) and pwa (`App.test.tsx`, `igloo-pwa` `3646fd1`) now
+    assert the recovered nsec/signing key are not in the DOM until revealed (pwa
+    also asserts HRP-only masking).
+  - **STILL OPEN:** the *scrub-on-leave* assertions (home `activeView` change +
+    pwa 60s/navigate-away clear), and the igloo-ui flow-level mask assertion for
+    the generated share.
 - [ ] (effort: M) **R6.2 — Direct `profile-blob.test.ts` for chrome + unwrap the
   mocks (HIGHEST value).** The host's only real crypto is `vi.fn()`-mocked out of
   every test (`igloo-chrome/tests/unit/background/profile-service.test.ts:19-20,
