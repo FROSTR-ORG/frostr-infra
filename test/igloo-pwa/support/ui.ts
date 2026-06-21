@@ -22,31 +22,6 @@ export async function openPwaImportProfile(page: Page) {
   await page.getByTestId(CRITICAL_E2E_TEST_IDS.welcomeEntryImport).click();
 }
 
-export async function getPwaStoredProfilesCard(page: Page) {
-  const storedProfilesCard = page
-    .getByRole('heading', { name: 'Stored Profiles' })
-    .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')
-    .first();
-  await expect(storedProfilesCard).toBeVisible();
-  return storedProfilesCard;
-}
-
-export async function selectPwaStoredProfile(page: Page, label: string) {
-  const storedProfilesCard = await getPwaStoredProfilesCard(page);
-  const selector = storedProfilesCard.locator('button[aria-pressed]').filter({ hasText: label }).first();
-  await selector.click();
-  return selector.locator(`xpath=ancestor::*[@data-testid="${CRITICAL_E2E_TEST_IDS.storedProfileEntry}"][1]`);
-}
-
-export async function loadSelectedPwaStoredProfile(page: Page) {
-  const storedProfilesCard = await getPwaStoredProfilesCard(page);
-  const selectedEntry = storedProfilesCard
-    .locator('button[aria-pressed="true"]')
-    .first()
-    .locator(`xpath=ancestor::*[@data-testid="${CRITICAL_E2E_TEST_IDS.storedProfileEntry}"][1]`);
-  await selectedEntry.getByTestId(CRITICAL_E2E_TEST_IDS.storedProfileLoad).click();
-}
-
 export async function importPwaProfile(page: Page, profileText: string, password: string) {
   // Welcome -> Import Device (paste + decrypt) -> Save Profile -> dashboard. The save
   // screen derives the device name from the package backup (lockIdentity), so we only
