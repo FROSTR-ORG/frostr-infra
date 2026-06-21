@@ -149,6 +149,7 @@ poll for state instead of scraping logs.
   landing | ...` (default `dashboard-running` maps to `dashboard-signer`). The
   running dashboard renders via an in-memory runtimeSnapshot (the `?__frostr_dev=`
   / `?__igloo_visual=` dev-scenario seam) that storage-only seeding can't reach.
+  For landing convergence, capture all three clients: `pwa welcome-returning`, `home landing-seeded`, `chrome onboarding`.
 - **Live dev loop:** `make dev` — native relay + co-signer + vite in seconds;
   prints `READY <url>` and writes `.tmp/agent/dev.json` when up (Ctrl-C tears
   down). CSS hot-reloads directly from `igloo-ui` source (consumed source-only
