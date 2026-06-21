@@ -180,7 +180,49 @@ sweep *alone, first* so the later diffs are pure structure. This overlaps the
 2026-06-13 "Code-health audit" items (god files, formatter) — those two entries
 are the prior, coarser capture of R1+R2; close them out as these land.
 
-### R1 — Quality gate (SPECIFIED now, executed later)
+### Hard-cut sweep status (2026-06-21)
+
+A first **hard-cut sweep** executed the mechanically-safe, behavior-preserving
+subset (parent pointer-bump `a698a57`; 15 submodule commits; `make verify` green).
+
+**Landed:**
+- **Dead code (R4):** deleted the four orphan `igloo-ui` flow components + barrel
+  exports + tests (`CreateImportPanel`/`DesktopAppShell`/`ManagedProfilesPanel`/
+  `RecoveryWorkspace`, ~734 LOC — also closed the ui-side plaintext-nsec leak),
+  `readNumber` (`igloo-pwa`), and the no-op `introMessage` prop. `LEG-04`.
+- **Dedup (R3):** `toErrorMessage` six forks → one exported `igloo-shared` helper;
+  `downloadText` three copies → one `igloo-ui` helper. `CQ-04`.
+- **Rename (R3/`RS-01`):** chrome `profileKey` → `profileFingerprint` /
+  `profileIdKey` (code identifiers only; the `profile_key` log-field strings are
+  left untouched as an observability contract).
+- **Type/const hygiene:** dropped four redundant pwa runtime-status `as` casts
+  (`CQ-03`); named the chrome snapshot-retry constants + shared device-config
+  literals (`CQ-06`).
+- **Correctness:** chrome `sessionKeyB64!` null-guard bug-fix — a cleared session
+  no longer hands a null key into the decrypt path (`CQ-03`).
+- **Docs:** `igloo-shared` README package-flow references fixed (`DOC-02`).
+
+**Declined — R1 (quality gate), 2026-06-21.** The maintainer dropped the
+Prettier/ESLint/knip/coverage adoption as "churn for no benefit" (the repos are
+already consistently hand-formatted). R1.0–R1.4 are retained for record only — do
+not re-propose.
+
+**Deferred to a focused follow-up** (these turned out *not* to be
+behavior-preserving mechanical cuts):
+- **UI presentational pass** — the pubkey/timestamp formatter consolidation
+  (separators `…` vs `...` and truncation thresholds genuinely differ → a
+  canonical-style decision), the `useSensitiveReveal` hook extraction (timer/state
+  risk), and the onboard "My Signing Key" / "2/3" / "Share #0" misleading-literal
+  removal (`RS-06`, ui #4 / pwa #10 — needs a neutral-state redesign + visual review).
+- **Barrel curation (`ARC-04`)** — pwa `local-adapter` `export *` → named list;
+  chrome's five `export * from 'igloo-shared'` aliases are an import-rewiring
+  refactor, not a one-file edit.
+- **Changelog/version hygiene (`DOC-06`)** — folded into the release process
+  (`dev/docs/RELEASE.md`) with the version bump.
+- **R2 splits, crypto/KDF, R5 secret-threading, poll→subscribe, R6 tests** —
+  unchanged; out of the hard-cut sweep's scope by design.
+
+### R1 — Quality gate — DECLINED 2026-06-21 (retained for record)
 
 Aggregates `AES-06`/`DOC-06` from all five targets (synthesis C10). A
 ready-to-execute spec; a future session runs it as-is. Land the Prettier sweep

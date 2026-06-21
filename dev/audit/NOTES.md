@@ -26,5 +26,5 @@ questions for the synthesis step, and dead-ends worth not repeating.
 
 -->
 
-_No entries yet — this run hasn't started. The 2026-06-13 run's notes are frozen
-in [`archive/2026-06-13/NOTES.md`](./archive/2026-06-13/NOTES.md)._
+_No entries yet — this run hasn't started. The 2026-06-19 run's notes are frozen
+in [`archive/2026-06-19/NOTES.md`](./archive/2026-06-19/NOTES.md)._

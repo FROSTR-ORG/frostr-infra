@@ -8,10 +8,15 @@ how a finished run is archived and reset. For how cells get filled, see
 
 **Run:** _none in progress_ · **Started:** — · **Date stamp:** —
 
-> Last completed run: **2026-06-13** (81 findings — 18H/38M/25L), frozen in
-> [`archive/2026-06-13/`](./archive/2026-06-13/workspace-audit-synthesis-2026-06-13.md).
+> Last completed run: **2026-06-19** (front-end pass — `igloo-{shared,ui,pwa,chrome,home}`,
+> 53 findings — 12H/25M/16L), frozen in
+> [`archive/2026-06-19/`](./archive/2026-06-19/workspace-audit-synthesis-2026-06-19.md).
 > Verified follow-ups graduated to [`../BACKLOG.md`](../BACKLOG.md) under
-> "Code-health audit (2026-06-13)".
+> "Anti-slop front-end audit (2026-06-19)"; a hard-cut sweep landed the
+> mechanically-safe subset (R1 quality gate was declined).
+>
+> Prior full run: **2026-06-13** (81 findings — 18H/38M/25L), frozen in
+> [`archive/2026-06-13/`](./archive/2026-06-13/workspace-audit-synthesis-2026-06-13.md).
 
 ## Status matrix
 
