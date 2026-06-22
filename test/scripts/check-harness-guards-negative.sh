@@ -52,10 +52,10 @@ echo "ok: harness guards reject drift (browser-WASM stamp drift detected)"
 # Case 2: landing-convergence guard
 # ---------------------------------------------------------------------------
 
-pwa_app="repos/igloo-pwa/src/App.tsx"
+pwa_landing="repos/igloo-pwa/src/views/landing.tsx"
 landing_guard="test/scripts/check-landing-convergence.sh"
 
-[[ -f "${pwa_app}" ]] || { echo "not ok: ${pwa_app} is missing" >&2; exit 1; }
+[[ -f "${pwa_landing}" ]] || { echo "not ok: ${pwa_landing} is missing" >&2; exit 1; }
 
 # Precondition: the committed landing file passes the guard.
 if ! bash "${landing_guard}" >/dev/null 2>&1; then
@@ -65,12 +65,12 @@ fi
 
 # Save and restore via a temp file (multi-line source file).
 pwa_backup="$(mktemp)"
-cp "${pwa_app}" "${pwa_backup}"
-restore_pwa() { cp "${pwa_backup}" "${pwa_app}"; rm -f "${pwa_backup}"; }
+cp "${pwa_landing}" "${pwa_backup}"
+restore_pwa() { cp "${pwa_backup}" "${pwa_landing}"; rm -f "${pwa_backup}"; }
 trap restore_pwa EXIT
 
 # Inject a deleted bespoke component reference and confirm the guard catches it.
-printf '\n// negative-test: StoredProfilesLandingCard\n' >> "${pwa_app}"
+printf '\n// negative-test: StoredProfilesLandingCard\n' >> "${pwa_landing}"
 if bash "${landing_guard}" >/dev/null 2>&1; then
   echo "not ok: landing-convergence guard PASSED with a bespoke component injected — the divergence check is defanged" >&2
   exit 1
@@ -81,7 +81,7 @@ trap - EXIT
 
 # Sanity: the restored file passes again.
 if ! bash "${landing_guard}" >/dev/null 2>&1; then
-  echo "not ok: pwa App.tsx did not restore cleanly" >&2
+  echo "not ok: pwa landing view did not restore cleanly" >&2
   exit 1
 fi
 
