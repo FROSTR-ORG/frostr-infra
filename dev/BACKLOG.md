@@ -311,9 +311,9 @@ record seams + rationale. Land **after R1.0** so diffs are pure structure.
   the unlock/onboard/rotate handlers. Rule `ARC-01` · evidence
   `igloo-home/src/App.tsx:1-2086` — igloo-home · synthesis R2 row 4.
 - [ ] (effort: L) **RECOMMEND NOW (staged) — `igloo-pwa/src/lib/store.tsx`
-  (2161 LOC, 8 slices, Medium risk).** Start with the mechanical, safe slices:
-  the pure hydration/normalization (`store.tsx:312-456`) + the
-  `updateDraft`/`updateSecret` collapse of ~25 methods (R3.2). Re-key the action
+  (now 1828 LOC, 8 slices, Medium risk).** Stages 1–2 landed (hydration →
+  `lib/store-hydrate.ts`, parent `eabfd3b`; draft-setter collapse R3.2 →
+  `lib/store-drafts.ts`, parent `5c238b6`). Remaining: re-key the action
   `useMemo` off stable dispatchers, not whole `state` (`store.tsx:715-2146`, dep
   array `:2145`). **Add the R6 import/onboard adversarial decrypt tests
   (`store.tsx:1557-1596`, `:1664-1706`) BEFORE touching those journey slices** —
@@ -362,12 +362,16 @@ need — interleave with R2.
   `JSON.stringify` branch into a thin UI wrapper) and
   `igloo-pwa/src/lib/page-runtime-host.ts:138-145` (consume the shared export).
   Rule `CQ-04` — igloo-shared + igloo-pwa · synthesis C6.
-- [ ] (effort: S) **R3.2 — Collapse the ~25 `updateXForm`/`updateXPassword`
-  draft updaters into one `updateDraft`/`updateSecret` pair.** The secret/
-  persistable partition must be enforced in **one** place + asserted by one test.
-  Evidence `igloo-pwa/src/lib/store.tsx:758-1132` + the secret-routing variants
-  `:1139-1147,1548-1556,1719-1727`. Rule `CQ-04`/`RS-02`. (Also shrinks R2's
-  store.tsx materially.) — igloo-pwa · synthesis C6.
+- [x] (effort: S) **R3.2 — Collapse the ~25 `updateXForm`/`updateXPassword`
+  draft updaters into one `updateDraft`/`updateSecret` pair.** **DONE (2026-06-22,
+  `igloo-pwa` `6cf5f16`, parent `5c238b6`).** The 14 single-field setters now
+  delegate to two pure typed reducers (`setDraftFormField`/`setDraftSecretField`)
+  in `lib/store-drafts.ts`; the secret/persistable partition is enforced in that
+  one module and asserted by `test/frontend/store-drafts.test.ts`. store.tsx
+  1920→1828. The index-aware (`updateRotationSource`/`updateRecoverSource`/
+  `updateDistribution*`) and verified-flag-resetting (`set*DevicePassphrase`)
+  setters stay bespoke. Rule `CQ-04`/`RS-02`. (Landed as R2 store.tsx stage 2.)
+  — igloo-pwa · synthesis C6.
 - [ ] (effort: S) **R3.3 — Resolve the two `PeerPolicy` types + unify peer-data
   models toward `buildPeerReadinessRows`.** Two same-named, structurally-divergent
   public types bridged by `as` casts: `igloo-shared/src/wasm-bridge-node.ts:108-113`

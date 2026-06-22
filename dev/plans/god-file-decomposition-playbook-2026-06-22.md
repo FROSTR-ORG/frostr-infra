@@ -24,7 +24,7 @@ Risk-ordered; do top-down. The `→` dependency must be respected.
 | # | File | LOC* | Risk | Safety net | Status |
 |---|------|------|------|-----------|--------|
 | 1 | `igloo-ui/src/components/flows/CreateFlow.tsx` | ~1727 | Low | strong (`test/CreateFlow.test.tsx`) | ☑ done 2026-06-22 — igloo-ui 25a6e6e, parent bd5f463 |
-| 2 | `igloo-pwa/src/lib/store.tsx` | ~1912 | Medium | R6.3 done ✓ | ◐ in progress — stage 1 done 2026-06-22 (igloo-pwa 5ef3d6e, parent eabfd3b); stages 2–4 remain |
+| 2 | `igloo-pwa/src/lib/store.tsx` | ~1828 | Medium | R6.3 done ✓ | ◐ in progress — stage 1 done 2026-06-22 (igloo-pwa 5ef3d6e, parent eabfd3b); stage 2 done 2026-06-22 (igloo-pwa 6cf5f16, parent 5c238b6); stages 3–4 remain |
 | 3 | `igloo-pwa/src/App.tsx` (→ after #2) | ~1693 | Medium | R6.3 done ✓ | ☐ not started |
 | 4 | `igloo-home/src/App.tsx` | ~2120 | Medium | R6.4 done ✓ | ☐ not started |
 | 5 | `igloo-shared/src/wasm-bridge-node.ts` | ~1662 | **High** | R6.5 done ✓ | ☐ not started |
@@ -161,9 +161,16 @@ onboard · rotate · recover/dashboard.
    sanitization rules. store.tsx 2178→1912, suite 78→88 green. `normalizePeerKey`
    + `readProfileGroupName` were left in store.tsx (peer/profile concern, not
    hydration) — candidates for a later pure-helper slice.
-2. **`updateDraft`/`updateSecret` collapse** (R3.2): the ~25 near-identical
-   `updateXForm`/`updateXPassword` methods collapse to two generic setters. This
-   materially shrinks the file. (Cross-ref R3.2 in BACKLOG.)
+2. ✅ **DONE 2026-06-22 (igloo-pwa 6cf5f16, parent 5c238b6).** `updateDraft`/
+   `updateSecret` collapse (R3.2): the 14 near-identical `updateXForm`/
+   `updateXPassword` methods now delegate to two pure typed reducers
+   (`setDraftFormField`/`setDraftSecretField`) in `lib/store-drafts.ts`, pinned by
+   `test/frontend/store-drafts.test.ts` (immutability + single-field isolation +
+   password/confirm key routing). store.tsx 1920→1828, suite 88→94 green. The
+   index-aware setters (`updateRotationSource`/`updateRecoverSource`/
+   `updateDistribution*`) and the two-field `set*DevicePassphrase` setters were
+   left as-is (they carry array-index / verified-flag-reset logic, not a single
+   plain field).
 3. **Re-key the action `useMemo`** off stable dispatchers instead of whole `state`
    (find the big actions `useMemo` and its dep array) — reduces churn, prep for
    slicing.
