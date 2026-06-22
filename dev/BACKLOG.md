@@ -311,14 +311,15 @@ record seams + rationale. Land **after R1.0** so diffs are pure structure.
   the unlock/onboard/rotate handlers. Rule `ARC-01` · evidence
   `igloo-home/src/App.tsx:1-2086` — igloo-home · synthesis R2 row 4.
 - [ ] (effort: L) **RECOMMEND NOW (staged) — `igloo-pwa/src/lib/store.tsx`
-  (now 1828 LOC, 8 slices, Medium risk).** Stages 1–2 landed (hydration →
-  `lib/store-hydrate.ts`, parent `eabfd3b`; draft-setter collapse R3.2 →
-  `lib/store-drafts.ts`, parent `5c238b6`). Remaining: re-key the action
-  `useMemo` off stable dispatchers, not whole `state` (`store.tsx:715-2146`, dep
-  array `:2145`). **Add the R6 import/onboard adversarial decrypt tests
-  (`store.tsx:1557-1596`, `:1664-1706`) BEFORE touching those journey slices** —
-  the riskiest decrypt boundaries are happy-path-only today. Rule `ARC-01` —
-  igloo-pwa · synthesis R2 row 2.
+  (now 1881 LOC, 8 slices, Medium risk).** Stages 1–3 landed: hydration →
+  `lib/store-hydrate.ts` (parent `eabfd3b`); draft-setter collapse R3.2 →
+  `lib/store-drafts.ts` (parent `5c238b6`); action `useMemo` re-keyed off
+  stable dispatchers with `test/frontend/store-actions.test.tsx` pinning action
+  identity across state-only updates (igloo-pwa `d3e321e`, parent `ab3d03e`).
+  Remaining: journey slices last (`loadBfProfile`/import,
+  `connectOnboardingPackage`/onboard, rotate, create), one journey per commit if
+  helpful; keep the R6.3 decrypt-failure tests green while moving those
+  boundaries. Rule `ARC-01` — igloo-pwa · synthesis R2 row 2.
 - [ ] (effort: M) **RECOMMEND NOW (after store.tsx) — `igloo-pwa/src/App.tsx`
   (1719 LOC, 16 `renderX` + 10 derivers, Medium risk).** Move the
   `derive*DashboardView` functions (`App.tsx:145-235`) into a React-free
