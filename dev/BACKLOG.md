@@ -562,7 +562,7 @@ the safety net R2's decomposition depends on.
     mocks were left in place — the direct test now covers the crypto, so mocking
     the dependency in the *service* test stays correct. The `nostr-provider.ts`
     response-shape arms remain a small follow-up.
-- [~] (effort: M) **PARTIAL (2026-06-22) — R6.3 — Adversarial import/onboard decrypt tests (pwa).** The
+- [x] (effort: M) **DONE (2026-06-22) — R6.3 — Adversarial import/onboard decrypt tests (pwa).** The
   two riskiest trust boundaries decrypt attacker-supplied package text but have
   only happy-path coverage; their `load-error`/`onboard-failed` routing is
   untested: `igloo-pwa/src/lib/store.tsx:1557-1596` (`loadBfProfile`),
@@ -577,12 +577,20 @@ the safety net R2's decomposition depends on.
     share-decode failure → stable `"Incorrect passphrase."`, the legacy-v1
     no-artifact start guard, import profile-decode propagation, and onboard
     connect-failure propagation (by overriding the injected WASM stub / runtime
-    hook to throw). Note: the PWA's real package crypto is WASM (mocked in the
-    unit harness), so real wrong-password/bit-flip KATs live in **R6.5**.
-  - **STILL OPEN:** the `store.tsx` slice-level `load-error`/`onboard-failed`
-    *view-routing* + preserved-secret cleanup test, and the Playwright
-    corrupted-ciphertext spec. Land with the R2 store split.
-- [~] (effort: M) **PARTIAL (2026-06-22) — R6.4 — Adversarial unlock/onboard/rotate tests (home).**
+    hook to throw).
+  - **DONE (2026-06-22, `igloo-pwa` `b9b118e`):** the `store.tsx` slice-level
+    routing now has coverage (`test/frontend/store-error-routing.test.tsx`):
+    `loadBfProfile` → `load-error` and `connectOnboardingPackage` →
+    `onboard-failed`. Surfaced + fixed a real gap — the failure paths retained
+    the decrypt passwords in `draftSecrets` (the cancel paths scrubbed them, the
+    failure paths did not); both catch blocks now clear them and the tests assert
+    set → cleared.
+  - **DONE (2026-06-22, `igloo-shared` `f513cf9`):** the real wrong-password /
+    bit-flip / round-trip KATs against the genuine WASM cipher landed in
+    igloo-shared (`profile-package.kat.test.ts`) — see the R6.5 entry below.
+  - **STILL OPEN (minor):** a Playwright corrupted-ciphertext e2e spec, if/when
+    the import flow gets one; not blocking.
+- [x] (effort: M) **DONE (2026-06-22) — R6.4 — Adversarial unlock/onboard/rotate tests (home).**
   Unlock (start-session), onboard-finalize, and rotate-apply have no end-to-end
   frontend test and every existing test asserts success only
   (`igloo-home/test/frontend/App.test.tsx:162-291`, etc.). Mock
@@ -600,18 +608,32 @@ the safety net R2's decomposition depends on.
     wrong source password rejected by rotate. A thin TS test
     (`test/frontend/api-decrypt.test.ts`) covers `HomeError` → user-message
     normalization (`invalid_passphrase`/`invalid_package`).
-  - **STILL OPEN:** the *frontend banner* assertion for each `HomeErrorPayload`
-    kind reaching the operator through `run()`, and the
-    confirm-password-mismatch / empty-passphrase `App.tsx` guard tests.
-- [ ] (effort: M) **R6.5 — Failure-path unit tests for the bridge node
-  orchestration (shared), added AS each R2 seam is extracted.** Untested at unit
+  - **DONE (2026-06-22, `igloo-home` `d88b829`):** the *frontend banner* path is
+    now covered (`App.test.tsx`): a finalize decrypt failure (mapped HomeError
+    message) reaches the danger `<Alert>` via `run()`, and the
+    confirm-password-mismatch + empty-passphrase guards surface + short-circuit
+    the api call. Surfaced + fixed a real gap — those guards threw *before*
+    `run()`, so the rejection was swallowed by the `void handleX()` click sites
+    and the operator saw nothing; they now route through `setError`, and the
+    finalize failure no longer leaks an unhandled rejection.
+- [x] (effort: M) **DONE (2026-06-22) — R6.5 — Failure-path unit tests for the bridge node
+  orchestration (shared) + real package-crypto KATs.** Untested at unit
   layer (only `@live`/E2E — the render-only blind spot): `signNostrEvent`
-  verify-fail (`igloo-shared/src/wasm-bridge-node.ts:819-840,835`),
-  `nip44Encrypt/Decrypt` on ECDH-command reject (`:842-874`), `pumpRuntime`
-  failure-drain rejecting a pending sign (`:1399-1544,1522-1534`). Current suite
-  (`wasm-bridge-node.test.ts`) covers construction/emitter/guards/shutdown only.
-  Prioritize the ECDH-reject + sign-verify-fail (security-relevant) paths. Rule
-  `TST-02` — igloo-shared · synthesis C4/R6 (the safety net for R2 row 3).
+  verify-fail, `nip44Encrypt/Decrypt` on ECDH-command reject, `pumpRuntime`
+  failure-drain rejecting a pending sign. Rule `TST-02` — igloo-shared ·
+  synthesis C4/R6 (the safety net for R2 row 3).
+  - **DONE (2026-06-22, `igloo-shared` `4b37dc7`):** `wasm-bridge-node.test.ts`
+    now covers the `pumpRuntime` failure-drain rejecting a pending sign and a
+    pending ECDH op (with pending-state/FIFO cleanup) — the reject path
+    `signNostrEvent`/`nip44Encrypt`/`nip44Decrypt` funnel through — plus
+    `signNostrEvent` throwing on a verify-fail.
+  - **DONE (2026-06-22, `igloo-shared` `f513cf9`):** the real package-crypto KATs
+    the PWA path couldn't reach (mocked WASM) now run against the genuine cipher
+    in node — `profile-package.kat.test.ts` loads the checked-in `public/wasm`
+    artifact (the web-target `__wbg_init` accepts raw bytes, no fetch) and asserts
+    encode↔decode round-trip, wrong-password reject, single-char-corrupt reject,
+    and distinct-ciphertext-per-encode. The artifact is the fixture: drift from
+    bifrost-rs fails the KAT.
 
 ### Rust-shell tail (igloo-home-local; alongside R3/R6)
 
