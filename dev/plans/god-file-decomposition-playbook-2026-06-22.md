@@ -24,7 +24,7 @@ Risk-ordered; do top-down. The `→` dependency must be respected.
 | # | File | LOC* | Risk | Safety net | Status |
 |---|------|------|------|-----------|--------|
 | 1 | `igloo-ui/src/components/flows/CreateFlow.tsx` | ~1727 | Low | strong (`test/CreateFlow.test.tsx`) | ☑ done 2026-06-22 — igloo-ui 25a6e6e, parent bd5f463 |
-| 2 | `igloo-pwa/src/lib/store.tsx` | ~2178 | Medium | R6.3 done ✓ | ☐ not started |
+| 2 | `igloo-pwa/src/lib/store.tsx` | ~1912 | Medium | R6.3 done ✓ | ◐ in progress — stage 1 done 2026-06-22 (igloo-pwa 5ef3d6e, parent eabfd3b); stages 2–4 remain |
 | 3 | `igloo-pwa/src/App.tsx` (→ after #2) | ~1693 | Medium | R6.3 done ✓ | ☐ not started |
 | 4 | `igloo-home/src/App.tsx` | ~2120 | Medium | R6.4 done ✓ | ☐ not started |
 | 5 | `igloo-shared/src/wasm-bridge-node.ts` | ~1662 | **High** | R6.5 done ✓ | ☐ not started |
@@ -153,8 +153,14 @@ green throughout — they pin the riskiest decrypt journeys.
 onboard · rotate · recover/dashboard.
 
 **Stage it — start mechanical, end at journeys:**
-1. **Pure hydration/normalization** → lift into a React-free `lib/store-hydrate.ts`
-   (or extend an existing neighbor) with unit tests. Lowest risk.
+1. ✅ **DONE 2026-06-22 (igloo-pwa 5ef3d6e, parent eabfd3b).** Pure
+   hydration/normalization lifted into `lib/store-hydrate.ts` (defaultDrafts,
+   createDefaultDraftSecrets, createDefaultState, ensureDistributionForm/
+   PasswordSlot, normalizeLoadedState[FromStorage]) + `test/frontend/
+   store-hydrate.test.ts` pinning the default-state shape and the rehydration
+   sanitization rules. store.tsx 2178→1912, suite 78→88 green. `normalizePeerKey`
+   + `readProfileGroupName` were left in store.tsx (peer/profile concern, not
+   hydration) — candidates for a later pure-helper slice.
 2. **`updateDraft`/`updateSecret` collapse** (R3.2): the ~25 near-identical
    `updateXForm`/`updateXPassword` methods collapse to two generic setters. This
    materially shrinks the file. (Cross-ref R3.2 in BACKLOG.)
