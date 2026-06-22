@@ -562,7 +562,7 @@ the safety net R2's decomposition depends on.
     mocks were left in place — the direct test now covers the crypto, so mocking
     the dependency in the *service* test stays correct. The `nostr-provider.ts`
     response-shape arms remain a small follow-up.
-- [ ] (effort: M) **R6.3 — Adversarial import/onboard decrypt tests (pwa).** The
+- [~] (effort: M) **PARTIAL (2026-06-22) — R6.3 — Adversarial import/onboard decrypt tests (pwa).** The
   two riskiest trust boundaries decrypt attacker-supplied package text but have
   only happy-path coverage; their `load-error`/`onboard-failed` routing is
   untested: `igloo-pwa/src/lib/store.tsx:1557-1596` (`loadBfProfile`),
@@ -572,7 +572,17 @@ the safety net R2's decomposition depends on.
   ciphertext + wrong import password → assert the error view + preserved-secret
   cleanup. **Land before splitting store.tsx's import/onboard slices (R2).** Rule
   `TST-02`/`SEC-04` — igloo-pwa · synthesis C4/R6.
-- [ ] (effort: M) **R6.4 — Adversarial unlock/onboard/rotate tests (home).**
+  - **DONE (2026-06-22, `igloo-pwa` `7d69a82`):** the **local-adapter** decrypt
+    failure-mapping layer is now covered (`test/frontend/profile-decrypt.test.ts`):
+    share-decode failure → stable `"Incorrect passphrase."`, the legacy-v1
+    no-artifact start guard, import profile-decode propagation, and onboard
+    connect-failure propagation (by overriding the injected WASM stub / runtime
+    hook to throw). Note: the PWA's real package crypto is WASM (mocked in the
+    unit harness), so real wrong-password/bit-flip KATs live in **R6.5**.
+  - **STILL OPEN:** the `store.tsx` slice-level `load-error`/`onboard-failed`
+    *view-routing* + preserved-secret cleanup test, and the Playwright
+    corrupted-ciphertext spec. Land with the R2 store split.
+- [~] (effort: M) **PARTIAL (2026-06-22) — R6.4 — Adversarial unlock/onboard/rotate tests (home).**
   Unlock (start-session), onboard-finalize, and rotate-apply have no end-to-end
   frontend test and every existing test asserts success only
   (`igloo-home/test/frontend/App.test.tsx:162-291`, etc.). Mock
@@ -581,6 +591,18 @@ the safety net R2's decomposition depends on.
   through `run()`/`rethrowHomeError`; assert the confirm-password-mismatch +
   empty-passphrase guards (`igloo-home/src/App.tsx:1046,1118`). Rule
   `TST-02`/`TST-01` — igloo-home · synthesis C4/R6.
+  - **DONE (2026-06-22, `igloo-home` `27bd503`):** because home decrypts in
+    **native Rust** (bifrost-profile), the substantive adversarial coverage
+    landed there, reusing the `recover_rotate_tests` fixtures
+    (`src-tauri/src/session.rs`): wrong device passphrase rejected by
+    `resolve_runtime_for_passphrase` (correct one still unlocks), wrong share
+    password + corrupted (bech32 char-flipped) share package rejected by recover,
+    wrong source password rejected by rotate. A thin TS test
+    (`test/frontend/api-decrypt.test.ts`) covers `HomeError` → user-message
+    normalization (`invalid_passphrase`/`invalid_package`).
+  - **STILL OPEN:** the *frontend banner* assertion for each `HomeErrorPayload`
+    kind reaching the operator through `run()`, and the
+    confirm-password-mismatch / empty-passphrase `App.tsx` guard tests.
 - [ ] (effort: M) **R6.5 — Failure-path unit tests for the bridge node
   orchestration (shared), added AS each R2 seam is extracted.** Untested at unit
   layer (only `@live`/E2E — the render-only blind spot): `signNostrEvent`
@@ -596,34 +618,35 @@ the safety net R2's decomposition depends on.
 C9 (`ARC-06`/`CQ-02`) — not a front-end bucket but graduated here from the same
 run.
 
-- [~] (effort: S) **PARTIAL (2026-06-21) — Derive the test-dispatch command set from the real
+- [x] (effort: S) **DONE (2026-06-22) — Derive the test-dispatch command set from the real
   registration.** The hand-maintained `EXPECTED_DISPATCH_COMMANDS`
   (`igloo-home/src-tauri/src/app/test_dispatch.rs`) had drifted from the real
-  Tauri registration. Make one `const COMMANDS: &[&str]` both consume, or assert
-  every `*_command` has a dispatch arm. Rule `ARC-06` — igloo-home · synthesis C9.
-  - **DONE (2026-06-21):** the security-relevant `resolve_approval` +
-    `update_peer_policy` (and `list_relay_profiles`) now have dispatcher arms +
-    no-app-guard + expected-list entries; the `every_expected_command` self-test
-    covers them (`igloo-home` `289d3b3`).
-  - **STILL OPEN:** `get_settings` / `update_settings` (settings module, need
-    AppHandle threading) + `update_profile_operator_settings` /
-    `resolve_close_request`; and the *structural* fix — derive the expected set
-    from the registration so future drift fails automatically (the list is still
-    hand-maintained, just no longer behind on the permission writes).
-- [ ] (effort: S) **Funnel `lock().unwrap()` through one poison-mapping helper.**
-  25 `.lock().unwrap()` on IPC-reachable paths turn a poisoned mutex into a hard
-  backend crash: `igloo-home/src-tauri/src/session/controller.rs:33`,
-  `app/commands.rs:233,262,374` (profiles.rs ×6, controller.rs ×6, paths.rs ×3,
-  …). Map `PoisonError` → a typed `HomeError` (or `into_inner()` where state is
-  consistent) so it surfaces as a renderable error, not a panic. Rule `CQ-02` —
+  Tauri registration. Rule `ARC-06` — igloo-home · synthesis C9.
+  - **DONE (2026-06-21, `289d3b3`):** the security-relevant `resolve_approval` +
+    `update_peer_policy` (and `list_relay_profiles`) got dispatcher arms +
+    no-app-guard + expected-list entries.
+  - **DONE (2026-06-22, `72622e3`):** the remaining four commands —
+    `get_settings`, `update_settings` (AppHandle threaded),
+    `update_profile_operator_settings`, `resolve_close_request` — now have
+    dispatcher arms + guard + expected-list entries. The **structural** fix
+    landed: `expected_dispatch_commands_match_registered_handlers` parses the
+    real `generate_handler!` list out of bootstrap.rs via `include_str!` and
+    asserts it equals EXPECTED (minus the test-only `health`/`navigate_view`), so
+    a future registered-but-unmirrored command fails the test instead of drifting
+    silently.
+- [x] (effort: S) **DONE (2026-06-22, `igloo-home` `de18dd4`) — Funnel `lock().unwrap()` through one poison-mapping helper.**
+  `.lock().unwrap()` on IPC-reachable paths turned a poisoned mutex into a hard
+  backend crash (one panic-while-locked cascading into a flood). Rule `CQ-02` —
   igloo-home · synthesis C9.
-  - **Deferred (2026-06-21):** intentionally left as a single focused pass — the 25
-    sites span 9 files with per-site nuance (the IPC fns return `anyhow::Result`
-    so `.lock().map_err(|_| anyhow!(...))?` fits most, but `get_settings` &c. are
-    non-`Result` and need `into_inner()`, and the `paths.rs` env locks are
-    test-only). Convert them all at once with a `LockExt::lock_safe()` helper rather
-    than piecemeal, so there is no half-hardened state. Lower severity (only trips
-    on a panic-while-locked).
+  - **DONE:** new `src/util.rs` `LockExt` with `lock_safe()` (poison → anyhow
+    error, for `?` in the 15 Result-returning sites, incl. the guards held across
+    `.await` — lifetimes unchanged) and `lock_recover()` (`into_inner()` for the 5
+    non-`Result` accessors). All 20 production sites converted across
+    `app/{bootstrap,commands,settings,tray}.rs`,
+    `session/{controller,close,lifecycle}.rs`, `profiles.rs` — including three
+    multi-line sites the single-line grep had missed. The 7 test-only locks
+    (`paths.rs` env lock, `profiles.rs` test module) keep `.unwrap()`. Invariant:
+    no raw `lock().unwrap()` outside `#[cfg(test)]`. cargo test 54→ green; clippy clean.
 
 ## Test infrastructure remediation (audit 2026-06-17)
 
