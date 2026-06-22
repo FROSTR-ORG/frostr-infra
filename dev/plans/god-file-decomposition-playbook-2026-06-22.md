@@ -23,7 +23,7 @@ Risk-ordered; do top-down. The `→` dependency must be respected.
 
 | # | File | LOC* | Risk | Safety net | Status |
 |---|------|------|------|-----------|--------|
-| 1 | `igloo-ui/src/components/flows/CreateFlow.tsx` | ~1727 | Low | strong (`test/CreateFlow.test.tsx`) | ☐ not started |
+| 1 | `igloo-ui/src/components/flows/CreateFlow.tsx` | ~1727 | Low | strong (`test/CreateFlow.test.tsx`) | ☑ done 2026-06-22 — igloo-ui 25a6e6e, parent bd5f463 |
 | 2 | `igloo-pwa/src/lib/store.tsx` | ~2178 | Medium | R6.3 done ✓ | ☐ not started |
 | 3 | `igloo-pwa/src/App.tsx` (→ after #2) | ~1693 | Medium | R6.3 done ✓ | ☐ not started |
 | 4 | `igloo-home/src/App.tsx` | ~2120 | Medium | R6.4 done ✓ | ☐ not started |

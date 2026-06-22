@@ -248,7 +248,8 @@ baseline).
   `eslint-plugin-import` (`import/order` + `import/no-cycle`). Enable
   `@typescript-eslint/no-unused-vars`, `@typescript-eslint/no-floating-promises`,
   `@typescript-eslint/no-explicit-any`. This also retires the stale
-  `eslint-disable` in `igloo-ui/.../CreateFlow.tsx` that suppresses a rule with no
+  `eslint-disable` in `igloo-ui/.../flows/create/generate.tsx` (was `CreateFlow.tsx`,
+  in the `RelayList` effect) that suppresses a rule with no
   ESLint present. Add a `lint` npm script per leaf. Evidence: `AES-06` (same
   no-config sites as R1.0); `LEG-04` unused-vars would catch dead
   `readNumber` (`igloo-pwa/src/App.tsx:281-288`) + `introMessage`
@@ -287,17 +288,16 @@ differ per file. For each RECOMMEND-NOW file, write the named characterization
 tests to pin behavior *first*, then extract along the listed seams; DEFER files
 record seams + rationale. Land **after R1.0** so diffs are pure structure.
 
-- [ ] (effort: M) **RECOMMEND NOW — `igloo-ui/src/components/flows/CreateFlow.tsx`
-  (1727 LOC, 6 seams, Low risk).** Seams: generate / rotate / local-save /
-  distribution / onboard-import / recover / onboard-handshake. Safety-net is
-  **good and already in place** — `test/CreateFlow.test.tsx` (786 LOC) imports
-  through the barrel and survives a re-export-preserving split, so the split is
-  mechanical: split into `flows/create/{generate,rotate,local-save,distribution,
-  onboard-import,recover,onboard-handshake}.tsx` + a `create/types.ts`, re-export
-  from a thin `flows/create/index.ts` so the public barrel
-  (`igloo-ui/src/index.ts:143-178`, 31 entries) is unchanged. Best payoff/risk
-  ratio; do first. Rule `ARC-01` · evidence `CreateFlow.tsx:1-1727` —
-  igloo-ui · synthesis R2 row 1.
+- [x] **DONE 2026-06-22 — `igloo-ui/src/components/flows/CreateFlow.tsx`
+  (1727 LOC, Low risk).** Split into `flows/create/{generate,rotate,local-save,
+  distribution,onboard-import,recover,onboard-handshake}.tsx` + `create/types.ts`
+  + `create/common.tsx` (shared `CreateActionRow`/`shortKey`), re-exported from a
+  thin `create/index.ts`. Pure cut/paste + import rewiring; `src/index.ts` only
+  repoints its two `flows/CreateFlow` paths. Public barrel unchanged,
+  `test/CreateFlow.test.tsx` green untouched (144/144), tsc clean. igloo-ui
+  25a6e6e, parent bd5f463. (Stale-path drift noted: reference-only
+  `igloo-paper/design-contract.json:289` still points at the deleted monolith.)
+  Rule `ARC-01` — igloo-ui · synthesis R2 row 1.
 - [ ] (effort: L) **RECOMMEND NOW (seam-first) — `igloo-home/src/App.tsx`
   (2086 LOC, 7 views, Medium risk).** Characterize FIRST: the `extract*` parsers
   (`extractRuntimePeers`/`extractPeerPermissionStates`/`extractPendingOperations`/
