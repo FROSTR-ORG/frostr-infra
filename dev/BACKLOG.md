@@ -318,14 +318,16 @@ record seams + rationale. Land **after R1.0** so diffs are pure structure.
   recover,distribution,dashboard}.ts`. The public `useStore()`/`StoreProvider`
   contract stayed unchanged; full pwa suite and `make verify` green. igloo-pwa
   `0c20648`, parent `55c0b99`. Rule `ARC-01` — igloo-pwa · synthesis R2 row 2.
-- [ ] (effort: M) **RECOMMEND NOW (after store.tsx) — `igloo-pwa/src/App.tsx`
-  (1719 LOC, 16 `renderX` + 10 derivers, Medium risk).** Move the
-  `derive*DashboardView` functions (`App.tsx:145-235`) into a React-free
-  `lib/dashboard-view.ts` neighbor (unit-testable) FIRST, then promote the 16
-  `renderX` closures (`App.tsx:461-1604`) to `views/*.tsx` and make the
-  `activeView` switch (`App.tsx:1692-1708`) a thin router. Do after the store
-  split so each view's props are settled. Rule `ARC-01`/`ARC-02` — igloo-pwa ·
-  synthesis R2 row 5.
+- [x] **DONE 2026-06-22 — `igloo-pwa/src/App.tsx` (now 509 LOC, 7 view
+  modules, Medium risk).** Moved `deriveSignerDashboardView` /
+  `derivePolicyDashboardView` plus runtime timestamp/pending-op helpers into
+  `lib/dashboard-view.ts`, pinned by `test/frontend/dashboard-view.test.tsx`.
+  Promoted the former `renderX` closures into `src/views/{landing,create,import,
+  onboard,rotate,recover,dashboard}.tsx`; `App.tsx` now owns shell state, modals,
+  and a thin `activeView` router. Updated the landing-convergence guard to follow
+  the moved PWA landing surface. PWA suite green (100 tests), `npm --prefix
+  repos/igloo-pwa run build` green, `make verify` green. igloo-pwa `8b0bf83`,
+  parent `4e9ce51`. Rule `ARC-01`/`ARC-02` — igloo-pwa · synthesis R2 row 5.
 - [ ] (effort: L) **DEFER (extract pure helpers only) —
   `igloo-shared/src/wasm-bridge-node.ts` (1656 LOC, 6 seams, HIGH risk, THIN
   net).** Every host's signing path routes here; `emit`/`emitLog` side effects
