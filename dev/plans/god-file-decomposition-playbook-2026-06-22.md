@@ -24,7 +24,7 @@ Risk-ordered; do top-down. The `→` dependency must be respected.
 | # | File | LOC* | Risk | Safety net | Status |
 |---|------|------|------|-----------|--------|
 | 1 | `igloo-ui/src/components/flows/CreateFlow.tsx` | ~1727 | Low | strong (`test/CreateFlow.test.tsx`) | ☑ done 2026-06-22 — igloo-ui 25a6e6e, parent bd5f463 |
-| 2 | `igloo-pwa/src/lib/store.tsx` | ~1881 | Medium | R6.3 done ✓ | ◐ in progress — stage 1 done 2026-06-22 (igloo-pwa 5ef3d6e, parent eabfd3b); stage 2 done 2026-06-22 (igloo-pwa 6cf5f16, parent 5c238b6); stage 3 done 2026-06-22 (igloo-pwa d3e321e, parent ab3d03e); stage 4 remains |
+| 2 | `igloo-pwa/src/lib/store.tsx` | ~528 | Medium | R6.3 done ✓ | ☑ done 2026-06-22 — igloo-pwa 0c20648, parent 55c0b99 |
 | 3 | `igloo-pwa/src/App.tsx` (→ after #2) | ~1693 | Medium | R6.3 done ✓ | ☐ not started |
 | 4 | `igloo-home/src/App.tsx` | ~2120 | Medium | R6.4 done ✓ | ☐ not started |
 | 5 | `igloo-shared/src/wasm-bridge-node.ts` | ~1662 | **High** | R6.5 done ✓ | ☐ not started |
@@ -177,9 +177,12 @@ onboard · rotate · recover/dashboard.
    through a thin final provider value. Added `test/frontend/store-actions.test.tsx`
    to pin action identity stability across state-only updates. store.tsx
    1828→1881, suite 94→95 green.
-4. **Journey slices last** (`loadBfProfile`/import, `connectOnboardingPackage`/
-   onboard, rotate, create) — these touch decrypt; they are covered by R6.3 now, so
-   move them only after 1–3, one journey per commit if it helps review.
+4. ✅ **DONE 2026-06-22 (igloo-pwa 0c20648, parent 55c0b99).** Journey
+   actions now live in `lib/store-import.ts`, `lib/store-onboard.ts`,
+   `lib/store-rotate.ts`, `lib/store-create.ts`, `lib/store-recover.ts`,
+   `lib/store-distribution.ts`, and `lib/store-dashboard.ts`. The public
+   `useStore()`/`StoreProvider` contract stayed unchanged; `store.tsx` is now a
+   provider/composition shell. store.tsx 1881→528, suite remains 95 tests green.
 
 **Preserve:** the `useStore()` hook contract + `StoreProvider`. Consumers
 (`App.tsx`, tests) must not change imports.

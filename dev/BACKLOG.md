@@ -310,16 +310,14 @@ record seams + rationale. Land **after R1.0** so diffs are pure structure.
   flow handler unit-covered — so add R6-C4 home adversarial tests before touching
   the unlock/onboard/rotate handlers. Rule `ARC-01` · evidence
   `igloo-home/src/App.tsx:1-2086` — igloo-home · synthesis R2 row 4.
-- [ ] (effort: L) **RECOMMEND NOW (staged) — `igloo-pwa/src/lib/store.tsx`
-  (now 1881 LOC, 8 slices, Medium risk).** Stages 1–3 landed: hydration →
-  `lib/store-hydrate.ts` (parent `eabfd3b`); draft-setter collapse R3.2 →
-  `lib/store-drafts.ts` (parent `5c238b6`); action `useMemo` re-keyed off
-  stable dispatchers with `test/frontend/store-actions.test.tsx` pinning action
-  identity across state-only updates (igloo-pwa `d3e321e`, parent `ab3d03e`).
-  Remaining: journey slices last (`loadBfProfile`/import,
-  `connectOnboardingPackage`/onboard, rotate, create), one journey per commit if
-  helpful; keep the R6.3 decrypt-failure tests green while moving those
-  boundaries. Rule `ARC-01` — igloo-pwa · synthesis R2 row 2.
+- [x] **DONE 2026-06-22 — `igloo-pwa/src/lib/store.tsx` (now 528 LOC, 8
+  slices, Medium risk).** Completed staged decomposition: hydration →
+  `lib/store-hydrate.ts`, draft/secret setters → `lib/store-drafts.ts`, stable
+  dispatcher action factories pinned by `test/frontend/store-actions.test.tsx`,
+  then journey/dashboard modules in `lib/store-{import,onboard,rotate,create,
+  recover,distribution,dashboard}.ts`. The public `useStore()`/`StoreProvider`
+  contract stayed unchanged; full pwa suite and `make verify` green. igloo-pwa
+  `0c20648`, parent `55c0b99`. Rule `ARC-01` — igloo-pwa · synthesis R2 row 2.
 - [ ] (effort: M) **RECOMMEND NOW (after store.tsx) — `igloo-pwa/src/App.tsx`
   (1719 LOC, 16 `renderX` + 10 derivers, Medium risk).** Move the
   `derive*DashboardView` functions (`App.tsx:145-235`) into a React-free
