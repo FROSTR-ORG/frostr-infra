@@ -35,7 +35,7 @@ check_client() {
 }
 
 check_client "igloo-pwa"    "${ROOT_DIR}/repos/igloo-pwa/src"
-check_client "igloo-home"   "${ROOT_DIR}/repos/igloo-home/src/App.tsx"
+check_client "igloo-home"   "${ROOT_DIR}/repos/igloo-home/src"
 check_client "igloo-chrome" "${ROOT_DIR}/repos/igloo-chrome/src/pages/Onboarding.tsx"
 
 echo "ok: all client landing files converged on shared Welcome heroes"
