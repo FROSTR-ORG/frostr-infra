@@ -324,17 +324,17 @@ record seams + rationale. Land **after R1.0** so diffs are pure structure.
   the moved PWA landing surface. PWA suite green (100 tests), `npm --prefix
   repos/igloo-pwa run build` green, `make verify` green. igloo-pwa `8b0bf83`,
   parent `4e9ce51`. Rule `ARC-01`/`ARC-02` — igloo-pwa · synthesis R2 row 5.
-- [ ] (effort: L) **DEFER (extract pure helpers only) —
-  `igloo-shared/src/wasm-bridge-node.ts` (1656 LOC, 6 seams, HIGH risk, THIN
-  net).** Every host's signing path routes here; `emit`/`emitLog` side effects
-  throughout `pumpRuntime` (`:1399-1544`); header asserts "not separable without a
-  behavior-changing rewrite." No unit coverage of the 4 bootstrap modes /
-  sign / ECDH / ping / pump dispatch. **Extract only the already-pure pieces now**
-  — `requestOnboardResponse` (`:1177-1360`), the device-config builder
-  (`:414-432`), `buildProfileBootstrap` (`:1133-1175`) — each with a test added
-  per extraction; **defer** the `connect`-mode split (`:365-557`) into
-  `bootstrapPersisted`/`Profile`/`Onboarding` until the R6 failure-path tests
-  exist. Rule `ARC-01` — igloo-shared · synthesis R2 row 3.
+- [x] **DONE 2026-06-22 — `igloo-shared/src/wasm-bridge-node.ts` (now 1594
+  LOC, HIGH risk).** Completed the staged pure-helper extraction only:
+  `runtime-config.ts` builds the runtime device config, `profile-bootstrap.ts`
+  builds profile bootstrap state + derived peer identity, and
+  `onboard-response.ts` builds the response filter and validates decrypted
+  OnboardResponse envelopes. Added direct tests for each helper (shared suite
+  159 -> 166 tests); `BrowserBridgeNode` still owns relay subscriptions, timers,
+  logging, pump dispatch, and connect-mode lifecycle. The connect/bootstrap mode
+  split remains intentionally deferred until direct mode-dispatch coverage exists.
+  igloo-shared 9eeac19, parent be3d42c. Rule `ARC-01` — igloo-shared ·
+  synthesis R2 row 3.
 - [ ] (effort: M) **DEFER — `igloo-chrome/src/pages/Onboarding.tsx` (471 LOC, 6
   flows sharing one `error` slot).** Connect / save / import / activate / unlock /
   delete (`Onboarding.tsx:111-225`) + 6 bare-string password slices
