@@ -298,18 +298,14 @@ record seams + rationale. Land **after R1.0** so diffs are pure structure.
   25a6e6e, parent bd5f463. (Stale-path drift noted: reference-only
   `igloo-paper/design-contract.json:289` still points at the deleted monolith.)
   Rule `ARC-01` — igloo-ui · synthesis R2 row 1.
-- [ ] (effort: L) **RECOMMEND NOW (seam-first) — `igloo-home/src/App.tsx`
-  (2086 LOC, 7 views, Medium risk).** Characterize FIRST: the `extract*` parsers
-  (`extractRuntimePeers`/`extractPeerPermissionStates`/`extractPendingOperations`/
-  `extractPendingApprovals`, `App.tsx:341-452`) are pure → pull into a tested
-  `lib/runtime-status.ts` with unit tests, the low-risk independently-testable
-  seam, *before* moving views. Then lift the 7 views into `src/pages/` following
-  the existing `CreatePage.tsx:1-201` precedent (`LoadProfilePage`,
-  `RecoverKeyPage`, `OnboardConnectPage`+`OnboardSavePage`, `DashboardPage`).
-  Current net is thin: `App.test.tsx` (292 LOC) renders shell + peer-refresh, no
-  flow handler unit-covered — so add R6-C4 home adversarial tests before touching
-  the unlock/onboard/rotate handlers. Rule `ARC-01` · evidence
-  `igloo-home/src/App.tsx:1-2086` — igloo-home · synthesis R2 row 4.
+- [x] **DONE 2026-06-22 — `igloo-home/src/App.tsx` (now 1598 LOC, 7 page
+  modules, Medium risk).** Pulled the pure runtime `extract*` helpers into
+  `src/lib/runtime-status.ts` with `test/frontend/runtime-status.test.ts`, then
+  lifted landing/create/load/recover/onboard/dashboard JSX into `src/pages/`
+  while preserving the default `App` coordinator contract. Home suite green;
+  root `make verify` green after updating the landing convergence guard to scan
+  Home's extracted `src/` page tree. igloo-home 186fb3e, parent 51491b6
+  (guard parent 1efda76). Rule `ARC-01` — igloo-home · synthesis R2 row 4.
 - [x] **DONE 2026-06-22 — `igloo-pwa/src/lib/store.tsx` (now 528 LOC, 8
   slices, Medium risk).** Completed staged decomposition: hydration →
   `lib/store-hydrate.ts`, draft/secret setters → `lib/store-drafts.ts`, stable
