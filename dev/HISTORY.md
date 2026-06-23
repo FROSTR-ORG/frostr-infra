@@ -9,6 +9,17 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
+## 2026-06-23 — Backlog pruning pass
+
+Reviewed `dev/BACKLOG.md` after the 2026-06-19/22 audit and god-file
+decomposition work. Pruned completed rows, declined formatter/lint adoption,
+duplicate follow-ups, stale file/line references, and low-benefit optional
+tasks. Rewrote the backlog as a live work queue grouped by priority, shared UI,
+dedup/model cleanup, security, runtime lifecycle, test/CI, design, and open
+questions. Historical detail remains in the original commits, plans, archived
+audit material, and this history file; the backlog now carries only forward
+work.
+
 ## 2026-06-14 — Approval-queue follow-ups: protocol docs + native/shell parity
 
 Cleared the in-scope approval-queue follow-ups (chrome `@live` e2e + Paper sync
