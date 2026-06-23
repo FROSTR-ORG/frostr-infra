@@ -28,7 +28,7 @@ Risk-ordered; do top-down. The `→` dependency must be respected.
 | 3 | `igloo-pwa/src/App.tsx` (→ after #2) | ~1693 | Medium | R6.3 done ✓ | ☑ done 2026-06-22 — igloo-pwa 8b0bf83, parent 4e9ce51 |
 | 4 | `igloo-home/src/App.tsx` | ~2120 | Medium | R6.4 done ✓ | ☑ done 2026-06-22 — igloo-home 186fb3e, parent 51491b6 |
 | 5 | `igloo-shared/src/wasm-bridge-node.ts` | ~1662 | **High** | R6.5 done ✓ | ☑ done 2026-06-22 — igloo-shared 9eeac19, parent be3d42c |
-| 6 | `igloo-chrome/src/pages/Onboarding.tsx` (optional) | ~487 | Low-Med | R6.2 done ✓ | ☐ not started |
+| 6 | `igloo-chrome/src/pages/Onboarding.tsx` (optional) | ~487 | Low-Med | R6.2 done ✓ | ☑ done 2026-06-22 — igloo-chrome f25566b, parent 4cb38f1 |
 
 \* LOC drifts as work lands — re-`wc -l` when you start a file.
 

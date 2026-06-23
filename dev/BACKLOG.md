@@ -335,14 +335,15 @@ record seams + rationale. Land **after R1.0** so diffs are pure structure.
   split remains intentionally deferred until direct mode-dispatch coverage exists.
   igloo-shared 9eeac19, parent be3d42c. Rule `ARC-01` — igloo-shared ·
   synthesis R2 row 3.
-- [ ] (effort: M) **DEFER — `igloo-chrome/src/pages/Onboarding.tsx` (471 LOC, 6
-  flows sharing one `error` slot).** Connect / save / import / activate / unlock /
-  delete (`Onboarding.tsx:111-225`) + 6 bare-string password slices
-  (`:50-66`). Smaller + lower-traffic than the others; 24 unit suites but the
-  crypto path is mocked (C2). **Fold into the per-flow split AFTER R6-C2's cipher
-  tests land** so the unlock flow can be split with real coverage. Split into
-  `OnboardConnect`/`ImportProfile`/`UnlockProfile`/`ProfileList`. Rule
-  `ARC-02` — igloo-chrome · synthesis R2 row 6.
+- [x] **DONE 2026-06-22 — `igloo-chrome/src/pages/Onboarding.tsx` (now 119
+  LOC, 6 flow components).** Split onboarding connect, save, import,
+  profile-list activate/delete, and unlock-modal rendering into
+  `src/pages/onboarding/`; each flow owns its own password/error/submitting
+  state while the page coordinates store actions and view selection. Updated the
+  landing convergence guard to scan Chrome's extracted `src/` page tree. Chrome
+  typecheck/unit suite green; root `make verify` green. igloo-chrome f25566b,
+  parent 4cb38f1 (guard parent 246336e). Rule `ARC-02` — igloo-chrome ·
+  synthesis R2 row 6.
 
 ### R3 — Dedup & divergence (each duplicate names BOTH sites)
 
