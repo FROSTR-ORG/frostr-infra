@@ -4,6 +4,7 @@ import { openPageForStorage } from './transport';
 import type { SeedPermissionPolicy, SeedProfileOverrides } from '../types';
 import { buildSeedProfile } from './seed-profile';
 import { createSeededProfileRecord } from './seed-crypto';
+import { PROFILE_BLOB_PASSWORD } from '../../../shared/test-secrets';
 
 export async function seedProfileIntoExtension(
   context: BrowserContext,
@@ -13,10 +14,9 @@ export async function seedProfileIntoExtension(
   const page = await openPageForStorage(context, extensionId);
   try {
     const seeded =
-      overrides.storedBlobRecord && typeof overrides.sessionKeyB64 === 'string'
+      overrides.storedBlobRecord
         ? {
             storedBlobRecord: overrides.storedBlobRecord,
-            sessionKeyB64: overrides.sessionKeyB64,
           }
         : await createSeededProfileRecord(buildSeedProfile(overrides));
     const verified = await page.evaluate(
@@ -27,36 +27,35 @@ export async function seedProfileIntoExtension(
           ],
           'igloo.v3.ext.activeProfileId': input.storedBlobRecord.id,
         });
-        await chrome.storage.session.set({
-          'igloo.v3.ext.sessionUnlocks': {
-            [input.storedBlobRecord.id]: {
-              keyB64: input.sessionKeyB64,
-              updatedAt: Date.now(),
-            },
-          },
+        const unlockResponse = await chrome.runtime.sendMessage({
+          type: 'ext.debug.seedProfileUnlock',
+          profileId: input.storedBlobRecord.id,
+          password: input.password,
         });
         const local = await chrome.storage.local.get([
           'igloo.v3.ext.profiles',
           'igloo.v3.ext.activeProfileId',
         ]);
-        const session = await chrome.storage.session.get('igloo.v3.ext.sessionUnlocks');
         return {
           activeProfileId: local['igloo.v3.ext.activeProfileId'],
           profileIds: Array.isArray(local['igloo.v3.ext.profiles'])
             ? local['igloo.v3.ext.profiles'].map((entry) => entry.id)
             : [],
-          unlockKey:
-            session['igloo.v3.ext.sessionUnlocks']?.[input.storedBlobRecord.id]?.keyB64 ?? null,
+          unlocked: unlockResponse?.ok === true,
+          unlockError: unlockResponse?.error ?? null,
         };
       },
-      seeded
+      {
+        ...seeded,
+        password: overrides.onboardPassword ?? PROFILE_BLOB_PASSWORD,
+      }
     );
     if (
       verified.activeProfileId !== seeded.storedBlobRecord.id ||
       !verified.profileIds.includes(seeded.storedBlobRecord.id) ||
-      verified.unlockKey !== seeded.sessionKeyB64
+      !verified.unlocked
     ) {
-      throw new Error('Failed to verify seeded extension profile state.');
+      throw new Error(`Failed to verify seeded extension profile state: ${verified.unlockError ?? 'unlock failed'}`);
     }
   } finally {
     await page.close().catch(() => undefined);
@@ -100,7 +99,12 @@ export async function clearSessionUnlocksInExtension(context: BrowserContext, ex
   const page = await openPageForStorage(context, extensionId);
   try {
     await page.evaluate(async () => {
-      await chrome.storage.session.clear();
+      const response = (await chrome.runtime.sendMessage({
+        type: 'ext.debug.clearProfileUnlocks',
+      })) as { ok?: boolean; error?: string } | undefined;
+      if (!response?.ok) {
+        throw new Error(response?.error || 'Failed to clear profile unlocks');
+      }
     });
   } finally {
     await page.close().catch(() => undefined);

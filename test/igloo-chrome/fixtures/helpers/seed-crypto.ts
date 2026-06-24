@@ -32,19 +32,15 @@ async function deriveAesKey(password: string, salt: Uint8Array): Promise<NodeCry
       name: 'AES-GCM',
       length: 256,
     },
-    true,
+    false,
     ['encrypt', 'decrypt']
   );
-}
-
-async function exportSessionKey(key: NodeCryptoKey) {
-  return bytesToBase64(new Uint8Array(await webcrypto.subtle.exportKey('raw', key)));
 }
 
 async function encryptPayload(
   payload: LocalProfileBlobPayload,
   password: string
-): Promise<{ blob: LocalEncryptedProfileBlob; sessionKeyB64: string }> {
+): Promise<{ blob: LocalEncryptedProfileBlob }> {
   const salt = webcrypto.getRandomValues(new Uint8Array(16));
   const iv = webcrypto.getRandomValues(new Uint8Array(12));
   const key = await deriveAesKey(password, salt);
@@ -69,7 +65,6 @@ async function encryptPayload(
         ciphertextB64: bytesToBase64(new Uint8Array(ciphertext)),
       },
     },
-    sessionKeyB64: await exportSessionKey(key),
   };
 }
 
@@ -78,7 +73,7 @@ export async function createSeededProfileRecord(input: {
   label: string;
   payload: LocalProfileBlobPayload;
   now?: number;
-}): Promise<{ storedBlobRecord: LocalProfileBlobRecord; sessionKeyB64: string }> {
+}): Promise<{ storedBlobRecord: LocalProfileBlobRecord }> {
   const now = input.now ?? Date.now();
   const encrypted = await encryptPayload(input.payload, PASSWORD);
   return {
@@ -89,6 +84,5 @@ export async function createSeededProfileRecord(input: {
       createdAt: now,
       updatedAt: now,
     },
-    sessionKeyB64: encrypted.sessionKeyB64,
   };
 }

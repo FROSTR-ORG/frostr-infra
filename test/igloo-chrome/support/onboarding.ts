@@ -70,7 +70,6 @@ export type StoredProfile = {
     createdAt: number;
     updatedAt: number;
   };
-  sessionKeyB64?: string;
 };
 
 type WorkerStorageSnapshot = {
@@ -351,15 +350,6 @@ export async function onboardLiveSignerProfile(
             (storageSnapshot as WorkerStorageSnapshot).chromeStorage?.['igloo.v3.ext.profiles'] as Array<Record<string, unknown>>
           ).find((entry) => entry.id === appState.profile?.id) ?? null
         : null;
-    const sessionUnlocks = (storageSnapshot as WorkerStorageSnapshot | null)?.chromeSession?.['igloo.v3.ext.sessionUnlocks'];
-    const sessionKeyB64 =
-      sessionUnlocks &&
-      typeof sessionUnlocks === 'object' &&
-      appState.profile.id &&
-      appState.profile.id in (sessionUnlocks as Record<string, unknown>) &&
-      typeof (sessionUnlocks as Record<string, Record<string, unknown>>)[appState.profile.id]?.keyB64 === 'string'
-        ? (sessionUnlocks as Record<string, Record<string, string>>)[appState.profile.id].keyB64
-        : undefined;
     return {
       ...appState.profile,
       ...(storedRecord &&
@@ -376,9 +366,6 @@ export async function onboardLiveSignerProfile(
               updatedAt: storedRecord.updatedAt
             }
           }
-        : {}),
-      ...(typeof sessionKeyB64 === 'string' && sessionKeyB64.trim().length > 0
-        ? { sessionKeyB64: sessionKeyB64.trim() }
         : {}),
       ...(typeof runtimeDiagnostics?.runtimeStatus?.metadata?.group_public_key === 'string' &&
       runtimeDiagnostics.runtimeStatus.metadata.group_public_key.trim().length > 0
