@@ -44,11 +44,11 @@ low-benefit optional tasks.
 
 ## Security And Secret Hygiene
 
-- (effort: M) Complete the remaining `Secret<T>`/secret-wrapper sweep — `igloo-shared` + consumers · rotation/recovery, snapshot `seckey` policy, Chrome message types, and PWA session-controller paths still pass bare secret strings in places.
+- (effort: M) Complete the remaining `Secret<T>`/secret-wrapper sweep — `igloo-shared` + consumers · snapshot `seckey` is now wiped on restore via `sharePubkeyFromSeckeyHex` (2026-06-26, C5 light pass); still open: wrap `recoverSecretKeyFromShares`/`BrowserRecoveredKey` + rotation-draft `shareSecret` (the pwa recovery + rotation `.expose()` threading), Chrome message types, and PWA session-controller bare-string paths.
 - (effort: S) Add a browser/Tauri transient-secret convention — pwa/home/shared · passphrases, nsec values, and share passwords need a common lifetime/scrub discipline where JS can actually wipe bytes.
-- (effort: S) Replace fabricated onboard-handshake metadata with parsed or neutral state — `igloo-ui` + `igloo-pwa` · live onboarding should not hardcode "My Signing Key", "2/3", or `Share #0` as facts.
 - (effort: S) Factor sensitive reveal/copy behavior — `igloo-ui` · share the auto-remask timer, remove duplicate copy/remask blocks, and either best-effort clear clipboard secrets or explicitly document why not.
 - (effort: S) Add the remaining create-flow generated-share mask assertion — `igloo-ui` · recovery-view nsec masking is covered; the generated-share flow-level assertion is still the open part of the R6.1 safety net.
+- (effort: M) Add the remaining adversarial decrypt-path tests (C4 tail) — `igloo-shared` + `igloo-home` + `igloo-pwa` · NIP-44 encrypt/decrypt orchestration failure paths (`wasm-bridge-node.ts`), TS-side unlock/rotate/recover handler tests (home), and a real-WASM (un-mocked) wrong-password/corrupted-package test (pwa); error handling already exists, only the failure-path coverage is thin.
 - (effort: M) Add explicit single-active-signer locking across PWA tabs — `igloo-pwa` · global profile storage removed the implicit same-device isolation; acquire a per-profile lock before starting signer sessions.
 
 ## Runtime And Browser Lifecycle
