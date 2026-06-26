@@ -752,7 +752,7 @@ single pass. igloo-ui first (then dist rebuild), igloo-pwa next, parent pointer.
 
 ### Loose ends
 - [ ] Commit the `recover_secret_key_from_shares` binding in `repos/bifrost-rs/crates/bifrost-bridge-wasm/src/lib.rs` (effort: S) — it is woven into extensive pre-existing `bifrost-rs` WIP (frostr-utils, bifrost-app, signer, router) and was intentionally left uncommitted to avoid fragmenting that work; the consuming repos already vendor the built wasm, so the source change should land with the rest of the bifrost-rs WIP.
-- [ ] Wire encrypted export on the Recover Private Key screen (effort: M) — the "Encrypt Key" checkbox + password/confirm fields render for design fidelity, but `RecoverPrivateKeyView` in `repos/igloo-pwa/src/App.tsx` currently saves the plaintext nsec; password-encrypted save/QR is not implemented.
+- [x] Wire encrypted export on the Recover Private Key screen (effort: M) — the "Encrypt Key" checkbox + password/confirm fields render for design fidelity, but `RecoverPrivateKeyView` in `repos/igloo-pwa/src/App.tsx` currently saves the plaintext nsec; password-encrypted save/QR is not implemented. **Resolved 2026-06-26:** `RecoverPrivateKeyView` (now `repos/igloo-pwa/src/views/recover.tsx`) masks the nsec by default and offers NIP-49 `ncryptsec` encrypted export — it no longer saves plaintext.
 
 ### Issues discovered, not fixed
 - [ ] `load-recover` (single-bfshare profile download) is now orphaned (effort: S) — dropping the import `load-choice` screen removed its only entry point in `repos/igloo-pwa/src/App.tsx`; either remove the dead view or give it a dedicated entry.

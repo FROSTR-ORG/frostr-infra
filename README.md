@@ -1,5 +1,10 @@
 # frostr-infra
 
+> ⚠️ **Public beta.** FROSTR handles private key material and is **self-audited**
+> — it has not yet had an independent external security audit. Use at your own
+> risk, prefer test funds/keys, and report security issues via the **Security**
+> tab (see [SECURITY.md](SECURITY.md)).
+
 `frostr-infra` is the coordinating workspace for FROSTR.
 
 It owns the shared system docs, the root command surface, cross-repo demo and

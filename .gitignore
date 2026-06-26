@@ -27,3 +27,8 @@ NOTES.md
 !dev/audit/NOTES.md
 !dev/audit/**/NOTES.md
 TODO.md
+
+# Audit run output — methodology (rules/, templates/) stays tracked; live
+# findings + archived runs do not enter the public tree.
+dev/audit/findings/
+dev/audit/archive/
