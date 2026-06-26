@@ -63,29 +63,54 @@ panic sites → Phase 3).
 The minimal cross-cutting set that the public flip forces, that fixes shared-package
 security bugs, and that can't be done per-client.
 
-### 0.1 Ground-truth two discrepancies first (cheap, removes ambiguity)
+### 0.1 Re-validate every finding against current code FIRST
 
-The survey sub-agents disagreed on two points; resolve them by reading the actual
-lines before scoping fixes:
+**The 2026-06-19 audit is stale.** Ground-truthing C1 (2026-06-26) showed it is
+**already substantially remediated** — the masking primitives and per-host
+adoption landed in the later recovery-UX/security commits, after the finding was
+logged:
 
-- nsec masking state at `repos/igloo-pwa/src/App.tsx:469` — masked or leaked?
-- whether Chrome's profile master key is actually extractable
-  (`repos/igloo-chrome` `profile-blob.ts`).
+- `igloo-ui` has `SensitiveField` + `SensitiveTextarea` (masked by default,
+  explicit reveal, auto re-mask).
+- `igloo-pwa` `src/views/recover.tsx` masks the recovered key (HRP-only until
+  explicit reveal, 60s auto-clear, optional NIP-49 `ncryptsec1` encryption).
+- `igloo-home` `src/pages/RecoverKeyPage.tsx:83` renders the recovered nsec via
+  `SensitiveTextarea`.
+- The audit's named file (`CreateImportPanel.tsx`) no longer exists — the create
+  flow was decomposed into `flows/create/`.
 
-The skeptical reads come from the audit framework, so treat them as true until
-proven otherwise.
+**Implication:** treat *no* finding as open until re-checked against current code.
+Re-validation is the first task of 0.3 — "disqualified: already fixed" is a valid
+terminal state and likely applies to several findings. Discrepancy still worth a
+direct read: whether Chrome's profile master key is actually extractable
+(`repos/igloo-chrome` `profile-blob.ts`).
 
-### 0.2 Shared-layer security fixes (cross-cutting only)
+### 0.2 Security-gate findings — re-validated dispositions (2026-06-26)
 
-- **C1 — plaintext nsec.** Mask the recovered nsec in the *shared*
-  `repos/igloo-ui` `CreateImportPanel.tsx:300` (consumed by all three hosts) and
-  add a masking/scrub regression test. Per-host leak surfaces (`igloo-pwa
-  App.tsx`, `igloo-home App.tsx`) are verified in their own verticals.
-- **C5 — `Secret<T>` discipline.** Thread `Secret<T>` through rotation/recovery
-  at the `igloo-shared` boundary; decide and document the snapshot-wire `seckey`
-  policy.
-- **Explicitly NOT here:** C2 (Chrome cipher) → Phase 2; C9 (Home `lock().unwrap()`
-  panic sites) → Phase 3. Client-local.
+A parallel sweep ground-truthed the six security-gate findings against current
+code. Three are already closed; the real remaining scope is small:
+
+| Finding | Disposition | Remaining work |
+|---------|-------------|----------------|
+| **C1** recovered-nsec plaintext | ✅ FIXED | Stale copy in `igloo-home src/App.tsx:1065` ("shown in plaintext" — value is masked via `SensitiveTextarea`); + masking regression tests per host recovery view. |
+| **C2** Chrome profile cipher | ✅ FIXED | None — `profile-blob.ts:91` non-extractable `CryptoKey`, no base64 export, full `tests/unit/lib/profile-blob.test.ts` (round-trip, wrong-pw, GCM flip, KAT). |
+| **C4** adversarial decrypt tests | 🟡 PARTIAL | Test-depth tail only: NIP-44 encrypt/decrypt orchestration failure tests (`igloo-shared wasm-bridge-node.ts:828-859`), TS-side handler tests (`igloo-home`), real-WASM adversarial path (`igloo-pwa`). Error handling already exists. Fast-follow candidate, not a hard blocker. |
+| **C5** `Secret<T>` discipline | 🔴 OPEN | Thread `Secret<T>` through rotation/recovery (`igloo-shared/src/rotation.ts:78,89,139-142,152`); **resolve snapshot-wire `seckey` policy** (`wire/runtime.ts:240,262`; consumed bare at `wasm-bridge-node.ts:1021`). Embedded design decision — see 0.2a. |
+| **C8** fabricated onboarding metadata | 🔴 OPEN | Parse real `pendingOnboardConnection.preview` (group label, threshold, share idx) into the live onboarding view instead of hardcoded `"My Signing Key"`/`"2/3"`/`"Share #0"` (`igloo-pwa/src/views/onboard.tsx:63-64,92-93`; `igloo-ui/.../create/onboard-handshake.tsx:86`). |
+| **C9** Rust IPC/panic discipline | ✅ FIXED | None — test-dispatch mirror + drift guard (`test_dispatch.rs:470`); `LockExt` poison-tolerance (`util.rs:14`) on all IPC paths. |
+
+**Client-local note:** C2 and C9 lived in igloo-chrome / igloo-home respectively
+and are now closed; nothing to push down to Phases 2/3 for them.
+
+### 0.2a C5 design decision (resolve before C5 plan)
+
+The snapshot wire carries `bootstrap.share.seckey` as a bare string because the
+snapshot reconstructs runtime signer state. `Secret<T>` is a runtime wrapper; the
+wire is serialized JSON. Two options: (a) wrap across the wire boundary
+(invasive — Secret doesn't serialize cleanly); (b) keep the wire field bare but
+record a rationale and have the consumer wrap-and-zeroize immediately on read
+(`wasm-bridge-node.ts:1021`), matching the observability schema that already
+forbids logging it. Decide before writing the C5 plan.
 
 ### 0.3 Drain the audit record
 
