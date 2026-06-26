@@ -50,6 +50,7 @@ low-benefit optional tasks.
 - (effort: S) Add the remaining create-flow generated-share mask assertion — `igloo-ui` · recovery-view nsec masking is covered; the generated-share flow-level assertion is still the open part of the R6.1 safety net.
 - (effort: M) Add the remaining adversarial decrypt-path tests (C4 tail) — `igloo-shared` + `igloo-home` + `igloo-pwa` · NIP-44 encrypt/decrypt orchestration failure paths (`wasm-bridge-node.ts`), TS-side unlock/rotate/recover handler tests (home), and a real-WASM (un-mocked) wrong-password/corrupted-package test (pwa); error handling already exists, only the failure-path coverage is thin.
 - (effort: M) Add explicit single-active-signer locking across PWA tabs — `igloo-pwa` · global profile storage removed the implicit same-device isolation; acquire a per-profile lock before starting signer sessions.
+- (effort: S) Provide per-repo or org-level community-health files — `FROSTR-ORG` · Phase 0 added `SECURITY.md` + `CODE_OF_CONDUCT.md` only at the workspace root, but the launch clients go public as separate repos; add an org `.github` repo (or per-repo copies) and enable **GitHub Private Vulnerability Reporting** on every repo before the public flip.
 
 ## Runtime And Browser Lifecycle
 
@@ -64,6 +65,7 @@ low-benefit optional tasks.
 - (effort: M) Finish the test-secrets/seed-builder consolidation — `test/` · replace remaining inline canonical password literals, add a guard banning reintroduction, and converge Chrome/Home seed builders on one input model where practical.
 - (effort: M) Finish the cross-client visual manifest/guard — `test/` + home/chrome · shared capture helper exists, but only PWA has a manifest-level visual inventory.
 - (effort: S) Fix or explicitly exempt `@agent` screenshot specs from selector-contract guards — `test/` · this is the live blocker for making `test:guards:full` green without demoting it to advisory.
+- (effort: M) Upgrade `igloo-pwa` to Vite 8 to clear the dev-server esbuild advisory — `igloo-pwa` · a breaking major bump; the remaining `npm audit` finding is dev-only (esbuild dev-server CORS) and not in the shipped static bundle, so it is deferred rather than rushed.
 - (effort: S) Fix Home `dashboard-signer` visual scenario so it renders a running dashboard — `igloo-home` · current injected scenario still shows a loading/restoring state.
 - (effort: S) Find and stop leaked `bifrost-devtools relay` processes — `test/` · local live/demo runs have left orphaned relays; identify the fixture or webServer path and add teardown.
 - (effort: S) Resolve the igloo-ui showcase tag/gate mismatch — `test/` · the spec is tagged `@fast` but does not run in the normal `make verify` fast lane.
