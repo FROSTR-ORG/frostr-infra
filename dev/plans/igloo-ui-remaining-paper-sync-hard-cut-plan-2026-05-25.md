@@ -81,7 +81,10 @@ Use the exported screenshots under `repos/igloo-paper/screens/` as the hard scop
 - Recover: `recover/1-collect-shares`, `recover/1b-recover-success`
 - Dashboard/runtime: `dashboard/1-signer-dashboard`, `dashboard/1b-loading-profile`, `dashboard/1b-profile-load-failed`, `dashboard/1c-policies`, `dashboard/1d-recover`, `dashboard/1e-recover-success`, `dashboard/2-stopped`, `dashboard/2b-all-relays-offline`, `dashboard/2c-signing-blocked`
 - Settings/export/prompt states: `dashboard/3-settings-lock-profile`, `dashboard/3b-clear-credentials-modal`, `dashboard/3c-unsaved-changes-modal`, `dashboard/4-export-profile`, `dashboard/4b-export-complete`, `dashboard/4c-export-share`, `dashboard/4d-share-export-complete`, `dashboard/5-signer-policy-prompt`, `dashboard/6-signing-failed`
-- Sponsor onboarding: `onboard-sponsor/1-configure-device`, `onboard-sponsor/2-package-handoff`, `onboard-sponsor/2b-device-onboarded`, `onboard-sponsor/2c-onboarding-failed`, `onboard-sponsor/2d-cancel-confirm-modal`
+- Settings sponsor onboarding: `dashboard/3d-onboard-device-modal`,
+  `dashboard/3e-onboard-package-handoff-modal`; older `onboard-sponsor/*`
+  paths were not present in the current Paper file and should not be used as
+  canonical references without being restored intentionally.
 - Replace share: `replace-share/1-enter-onboarding-package`, `replace-share/2-applying-replacement`, `replace-share/2b-replacement-failed`, `replace-share/3-share-replaced`
 - Rotate keyset: `rotate-keyset/1-rotate-keyset`, `rotate-keyset/1d-review-generate`, `rotate-keyset/1e-generation-progress`, `rotate-keyset/error-generation-failed`, `rotate-keyset/error-group-mismatch`, `rotate-keyset/error-wrong-password`
 
@@ -573,7 +576,7 @@ git commit -m "Mark dashboard Paper visuals aligned"
 
 Expected: no `needs-work` dashboard entries remain.
 
-## Task 6: Align Sponsor Onboarding, Replace Share, And Rotate Keyset
+## Task 6: Align Settings Sponsor Onboarding, Replace Share, And Rotate Keyset
 
 **Files:**
 
@@ -594,7 +597,6 @@ Assert:
 ```ts
 expect(screen.getByRole('heading', { name: 'Configure Device' })).toBeInTheDocument();
 expect(screen.getByRole('heading', { name: 'Package Handoff' })).toBeInTheDocument();
-expect(screen.getByRole('heading', { name: 'Device Onboarded' })).toBeInTheDocument();
 expect(screen.getByRole('heading', { name: 'Enter Onboarding Package' })).toBeInTheDocument();
 expect(screen.getByRole('heading', { name: 'Share Replaced' })).toBeInTheDocument();
 expect(screen.getByRole('heading', { name: 'Rotate Keyset' })).toBeInTheDocument();
@@ -609,15 +611,16 @@ npm --prefix repos/igloo-ui test -- --run test/CreateFlow.test.tsx test/HostShel
 
 Expected before implementation: FAIL on missing lifecycle states.
 
-- [ ] **Step 2: Implement sponsor onboarding alignment**
+- [ ] **Step 2: Implement Settings sponsor onboarding alignment**
 
 Align to:
 
-- `onboard-sponsor/1-configure-device`
-- `onboard-sponsor/2-package-handoff`
-- `onboard-sponsor/2b-device-onboarded`
-- `onboard-sponsor/2c-onboarding-failed`
-- `onboard-sponsor/2d-cancel-confirm-modal`
+- `dashboard/3d-onboard-device-modal`
+- `dashboard/3e-onboard-package-handoff-modal`
+
+The older `onboard-sponsor/*` references were superseded by the dashboard
+modal screens. Add separate Device Onboarded / Onboarding Failed / Cancel
+Confirm Paper references only if product design intentionally restores them.
 
 - [ ] **Step 3: Implement replace-share alignment**
 

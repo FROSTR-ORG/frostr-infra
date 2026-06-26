@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { nip19 } from 'nostr-tools';
 
 import {
   createGeneratedBrowserArtifacts,
@@ -8,7 +7,8 @@ import {
   createRotatedBrowserArtifacts,
 } from '../../shared/browser-artifacts';
 import { startLocalRelay } from '../../shared/local-relay';
-import { buildPwaPersistedState } from '../support/state';
+import { pages } from '../support/pages';
+import { buildPwaPersistedState, pwaPartitionKey } from '../support/state';
 import {
   connectPwaRotationPackage,
   confirmPwaRotationPackage,
@@ -18,15 +18,6 @@ import {
   openFreshPwaPage,
   seedPwaState,
 } from '../support/ui';
-
-// The redesigned dashboard identifies a device by its share public key,
-// rendered as a truncated npub (`${npub.slice(0,8)}...${npub.slice(-4)}`, see
-// igloo-pwa dashboard-view.ts). Rotation keeps the device label, so the share
-// npub is the discriminator between the pre- and post-rotation identities.
-function shareKeyDisplay(hexPubkey: string) {
-  const npub = nip19.npubEncode(hexPubkey);
-  return `${npub.slice(0, 8)}...${npub.slice(-4)}`;
-}
 
 test.describe('igloo-pwa rotate key @live', () => {
   test('replaces the active device with a rotated bfonboard package', async ({ browser, page }) => {
@@ -74,11 +65,25 @@ test.describe('igloo-pwa rotate key @live', () => {
       await expect(page.getByText('Replacement Preview')).toBeVisible({ timeout: 20_000 });
       await confirmPwaRotationPackage(page);
       await expectPwaDashboard(page, 'Rotation Device 1');
-      await expect(page.getByText(shareKeyDisplay(rotated.shares[0].sharePublicKey))).toBeVisible();
-      await expect(page.getByText(shareKeyDisplay(current.shares[0].sharePublicKey))).toHaveCount(0);
-      // The share-key swap above (new key shown, old key gone) is the behavioral
-      // proof the rotation persisted. (The replaced device's runtime does not
-      // re-establish a live relay connection in this flow, so we don't gate on it.)
+      await expect(page.getByText('Share Public Key')).toHaveCount(0);
+      await pages(page).dashboard.expectNoShareKeyCopy();
+      await expect
+        .poll(
+          async () =>
+            await page.evaluate((partitionKey) => {
+              const raw = window.localStorage.getItem(partitionKey);
+              if (!raw) return null;
+              const state = JSON.parse(raw) as {
+                selectedProfileId?: string;
+                profiles?: Array<{ id?: string; share_public_key?: string }>;
+              };
+              return state.profiles?.find((profile) => profile.id === state.selectedProfileId)?.share_public_key ?? null;
+            }, pwaPartitionKey()),
+          { timeout: 10_000 },
+        )
+        .toBe(rotated.shares[0].sharePublicKey);
+      // The stored share-key swap proves the rotation persisted without showing
+      // the local share public key on the dashboard.
     } finally {
       await inviterContext?.close().catch(() => undefined);
       await relay.close();

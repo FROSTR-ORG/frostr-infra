@@ -175,6 +175,7 @@ export async function createGeneratedBrowserArtifacts(input?: {
   labelPrefix?: string;
   threshold?: number;
   count?: number;
+  privateKey?: string;
   password?: string;
   relays?: string[];
 }) {
@@ -194,6 +195,7 @@ export async function createGeneratedBrowserArtifacts(input?: {
         group_name: groupName,
         threshold,
         count,
+        signing_key32: input?.privateKey ? Array.from(hexToBytes(input.privateKey)) : undefined,
       }),
     ),
   ) as {

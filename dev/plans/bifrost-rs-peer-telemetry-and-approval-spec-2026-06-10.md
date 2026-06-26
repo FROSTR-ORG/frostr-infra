@@ -1,18 +1,18 @@
 # Spec: bifrost-rs peer telemetry + interactive signing approval
 
-Scoping/spec doc (no Rust written this pass). Drives the two `bifrost-rs` backlog
-items in [`../BACKLOG.md`](../BACKLOG.md). Line references are from the state of
-the submodules on 2026-06-10 and are pointers, not contracts — re-confirm before
-implementing.
+Scoping/spec doc for the peer telemetry and approval track. Drives the
+`bifrost-rs` / dashboard backlog items in [`../BACKLOG.md`](../BACKLOG.md). Line
+references from the original 2026-06-10 read are pointers, not contracts —
+re-confirm before implementing new slices.
 
 ## Why
 
 The signer dashboard (`igloo-ui` `OperatorSignerPanel`) and Paper's
-`1-signer-dashboard` artboard draw peer telemetry the runtime cannot supply yet
-(per-peer latency, "Avg" latency, a nonce sparkline, per-method SIGN/ECDH/PING
-capability badges), and a Pending-Approvals card whose interactive behavior is
-stubbed. The `dashboard-signer` visual entry stays `needs-work` until the
-telemetry lands. This doc scopes both.
+`1-signer-dashboard` artboard draw peer telemetry plus a Pending-Approvals card.
+Per-method SIGN/ECDH/PING/ONBOARD capability badges, latest response latency,
+and bounded nonce inventory history landed on 2026-06-22. This doc now tracks
+the larger interactive approval queue. Peer telemetry visual parity is complete
+for the current dashboard scope.
 
 ## Current state (verified)
 
@@ -42,46 +42,70 @@ actions?": **yes.**
 - **Gap:** enforcement is immediate auto-allow / auto-deny by stored policy. There
   is **no** pending-approval queue or "wait for the operator to decide" path.
 
-### Telemetry — partial today
+### Telemetry — complete for current dashboard scope
+
+2026-06-22 update: `PeerStatus` now carries live request-side method
+capabilities (`can_sign`, `can_ecdh`, `can_ping`, `can_onboard`) and the
+`igloo-shared` / `igloo-ui` / `igloo-pwa` projection path renders those as
+method badges when no richer peer policy state is present.
+
+2026-06-22 follow-up: `PeerStatus.latency_ms` now carries the latest accepted
+peer response latency. The dashboard row latency and "Avg" pill are computed
+from this live runtime field.
+
+2026-06-22 follow-up: `PeerStatus.nonce_inventory_history` now carries a bounded
+series of peer-held nonce inventory samples recorded from normalized ping
+inventory observations. `igloo-shared`, `igloo-ui`, and `igloo-pwa` project that
+series to the shared peer row, where it renders as mini history bars in the nonce
+meter.
+
 - `PeerStatus` (`bifrost-signer/src/lib.rs:398-410`): `idx`, `pubkey`, `known`,
   `last_seen`, `online` (derived via `PEER_ONLINE_GRACE_SECS`), nonce counts,
-  `can_sign`, `should_send_nonces`. **No latency, no per-method capability beyond
-  `can_sign`, no timing history.**
+  latest response `latency_ms`, bounded `nonce_inventory_history`, method
+  capability booleans, `should_send_nonces`. **No rolling timing history.**
 - `CollectedResponse.seen_at` (`:513-518`) and `PendingOperation.started_at` /
   `timeout_at` (`:474-475`) exist → response RTT is *derivable* but not aggregated.
 - `PeerNonceInventoryObservation` (`:269`) holds the latest peer nonce inventory +
-  `updated_at`, stored in `DeviceState` (`:159`) — a current snapshot, no history.
+  `updated_at`, stored in `DeviceState` (`:159`). A runtime-only bounded history
+  now records the normalized held-count samples used by the dashboard sparkline.
 - Bridge: `runtime_status()` (`bifrost-bridge-wasm/src/lib.rs:541`) serializes
   `RuntimeStatusSummary` (peers, permission states, pending_operations,
   onboarding_statuses). `igloo-shared`/`igloo-ui` project it via
   `runtime-view-models.ts` (`RuntimePeerStatusInput`, `runtimePeerToReadinessRow`)
-  — none of latency / avg / sparkline / per-method badges are carried.
+  — method capability badges, latest latency, and nonce inventory history are
+  carried.
 
 ## Work items
 
 | # | Item | Effort | Touches |
 |---|------|--------|---------|
-| a | Per-peer + avg latency | S–M | `bifrost-signer` (`PeerStatus`, `DeviceState` RTT ring buffer, `peer_status`), `runtime-view-models.ts`, `view-models.ts` |
-| b | Nonce sparkline series | M | `bifrost-signer` (per-peer `(ts, held_count)` ring buffer off ping responses), bridge, view-models |
-| c | Per-method SIGN/ECDH/PING badges | S | `bifrost-signer` (`can_ecdh`/`can_ping` next to `can_sign`, from `effective_policy_for_peer` + `online`), view-models |
+| a | Latest per-peer + UI avg latency | Done 2026-06-22 | `bifrost-signer` (`PeerStatus.latency_ms`, runtime-only pending start ms map), `RuntimePeerStatus`, PWA projection |
+| b | Nonce sparkline series | Done 2026-06-22 | `bifrost-signer` (per-peer `(ts, held_count)` ring buffer off ping responses), bridge, view-models |
+| c | Per-method SIGN/ECDH/PING badges | Done 2026-06-22 | `bifrost-signer` (`can_ecdh`/`can_ping`/`can_onboard` next to `can_sign`, from `effective_policy_for_peer` + `online`), view-models, PWA projection |
 | d | Interactive approval queue | M–L | `bifrost-signer` (queue + new `SignerInput::ApproveRequest` + branch `inbound_allowed`), `bifrost-core` (policy value), `bifrost-bridge-wasm` (`approve_request` export), `igloo-shared`, `igloo-ui` |
 
 ### (a) Per-peer + avg latency — S/M
-Compute RTT = `CollectedResponse.seen_at − PendingOperation.started_at` on
-completion (esp. PING). Add `last_response_latency_ms` + `avg_latency_ms`
-(rolling window, e.g. a `VecDeque` of recent PING RTTs per peer in `DeviceState`)
-to `PeerStatus`; populate in `peer_status()` (`bifrost-signer/src/lib.rs:950`).
-Add the fields through `RuntimePeerStatusInput` + `PeerReadinessRowModel`.
+Landed 2026-06-22 as latest response latency. Runtime-created pending operations
+store a millisecond start timestamp in memory; restored/manual pending operations
+fall back to the existing second-resolution `PendingOperation.started_at`. On a
+valid accepted response, `PeerStatus.latency_ms` records the latest latency for
+that peer and flows through `RuntimePeerStatus` to the shared/PWA dashboard. The
+visible "Avg" chip is derived in `OperatorSignerPanel` from peer rows that carry
+latency. Rolling latency history remains out of scope for this landed slice.
 
-### (b) Nonce sparkline — M
-Add a per-peer ring buffer of `(timestamp, held_codes.len())` recorded when a
-PING response updates `PeerNonceInventoryObservation` (`match_pending_response`,
-`~:2159`). Serialize a bounded series; render as the sparkline.
+### (b) Nonce sparkline — Done 2026-06-22
+Landed 2026-06-22. `bifrost-signer` records a bounded runtime-only
+`nonce_inventory_history` series from normalized peer-held nonce observations
+when ping responses update `PeerNonceInventoryObservation`. `igloo-shared`,
+`igloo-ui`, and `igloo-pwa` carry the series as dashboard peer-row view-model
+data, and `OperatorSignerPanel` renders it as mini history bars inside the nonce
+meter.
 
 ### (c) Per-method capability badges — S
-`can_sign` already exists. Add `can_ecdh` / `can_ping` computed like
-`readiness_from_peers` (`:1067-1078`): `online && effective_policy.request.<method>`.
-Pure field additions + serialization; smallest of the four.
+Landed 2026-06-22. `can_sign` is now policy-gated, and `can_ecdh` / `can_ping`
+/ `can_onboard` are computed from `online && effective_policy.request.<method>`.
+The fields flow through `RuntimePeerStatus`, `runtimeStatusToSignerDashboardView`,
+and the PWA dashboard peer projection.
 
 ### (d) Interactive approval queue — M/L
 Recommended **simple queue**: a `PendingApprovalRequest` map in `DeviceState`
@@ -95,16 +119,16 @@ Defer the richer "always allow / timed grants / revocable" model.
 
 ## Sequencing
 
-(c) → (a) → (b) are additive telemetry and unblock the `dashboard-signer`
-promotion; do them as one telemetry pass. (d) is a separate, larger state-machine
-change with its own UI wiring — schedule independently. Each requires matching new
-fields end-to-end (bifrost-signer → `runtime_status` → `runtime-view-models.ts` →
-`OperatorSignerPanel`).
+(a), (b), and (c) have landed and the `dashboard-signer` visual manifest entry
+is promoted to `aligned`. Rolling latency history remains intentionally out of
+scope unless product asks for more than latest response latency. (d) is a
+separate, larger state-machine change with its own UI wiring — schedule
+independently.
 
 ## Verification (when implemented)
 
 - `bifrost-rs`: `cargo test` for the new latency/capability/queue logic; a serde
   test pinning the new `runtime_status` JSON shape.
 - Rebuild browser WASM and re-vendor; `igloo-shared`/`igloo-ui` unit tests for the
-  new view-model fields; re-run the PWA visual loop and promote `dashboard-signer`
-  to `aligned` once Peers parity is met.
+  new view-model fields; re-run the PWA visual loop when changing peer telemetry
+  visuals.

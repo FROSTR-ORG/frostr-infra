@@ -136,6 +136,9 @@ All shaped over the 2026-06-01 grilling rounds. Decisions:
   Paper edit changes the Settings artboard "Lock Profile" → "Logout".
 - **Export Profile / Export Share** (`4-export-profile`, `4c-export-share` +
   `-complete`): **adopt Paper's password modal**. **[BUILT 2026-06-02, step 4]:**
+  **[CONFIRMED 2026-06-22]:** keep the Paper password-modal model and do not
+  restore a quick unencrypted copy-to-clipboard path. Copy/Download are only
+  available after a password-protected `bfprofile`/`bfshare` result exists.
   - **"Export Password" = re-encrypt with a fresh password** (decided). The stored
     `profile_string`/`share_string` are already encrypted with the profile's
     `stored_password`; export decodes with `stored_password` then re-encodes with

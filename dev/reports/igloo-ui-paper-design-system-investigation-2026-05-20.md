@@ -108,6 +108,12 @@ Impact: design-system syncing can proceed. Local automation that talks to Paper 
 
 The live Paper page has 90 artboards. `artboard-map.json` maps 70 exported artboards plus one divider, leaving 20 live artboards unmapped:
 
+> 2026-06-22 update: the current live Paper file has 72 artboards. Settings
+> sponsor Configure and Package Handoff are now exported as dashboard modal
+> screens (`PA0-0`, `PA1-0`); the older `onboard-sponsor/*` IDs below are
+> historical and should not be used as current source-of-truth references unless
+> intentionally restored.
+
 - `3QR-0` — Igloo Web App Screens —
 - `4PE-0` Web — Dashboard — 1d. Recover
 - `4SG-0` Web — Dashboard — 1e. Recover Success

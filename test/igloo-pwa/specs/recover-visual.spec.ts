@@ -5,6 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { PwaStoredProfileSeed } from '../../shared/browser-artifacts';
 import { REPO_ROOT_DIR } from '../../shared/repo-paths';
+import { pages } from '../support/pages';
 import { applyPwaSeed, buildPwaPersistedState, pwaSeedPayload } from '../support/state';
 
 const RECOVER_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'recover');
@@ -83,15 +84,10 @@ test.describe('igloo-pwa Paper Recover visual harness @visual', () => {
       buildPwaPersistedState({
         profiles: [profile],
         selectedProfileId: profile.id,
-        activeView: 'recover-collect',
-        drafts: {
-          recoverKeyForm: {
-            sourceProfileId: profile.id,
-            sources: [{ packageText: '', password: '' }],
-          },
-        },
+        activeView: 'landing',
       }),
     );
+    await pages(page).welcome.recover(profile.id);
     await expect(page.getByRole('heading', { name: 'Collect Shares' })).toBeVisible();
     await capture(page, '01-collect-shares.png');
   });

@@ -6,8 +6,40 @@
       "viewport": "1440x1080",
       "output": ".tmp/visual/igloo-pwa/dashboard/01-signer-dashboard.png",
       "paperReference": "repos/igloo-paper/screens/dashboard/1-signer-dashboard/screenshot.png",
-      "status": "needs-work",
-      "notes": "Peer online/ready counts, per-row last-seen, and a domain-tagged + filterable Event Log are implemented. Stays needs-work for two reasons. (1) Runtime data the PWA cannot yet supply: per-peer latency, 'Avg' latency, the nonce sparkline, and per-method SIGN/ECDH/PING capability badges (require bifrost-rs/igloo-shared runtime instrumentation). (2) Structural divergence from the Paper artboard pending a product decision: a PWA-only intro banner, the merged identity/runtime card styling, and two PWA-only cards (Pending Operations, Diagnostics) where Paper's third card is the Event Log. See dev/plans/dashboard-settings-export-paper-redesign-2026-06-01.md. Promote once the runtime data lands and the card-set divergence is resolved."
+      "status": "aligned",
+      "notes": "Aligned to the Paper 1000px dashboard shell: header actions, merged signer/runtime identity card, peer total/online/ready chips, offline placeholder row, permission method chips, populated Pending Approvals rows, compact domain-tagged Event Log, and bottom icon rail. The PWA visual harness uses deterministic runtime projection for Paper's latency, sparkline, pending approval, and event-log rows so the shared igloo-ui dashboard can be verified before those values are all available from live runtime state."
+    },
+    {
+      "name": "dashboard-stopped",
+      "viewport": "1440x571",
+      "output": ".tmp/visual/igloo-pwa/dashboard/01b-stopped-dashboard.png",
+      "paperReference": "repos/igloo-paper/screens/dashboard/2-stopped/screenshot.png",
+      "status": "aligned",
+      "notes": "Stopped-signer visual state from the exported Paper dashboard: header actions remain Dashboard, Permissions, Settings; the merged runtime card shows Signer Stopped, key copy controls, and the offline relay summary; live Peers/Pending/Event sections are replaced with Readiness and Next Step cards."
+    },
+    {
+      "name": "dashboard-all-relays-offline",
+      "viewport": "1440x533",
+      "output": ".tmp/visual/igloo-pwa/dashboard/01c-all-relays-offline.png",
+      "paperReference": "repos/igloo-paper/screens/dashboard/2b-all-relays-offline/screenshot.png",
+      "status": "aligned",
+      "notes": "All-relays-offline now uses the current Dashboard/Permissions/Settings header, merged runtime identity card, degraded signer status, Paper Readiness and Recovery state cards, and Retry Connections action. The PWA capture and exported Paper reference share the same 1440x533 state treatment."
+    },
+    {
+      "name": "dashboard-signing-blocked",
+      "viewport": "1440x569",
+      "output": ".tmp/visual/igloo-pwa/dashboard/01d-signing-blocked.png",
+      "paperReference": "repos/igloo-paper/screens/dashboard/2c-signing-blocked/screenshot.png",
+      "status": "aligned",
+      "notes": "Signing-blocked now uses the current Dashboard/Permissions/Settings header, merged degraded runtime card, policy/readiness relay summary, Paper-style Common Causes and Operator Action cards, warning cause pills, and suppressed live Peers/Pending/Event sections. The PWA capture and exported Paper reference share the same 1440x569 state treatment."
+    },
+    {
+      "name": "dashboard-signing-failed",
+      "viewport": "1440x1284",
+      "output": ".tmp/visual/igloo-pwa/dashboard/06-signing-failed.png",
+      "paperReference": "repos/igloo-paper/screens/dashboard/6-signing-failed/screenshot.png",
+      "status": "aligned",
+      "notes": "Signing-failed captures the runtime failure modal over the dashboard shell with the Paper failure copy, detail block, Retry action, and Dismiss action."
     },
     {
       "name": "dashboard-permissions",
@@ -15,7 +47,7 @@
       "output": ".tmp/visual/igloo-pwa/dashboard/02-permissions.png",
       "paperReference": "repos/igloo-paper/screens/dashboard/1c-permissions/screenshot.png",
       "status": "aligned",
-      "notes": "Aligned to the decided peer-only scope: the PWA signer is standalone, so Paper's site/origin 'Signer Permissions' section (a NIP-07 website-bridge concept owned by igloo-chrome) is intentionally absent and the default-policy selector is deferred. The capture uses a DEV-only active-runtime projection so the four peer permission methods can be verified in their Paper colors, including dimmed inactive states. Open product question, not a defect: whether the routed page should carry Paper's shared signer/identity card header (dev/plans/dashboard-settings-export-paper-redesign-2026-06-01.md)."
+      "notes": "Aligned to the decided peer-only PWA scope: the standalone browser signer renders Peer Permissions without the chrome-owned website/origin Signer Permissions section. The capture uses a DEV-only active-runtime projection so the four peer permission methods can be verified in their Paper colors, including dimmed inactive states."
     },
     {
       "name": "dashboard-settings",
@@ -23,7 +55,7 @@
       "output": ".tmp/visual/igloo-pwa/dashboard/03-settings.png",
       "paperReference": "repos/igloo-paper/screens/dashboard/3-settings-lock-profile/screenshot.png",
       "status": "aligned",
-      "notes": "Settings now opens a right-side slide-over over the dashboard, with Device Profile, Group Profile, Onboard Device, Replace Share, Export Profile, Export Share, Logout, and Clear Credentials housed in the shared igloo-ui sidebar. The Group Profile table includes Keyset Name, Keyset npub, Threshold, Created, and Updated from PWA profile metadata. Onboard a Device uses the shared explicit bfshare sponsorship flow for post-setup bfonboard package generation. PWA-only Runtime Settings / Browser Settings are no longer rendered in the Paper Settings sidebar."
+      "notes": "Settings now opens a right-side slide-over over the dashboard, with Device Profile, Group Profile, Onboard Device, Replace Share, Export Profile, Export Share, Browser Settings, Logout, and Clear Credentials housed in the shared igloo-ui sidebar. The Group Profile table includes Keyset Name, Keyset npub, Threshold, Created, and Updated from PWA profile metadata. Onboard a Device uses the shared explicit bfshare sponsorship flow for post-setup bfonboard package generation. PWA runtime-only numeric settings remain hidden from the Paper Settings sidebar."
     },
     {
       "name": "dashboard-settings-security",
@@ -61,7 +93,7 @@
       "name": "dashboard-profile-password",
       "viewport": "1440x1210",
       "output": ".tmp/visual/igloo-pwa/dashboard/03f-profile-password-modal.png",
-      "paperReference": "repos/igloo-paper/design/components/overlays-feedback/screenshot.png",
+      "paperReference": "repos/igloo-paper/design/components/overlays-export-modals/screenshot.png",
       "status": "aligned",
       "notes": "The Settings Profile Password action now uses a shared igloo-ui dialog based on Paper's profile-password overlay treatment: lock icon, local profile encryption context, Current Password, New Password, Confirm New Password, Cancel, and Change Password. Paper has the unlock modal as the component source of truth, so the change-password copy is action-specific."
     },
@@ -72,6 +104,14 @@
       "paperReference": "repos/igloo-paper/design/components/settings-sidebar/screenshot.png",
       "status": "aligned",
       "notes": "Narrow-viewport guard for the shared Settings sidebar. The slide-over becomes full-width on phone-sized screens, keeps the Paper section order, and asserts that the panel and scroll body do not introduce horizontal overflow."
+    },
+    {
+      "name": "dashboard-settings-onboard-handoff",
+      "viewport": "1440x1210",
+      "output": ".tmp/visual/igloo-pwa/dashboard/03h-settings-onboard-handoff.png",
+      "paperReference": "repos/igloo-paper/screens/dashboard/3e-onboard-package-handoff-modal/screenshot.png",
+      "status": "aligned",
+      "notes": "DEV-only visual seam renders the in-memory Settings Onboard Device package handoff result. This covers the final bfonboard package, member/share summary, Copy, Save, QR code, and Done controls against the exported Paper handoff modal."
     },
     {
       "name": "dashboard-export-profile",
@@ -163,6 +203,14 @@
       "status": "aligned"
     },
     {
+      "name": "create-validation-error",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/create/01b-validation-error.png",
+      "paperReference": "repos/igloo-paper/screens/create/1b-validation-error/screenshot.png",
+      "status": "aligned",
+      "notes": "Captured through the normal Create Keyset path by submitting an invalid optional private key, matching Paper's field-level validation state."
+    },
+    {
       "name": "select-share",
       "viewport": "1440x1861",
       "output": ".tmp/visual/igloo-pwa/create/02-select-share.png",
@@ -191,10 +239,10 @@
       "status": "aligned"
     },
     {
-      "name": "import-device-profile",
+      "name": "import-existing-device",
       "viewport": "1440x1080",
-      "output": ".tmp/visual/igloo-pwa/import/01-import-device-profile.png",
-      "paperReference": "repos/igloo-paper/screens/import/1-import-device-profile/screenshot.png",
+      "output": ".tmp/visual/igloo-pwa/import/01-import-existing-device.png",
+      "paperReference": "repos/igloo-paper/screens/import/1-import-existing-device/screenshot.png",
       "status": "aligned"
     },
     {
@@ -202,8 +250,8 @@
       "viewport": "1440x1080",
       "output": ".tmp/visual/igloo-pwa/import/02-save-profile.png",
       "paperReference": "repos/igloo-paper/screens/import/2-save-profile/screenshot.png",
-      "status": "needs-work",
-      "notes": "The old seed-and-reload capture for the Import Save Profile step was dropped because pendingLoadConfirmation carries a passphrase and is intentionally cleared during store normalization. The flow is covered behaviorally by app-shell tests, but visual coverage needs a non-persisting test seam before this can be promoted back to aligned."
+      "status": "aligned",
+      "notes": "Captured through a DEV-only non-persisted visual seam so the passphrase-bearing pending import confirmation never enters localStorage."
     },
     {
       "name": "import-error",
@@ -238,8 +286,8 @@
       "viewport": "1440x1080",
       "output": ".tmp/visual/igloo-pwa/onboard/04-save-profile.png",
       "paperReference": "repos/igloo-paper/screens/onboard/3-save-profile/screenshot.png",
-      "status": "needs-work",
-      "notes": "The old seed-and-reload capture for the Onboard Save Profile step was dropped because pendingOnboardConnection carries a passphrase and is intentionally cleared during store normalization. The flow is covered behaviorally by app-shell tests, but visual coverage needs a non-persisting test seam before this can be promoted back to aligned."
+      "status": "aligned",
+      "notes": "Captured through a DEV-only non-persisted visual seam so the passphrase-bearing pending onboard connection never enters localStorage."
     },
     {
       "name": "recover-collect-shares",
@@ -254,6 +302,14 @@
       "output": ".tmp/visual/igloo-pwa/recover/02-recover-success.png",
       "paperReference": "repos/igloo-paper/screens/recover/1b-recover-success/screenshot.png",
       "status": "aligned"
+    },
+    {
+      "name": "rotate-collect-shares",
+      "viewport": "1440x1013",
+      "output": ".tmp/visual/igloo-pwa/rotate/01-collect-shares.png",
+      "paperReference": "repos/igloo-paper/screens/rotate-keyset/1-collect-shares/screenshot.png",
+      "status": "aligned",
+      "notes": "Captured through the normal Welcome profile menu Rotate action with a saved 2-of-3 profile, covering the local device share passphrase row and first remote source row."
     }
   ]
 }

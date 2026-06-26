@@ -11,8 +11,8 @@ export interface GotoDistributeOptions {
 
 // Drives the create flow Welcome → Generate → Select Share → Save Profile and
 // lands on Distribute Shares. Returns the page objects for follow-up steps.
-// (For the rotate variant, drive selectMode('rotate') + the rotate panel via the
-// page objects directly.)
+// (For the rotate variant, start from the returning profile menu and drive the
+// rotate panel via the page objects directly.)
 export async function gotoCreateDistribute(
   page: Page,
   opts: GotoDistributeOptions,

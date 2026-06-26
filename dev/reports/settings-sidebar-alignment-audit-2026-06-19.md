@@ -16,6 +16,21 @@ Source request:
 This audit covers the Settings sidebar and the sidebar-launched Settings
 actions. It does not claim broader dashboard parity.
 
+## 2026-06-22 Update
+
+The implementation has moved past the safe-boundary-only state described in
+this point-in-time audit. `igloo-pwa` now opens the shared
+`OnboardDeviceSponsorDialog` from Settings, accepts explicit protected
+`bfshare` source material, creates a `bfonboard` package through
+`createSettingsOnboardingPackageFromBfshare`, and tests create/copy/save/QR,
+loading, cancel-confirmation, password mismatch, and source-material failure
+states. Paper source cleanup is complete for the current sponsor model:
+Configure Device and Package Handoff are the canonical Settings modal states,
+with cancel-confirm and failure states covered by shared dialog/form treatments.
+Device Onboarded and Onboarding Failed remain recipient-side onboarding states,
+not Settings sponsor-package states unless product later adds live recipient
+tracking.
+
 ## Requirement Audit
 
 | Requirement | Current evidence | Status |
@@ -24,15 +39,15 @@ actions. It does not claim broader dashboard parity.
 | Sidebar must contain the Paper section order: Device Profile, Group Profile, Onboard Device, Replace Share, Export and Backup, Profile Security. | `repos/igloo-ui/test/OperatorPanels.test.tsx`; `test/igloo-pwa/support/pages.ts`; `test/igloo-pwa/visual-manifest.json` rows for `dashboard-settings` and `dashboard-settings-security`. | Achieved. |
 | Device Profile must expose profile name, profile password action, relays, add/remove relay controls, and local share context. | Shared sidebar component and package-local tests; PWA settings visual capture. | Achieved. |
 | Group Profile must show read-only keyset metadata. | `deriveGroupSummary` PWA path, `OperatorSettingsSidebarGroupProfile`, App unit tests, and visual capture. | Achieved. |
-| Runtime-only advanced settings and browser settings must not appear in the Paper sidebar. | PWA passes `showAdvancedSettings={false}`; App unit test asserts `Advanced`, Browser Settings, and reset/wipe controls are absent. | Achieved for PWA. |
+| Runtime-only advanced controls must not appear in the Paper sidebar; PWA browser preferences should appear as their own Paper-backed group. | PWA passes `showAdvancedSettings={false}` while passing `browserPreferences`; the Paper `502-0` Settings artboard now includes Browser Settings for Remember Browser State, Open Signer After Import, and Prefer Install Prompt. | Achieved for PWA. |
 | Save controls should appear only when settings are dirty. | App unit test covers hidden default state, dirty message, and disabled save while signer state prevents live apply. | Achieved. |
 | Copy/export actions should use Paper modal treatments. | `ExportPackageModal`, profile password dialog, visual rows `dashboard-export-profile` and `dashboard-profile-password`. | Achieved for visible Settings export/password entry points. |
 | Clear Credentials must use a Paper-style destructive confirmation and actually clear the selected profile. | Shared `ClearCredentialsDialog`, App confirm path, App unit test, and visual row `dashboard-clear-credentials`. | Achieved. |
 | Lock Profile must be the visible Paper row, while legacy logout wiring remains compatible. | PWA passes `lockProfileAction` with `Lock Profile` / `Lock`; `OperatorSettingsSidebar` prefers `lockProfileAction` over legacy `logoutAction`; tests cover both paths. | Achieved. |
 | Replace Share must launch the Paper-aligned package-entry and runtime state panels. | Shared replace panels in `igloo-ui`; PWA DEV visual seams; visual rows `dashboard-replace-share-entry`, `dashboard-replace-share-applying`, `dashboard-replace-share-failed`, `dashboard-replace-share-success`. | Achieved for Settings-launched replace flow. |
 | The Settings sidebar must be usable on narrow viewports without horizontal overflow. | `dashboard-settings-mobile` capture and page-object overflow assertions for document, panel, and scroll body. | Achieved. |
-| Onboard Device from Settings must not fake a sponsor package by cloning the local share. | `igloo-shared` readiness helper returns unavailable for saved-profile local-share-only state; PWA uses explicit `SETTINGS_ONBOARD_SPONSORSHIP_INPUT`; UI/PWA tests assert no `Ready to Onboard Device` or `Configure Device` state appears. | Safe boundary achieved; final sponsor flow not achieved. |
-| Onboard Device from Settings should eventually create the real post-setup sponsor package flow. | No checked-in sponsor Paper screens exist for the referenced sponsor artboards; backlog tracks missing Paper sponsor screens and app-side producer/source-material contract. | Not achieved; requires Paper/source-material work. |
+| Onboard Device from Settings must not fake a sponsor package by cloning the local share. | PWA requires explicit protected `bfshare` source material and routes package creation through `createSettingsOnboardingPackageFromBfshare`; UI/PWA tests cover source-package fields, source-material failure, and create/copy/save/QR handoff states. | Achieved for the PWA explicit-source flow. |
+| Onboard Device from Settings should eventually create the real post-setup sponsor package flow. | Paper now exports `PA0-0` / `PA1-0` as `screens/dashboard/3d-onboard-device-modal` and `screens/dashboard/3e-onboard-package-handoff-modal`; PWA visual manifest includes both the configure modal and package handoff modal; App tests cover create/copy/save/QR handoff behavior. | Achieved. |
 
 ## Verification Evidence
 
@@ -59,17 +74,21 @@ The latest visual report at `.tmp/visual/igloo-pwa/comparison-report.md` shows:
 - `dashboard-settings`: `aligned`, Paper exists, PWA exists
 - `dashboard-settings-security`: `aligned`, Paper exists, PWA exists
 - `dashboard-settings-mobile`: `aligned`, Paper exists, PWA exists
-- `dashboard-settings-onboard-device`: `needs work`, Paper exists, PWA exists
+- `dashboard-settings-onboard-device`: `aligned`, Paper exists, PWA exists
+- `dashboard-settings-onboard-handoff`: `aligned`, Paper exists, PWA exists
 
-The `needs work` Settings row is intentional. It records the boundary panel
-until the real post-setup sponsor flow exists.
+The Settings Onboard row is no longer a boundary-panel placeholder. It tracks
+the shared explicit-`bfshare` sponsor configure modal; package handoff is also
+captured against the exported
+`screens/dashboard/3e-onboard-package-handoff-modal` Paper screen.
 
 ## Open Gap
 
-The only Settings-specific gap that blocks a full completion claim is
-post-setup Onboard Device sponsorship from Settings.
+The original Settings-specific blocker, post-setup Onboard Device sponsorship
+from Settings, is resolved for the PWA explicit-source path and the current
+Paper source.
 
-Current hard boundary:
+Current source-material boundary:
 
 - Saved PWA profiles retain only this device's encrypted local share.
 - A valid remote onboarding package needs another member's source material.
@@ -81,40 +100,26 @@ Current hard boundary:
   `createGeneratedOnboardingPackage`, and `bifrost-rs` owns
   `encode_bfonboard_package`. Those paths all require explicit target-member
   share material.
-- The Settings gap is not the `bfonboard` format or encoder. The missing piece
-  is a Settings-time source-material path for the target remote member after
-  setup has purged `pendingKeyset` / generated share secrets.
-- No checked-in Paper sponsor screens currently exist. `repos/igloo-paper/artboard-map.json`
-  exports recipient Onboard screens only (`8SU-0`, `8FO-0`, `8JF-0`, `O61-0`),
-  and `repos/igloo-paper/export-metadata.json` lists only Input Package,
-  Onboard Device, Onboarding Failed, and Save Profile sections for the Onboard
-  design group. A live Paper MCP inspection on 2026-06-20 found 70 current
-  artboards in `igloo-ui-shared` and none of the sponsor IDs below. The stale
-  `repos/igloo-paper/design/components/navigation-layout/app-header.md` doc
-  still records AppHeader usage for sponsor artboards `1B3Q-0`, `1B5X-0`,
-  `1B84-0`, `1BAB-0`, and `1BCI-0`, but those artboards are absent from the
-  current live file, not exported as canonical sponsor screens, and not
-  represented in the design contract. The sponsor flow is also named in the
-  older hard-cut plan as
-  `onboard-sponsor/1-configure-device`, `onboard-sponsor/2-package-handoff`,
-  `onboard-sponsor/2b-device-onboarded`,
-  `onboard-sponsor/2c-onboarding-failed`, and
-  `onboard-sponsor/2d-cancel-confirm-modal`.
+- The Settings source-material path is now explicit re-entry of a protected
+  target-member `bfshare`; PWA does not persist raw remote shares or clone the
+  current local share.
+- Current Paper exports include `PA0-0` / `PA1-0` as
+  `screens/dashboard/3d-onboard-device-modal` and
+  `screens/dashboard/3e-onboard-package-handoff-modal`. The previous
+  `onboard-sponsor/*` paths have been retired in the current source-of-truth
+  docs.
+- Device Onboarded and Onboarding Failed belong to recipient-side onboarding,
+  not the Settings sponsor-package flow. Settings creates a package handoff and
+  returns to the dashboard; it does not observe the recipient handshake.
+- Dirty cancel uses the shared confirmation dialog. Creation failures are inline
+  form alerts, and copy/save/QR failures are inline handoff status alerts inside
+  the same Package Handoff modal.
 - `make igloo-paper-verify STRICT=1` passed Paper reconciliation in this
-  workspace. That verifier fails when a live Paper artboard is neither exported
-  nor classified in `artboard-policy.json`, so the missing sponsor flow is not a
-  simple stale-export omission in the current Paper file.
+  workspace during the original audit. Current live Paper inspection on
+  2026-06-22 shows 72 artboards, including `PA0-0` and `PA1-0`.
 
-Required next work:
-
-1. Confirm or export the Paper sponsor screens.
-2. Define the Settings source-material capability: re-enter/generate/import the
-   target member share material, or intentionally route the user back to
-   create/rotate while that material is still in memory.
-3. Reuse `igloo-shared`'s existing sponsorship package builder with that real
-   source material.
-4. Replace the boundary panel with the Paper sponsor flow in `igloo-ui` and
-   `igloo-pwa`.
+Required next work: keep the PWA explicit-`bfshare` source-material boundary
+intact as future Settings polish continues.
 
 Implementation path:
 [`../plans/settings-onboard-sponsor-unblock-plan-2026-06-19.md`](../plans/settings-onboard-sponsor-unblock-plan-2026-06-19.md).
@@ -123,7 +128,7 @@ Implementation path:
 
 Do not mark the full goal complete yet.
 
-The Paper Settings sidebar itself is implemented and verified in PWA, but the
-Onboard Device action still intentionally opens a safe boundary panel instead
-of the final sponsor flow. That is the correct current behavior until Paper and
-runtime source-material contracts exist.
+The Paper Settings sidebar and the PWA Settings Onboard configure/handoff flow
+are implemented and verified in PWA. Do not mark the broader smoke-polish goal
+complete from this audit alone: Paper source cleanup, live runtime telemetry,
+and other dashboard/recover follow-ups remain outside this Settings-only scope.

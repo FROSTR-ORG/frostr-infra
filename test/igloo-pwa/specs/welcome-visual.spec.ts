@@ -10,6 +10,7 @@ import { applyPwaSeed, buildPwaPersistedState, pwaSeedPayload } from '../support
 
 const WELCOME_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'welcome');
 const CREATE_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'create');
+const ROTATE_CAPTURE_DIR = path.join(REPO_ROOT_DIR, '.tmp', 'visual', 'igloo-pwa', 'rotate');
 const PAPER_PASSWORD = 'paper-pass';
 
 function fixedHex(index: number, prefix: string) {
@@ -17,12 +18,12 @@ function fixedHex(index: number, prefix: string) {
 }
 
 function buildPaperProfile(index: number, label: string, threshold: number, memberCount: number): PwaStoredProfileSeed {
-  const memberIdx = index - 1;
+  const memberIdx = ((index - 1) % memberCount) + 1;
   const id = `paper-profile-${index}`;
   const sharePublicKey = fixedHex(index, 'ab');
   const groupPublicKey = fixedHex(index, 'cd');
   const members = Array.from({ length: memberCount }, (_, memberIndex) => ({
-    idx: memberIndex,
+    idx: memberIndex + 1,
     pubkey: fixedHex(memberIndex, 'ef'),
   }));
 
@@ -149,6 +150,19 @@ test.describe('igloo-pwa Paper Welcome visual harness @visual', () => {
     await capture(page, '07-returning-menu-open.png');
   });
 
+  test('captures the Create Keyset validation error state', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1080 });
+    await setPwaState(page, []);
+    const p = pages(page);
+    await p.welcome.startGenerate();
+
+    await p.create.fillGenerate({ privateKey: 'not-a-valid-key' });
+    await p.create.generateNext();
+    await expect(page.getByRole('heading', { name: 'Create New Keyset' })).toBeVisible();
+    await expect(page.getByText(/valid nsec|valid private key|invalid private key/i)).toBeVisible();
+    await captureIn(page, CREATE_CAPTURE_DIR, '01b-validation-error.png');
+  });
+
   test('captures the Create Keyset flow screens', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1080 });
     await setPwaState(page, []);
@@ -156,7 +170,7 @@ test.describe('igloo-pwa Paper Welcome visual harness @visual', () => {
     await p.welcome.startGenerate();
 
     await expect(p.create.backButton).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Create Keyset' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Create New Keyset' })).toBeVisible();
     await expect(p.create.generateNextButton).toBeVisible();
     await captureIn(page, CREATE_CAPTURE_DIR, '01-create-keyset.png');
 
@@ -180,5 +194,16 @@ test.describe('igloo-pwa Paper Welcome visual harness @visual', () => {
     await expect(page.getByText('Remote Shares')).toBeVisible();
     await p.distribute.preparePackage(p.distribute.cards().nth(1), 'remote-device-pass');
     await captureIn(page, CREATE_CAPTURE_DIR, '04-distribute-shares.png');
+  });
+
+  test('captures the Rotate Keyset collect-shares screen', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1013 });
+    await setPwaState(page, [buildPaperProfile(1, 'My Signing Key', 2, 3)]);
+    const p = pages(page);
+
+    await p.welcome.rotate('paper-profile-1');
+
+    await p.create.expectRotateCollect();
+    await captureIn(page, ROTATE_CAPTURE_DIR, '01-collect-shares.png');
   });
 });

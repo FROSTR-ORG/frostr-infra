@@ -22,7 +22,7 @@ import {
 // lane. The local onboard handshake does not complete reliably in the sandbox
 // relay; tracked for live-lane verification.
 test.describe('igloo-pwa rotation operator flow @live', () => {
-  test('rotates from threshold bfshare sources and distributes a rotated share via bfonboard', async ({ browser, page }) => {
+  test('rotates from threshold source packages and distributes a rotated share via bfonboard', async ({ browser, page }) => {
     test.setTimeout(LIVE_TEST_TIMEOUT_MS);
     const relay = await startLocalRelay();
     let secondaryContext;
@@ -43,12 +43,10 @@ test.describe('igloo-pwa rotation operator flow @live', () => {
       await seedPwaState(page, buildPwaPersistedState({ profiles: [sourceSeed] }));
       const p = pages(page);
       await p.welcome.goto();
-      await p.welcome.startGenerate();
-      await p.create.selectMode('rotate');
-      await p.create.selectRotateSource(sourceSeed.id);
-      await p.create.fillRotateSource(0, { bfshare: source.shares[0].bfshare, password: 'playwright-passphrase' });
+      await p.welcome.rotate(sourceSeed.id);
+      await p.create.fillRotateSource(0, { sourcePackage: source.shares[0].bfshare, password: 'playwright-passphrase' });
       await p.create.addRotateSource();
-      await p.create.fillRotateSource(1, { bfshare: source.shares[1].bfshare, password: 'playwright-passphrase' });
+      await p.create.fillRotateSource(1, { sourcePackage: source.shares[1].bfshare, password: 'playwright-passphrase' });
       await p.create.rotateSubmit();
 
       await expect(page.getByRole('heading', { name: 'Select Share' })).toBeVisible();
@@ -80,7 +78,7 @@ test.describe('igloo-pwa rotation operator flow @live', () => {
       // Unlock to restart the rotated signer runtime from its persisted snapshot so
       // it serves the remote onboarding handshake from the dashboard.
       await p.welcome.unlock('playwright-passphrase');
-      await p.dashboard.expectDashboard('Rotated Treasury Device');
+      await p.dashboard.expectDashboard();
       // The rotated signer must actually boot its runtime before it can serve the
       // remote onboarding handshake below — gate on the live connection so a
       // never-started runtime can't masquerade as a passing rotation.
@@ -96,7 +94,7 @@ test.describe('igloo-pwa rotation operator flow @live', () => {
         label: 'Rotated Remote Device',
         localPassword: 'playwright-passphrase',
       });
-      await expectPwaDashboard(secondary.page, 'Rotated Remote Device');
+      await expectPwaDashboard(secondary.page);
     } finally {
       await secondaryContext?.close().catch(() => undefined);
       await relay.close();

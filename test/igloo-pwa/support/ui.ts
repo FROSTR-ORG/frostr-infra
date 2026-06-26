@@ -159,10 +159,14 @@ export async function expectPwaDashboard(page: Page, profileLabel?: string) {
 }
 
 export async function expectPwaRuntimeConnected(page: Page) {
-  // The dashboard reports the live browser signer runtime once it has connected to
-  // its relays; gate cross-device flows on this so a peer can't race an unsubscribed
-  // inviter. (Deliberate copy assertion — the runtime-status line has no test-id.)
-  await expect(page.getByText('Browser runtime connected')).toBeVisible({ timeout: 30_000 });
+  // The current dashboard reports runtime activity through the shared signer
+  // status card. Gate cross-device flows on the active signer surface so a peer
+  // cannot race a signer that has not started yet.
+  const root = page.getByTestId(CRITICAL_E2E_TEST_IDS.dashboardRoot);
+  await expect(root.getByRole('heading', { name: /^Signer Running/ })).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(root.getByRole('button', { name: 'Stop Signer' })).toBeVisible();
 }
 
 export async function openFreshPwaPage(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {
@@ -177,11 +181,11 @@ export async function openFreshPwaPage(browser: Browser): Promise<{ context: Bro
 // Tier-2 readiness gate, observed via the LIVE dashboard. The runtime snapshot is
 // intentionally never persisted to localStorage (see igloo-pwa persist-allowlist),
 // so readiness has to be read from the rendered signer panel: each peer row shows
-// a status label, and `sign-ready` means that peer's nonce pool has hydrated and
-// the signer can actually participate in a signature. Use this where a cooperating
-// signer is online; for a single device with no peers use the lighter
-// expectPwaRuntimeConnected. (The `expectedPeers` arg is advisory — at least one
-// sign-ready peer is the meaningful, race-free signal.)
+// a status label, and the UI renders internal `sign-ready` peers as `Ready` once
+// that peer's nonce pool has hydrated and the signer can actually participate in
+// a signature. Use this where a cooperating signer is online; for a single device
+// with no peers use the lighter expectPwaRuntimeConnected. (The `expectedPeers`
+// arg is advisory — at least one Ready peer is the meaningful, race-free signal.)
 export async function expectPwaSignerSignReady(page: Page, _expectedPeers = 1): Promise<void> {
-  await expect(page.getByText('sign-ready').first()).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByText('Ready', { exact: true }).first()).toBeVisible({ timeout: 45_000 });
 }

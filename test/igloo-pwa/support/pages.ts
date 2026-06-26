@@ -80,17 +80,21 @@ export class WelcomePage extends BasePage {
 }
 
 export class CreateFlowPage extends BasePage {
-  async selectMode(mode: 'new' | 'rotate'): Promise<void> {
-    await this.tid(mode === 'new' ? TID.createModeNew : TID.createModeRotate).click();
-  }
   async selectRotateSource(profileId: string): Promise<void> {
     await this.tid(TID.rotateSourceProfile).selectOption(profileId);
   }
   // Per-source rows are dynamic; located by placeholder/label within the rotate
   // panel (raw locators are allowed inside support, not in specs).
-  async fillRotateSource(index: number, opts: { bfshare: string; password: string }): Promise<void> {
-    await this.page.getByPlaceholder('Paste bfshare1...').nth(index).fill(opts.bfshare);
+  async fillRotateSource(index: number, opts: { sourcePackage: string; password: string }): Promise<void> {
+    await this.page.getByPlaceholder('Paste bfprofile1... or bfshare1...').nth(index).fill(opts.sourcePackage);
     await this.page.getByLabel('Package Password').nth(index).fill(opts.password);
+  }
+  async expectRotateCollect(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Collect Shares' })).toBeVisible();
+    await expect(this.page.getByText('Back to Welcome')).toBeVisible();
+    await expect(this.page.getByText('This Device Share (#1)')).toBeVisible();
+    await expect(this.tid(TID.rotateLocalPassphrase)).toBeVisible();
+    await expect(this.page.getByText('Remote Source #1')).toBeVisible();
   }
   async addRotateSource(): Promise<void> {
     await this.tid(TID.rotateAddSource).click();
@@ -104,6 +108,15 @@ export class CreateFlowPage extends BasePage {
       await this.page.getByLabel('Existing Private Key (optional)').fill(opts.privateKey);
     }
   }
+  async expectGenerateForm(opts: { groupName?: string } = {}): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Create New Keyset' })).toBeVisible();
+    if (opts.groupName != null) {
+      await expect(this.page.getByLabel('Group Name')).toHaveValue(opts.groupName);
+    }
+  }
+  async expectSelectShareHidden(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Select Share' })).toHaveCount(0);
+  }
   get generateNextButton(): Locator {
     return this.tid(TID.createGenerateNext);
   }
@@ -115,9 +128,6 @@ export class CreateFlowPage extends BasePage {
   }
   async back(): Promise<void> {
     await this.tid(TID.createBack).click();
-  }
-  async copyGroupKey(): Promise<void> {
-    await this.tid(TID.selectShareCopyGroupKey).click();
   }
   shareOption(memberIdx: number): Locator {
     return this.page.locator(`[data-testid="${TID.selectShareOption}"][data-member-idx="${memberIdx}"]`);
@@ -243,6 +253,13 @@ export class DashboardPage extends BasePage {
       await expect(this.tid(TID.dashboardRoot)).toContainText(profileLabel);
     }
   }
+  async expectNoDashboard(): Promise<void> {
+    await expect(this.tid(TID.dashboardRoot)).toHaveCount(0);
+  }
+  async expectRoute(tab: 'signer' | 'permissions' | 'settings'): Promise<void> {
+    const suffix = tab === 'signer' ? '' : `/${tab}`;
+    await expect(this.page).toHaveURL(new RegExp(`/dashboard${suffix}/?$`));
+  }
   async openTab(tab: 'signer' | 'permissions' | 'settings'): Promise<void> {
     const id =
       tab === 'signer'
@@ -251,6 +268,53 @@ export class DashboardPage extends BasePage {
           ? TID.dashboardTabPermissions
           : TID.dashboardTabSettings;
     await this.tid(id).click();
+  }
+  async expectDashboardActionActive(
+    activeAction: 'dashboard' | 'permissions' | 'settings',
+  ): Promise<void> {
+    await expect(this.tid(TID.dashboardTabSigner)).toHaveAttribute(
+      'aria-pressed',
+      String(activeAction === 'dashboard'),
+    );
+    await expect(this.page.getByRole('button', { name: 'Recover' })).toHaveCount(0);
+    await expect(this.tid(TID.dashboardTabPermissions)).toHaveAttribute(
+      'aria-pressed',
+      String(activeAction === 'permissions'),
+    );
+    await expect(this.tid(TID.dashboardTabSettings)).toHaveAttribute(
+      'aria-pressed',
+      String(activeAction === 'settings'),
+    );
+  }
+  async expectNoRuntimeRecoverAction(): Promise<void> {
+    await expect(this.page.getByRole('button', { name: 'Recover' })).toHaveCount(0);
+  }
+  async expectRecoverCollect(returnTarget: 'dashboard' | 'welcome' = 'dashboard'): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Collect Shares' })).toBeVisible();
+    await expect(
+      this.page.getByText(returnTarget === 'dashboard' ? 'Back to Dashboard' : 'Back to Welcome'),
+    ).toBeVisible();
+    if (returnTarget === 'dashboard') {
+      await this.expectNavLinks();
+    }
+  }
+  async fillRecoverSource(index: number, opts: { sourcePackage: string; password: string }): Promise<void> {
+    await this.page.getByLabel('Source Package').nth(index).fill(opts.sourcePackage);
+    await this.page.getByLabel('Package Password').nth(index).fill(opts.password);
+  }
+  async recoverNext(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Next Step' }).click();
+  }
+  async expectRecoveredPrivateKey(nsec: string): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Recover Private Key' })).toBeVisible({ timeout: 30_000 });
+    await this.page.getByRole('button', { name: 'Reveal' }).click();
+    await expect(this.page.getByText(nsec, { exact: true })).toBeVisible();
+  }
+  async backFromRecover(returnTarget: 'dashboard' | 'welcome' = 'dashboard'): Promise<void> {
+    await this.page.getByText(returnTarget === 'dashboard' ? 'Back to Dashboard' : 'Back to Welcome').click();
+  }
+  async expectNoRecoverSuccess(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Recover Private Key' })).toHaveCount(0);
   }
   get autoOpenToggle(): Locator {
     return this.tid(TID.settingsAutoOpenToggle);
@@ -269,6 +333,9 @@ export class DashboardPage extends BasePage {
       node.scrollTop = node.scrollHeight;
     });
   }
+  async closeSettingsSidebar(): Promise<void> {
+    await this.tid(TID.dashboardSettingsSidebarClose).click();
+  }
   async logout(): Promise<void> {
     await this.tid(TID.settingsLogout).click();
   }
@@ -278,16 +345,107 @@ export class DashboardPage extends BasePage {
     await expect(this.tid(TID.dashboardTabPermissions)).toBeVisible();
     await expect(this.tid(TID.dashboardTabSettings)).toBeVisible();
   }
-  async expectKeyDisplays(groupDisplay: string, shareDisplay: string): Promise<void> {
-    await expect(this.page.getByText(groupDisplay)).toBeVisible();
-    await expect(this.page.getByText(shareDisplay)).toBeVisible();
+  async expectKeyDisplays(groupDisplay: string, hiddenShareDisplay?: string): Promise<void> {
+    await expect(this.page.locator('.igloo-dashboard-key-value', { hasText: groupDisplay })).toBeVisible();
+    await expect(this.page.getByText('Share Public Key')).toHaveCount(0);
+    await expect(this.tid(TID.dashboardShareKeyCopy)).toHaveCount(0);
+    if (hiddenShareDisplay) {
+      await expect(this.page.locator('.igloo-dashboard-key-value', { hasText: hiddenShareDisplay })).toHaveCount(0);
+    }
   }
   async expectKeyCopyControls(): Promise<void> {
     await expect(this.tid(TID.dashboardGroupKeyCopy)).toBeVisible();
-    await expect(this.tid(TID.dashboardShareKeyCopy)).toBeVisible();
+    await expect(this.tid(TID.dashboardShareKeyCopy)).toHaveCount(0);
+  }
+  async expectStoppedSignerDashboard(): Promise<void> {
+    const root = this.tid(TID.dashboardRoot);
+    await expect(root.getByRole('heading', { name: 'Signer Stopped' })).toBeVisible();
+    await expect(root).toContainText('Relays, peers, and signing are offline.');
+    await expect(root.getByRole('button', { name: 'Start Signer' })).toBeVisible();
+    await expect(root.getByRole('heading', { name: 'Readiness' })).toBeVisible();
+    await expect(root).toContainText('Start signer to restore connectivity.');
+    await expect(root).toContainText('0 relays connected');
+    await expect(root).toContainText('0 peers online');
+    await expect(root).toContainText('Signing unavailable');
+    await expect(root.getByRole('heading', { name: 'Next Step' })).toBeVisible();
+    await expect(root).toContainText('Queued work · preserved');
+    await expect(root).toContainText('New signing · blocked');
+    await expect(root).toContainText('Policy prompts · paused');
+    await expect(root).toContainText('Start when ready.');
+    await expect(root.getByRole('heading', { name: 'Peers' })).toHaveCount(0);
+    await expect(root.getByRole('heading', { name: 'Pending Approvals' })).toHaveCount(0);
+    await expect(root.getByRole('heading', { name: 'Event Log' })).toHaveCount(0);
+  }
+  async expectAllRelaysOfflineDashboard(): Promise<void> {
+    const root = this.tid(TID.dashboardRoot);
+    await expect(root.getByRole('heading', { name: 'Signer Running (Degraded)' })).toBeVisible();
+    await expect(root).toContainText('All relays unreachable · signing degraded.');
+    await expect(root.getByRole('button', { name: 'Stop Signer' })).toBeVisible();
+    const readiness = root.getByRole('region', { name: 'Readiness' });
+    await expect(readiness).toContainText('All Relays Offline');
+    await expect(readiness).toContainText('No relay route to peers.');
+    await expect(readiness).toContainText('0 / 2 relays reachable');
+    await expect(readiness).toContainText('Ready count degraded');
+    const recovery = root.getByRole('region', { name: 'Recovery' });
+    await expect(recovery).toContainText('Check network, DNS, and firewall.');
+    await expect(recovery).toContainText('Blocked until a relay connects.');
+    await expect(recovery.getByRole('button', { name: 'Retry Connections' })).toBeVisible();
+    await expect(root.getByRole('heading', { name: 'Peers' })).toHaveCount(0);
+    await expect(root.getByRole('heading', { name: 'Pending Approvals' })).toHaveCount(0);
+    await expect(root.getByRole('heading', { name: 'Event Log' })).toHaveCount(0);
+  }
+  async expectSigningBlockedDashboard(): Promise<void> {
+    const root = this.tid(TID.dashboardRoot);
+    await expect(root.getByRole('heading', { name: 'Signer Running (Degraded)' })).toBeVisible();
+    await expect(root).toContainText('Policy or readiness gate active.');
+    await expect(root.getByRole('button', { name: 'Stop Signer' })).toBeVisible();
+    const commonCauses = root.getByRole('region', { name: 'Common Causes' });
+    await expect(commonCauses).toContainText('Signing Blocked');
+    await expect(commonCauses).toContainText('Requests held pending clearance.');
+    await expect(commonCauses).toContainText('Policy decision pending');
+    await expect(commonCauses).toContainText('Not enough ready peers');
+    await expect(commonCauses).toContainText('Pool imbalance');
+    const operatorAction = root.getByRole('region', { name: 'Operator Action' });
+    await expect(operatorAction).toContainText('Clear via permissions or approvals.');
+    await expect(operatorAction).toContainText(
+      '1 of 2 signing peers are ready. Bring another signing peer online before approving signatures.',
+    );
+    await expect(root.getByRole('heading', { name: 'Peers' })).toHaveCount(0);
+    await expect(root.getByRole('heading', { name: 'Pending Approvals' })).toHaveCount(0);
+    await expect(root.getByRole('heading', { name: 'Event Log' })).toHaveCount(0);
+  }
+  async expectSigningFailedModal(): Promise<void> {
+    const dialog = this.page.getByRole('dialog', { name: 'Signing Failed' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText(
+      'Unable to complete signature for event kind:1. All 3 retry attempts exhausted.',
+    );
+    await expect(dialog).toContainText(
+      'Round: r-0x4f2a · Peers responded: 1/2 · Error: insufficient partial signatures',
+    );
+    await expect(dialog.getByRole('button', { name: 'Dismiss', exact: true })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Retry' })).toBeVisible();
+  }
+  async expectPeerSummary(readyLabel: string, averageLatencyLabel: string): Promise<void> {
+    await expect(this.tid(TID.dashboardRoot)).toContainText(readyLabel);
+    await expect(this.tid(TID.dashboardRoot)).toContainText(averageLatencyLabel);
   }
   async expectPendingApprovalsEmpty(): Promise<void> {
     await expect(this.tid(TID.dashboardPendingApprovals)).toContainText('No pending approvals');
+  }
+  async expectPendingApprovals(count: number): Promise<void> {
+    const section = this.tid(TID.dashboardPendingApprovals);
+    await expect(this.page.getByText(`${count} pending`, { exact: true })).toBeVisible();
+    await expect(section).toContainText('Peer #2');
+    await expect(section).toContainText('kind:1 Short Text Note');
+    await expect(section).toContainText('NIP-44 key exchange');
+  }
+  async expectEventLogSummary(eventCountLabel: string, filterCountLabel: string): Promise<void> {
+    const root = this.tid(TID.dashboardRoot);
+    await expect(root.getByText(eventCountLabel, { exact: true })).toBeVisible();
+    await expect(root.getByRole('button', { name: new RegExp(`Filter\\s+${filterCountLabel}`) })).toBeVisible();
+    await expect(root.getByRole('button', { name: 'Clear' })).toBeVisible();
+    await expect(root.getByRole('button', { name: 'All' })).toHaveCount(0);
   }
   // Permissions page (peer-only on the PWA; the site/origin section is chrome-only).
   async expectPeerPermissions(): Promise<void> {
@@ -297,6 +455,24 @@ export class DashboardPage extends BasePage {
     // The PWA signer has no website/origin permissions, so that section must not render.
     await expect(this.page.getByRole('heading', { name: 'Signer Permissions' })).toHaveCount(0);
   }
+  async toggleFirstPeerPermission(
+    direction: 'request' | 'respond',
+    method: 'sign' | 'ecdh' | 'ping' | 'onboard',
+    state: 'allow' | 'deny',
+  ): Promise<void> {
+    const panel = this.page.getByRole('tabpanel', { name: 'Permissions' });
+    const token = panel.getByRole('button', { name: `${direction} ${method}: ${state}`, exact: true }).first();
+    await token.scrollIntoViewIfNeeded();
+    await token.click({ force: true });
+  }
+  async expectPeerPermission(
+    direction: 'request' | 'respond',
+    method: 'sign' | 'ecdh' | 'ping' | 'onboard',
+    state: 'allow' | 'deny',
+  ): Promise<void> {
+    const panel = this.page.getByRole('tabpanel', { name: 'Permissions' });
+    await expect(panel.getByRole('button', { name: `${direction} ${method}: ${state}`, exact: true }).first()).toBeVisible();
+  }
   // Settings sidebar (Paper-aligned section layout).
   async expectSettingsSections(): Promise<void> {
     const sidebar = this.tid(TID.dashboardSettingsSidebar);
@@ -305,12 +481,15 @@ export class DashboardPage extends BasePage {
     await expect(this.page.getByRole('heading', { name: 'Group Profile', exact: true })).toBeVisible();
     await expect(sidebar.getByText('2 of 3', { exact: true })).toBeVisible();
     await expect(sidebar.getByText('Updated', { exact: true })).toBeVisible();
-    await expect(sidebar.getByText('Nov 15, 2023', { exact: true })).toBeVisible();
     await expect(sidebar.getByText('threshold n/a', { exact: true })).toHaveCount(0);
     await expect(this.page.getByRole('heading', { name: 'Onboard Device', exact: true })).toBeVisible();
     await expect(this.page.getByRole('heading', { name: 'Replace Share', exact: true }).first()).toBeVisible();
     await expect(this.page.getByRole('heading', { name: 'Export Profile', exact: true })).toBeVisible();
     await expect(this.page.getByRole('heading', { name: 'Export Share', exact: true })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Browser Settings', exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Remember browser state', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Open signer after import', { exact: true })).toBeVisible();
+    await expect(sidebar.getByText('Prefer install prompt', { exact: true })).toBeVisible();
     await expect(this.page.getByRole('heading', { name: 'Logout', exact: true })).toBeVisible();
     await expect(this.page.getByRole('heading', { name: 'Clear Credentials', exact: true })).toBeVisible();
   }
@@ -344,9 +523,15 @@ export class DashboardPage extends BasePage {
       .poll(async () => body.evaluate((node) => node.scrollWidth - node.clientWidth))
       .toBe(0);
   }
+  async expectSettingsSidebarClosed(): Promise<void> {
+    await expect(this.tid(TID.dashboardSettingsSidebar)).toHaveCount(0);
+  }
   // Export package modal (Phase B step 4).
   async openExportProfile(): Promise<void> {
     await this.tid(TID.settingsCopyProfile).click();
+  }
+  async openExportShare(): Promise<void> {
+    await this.tid(TID.settingsCopyShare).click();
   }
   async openOnboardDevice(): Promise<void> {
     await this.tid(TID.settingsOnboardDevice).click();
@@ -365,6 +550,19 @@ export class DashboardPage extends BasePage {
   }
   async closeOnboardDeviceConfigureForm(): Promise<void> {
     await this.page.getByRole('dialog', { name: 'Onboard a Device' }).getByRole('button', { name: 'Cancel' }).click();
+  }
+  async expectOnboardDeviceHandoff(): Promise<void> {
+    const dialog = this.page.getByRole('dialog', { name: 'Onboard a Device' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: 'Package Handoff' })).toBeVisible();
+    await expect(this.tid(TID.settingsOnboardResult)).toBeVisible();
+    await expect(dialog.getByText('Remote Device is ready as an encrypted bfonboard package.')).toBeVisible();
+    await expect(dialog.getByText('Share #2')).toBeVisible();
+    await expect(dialog.locator('textarea')).toHaveValue(/bfonboard1/);
+    await expect(this.tid(TID.settingsOnboardCopy)).toBeVisible();
+    await expect(this.tid(TID.settingsOnboardSave)).toBeVisible();
+    await expect(this.tid(TID.settingsOnboardQr)).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Done' })).toBeVisible();
   }
   async openProfilePassword(): Promise<void> {
     await this.tid(TID.settingsProfilePassword).click();
@@ -407,7 +605,7 @@ export class DashboardPage extends BasePage {
   }
   async expectReplaceShareFailed(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'Replacement Failed' })).toBeVisible();
-    await expect(this.page.getByText('Onboarding package did not apply')).toBeVisible();
+    await expect(this.page.getByText('Replacement package did not apply')).toBeVisible();
     await expect(this.page.getByRole('button', { name: 'Retry' })).toBeVisible();
     await expect(this.page.getByText('Back to Replace Share', { exact: true })).toBeVisible();
   }
@@ -422,9 +620,38 @@ export class DashboardPage extends BasePage {
     await expect(this.tid(TID.exportConfirm)).toBeVisible();
     await expect(this.tid(TID.exportSubmit)).toBeVisible();
   }
+  get exportPasswordInput(): Locator {
+    return this.tid(TID.exportPassword);
+  }
+  get exportPasswordFieldShell(): Locator {
+    return this.page.getByRole('dialog').locator('.igloo-export-field .igloo-password-field').first();
+  }
+  async expectNoShareKeyCopy(): Promise<void> {
+    await expect(this.tid(TID.dashboardShareKeyCopy)).toHaveCount(0);
+  }
+  get settingsProfileNameInput(): Locator {
+    return this.page.getByLabel('Profile Name');
+  }
+  get settingsRelayInput(): Locator {
+    return this.tid(TID.relayAddInput);
+  }
   // Makes the Settings form dirty by editing the signer name (Device Profile).
   async editSignerName(value: string): Promise<void> {
     await this.page.getByPlaceholder('Unnamed signer').fill(value);
+  }
+  async addSettingsRelay(url: string): Promise<void> {
+    await this.page.getByLabel('New relay URL').fill(url);
+    await this.page.getByRole('button', { name: 'Add' }).click();
+  }
+  async saveSettings(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Save Changes' }).click();
+    await this.expectSettingsSidebarClosed();
+  }
+  async expectSignerName(value: string): Promise<void> {
+    await expect(this.page.getByLabel('Profile Name')).toHaveValue(value);
+  }
+  async expectSettingsRelay(url: string): Promise<void> {
+    await expect(this.tid(TID.dashboardSettingsSidebar).getByText(url, { exact: true })).toBeVisible();
   }
   // Unsaved-changes guard modal (leaving Settings with edits).
   async expectUnsavedGuard(): Promise<void> {

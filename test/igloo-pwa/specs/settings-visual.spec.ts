@@ -135,6 +135,31 @@ async function injectReplaceShareVisualState(page: Page, state: unknown) {
   }, state);
 }
 
+async function injectDashboardVisualState(page: Page, profile: ReturnType<typeof buildSettingsProfile>) {
+  await page.addInitScript((visualState) => {
+    (window as unknown as { __IGLOO_TEST_PERMISSION_STATE__?: unknown }).__IGLOO_TEST_PERMISSION_STATE__ =
+      visualState;
+  }, {
+    runtimeSnapshot: buildRunningSnapshot(profile),
+    peerPermissionStates: [],
+  });
+}
+
+async function injectSettingsOnboardVisualState(page: Page) {
+  await page.addInitScript((visualState) => {
+    (window as unknown as { __IGLOO_TEST_SETTINGS_ONBOARD_STATE__?: unknown }).__IGLOO_TEST_SETTINGS_ONBOARD_STATE__ =
+      visualState;
+  }, {
+    result: {
+      label: 'Remote Device',
+      memberLabel: 'Share #2',
+      sharePublicKeyLabel: 'npub1zfd...3k9p',
+      sharePublicKey: '33'.repeat(32),
+      packageText: `bfonboard1${'z'.repeat(96)}`,
+    },
+  });
+}
+
 async function capture(page: Page, fileName: string) {
   await mkdir(SETTINGS_CAPTURE_DIR, { recursive: true });
   await page.screenshot({ path: path.join(SETTINGS_CAPTURE_DIR, fileName), fullPage: true });
@@ -150,6 +175,7 @@ test.describe('igloo-pwa Paper Settings visual harness @visual', () => {
     await page.setViewportSize({ width: 1440, height: 1210 });
 
     const profile = buildSettingsProfile();
+    await injectDashboardVisualState(page, profile);
     await seedState(
       page,
       buildPwaPersistedState({
@@ -165,7 +191,8 @@ test.describe('igloo-pwa Paper Settings visual harness @visual', () => {
     await dashboard.expectNavLinks();
     await dashboard.openTab('settings');
     // Paper-aligned sidebar layout: Device Profile, Group Profile, Onboard Device,
-    // Replace Share, Export Profile, Export Share, Logout, Clear Credentials.
+    // Replace Share, Export Profile, Export Share, Browser Settings, Logout,
+    // Clear Credentials.
     await dashboard.expectSettingsSections();
 
     await capture(page, '03-settings.png');
@@ -187,7 +214,7 @@ test.describe('igloo-pwa Paper Settings visual harness @visual', () => {
     await dashboard.cancelClearCredentials();
 
     await dashboard.editSignerName('Igloo Web Draft');
-    await dashboard.openTab('signer');
+    await dashboard.closeSettingsSidebar();
     await dashboard.expectUnsavedGuard();
     await capture(page, '03e-unsaved-changes-modal.png');
     await dashboard.discardChanges();
@@ -199,10 +226,33 @@ test.describe('igloo-pwa Paper Settings visual harness @visual', () => {
     await capture(page, '04-export-profile-modal.png');
   });
 
+  test('captures the Settings Onboard Device package handoff modal', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1210 });
+
+    const profile = buildSettingsProfile();
+    await injectDashboardVisualState(page, profile);
+    await injectSettingsOnboardVisualState(page);
+    await seedState(
+      page,
+      buildPwaPersistedState({
+        profiles: [profile],
+        selectedProfileId: profile.id,
+        activeView: 'dashboard',
+        activeDashboardTab: 'settings',
+        runtimeSnapshot: buildRunningSnapshot(profile),
+      }),
+    );
+
+    const dashboard = pages(page).dashboard;
+    await dashboard.expectOnboardDeviceHandoff();
+    await capture(page, '03h-settings-onboard-handoff.png');
+  });
+
   test('captures the settings sidebar narrow viewport layout', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     const profile = buildSettingsProfile();
+    await injectDashboardVisualState(page, profile);
     await seedState(
       page,
       buildPwaPersistedState({
@@ -225,6 +275,7 @@ test.describe('igloo-pwa Paper Settings visual harness @visual', () => {
     await page.setViewportSize({ width: 1440, height: 1080 });
 
     const profile = buildSettingsProfile();
+    await injectDashboardVisualState(page, profile);
     await seedState(
       page,
       buildPwaPersistedState({
@@ -239,7 +290,7 @@ test.describe('igloo-pwa Paper Settings visual harness @visual', () => {
     const dashboard = pages(page).dashboard;
     await dashboard.openTab('settings');
     await dashboard.openReplaceShare();
-    await page.getByRole('heading', { name: 'Enter Onboarding Package' }).waitFor();
+    await page.getByRole('heading', { name: 'Enter Replacement Package' }).waitFor();
     await capture(page, '05-replace-share-entry.png');
   });
 

@@ -9,6 +9,1655 @@ links to commits/plans. Below the curated entries is the verbatim archive of the
 former root `FOLLOWUPS.md` (migrated 2026-06-10), kept for history; its open
 items were triaged into [`BACKLOG.md`](./BACKLOG.md).
 
+## 2026-06-23 — Icon button pressed-feedback contract
+
+Tightened the shared `igloo-ui` IconButton primitive so icon-only actions keep
+the same background, border, shadow, color, opacity, and transform transition
+surface as normal buttons instead of collapsing back to color-only feedback.
+Validation: red/green `IconButton` primitive coverage, full
+`misc-primitives` coverage, and `igloo-ui` build.
+
+## 2026-06-23 — Paper Permissions source cleanup
+
+Aligned the live Paper source and exported `igloo-paper` references with the
+runtime Permissions naming contract. Dashboard authenticated headers now use
+Permissions in the remaining modal/loading/export variants, blocked-state
+operator action copy points to permissions instead of policies, and reusable
+peer-permission review/profile cards now say Peer Permissions while preserving
+signer-policy domain language. Validation: Paper MCP screenshot review,
+`make igloo-paper-sync`, and `make igloo-paper-verify STRICT=1`.
+
+## 2026-06-23 — Stable shared Button loading labels
+
+Polished the shared `igloo-ui` Button loading state so actions with
+`loadingLabel` reserve space for both idle and loading labels. Busy buttons now
+keep their accessible name focused on the visible loading label while the hidden
+idle label still prevents width jumps during async actions across PWA flows.
+Validation: red/green `DesignPrimitives` coverage, focused loading/busy
+coverage in `CreateFlow` and `OperatorPanels`, and `igloo-ui` build.
+
+## 2026-06-23 — Dashboard Permissions naming contract
+
+Removed the last stale **Policies** naming from the dashboard navigation
+contract and affected PWA smoke helpers. `DashboardHeaderActions` now accepts a
+`permissions` action in `igloo-ui`, the PWA dashboard caller uses that shared
+contract, browser helpers query the tabpanel by the accessible name
+`Permissions`, and the onboarding completion summary now says Peer Permissions
+instead of Peer Policies. Validation: red/green focused `DesignNavigation`
+coverage, focused `CreateFlow` summary coverage, focused PWA dashboard unit
+coverage, `igloo-ui` build, PWA typecheck, and the app-shell Permissions peer
+override smoke path through reload/unlock.
+
+## 2026-06-23 — Settings Browser Settings sidebar group
+
+Restored the Paper **Browser Settings** group as a top-level Settings sidebar
+section in the shared `igloo-ui` sidebar while keeping runtime-only numeric
+settings hidden when the PWA opts out of Advanced settings. The PWA page object
+now asserts the Remember browser state, Open signer after import, and Prefer
+install prompt controls are visible in the Settings sidebar, and the visual
+manifest note now records Browser Settings as part of the aligned Paper section
+order. Validation: red/green focused `OperatorSettingsSidebar` coverage,
+focused Settings visual capture, focused app-shell Settings browser coverage,
+and the PWA visual manifest guard.
+
+## 2026-06-23 — Dashboard route coverage and permissions manifest cleanup
+
+Closed a stale dashboard-permissions tracker note and expanded browser route
+coverage for the routed dashboard shell. The app-shell spec now verifies
+`/dashboard/settings` opens the Settings sidebar after profile unlock alongside
+the existing Permissions and Recover deep-link checks. The PWA visual manifest
+guard now rejects unresolved-question language on screens marked `aligned`, and
+the dashboard Permissions note records the decided peer-only PWA scope instead
+of carrying an old open-product-question marker. Validation: red/green visual
+manifest guard and focused app-shell dashboard deep-link browser coverage.
+
+## 2026-06-23 — Dashboard recover deep-link intent
+
+Polished dashboard route handling so a locked visit to `/dashboard/recover`
+keeps the recover intent through profile unlock and opens the dashboard-return
+Collect Shares flow at the same route. The guard still normalizes stale
+dashboard URLs for public/non-dashboard flows back to `/`, so Safari refresh
+recovery remains defensive. Validation: red/green focused app-shell browser
+coverage for `/dashboard/recover`, nearby dashboard route/deep-link browser
+checks, focused PWA route unit coverage, and PWA typecheck.
+
+## 2026-06-23 — Recover source failure review state
+
+Polished the shared Recover **Collect Shares** failure state so completed remote
+source packages stop presenting as `Ready` after reconstruction fails. Completed
+sources now flip to a `Review required` badge with share-specific package and
+password guidance, while incomplete sources keep their missing-field status.
+Validation: red/green focused `RecoverCollectSharesPanel` coverage, full
+`CreateFlow.test.tsx`, focused PWA recover unit coverage, `igloo-ui` build, and
+the Recover visual capture suite.
+
+## 2026-06-23 — Primary dashboard Paper header cleanup
+
+Aligned the primary **Signer Dashboard** Paper source with the current dashboard
+header pattern already used by the degraded and modal dashboard states. The live
+Paper artboard and exported `igloo-paper` reference now use the
+Dashboard / Permissions / Settings header instead of the older
+Recover / Policies header, while preserving the existing signer body and footer.
+Validation: Paper screenshot review, `make igloo-paper-sync`,
+`make igloo-paper-verify STRICT=1`, focused signer-dashboard PWA visual capture,
+visual manifest guard, and regenerated PWA visual comparison report.
+
+## 2026-06-22 — Dashboard signing-failed visual parity
+
+Added visual-manifest coverage for the dashboard **Signing Failed** state and
+closed the exported Paper reference against the current modal flow. The PWA
+visual harness now injects a runtime-only signing failure through the existing
+DEV dashboard runtime seam, renders the Paper failure copy/detail/actions over
+the live dashboard shell, and captures the state as `dashboard-signing-failed`.
+The live Paper artboard and `igloo-paper` export now use the current dashboard
+header treatment and the matching outlined dismiss affordance while preserving
+the failure modal layout. Validation: red/green aligned-output capture guard,
+focused signing-failed PWA visual capture, and `make igloo-paper-sync` with
+strict Paper reconciliation.
+
+## 2026-06-22 — Dashboard signing-blocked parity
+
+Closed the dashboard **Signing Blocked** state against the current Paper source.
+The PWA now projects runtime readiness blocks into the shared detailed-attention
+layout with a policy/readiness relay summary, Paper-style Common Causes and
+Operator Action cards, warning cause pills, and no live Peers / Pending
+Approvals / Event Log sections while signing is blocked. The live Paper artboard
+and `igloo-paper` export now use the current Dashboard / Permissions / Settings
+header, merged degraded runtime identity card, matching cards, and the same
+1440x569 visual state; the PWA visual manifest row is promoted to `aligned`.
+Validation: focused PWA signing-blocked unit coverage, focused signing-blocked
+PWA visual capture, `make igloo-paper-sync`, and strict Paper reconciliation.
+
+## 2026-06-22 — Dashboard all-relays-offline parity
+
+Closed the dashboard **All Relays Offline** state against the current Paper
+source. The shared signer panel renders detailed attention states as Paper-style
+Readiness and Recovery cards, suppresses the live Peers / Pending Approvals /
+Event Log sections for the degraded all-relays state, and keeps Retry
+Connections on the shared loading contract. The live Paper artboard and
+`igloo-paper` export now use the current Dashboard / Permissions / Settings
+header, merged runtime identity card, degraded signer status, and matching
+state-card layout; the PWA visual manifest row is promoted to `aligned`.
+Validation: focused red/green `OperatorSignerPanel` detailed-attention coverage,
+focused PWA all-relays unit coverage, focused all-relays PWA visual capture,
+full dashboard visual spec, PWA typecheck, strict visual-spec typecheck, visual
+manifest guards, `igloo-ui` build, docs guard, `test:visual:report`, and
+`make igloo-paper-sync` / `make igloo-paper-verify STRICT=1` with strict Paper
+reconciliation.
+
+## 2026-06-22 — Dashboard stopped visual parity
+
+Added the exported Paper **Signer Stopped** dashboard state to the PWA visual
+manifest and dashboard visual harness. The shared `igloo-ui` signer panel now
+renders Paper's stopped-state Readiness and Next Step cards instead of live
+Peers / Pending Approvals / Event Log sections, and `igloo-pwa` projects the
+Paper offline relay summary copy for inactive runtime snapshots. Validation:
+red/green focused `OperatorSignerPanel` coverage, red/green focused PWA
+stopped-dashboard visual capture, full dashboard visual spec, strict visual
+manifest capture guard, PWA typecheck, strict visual-spec typecheck, and
+`igloo-ui` build.
+
+## 2026-06-22 — Dashboard header Recover removal
+
+Aligned the runtime dashboard header with the current Paper dashboard source by
+removing the visible **Recover** action from the dashboard chrome. Recover
+remains available from the locked Welcome profile menu, while stale
+`/dashboard/recover` route guards stay in place for defensive normalization.
+Validation: red/green `npm --prefix repos/igloo-ui test -- --run
+test/DesignNavigation.test.tsx -t "Paper AuthActions dashboard header"`,
+focused `igloo-pwa` dashboard/recover unit coverage, focused app-shell fast
+browser coverage, and focused dashboard visual capture.
+
+## 2026-06-22 — Settings Onboard handoff key formats
+
+Polished the Settings **Onboard Device** package handoff summary so the remote
+share identity shows both the display `npub` and raw hex public key when both
+formats are available. The PWA Settings Onboard flow now verifies the same
+handoff result through the consuming app path. Validation: red/green `npm
+--prefix repos/igloo-ui test -- --run test/OperatorPanels.test.tsx -t "package
+handoff state"`, focused Settings Onboard coverage in `igloo-ui` and
+`igloo-pwa`, and full `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx`.
+
+## 2026-06-22 — Event Log filtered count
+
+Polished the signer dashboard Event Log filter state so the header count reflects
+the visible filtered result set. Unfiltered logs still show `N events`, while an
+active domain filter now reports `visible of total events` alongside the filtered
+rows. Validation: red/green `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx -t "filters the diagnostics log"`, focused
+Pending/Event coverage, and full `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx`.
+
+## 2026-06-22 — Pending operation timing context
+
+Polished the signer dashboard Pending Approvals queue for runtime operation
+rows by surfacing both the operation start time and expiry in the visible row
+detail and accessible row label. Pending operation rows now read as a timeline
+instead of only showing response count plus timeout. Validation: red/green `npm
+--prefix repos/igloo-ui test -- --run test/OperatorPanels.test.tsx -t "pending
+operation start and expiry"`, focused Pending/Event coverage, and full `npm
+--prefix repos/igloo-ui test -- --run test/OperatorPanels.test.tsx`.
+
+## 2026-06-22 — Signer peer method telemetry
+
+Polished the signer dashboard peer rows so each peer's permission-method badge
+cluster is exposed as named telemetry, e.g. `Peer #2 methods: SIGN, ECDH,
+PING`, while preserving the existing Paper-style colored method tokens.
+Validation: red/green `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx -t "labels per-peer permission method badges"`,
+focused peer telemetry coverage, and full `npm --prefix repos/igloo-ui test --
+--run test/OperatorPanels.test.tsx`.
+
+## 2026-06-22 — Recover failure live status
+
+Polished the shared Recover **Collect Shares** failure state so the named
+collection status no longer advertises readiness after a failed recovery
+attempt. Failure now wins the live-status copy and directs the user back to the
+highlighted source package or password fields. Validation: red/green `npm
+--prefix repos/igloo-ui test -- --run test/CreateFlow.test.tsx -t "announces
+recover failures"`, focused Recover/Create coverage, and full `npm --prefix
+repos/igloo-ui test -- --run test/CreateFlow.test.tsx`.
+
+## 2026-06-22 — Settings Onboard signer status
+
+Promoted the stopped-signer blocker in the shared Settings **Onboard Device**
+sponsor dialog to a named live status, so the disabled **Create Package** reason
+is announced and testable like the rest of the inline sponsor-package states.
+Validation: red/green `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx -t "blocks Settings Onboard Device package
+creation"`, focused Settings Onboard coverage, and full `npm --prefix
+repos/igloo-ui test -- --run test/OperatorPanels.test.tsx`.
+
+## 2026-06-22 — Recover remote-source empty state
+
+Polished the shared Recover **Collect Shares** panel for the case where no
+remote source packages have been added yet. The source stack now renders a
+named empty status card with Paper-style badge/detail treatment and keeps the
+Add Source action available, instead of jumping from the local device share
+directly to an unexplained empty source area. Validation: red/green `npm
+--prefix repos/igloo-ui test -- --run test/CreateFlow.test.tsx -t "empty
+remote-source"`, focused Recover/Create coverage, full `npm --prefix
+repos/igloo-ui test -- --run test/CreateFlow.test.tsx`, and `npm --prefix
+repos/igloo-ui run build`.
+
+## 2026-06-22 — Event Log filter loading feedback
+
+Polished the shared signer dashboard Event Log clear transition so the sibling
+Filter control uses the shared `Button` loading contract while logs are being
+cleared. The disabled filter now keeps the Paper filter content visible while
+also exposing the shared spinner, `aria-busy`, and `data-loading`, and expanded
+filter chips stay locked until clearing finishes. Validation: red/green `npm
+--prefix repos/igloo-ui test -- --run test/OperatorPanels.test.tsx -t "locks
+Event Log filter controls"`, full `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx`, `npm --prefix repos/igloo-ui test`, and `npm
+--prefix repos/igloo-ui run build`.
+
+## 2026-06-22 — Shared icon ping loading feedback
+
+Extended the shared `igloo-ui` `IconButton` with icon-only loading semantics
+and moved the older `PeerList` and `RelayList` ping actions onto that contract.
+In-flight icon pings now expose stable `Pinging...` / `Pinging <relay>`
+accessible labels, shared spinners, `aria-busy`, and `data-loading` while
+preserving the compact icon-button treatments and latency result rows.
+Validation: red/green `npm --prefix repos/igloo-ui test -- --run
+test/ui/peer-list.test.tsx -t "marks a peer ping action busy"` and `npm
+--prefix repos/igloo-ui test -- --run test/ui/misc-primitives.test.tsx -t
+"marks manual relay pings busy"`, focused `npm --prefix repos/igloo-ui test --
+--run test/ui/peer-list.test.tsx test/ui/misc-primitives.test.tsx
+test/axe/primitives.test.tsx`, `npm --prefix repos/igloo-ui test`, `npm
+--prefix repos/igloo-ui run build`, and `npm --prefix test run
+test:typecheck:pwa`.
+
+## 2026-06-22 — Signer peer ping loading feedback
+
+Moved the signer dashboard per-peer ping control onto the shared `igloo-ui`
+`Button` loading contract. In-flight peer pings now render the shared spinner
+with `aria-busy` and `data-loading` while preserving the peer-row telemetry
+labels and unavailable/local states. Validation: red/green `npm --prefix
+repos/igloo-ui test -- --run test/OperatorPanels.test.tsx -t "per-peer ping
+actions busy"`, full `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx`, `npm --prefix repos/igloo-ui test`, `npm
+--prefix repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`,
+and scoped diff whitespace checks.
+
+## 2026-06-22 — Signer dashboard refresh loading feedback
+
+Moved the signer dashboard peer refresh and retry-connection actions onto the
+shared `igloo-ui` `Button` loading contract while preserving the Paper dashboard
+classes and labels. Busy refresh/retry states now render the shared spinner with
+`aria-busy` and `data-loading` instead of hand-written loading attributes only.
+Validation: red/green `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx -t "dashboard peer refresh actions busy"`, full
+`npm --prefix repos/igloo-ui test -- --run test/OperatorPanels.test.tsx`, `npm
+--prefix repos/igloo-ui test`, `npm --prefix repos/igloo-ui run build`, `npm
+--prefix test run test:typecheck:pwa`, and scoped diff whitespace checks.
+
+## 2026-06-22 — Legacy settings save loading feedback
+
+Polished the legacy shared `OperatorSettingsPanel` save action so it uses the
+same `Button` loading contract as the newer Settings sidebar. `Save Settings`
+now exposes `Saving...` with spinner, `aria-busy`, and `data-loading` instead
+of a disabled text swap. Validation: red/green `npm --prefix repos/igloo-ui test
+-- --run test/OperatorPanels.test.tsx -t "legacy operator settings save busy"`,
+full `npm --prefix repos/igloo-ui test -- --run test/OperatorPanels.test.tsx`,
+`npm --prefix repos/igloo-ui test`, `npm --prefix repos/igloo-ui run build`,
+`npm --prefix test run test:typecheck:pwa`, and scoped diff whitespace checks.
+
+## 2026-06-22 — Shared export/password loading feedback
+
+Moved two remaining manual text-swap busy states onto the shared `igloo-ui`
+`Button` loading contract. `ExportPackageModal` now disables its password
+fields and exposes `Exporting...` with spinner, `aria-busy`, and `data-loading`
+while backup export is running. `ProfilePasswordChangeDialog` now exposes the
+same loading affordance for `Saving...` during profile password changes.
+Validation: red/green `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx -t "profile password changes busy|gates export"`,
+full `npm --prefix repos/igloo-ui test -- --run test/OperatorPanels.test.tsx`,
+`npm --prefix repos/igloo-ui test`, `npm --prefix repos/igloo-ui run build`,
+`npm --prefix test run test:typecheck:pwa`, and scoped diff whitespace checks.
+
+## 2026-06-22 — Public task route deep links
+
+Moved the PWA entry flows one step away from app-state-only navigation.
+`igloo-pwa` now hydrates `/create`, `/import`, and `/onboard` into their first
+public task screens, pushes those URLs from the Welcome actions, preserves the
+route while each flow advances internally, and clears stale public-task routes
+when returning to Welcome. Validation: red/green `npm --prefix repos/igloo-pwa
+run test:unit:raw -- test/frontend/App.test.tsx -t "public task|routes .*
+Welcome|clears the public task route"`, full `npm --prefix repos/igloo-pwa run
+test:unit:raw -- test/frontend/App.test.tsx`, `npm --prefix test run
+test:typecheck:pwa`, and scoped diff whitespace checks for
+`repos/igloo-pwa/src/App.tsx` and `repos/igloo-pwa/test/frontend/App.test.tsx`.
+Follow-up routing pass: browser navigation back to `/` from a public task now
+returns to Welcome, while saved-profile load failures no longer get pulled into
+the `/import` route. Validation: red/green `npm --prefix repos/igloo-pwa run
+test:unit:raw -- test/frontend/App.test.tsx -t "returns from a public task route
+to Welcome on browser navigation"`, focused profile-load guard, full
+`npm --prefix repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx`,
+`npm --prefix test run test:typecheck:pwa`, and scoped diff whitespace checks.
+
+## 2026-06-22 — Recover locked-local share state
+
+Polished the outside-runtime Recover **Collect Shares** path for locked Welcome
+and Safari-refresh scenarios. `igloo-ui` now exposes a passphrase-locked local
+share state and renders recovery failures as the Paper-style **Recovery Failed**
+card with a share-count code pill. `igloo-pwa` now only counts the local device
+share when the selected profile is actually unlocked, creates enough fixed
+remote source rows when it is not, and sends only real unlocked/pasted sources
+to recovery. Validation: `npm --prefix repos/igloo-ui test`, `npm --prefix
+repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx`, `npm --prefix
+test run test:typecheck:pwa`, `npm --prefix repos/igloo-ui run build`, `npm
+--prefix test run test:guards:docs`, and scoped diff whitespace checks for the
+touched `igloo-ui`/`igloo-pwa` files.
+
+## 2026-06-22 — Stopped signer returns to locked Welcome
+
+Fixed the passphrase-required dashboard trap seen after stopping or losing the
+browser signer session. `igloo-pwa` now treats `stopSigner` as a lock transition:
+the runtime snapshot and unlock passphrase are cleared, `activeView` returns to
+`landing`, and the dashboard route normalizer takes the URL back to `/`. The App
+regression covers unlocking a stored profile, stopping the signer, and landing
+back on the locked Welcome profile list instead of showing a `Start Signer`
+dashboard without a passphrase. Validation: `npm --prefix repos/igloo-pwa run
+test:unit:raw -- test/frontend/App.test.tsx -t "returns to the locked welcome"`
+and `npm --prefix repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx
+-t "reloaded dashboard route|returns to the locked welcome|keeps dashboard
+navigation"`.
+
+## 2026-06-22 — Runtime sign-miss failure classification
+
+Fixed the stale runtime failure classification that reported inbound sign nonce
+misses as `op_type="ping"`. `bifrost-signer` now converts failed inbound request
+handling into typed operation failures using the decrypted request payload, so a
+stale/missing sign nonce drains as a `sign` failure before the router/host
+fallback path can mislabel it. `bifrost-bridge-wasm` now has wrapper coverage
+for the JSON shape consumed by browser hosts. Validation: `cargo test -p
+bifrost-signer inbound_sign_request_failure_reports_sign_op_type --offline`,
+`cargo test -p bifrost-bridge-wasm inbound_sign_nonce_miss_surfaces_sign_failure
+--offline`, `cargo test -p bifrost-signer --offline`, and `cargo test -p
+bifrost-bridge-wasm --offline`.
+
+## 2026-06-22 — Export backup password-modal decision
+
+Closed the Settings **Export Profile / Export Share** quick-copy product call.
+The current Paper source and runtime implementation both use the password-modal
+model: Settings opens Export Profile / Export Share, the user enters a fresh
+export password, and only the resulting password-protected `bfprofile` or
+`bfshare` package offers Copy / Download / Done. The shared `igloo-ui`
+`ExportPackageModal` regression now asserts Copy and Download are absent in the
+entry state, preserving the no quick unencrypted copy-to-clipboard decision.
+Validation: `npm test -- --run test/OperatorPanels.test.tsx -t "gates export on
+a matching password"` from `repos/igloo-ui`.
+
+## 2026-06-22 — Settings Onboard handoff visual closure
+
+Closed the remaining Settings **Onboard Device** sponsor outcome-state tracker
+for the current package-handoff product model. `igloo-pwa` now has a DEV-only
+visual seam for the in-memory Package Handoff result, the visual manifest tracks
+`dashboard-settings-onboard-handoff` against
+`repos/igloo-paper/screens/dashboard/3e-onboard-package-handoff-modal/screenshot.png`,
+and `igloo-ui` now uses the Paper success check icon in the handoff banner.
+The plan and audit now state the source-of-truth decision: Settings creates a
+`bfonboard` package handoff; Device Onboarded / Onboarding Failed are
+recipient-side onboarding states unless product later adds live recipient
+tracking to Settings. Validation: `npm --prefix test run
+test:e2e:igloo-pwa:visual -- --grep "Settings Onboard Device package
+handoff"`.
+
+## 2026-06-22 — Peer telemetry parity tracker cleanup
+
+Retired the stale peer telemetry visual-parity backlog item after verifying the
+current runtime-to-dashboard path. `bifrost-rs` exposes latest peer response
+latency and policy-derived method capabilities, the WASM/shared runtime status
+shape carries the fields, `igloo-ui` projects method badges, per-row readiness,
+per-row latency, average latency, and nonce inventory history, and `igloo-pwa`
+renders those live fields through the dashboard. The visual manifest already
+promotes `dashboard-signer` to `aligned`; rolling latency history remains out of
+scope unless product asks for more than latest response latency. Validation:
+`cargo test -p bifrost-signer peer_status_reports_latest_response_latency`,
+`cargo test -p bifrost-signer peer_status_reports_method_capabilities_from_policy`,
+`cargo test -p bifrost-bridge-wasm runtime_metadata_peer_status_and_empty_drains_are_queryable`,
+`npm --prefix repos/igloo-shared run test:unit -- src/runtime-api.test.ts`,
+`npm --prefix repos/igloo-shared run test:typecheck`, `npm test -- --run
+test/DesignAdapters.test.tsx -t "peer method capabilities|runtime peer method
+capabilities|runtime status"`, `npm test -- --run test/OperatorPanels.test.tsx
+-t "peer readiness|renders per-peer readiness|labels per-peer nonce|peer
+refresh|per-peer ping|unavailable peer ping|summarizes peer readiness counts"`,
+and `npm --prefix repos/igloo-pwa run test:unit:raw --
+test/frontend/App.test.tsx -t "projects runtime peer method capabilities"`.
+
+## 2026-06-22 — Pending and Event Log parity tracker cleanup
+
+Retired the stale Pending Operations / Event Log backlog item after verifying
+the current Paper, shared UI, adapter, and PWA surfaces. The exported Paper
+dashboard and visual manifest already name populated Pending Approvals rows and
+compact domain-tagged Event Log rows; `OperatorSignerPanel` renders the combined
+pending approval/operation queue with Paper collapse controls, keeps ordinary
+runtime operations out of approval prompts, and exposes Event Log filter, clear,
+collapse, row, and empty states. Validation: `npm test -- --run
+test/OperatorPanels.test.tsx -t "Event Log|Pending|pending approval|operation"`
+and `npm test -- --run test/DesignAdapters.test.tsx -t "pending runtime
+operations|observability events|runtime status"` from `repos/igloo-ui`, plus
+`npm --prefix repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx
+-t "ordinary runtime pending operations|fallback log filtering|dashboard
+projects runtime"`.
+
+## 2026-06-22 — Permissions runtime reflection live spec
+
+Closed the PWA Permissions runtime-reflection coverage gap with a real `@live`
+spec against a cooperating `igloo-shell` signer. The flow starts a 2-of-2 shell
+peer and stored PWA profile over a local relay, verifies a baseline
+shell-initiated sign succeeds, toggles the PWA peer policy to deny inbound
+`respond SIGN`, and verifies the next shell-initiated sign fails through the
+live runtime path. The shell signer fixture now accepts test-only runtime
+options so denial checks can use short sign/ping timeouts without changing
+product defaults. Validation: red/green `npm --prefix test run
+test:e2e:igloo-pwa:live -- ./igloo-pwa/specs/permissions-runtime-live.spec.ts`.
+
+## 2026-06-22 — Welcome unlock live readiness spec
+
+Closed the PWA Welcome unlock behavioral coverage gap with a real `@live`
+stored-profile test. The new Playwright flow starts a headless `igloo-shell`
+co-signer, seeds the PWA with the matching stored profile, unlocks from the
+Welcome screen, and verifies the dashboard reaches the Paper-facing **Ready**
+peer state while the shell runtime also reports sign readiness. The shared
+shell-signer fixture now keeps its runtime root under `/tmp` so macOS
+Unix-domain socket limits do not block daemon startup, and the PWA readiness
+helper now matches the current UI label for internal `sign-ready` peers.
+Validation: red/green `npm --prefix test run test:e2e:igloo-pwa:live --
+./igloo-pwa/specs/welcome-unlock-live.spec.ts`.
+
+## 2026-06-22 — Recover execution live spec
+
+Closed the PWA Recover execution coverage gap with a real `@live` browser spec.
+The new Playwright flow generates a deterministic 2-of-3 keyset, publishes the
+matching encrypted profile backups, seeds one saved local profile, unlocks the
+dashboard, launches Recover, pastes a real remote `bfshare`, and verifies that
+the app reveals the recovered normalized NSEC without using the visual harness
+fake-key seam. The shared browser-artifact helper now supports fixed private-key
+generation so live specs can assert deterministic recovery output. Validation:
+red/green `npm --prefix test run test:e2e:igloo-pwa:live --
+./igloo-pwa/specs/recover-execution.spec.ts`, `npm --prefix test run
+test:typecheck:pwa`, `npm --prefix test run test:guards:docs`, and `npm
+--prefix test run test:guards:selectors`.
+
+## 2026-06-22 — Peers collapse control
+
+Aligned the shared signer dashboard **Peers** header with the Paper chevron
+affordance by wiring it into the same dashboard section collapse control used
+by Pending Approvals and Event Log. The peer section starts expanded, keeps its
+online/total/ready/latency summary visible in the header, hides the peer rows
+while collapsed, and restores live peer telemetry when expanded again.
+Validation: red/green `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx -t "collapses and expands Peers"`, then `npm
+--prefix repos/igloo-ui test -- --run test/OperatorPanels.test.tsx -t
+"Peers|Event Log|Pending|pending approval|operation|peer"`.
+
+## 2026-06-22 — Pending Approvals collapse control
+
+Aligned the shared signer dashboard **Pending Approvals** header with the Paper
+chevron affordance by reusing the dashboard section collapse control. The queue
+starts expanded, keeps its pending count and nearest-expiry summary visible in
+the header, hides the approval/operation row list while collapsed, and restores
+the named list when expanded again. Validation: red/green `npm --prefix
+repos/igloo-ui test -- --run test/OperatorPanels.test.tsx -t "collapses and
+expands Pending Approvals"`, then `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx -t "Event Log|Pending|pending
+approval|operation"`.
+
+## 2026-06-22 — Event Log collapse control
+
+Aligned the shared signer dashboard **Event Log** header with the Paper
+chevron affordance by turning the visual marker into an accessible collapse /
+expand control. The Event Log starts expanded, keeps its count, Clear, and
+Filter controls in the header, hides only the row body while collapsed, and
+restores the live log region when expanded again. Validation: red/green `npm
+--prefix repos/igloo-ui test -- --run test/OperatorPanels.test.tsx -t
+"collapses and expands the Event Log"`, then `npm --prefix repos/igloo-ui test
+-- --run test/OperatorPanels.test.tsx -t "Event Log|Pending|pending
+approval|operation"`.
+
+## 2026-06-22 — Pending operations projection split
+
+Fixed the shared dashboard projection so ordinary runtime pending operations no
+longer masquerade as signer approval prompts. `igloo-ui` now only projects
+pending operations into **Pending Approvals** when the runtime context carries
+explicit approval/prompt labels, while `igloo-pwa` also passes ordinary pending
+operations into the shared **Pending Operations** rows; ordinary operations also
+use the same relative expiry labels as Paper approval rows. Validation:
+red/green `npm --prefix repos/igloo-ui test -- --run
+test/DesignAdapters.test.tsx -t "ordinary pending runtime operations"`,
+red/green `npm --prefix repos/igloo-pwa run test:unit:raw --
+test/frontend/App.test.tsx -t "ordinary runtime pending operations"`, full
+`npm --prefix repos/igloo-ui test -- --run test/DesignAdapters.test.tsx`,
+`npm --prefix repos/igloo-ui test -- --run test/OperatorPanels.test.tsx -t
+"Pending|pending approval|operation"`, focused PWA App coverage for ordinary
+operations, runtime peer capabilities, and fallback log filtering, `npm
+--prefix test run test:typecheck:pwa`, and `npm --prefix repos/igloo-ui run
+build`.
+
+## 2026-06-22 — Recover local share source
+
+Fixed the PWA Recover **Collect Shares** execution path so dashboard-launched
+recovery includes the unlocked local profile share that the UI shows as
+**Share #1 (this device)**. `recoverKeyFromShares` now mirrors the rotation
+source builder: when the selected source profile is unlocked and has an
+encrypted local `bfshare`, it prepends that source before pasted remote shares,
+deduping by package text. This prevents the Recover flow from claiming the
+threshold is met visually while sending only pasted remote sources to the
+adapter. Validation: red/green `npm --prefix repos/igloo-pwa run
+test:unit:raw -- test/frontend/App.test.tsx -t "auto-includes the unlocked
+local share when recovering"`, `npm --prefix repos/igloo-pwa run
+test:unit:raw -- test/frontend/App.test.tsx -t "recover|Recover"`, `npm
+--prefix repos/igloo-ui test -- --run test/CreateFlow.test.tsx -t
+"recover|Recover"`, and `npm --prefix test run test:typecheck:pwa`.
+
+## 2026-06-22 — Live nonce inventory history
+
+Threaded bounded peer-held nonce inventory history from `bifrost-rs` runtime
+status through `igloo-shared`, `igloo-ui`, and the PWA dashboard projection.
+Ping responses now record normalized held-count samples in a runtime-only
+per-peer ring buffer; shared/PWA view models carry the samples as
+`nonceInventoryHistory`; and `OperatorSignerPanel` renders the series as mini
+history bars in the peer nonce meter with an accessible telemetry label.
+Validation: `cargo test -p bifrost-signer peer_status_reports_`, `cargo test -p
+bifrost-bridge-tokio`, `cargo test -p bifrost-bridge-wasm
+runtime_metadata_peer_status_and_empty_drains_are_queryable`, `npm --prefix
+repos/igloo-shared run test:unit -- src/runtime-api.test.ts`, `npm --prefix
+repos/igloo-shared run test:typecheck`, `npm --prefix repos/igloo-ui test --
+--run test/DesignAdapters.test.tsx`, `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx -t "labels per-peer nonce availability"`, `npm
+--prefix repos/igloo-ui run build`, `npm --prefix repos/igloo-pwa run
+test:unit:raw -- test/frontend/App.test.tsx -t "projects runtime peer method
+capabilities"`, and `npm --prefix test run test:typecheck:pwa`.
+
+## 2026-06-22 — Live peer response latency
+
+Threaded latest peer response latency from `bifrost-rs` runtime status through
+`igloo-shared` and the PWA dashboard. Runtime-created pending operations now
+remember millisecond start times in memory; accepted peer responses record
+`PeerStatus.latency_ms`, restored/manual pending operations fall back to the
+existing second-resolution `started_at`, and the PWA dashboard smoke path now
+renders the row latency plus the shared Avg pill from live runtime data.
+Validation: `cargo test -p bifrost-signer
+peer_status_reports_latest_response_latency`, `cargo test -p bifrost-signer
+peer_status_reports_method_capabilities_from_policy`, `cargo test -p
+bifrost-bridge-tokio`, `cargo test -p bifrost-bridge-wasm
+runtime_metadata_peer_status_and_empty_drains_are_queryable`, `npm --prefix
+repos/igloo-ui test -- --run test/DesignAdapters.test.tsx`, `npm --prefix
+repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx -t "projects
+runtime peer method capabilities"`, and `npm --prefix repos/igloo-shared run
+test:typecheck`.
+
+## 2026-06-22 — Live peer method capability badges
+
+Threaded live peer method capabilities from `bifrost-rs` runtime status through
+`igloo-shared`, `igloo-ui`, and the PWA dashboard projection. `PeerStatus` now
+reports policy-gated `can_sign` plus request-side `can_ping`, `can_onboard`, and
+`can_ecdh`; shared/PWA peer rows derive SIGN/ECDH/PING/ONBOARD badges from those
+fields when no richer policy state is available, and ECDH readiness uses the
+explicit runtime capability when present. Validation: `cargo test -p
+bifrost-signer peer_status_reports_method_capabilities_from_policy`, `cargo test
+-p bifrost-bridge-tokio`, `cargo test -p bifrost-bridge-wasm
+runtime_metadata_peer_status_and_empty_drains_are_queryable`, `npm --prefix
+repos/igloo-shared run test:unit -- src/runtime-api.test.ts`, `npm --prefix
+repos/igloo-ui test -- --run test/DesignAdapters.test.tsx`, `npm --prefix
+repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx -t "projects
+runtime peer method capabilities"`, `npm --prefix repos/igloo-shared run
+test:typecheck`, `npm --prefix repos/igloo-ui run build`, and `npm --prefix test
+run test:typecheck:pwa`.
+
+## 2026-06-22 — Paper dashboard-only runtime card cleanup
+
+Removed the repeated merged identity/runtime status card from the Paper
+Permissions and Settings artboards so the card is dashboard-only, matching the
+runtime navigation model. `igloo-paper` now exports `dashboard/1c-permissions`
+starting at Signer Permissions, and `dashboard/3-settings-lock-profile` no
+longer repeats Signer Running behind the Settings drawer. Validation: Paper
+screenshots for Permissions and Settings, `make igloo-paper-sync`,
+`make igloo-paper-verify STRICT=1`, and generated export search confirming the
+target screens no longer contain Signer Running / Group Public Key / Share
+Public Key copy.
+
+## 2026-06-22 — Paper Browser Settings source cleanup
+
+Added the PWA-only **Browser Settings** group to the Paper Settings sidebar and
+refreshed the `igloo-paper` export. The `502-0` Settings artboard now shows
+Remember Browser State, Open Signer After Import, and Prefer Install Prompt with
+the same compact sidebar row treatment as the rest of Settings; the artboard was
+expanded to the drawer's measured height so Browser Settings and Profile
+Security are not clipped in the checked-in reference. Validation: Paper
+screenshots for the full artboard and sidebar, `make igloo-paper-sync`, and
+`make igloo-paper-verify STRICT=1`.
+
+## 2026-06-22 — Settings sponsor Paper source cleanup
+
+Reconciled the Settings **Onboard a Device** sponsor source-of-truth docs with
+the current Paper file and export. The live Paper canvas and `igloo-paper`
+export now show the canonical sponsor screens as dashboard modal states
+`3d-onboard-device-modal` and `3e-onboard-package-handoff-modal`; older
+`onboard-sponsor/*` references were retired in the app-header component doc,
+implementation plan, and Settings sidebar audit. Remaining product/design
+work is only to decide whether separate Device Onboarded / Onboarding Failed /
+Cancel Confirm sponsor artboards should be restored. Validation: live Paper MCP
+`get_basic_info`, `rg` against `repos/igloo-paper`, `npm --prefix test run
+test:guards:docs`, and diff checks.
+
+## 2026-06-22 — Permissions override persistence
+
+Closed the PWA Permissions persisted round-trip gap that was previously only
+covered by visual screenshots. The app-shell browser test now toggles a peer
+request policy from allow to deny, reloads to the locked Welcome screen,
+unlocks again, and verifies the override is still shown in the dashboard
+Permissions tab. The store now persists manual peer policy overrides
+immediately, preserves them when runtime snapshots come back with unset/default
+policy projections, and passes explicit `allow`/`deny` values through the local
+adapter instead of collapsing them to booleans. Validation: red/green `npm
+--prefix test run test:e2e:igloo-pwa:fast --
+./igloo-pwa/specs/app-shell.spec.ts -g "saves Permissions peer overrides"`,
+full `npm --prefix test run test:e2e:igloo-pwa:fast --
+./igloo-pwa/specs/app-shell.spec.ts` (9 tests), `npm --prefix repos/igloo-pwa
+run test:unit:raw -- test/frontend/App.test.tsx
+test/frontend/session-controller.test.ts test/frontend/operator-settings.test.ts`
+(67 tests), `npm --prefix test run test:typecheck:pwa`, and `npm --prefix test
+run test:guards:docs`.
+
+## 2026-06-22 — Settings save round-trip
+
+Closed the PWA Settings save behavioral gap that was previously only covered by
+visual screenshots. The app-shell browser test now edits the signer profile
+name and relay list through the Settings sidebar, saves through the runtime
+settings path, reloads to the locked Welcome screen, unlocks again, and verifies
+the saved profile name and relay are still present. The store now writes an
+explicit Settings save through the existing persistence allow-list immediately,
+instead of relying only on the debounced background writer. Validation:
+red/green `npm --prefix test run test:e2e:igloo-pwa:fast --
+./igloo-pwa/specs/app-shell.spec.ts -g "saves Settings profile changes"`, full
+`npm --prefix test run test:e2e:igloo-pwa:fast --
+./igloo-pwa/specs/app-shell.spec.ts` (8 tests), `npm --prefix repos/igloo-pwa
+run test:unit:raw -- test/frontend/App.test.tsx
+test/frontend/operator-settings.test.ts` (57 tests), and `npm --prefix test run
+test:typecheck:pwa`.
+
+## 2026-06-22 — Dashboard deep-link route intent
+
+Polished the PWA dashboard route handoff so locked dashboard tab deep links keep
+their intended destination through profile unlock while still normalizing the
+visible locked URL back to the public landing route. The app-shell browser
+coverage now also seeds dashboard reload states without fighting the app's
+persist-on-unload behavior, and the dashboard Recover route reload test exercises
+the real `/dashboard/recover` route. Validation: red/green `npm --prefix test
+run test:e2e:igloo-pwa:fast -- ./igloo-pwa/specs/app-shell.spec.ts -g "opens
+dashboard deep links after unlock"`, `npm --prefix test run
+test:e2e:igloo-pwa:fast -- ./igloo-pwa/specs/app-shell.spec.ts -g "keeps
+dashboard navigation through Recover"`, full `npm --prefix test run
+test:e2e:igloo-pwa:fast -- ./igloo-pwa/specs/app-shell.spec.ts` (7 tests),
+`npm --prefix repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx`
+(55 tests), and `npm --prefix test run test:typecheck:pwa`.
+
+## 2026-06-22 — Import and Onboard Save Profile visual seams
+
+Closed the remaining PWA visual-manifest save-profile holes for passphrase
+bearing Import and Onboard states. The Import **Save Profile** and Onboard
+**Save Profile** screenshots now render through DEV-only, non-persisted visual
+seams instead of trying to seed `pendingLoadConfirmation` or
+`pendingOnboardConnection` into localStorage. Both manifest rows are promoted
+to `aligned`, and `igloo-ui` now exports the shared
+`OnboardDeviceSponsorErrorField` type required by the PWA build. Validation:
+red/green focused visual specs for `captures the imported profile save step
+through the visual seam` and `captures the onboarded profile save step through
+the visual seam`; `npm --prefix test run test:e2e:igloo-pwa:visual --
+./igloo-pwa/specs/import-visual.spec.ts ./igloo-pwa/specs/onboard-visual.spec.ts`
+(5 tests); `npm --prefix test run test:guards:visual`, `npm --prefix test run
+test:typecheck:pwa`, `npm --prefix test run test:typecheck:strict-visual-specs`,
+`npm --prefix repos/igloo-ui run build`, `git -C repos/igloo-ui diff --check`,
+`git -C repos/igloo-pwa diff --check`, and `git diff --check`.
+
+## 2026-06-22 — Dashboard recover stale-route normalization
+
+Polished the PWA dashboard/recover route guard so a stale `/dashboard/recover`
+URL only survives when recovery was launched from the signer dashboard. A
+Welcome-launched recovery collection with resumable package text now keeps the
+Collect Shares screen but normalizes the browser URL back to `/`, preventing
+Safari refreshes from showing a public recover flow under a dashboard route.
+Validation: `npm test -- --run test/frontend/App.test.tsx -t "normalizes a
+stale dashboard recover URL for welcome-launched recovery collection"` from
+`repos/igloo-pwa` (repo script ran all 54 App tests), `npm --prefix test run
+test:typecheck:pwa`, `npm --prefix test run test:guards:docs`, `git -C
+repos/igloo-pwa diff --check`, and `git diff --check`.
+
+## 2026-06-22 — Settings Onboard source failure field state
+
+Polished the shared Settings **Onboard Device** sponsor-package creation
+failure path so adapter-side source material errors point back to the source
+fields that need correction. The shared dialog now accepts field-level error
+ownership, and `igloo-pwa` marks **Source bfshare** and **Source Password**
+invalid after a failed `bfshare` sponsor-package attempt while clearing the
+state on the next edit. Validation: `npm test -- --run
+test/OperatorPanels.test.tsx -t "marks Settings Onboard source material invalid
+after package creation fails"` and `npm test -- --run
+test/OperatorPanels.test.tsx -t "Settings Onboard Device|Onboard Device"` from
+`repos/igloo-ui`; `npm test -- --run test/frontend/App.test.tsx -t "marks
+Settings onboarding source material invalid after package creation fails"` and
+`npm test -- --run test/frontend/App.test.tsx -t "Settings onboarding|settings
+onboarding|Onboard Device|onboarding package"` from `repos/igloo-pwa` (repo
+script ran all 53 App tests); `npm --prefix repos/igloo-ui run build`, `npm
+--prefix test run test:typecheck:pwa`, `npm --prefix test run
+test:guards:docs`, `git -C repos/igloo-ui diff --check`, `git -C
+repos/igloo-pwa diff --check`, and `git diff --check`.
+
+## 2026-06-22 — Settings Onboard password mismatch semantics
+
+Polished the shared Settings **Onboard Device** sponsor-package form so a
+package password mismatch is exposed as a named **Package password mismatch**
+alert and the **Confirm Package Password** control is marked invalid and
+described by that error. The visible Paper-aligned copy stays the same while the
+form now points operators to the exact field that needs correction. Validation:
+`npm test -- --run test/OperatorPanels.test.tsx -t "renders the Settings
+Onboard Device source-package form"` and `npm test -- --run
+test/OperatorPanels.test.tsx -t "Settings Onboard Device|Onboard Device"` from
+`repos/igloo-ui`; `npm test -- --run test/frontend/App.test.tsx -t "creates a
+Settings onboarding package from an explicit bfshare while signer is
+running|locks the Settings onboarding form while package creation is running"`
+from `repos/igloo-pwa` (repo script ran all 52 App tests); `npm --prefix
+repos/igloo-ui run build` and `npm --prefix test run test:typecheck:pwa`.
+
+## 2026-06-22 — Settings Onboard error status semantics
+
+Polished the shared Settings **Onboard Device** sponsor-package dialog so its
+creation failures and package handoff failures announce as named error states.
+The Paper-aligned configure/handoff layout and copy remain unchanged, while
+handoff warnings now use **Onboard package handoff status** as an assertive
+alert and source-package creation errors use **Onboard package creation failed**.
+Validation: `npm test -- --run test/OperatorPanels.test.tsx -t "renders the
+Settings Onboard Device source-package form"`, `npm test -- --run
+test/OperatorPanels.test.tsx -t "renders Settings Onboard Device handoff
+failures with a warning status tone"`, and `npm test -- --run
+test/OperatorPanels.test.tsx -t "Settings Onboard Device|Onboard Device"` from
+`repos/igloo-ui`; `npm test -- --run test/frontend/App.test.tsx -t "creates a
+Settings onboarding package from an explicit bfshare while signer is
+running|locks the Settings onboarding form while package creation is running"`
+from `repos/igloo-pwa` (repo script ran all 52 App tests); `npm --prefix
+repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`, `npm
+--prefix test run test:guards:docs`, `git -C repos/igloo-ui diff --check`, `git
+-C repos/igloo-pwa diff --check`, and `git diff --check`.
+
+## 2026-06-22 — Recover failure alert semantics
+
+Polished the outside-runtime Recover **Collect Shares** failure state so the
+inline error announces as a named **Recovery failed** alert instead of a generic
+alert. The shared `igloo-ui` panel keeps the existing Paper-style warning copy
+and invalid field state while making the failure region directly navigable.
+Validation: `npm test -- --run test/CreateFlow.test.tsx -t "marks recover
+source fields invalid after a recovery failure"` and `npm test -- --run
+test/CreateFlow.test.tsx -t "recover collection|labels the recover
+collection|exposes recover threshold progress|labels each recover source
+card|locks recover source material|which recovery source|fixed
+recovery|threshold-worthy|marks recover source fields invalid"` from
+`repos/igloo-ui`; `npm test -- --run test/frontend/App.test.tsx -t "keeps
+recover collection blocked|locks recover collection inputs|shows a local
+recovery error|opens recover with the fixed Paper source count"` from
+`repos/igloo-pwa` (repo script ran all 52 App tests); `npm --prefix
+repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`, `npm
+--prefix test run test:guards:docs`, `git -C repos/igloo-ui diff --check`,
+`git -C repos/igloo-pwa diff --check`, and `git diff --check`.
+
+## 2026-06-22 — Recover collection status semantics
+
+Polished the outside-runtime Recover **Collect Shares** panel so its live
+blocked/ready/recovering message has a stable accessible name. The shared
+`igloo-ui` panel now exposes **Recovery collection status** while preserving the
+same Paper copy for blocked, threshold-met, and recovering states. Validation:
+`npm test -- --run test/CreateFlow.test.tsx -t "labels the recover collection
+live status"` and `npm test -- --run test/CreateFlow.test.tsx -t "recover
+collection|labels the recover collection|exposes recover threshold
+progress|labels each recover source card|locks recover source material|which
+recovery source|fixed recovery|threshold-worthy|marks recover source fields
+invalid"` from `repos/igloo-ui`; `npm test -- --run test/frontend/App.test.tsx
+-t "keeps recover collection blocked|locks recover collection inputs|shows a
+local recovery error|opens recover with the fixed Paper source count"` from
+`repos/igloo-pwa` (repo script ran all 52 App tests); `npm --prefix
+repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`, `npm
+--prefix test run test:guards:docs`, `git -C repos/igloo-ui diff --check`,
+`git -C repos/igloo-pwa diff --check`, and `git diff --check`.
+
+## 2026-06-22 — Event Log filter group semantics
+
+Polished the shared signer dashboard **Event Log** filter drawer so the
+expanded All/domain chips are exposed as one named control group instead of a
+loose row of buttons. Opening the Paper-style Filter control now reveals
+**Event Log filters**, with the existing pressed-state chips preserved inside
+the group. Validation: `npm test -- --run test/OperatorPanels.test.tsx -t
+"labels expanded Event Log filters as one control group"` and `npm test --
+--run test/OperatorPanels.test.tsx -t "Event Log|filters the diagnostics
+log|labels expanded Event Log filters|pending approval|Pending
+Approvals|orders pending|labels pending|dispatches pending|peer refresh|per-peer
+ping|unavailable peer ping|renders per-peer readiness|labels per-peer nonce"`
+from `repos/igloo-ui`; `npm test -- --run test/frontend/App.test.tsx -t
+"dashboard navigation|dashboard tab|filters fallback runtime log lines"` from
+`repos/igloo-pwa` (repo script ran all 52 App tests); `npm --prefix
+repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`, `npm
+--prefix test run test:guards:docs`, `git -C repos/igloo-ui diff --check`,
+`git -C repos/igloo-pwa diff --check`, and `git diff --check`.
+
+## 2026-06-22 — Pending queue row semantics
+
+Polished the shared signer dashboard **Pending Approvals** queue so approval
+and operation rows are exposed as one named list instead of anonymous layout
+divs. The queue now announces as **Pending approval and operation rows**, with
+each visible row named by method, peer/threshold, detail/response, and expiry,
+for example **SIGN approval from Peer #2: kind:1 Short Text Note, expires
+42s**. Validation: `npm test -- --run test/OperatorPanels.test.tsx -t "labels
+pending approval and operation rows as a combined queue"` and `npm test --
+--run test/OperatorPanels.test.tsx -t "pending approval|Pending
+Approvals|orders pending|labels pending|dispatches pending|Event Log|filters
+the diagnostics log|peer refresh|per-peer ping|unavailable peer ping|renders
+per-peer readiness|labels per-peer nonce"` from `repos/igloo-ui`; `npm test --
+--run test/frontend/App.test.tsx -t "dashboard navigation|dashboard
+tab|filters fallback runtime log lines"` from `repos/igloo-pwa` (repo script
+ran all 52 App tests); `npm --prefix repos/igloo-ui run build`, `npm --prefix
+test run test:typecheck:pwa`, `npm --prefix test run test:guards:docs`, `git
+-C repos/igloo-ui diff --check`, `git -C repos/igloo-pwa diff --check`, and
+`git diff --check`.
+
+## 2026-06-22 — Event Log row semantics
+
+Polished the shared signer dashboard **Event Log** so visible diagnostics rows
+are exposed as a named log instead of an anonymous div list. The event list now
+announces as **Event Log entries**, and each visible row is an article named by
+its normalized domain plus message, for example **sign event: sign request
+received**, preserving the Paper row layout while making filtered runtime
+diagnostics easier to navigate. Validation: `npm test -- --run
+test/OperatorPanels.test.tsx -t "summarizes peer readiness counts"` and `npm
+test -- --run test/OperatorPanels.test.tsx -t "Event Log|filters the
+diagnostics log|pending approval|Pending Approvals|peer refresh|per-peer
+ping|unavailable peer ping|renders per-peer readiness|labels per-peer nonce"`
+from `repos/igloo-ui`; `npm test -- --run test/frontend/App.test.tsx -t
+"filters fallback runtime log lines"` from `repos/igloo-pwa` (repo script ran
+all 52 App tests); `npm --prefix repos/igloo-ui run build`, `npm --prefix
+test run test:typecheck:pwa`, `npm --prefix test run test:guards:docs`, `git
+-C repos/igloo-ui diff --check`, `git -C repos/igloo-pwa diff --check`, and
+`git diff --check`.
+
+## 2026-06-22 — Recover source-card group labels
+
+Polished the outside-runtime Recover **Collect Shares** source rows so each
+remote share card exposes a share-specific group label tied to its current
+status, such as **Share #2 recovery source: Password required**. This preserves
+the existing Paper card layout while making multi-source recovery easier to
+navigate and distinguish. Validation: `npm test -- --run
+test/CreateFlow.test.tsx -t "labels each recover source card"` and `npm test
+-- --run test/CreateFlow.test.tsx -t "recover collection|exposes recover
+threshold progress|labels each recover source card|locks recover source
+material|which recovery source|fixed recovery|threshold-worthy|marks recover
+source fields invalid"` from `repos/igloo-ui`; `npm test -- --run
+test/frontend/App.test.tsx -t "opens recover with the fixed Paper source
+count"` from `repos/igloo-pwa` (repo script ran all 52 App tests); `npm
+--prefix repos/igloo-ui run build`, `npm --prefix test run
+test:typecheck:pwa`, `npm --prefix test run test:guards:docs`, `git -C
+repos/igloo-ui diff --check`, `git -C repos/igloo-pwa diff --check`, and `git
+diff --check`.
+
+## 2026-06-22 — Recover threshold progress semantics
+
+Polished the outside-runtime Recover **Collect Shares** progress meter so the
+visual threshold bar is also exposed as a proper progressbar. The shared
+`igloo-ui` meter now reports the recovery threshold progress name, min/max,
+current collected count, and text such as **1 of 3 required**, giving the
+existing Paper-style meter a concrete semantic state without changing the
+layout. Validation: `npm test -- --run test/CreateFlow.test.tsx -t "exposes
+recover threshold progress"` and `npm test -- --run test/CreateFlow.test.tsx -t
+"recover collection|exposes recover threshold progress|locks recover source
+material|which recovery source|fixed recovery|threshold-worthy|marks recover
+source fields invalid"` from `repos/igloo-ui`; `npm test -- --run
+test/frontend/App.test.tsx -t "keeps recover collection blocked"` from
+`repos/igloo-pwa` (repo script ran all 52 App tests); `npm --prefix
+repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`,
+`npm --prefix test run test:guards:docs`, `git -C repos/igloo-ui diff
+--check`, `git -C repos/igloo-pwa diff --check`, and `git diff --check`.
+
+## 2026-06-22 — Dashboard peer nonce telemetry labels
+
+Polished the shared signer dashboard peer nonce meter so the visible
+incoming/outgoing bars expose concrete per-peer telemetry instead of a generic
+label. Each meter now names the peer and the incoming, outgoing, and spent
+nonce counts when runtime data is present, while unavailable rows still report
+that nonce availability is unavailable. Validation: `npm test -- --run
+test/OperatorPanels.test.tsx -t "labels per-peer nonce availability"` and `npm
+test -- --run test/OperatorPanels.test.tsx -t "peer readiness|renders per-peer
+readiness|labels per-peer nonce|peer refresh|per-peer ping|unavailable peer
+ping|Event Log|Pending Approvals"` from `repos/igloo-ui`; `npm --prefix
+repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`,
+`npm --prefix test run test:guards:docs`, `git -C repos/igloo-ui diff
+--check`, and `git diff --check`.
+
+## 2026-06-22 — Dashboard peer row telemetry split
+
+Polished the shared signer dashboard peer rows so readiness and measured
+latency render as separate telemetry instead of one replacing the other. Rows
+now keep the readiness word (**Ready**, **Known**, **Offline**, etc.) visible
+alongside a latency chip when runtime data includes `latencyMs`, and expose a
+single accessible summary that includes readiness, latency, and last-seen
+context. Validation: `npm test -- --run test/OperatorPanels.test.tsx -t
+"renders per-peer readiness and latency"` and `npm test -- --run
+test/OperatorPanels.test.tsx -t "peer readiness|renders per-peer
+readiness|peer refresh|per-peer ping|unavailable peer ping|Event Log|Pending
+Approvals"` from `repos/igloo-ui`; `npm --prefix repos/igloo-ui run build`,
+`npm --prefix test run test:typecheck:pwa`, `git -C repos/igloo-ui diff
+--check`, and `git diff --check`.
+
+## 2026-06-22 — Recover source failure field state
+
+Polished the outside-runtime Recover **Collect Shares** failure state so a
+failed recovery attempt marks the source package and package password controls
+invalid in addition to showing the inline alert. This keeps the visible error
+connected to the exact source material the operator needs to fix, and the PWA
+recover flow consumes the shared invalid state after the adapter rejects a
+recovery attempt. Validation: `npm test -- --run test/CreateFlow.test.tsx -t
+"marks recover source fields invalid"` and `npm test -- --run
+test/CreateFlow.test.tsx -t "recover collection|locks recover source
+material|which recovery source|fixed recovery|threshold-worthy|marks recover
+source fields invalid"` from `repos/igloo-ui`; `npm test -- --run
+test/frontend/App.test.tsx -t "shows a local recovery error"` from
+`repos/igloo-pwa`; `npm --prefix repos/igloo-ui run build`, `npm --prefix test
+run test:typecheck:pwa`, `npm --prefix test run test:guards:docs`, `git -C
+repos/igloo-ui diff --check`, `git -C repos/igloo-pwa diff --check`, and `git
+diff --check`.
+
+## 2026-06-22 — Settings Onboard cancel confirmation
+
+Added the Paper-listed cancel-confirm state to the Settings **Onboard a
+Device** sponsor package flow. The shared `igloo-ui` sponsor dialog now accepts
+a host-supplied dirty-draft signal and asks operators to keep editing or discard
+the onboarding package draft before closing; `igloo-pwa` drives that signal only
+after real sponsor source/password/label edits so a freshly opened dialog still
+closes normally. Validation: `npm test -- --run test/OperatorPanels.test.tsx -t
+"confirms before closing dirty Settings Onboard"` and `npm test -- --run
+test/OperatorPanels.test.tsx -t "Settings Onboard Device|confirms before
+closing dirty Settings Onboard"` from `repos/igloo-ui`; `npm test -- --run
+test/frontend/App.test.tsx -t "unified settings actions"` from
+`repos/igloo-pwa`; `npm --prefix repos/igloo-ui run build`, `npm --prefix test
+run test:typecheck:pwa`, `npm --prefix test run test:guards:docs`, `git -C
+repos/igloo-ui diff --check`, `git -C repos/igloo-pwa diff --check`, and `git
+diff --check`.
+
+## 2026-06-22 — Permissions busy-state token lock
+
+Polished the shared Permissions panel transition behavior so peer policy tokens
+and sibling toolbar actions lock while a permissions refresh or clear operation
+is running. This prevents manual request/respond overrides from racing with
+**Refreshing...** or **Clearing...** dashboard operations, and the PWA
+Permissions tab already consumes the same busy props. Validation: `npm test --
+--run test/OperatorPanels.test.tsx -t "locks peer permission tokens"`, `npm
+test -- --run test/OperatorPanels.test.tsx -t "permissions|Peer
+Permissions|locks peer permission tokens|pending approval|Pending Approvals|Event
+Log|filters the diagnostics log|peer refresh|per-peer ping|unavailable peer
+ping|attention states|empty pending queue"` from `repos/igloo-ui`; `npm test --
+--run test/frontend/App.test.tsx -t "dashboard navigation|dashboard tab|Peer
+Permissions"` from `repos/igloo-pwa`; `npm --prefix repos/igloo-ui run build`,
+`npm --prefix test run test:typecheck:pwa`, `npm --prefix test run
+test:guards:docs`, `git -C repos/igloo-ui diff --check`, and `git diff
+--check`.
+
+## 2026-06-22 — Rotate Keyset transition input lock
+
+Polished the shared Rotate Existing keyset transition so the source profile
+selector, bfshare source textareas, package password fields, and add/remove
+source controls lock while rotation is running. The primary action keeps its
+**Rotating...** loading state, and the PWA create-rotate path already consumes
+the shared `actionBusy` prop. Validation: `npm test -- --run
+test/CreateFlow.test.tsx -t "locks rotate-keyset source inputs"` and `npm test
+-- --run test/CreateFlow.test.tsx -t "rotate-keyset|locks
+rotate-keyset|replace-share package entry|locks replace-share package
+entry|onboarding package entry|import profile entry|locks onboarding package
+entry|locks import profile entry|locks save-profile inputs|locks create-flow
+keyset inputs|locks select-share choices|recover collection"` from
+`repos/igloo-ui`; `npm test -- --run test/frontend/App.test.tsx -t
+"auto-includes the unlocked local share"` from `repos/igloo-pwa`; `npm --prefix
+repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`, `npm
+--prefix test run test:guards:docs`, `git -C repos/igloo-ui diff --check`, and
+`git diff --check`.
+
+## 2026-06-22 — Replace Share package-entry transition lock
+
+Polished the shared Settings-launched Replace Share package entry transition so
+the onboarding package textarea, package password field, and Scan QR action lock
+while the replacement package is connecting. The primary action keeps its
+**Connecting...** loading state, and the PWA replacement flow consumes the same
+shared component from Settings. Validation: `npm test -- --run
+test/CreateFlow.test.tsx -t "locks replace-share package entry"` and `npm test
+-- --run test/CreateFlow.test.tsx -t "replace-share package entry|locks
+replace-share package entry|replace-share applying|onboarding package
+entry|import profile entry|locks onboarding package entry|locks import profile
+entry|locks save-profile inputs|locks select-share choices|recover collection"`
+from `repos/igloo-ui`; `npm test -- --run test/frontend/App.test.tsx -t "shows
+the Paper applying replacement state after a replacement package connects"` from
+`repos/igloo-pwa`; `npm --prefix repos/igloo-ui run build`, `npm --prefix test
+run test:typecheck:pwa`, `npm --prefix test run test:guards:docs`, `git -C
+repos/igloo-ui diff --check`, and `git diff --check`.
+
+## 2026-06-22 — Import and Onboard entry transition locks
+
+Polished the shared outside-runtime Import Profile and Onboard Package entry
+transitions so package/profile textareas, password fields, and the Onboard QR
+scan action lock while the profile/package submit action is running. The primary
+actions keep their existing **Importing...** and **Connecting...** loading
+states, and the PWA import/onboard entry paths consume the same shared
+components. Validation: `npm test -- --run test/CreateFlow.test.tsx -t "locks
+onboarding package entry"`, `npm test -- --run test/CreateFlow.test.tsx -t
+"locks import profile entry"`, and `npm test -- --run test/CreateFlow.test.tsx
+-t "onboarding package entry|import profile entry|locks onboarding package
+entry|locks import profile entry|locks save-profile inputs|locks create-flow
+keyset inputs|locks select-share choices|recover collection"` from
+`repos/igloo-ui`; `npm test -- --run test/frontend/App.test.tsx -t "routes
+Import Existing Device|accepts a real-looking bfonboard"` from `repos/igloo-pwa`;
+`npm --prefix repos/igloo-ui run build`, `npm --prefix test run
+test:typecheck:pwa`, `npm --prefix test run test:guards:docs`, `git -C
+repos/igloo-ui diff --check`, and `git diff --check`.
+
+## 2026-06-22 — Save Profile transition input lock
+
+Polished the shared Create **Save Profile** transition so profile name,
+password fields, relay add/remove controls, and the Back action lock while the
+local profile is being saved. The primary action keeps its **Saving...** loading
+state, and the relay list uses the existing read-only treatment during the
+in-flight transition. Validation: `npm test -- --run test/CreateFlow.test.tsx
+-t "locks save-profile inputs"` and `npm test -- --run
+test/CreateFlow.test.tsx -t "save-profile setup|locks save-profile
+inputs|onboard save surface|select-share group public key|locks select-share
+choices|locks create-flow keyset inputs"` from `repos/igloo-ui`, `npm --prefix
+repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`, `npm
+--prefix test run test:guards:docs`, `git -C repos/igloo-ui diff --check`, and
+`git diff --check`.
+
+## 2026-06-22 — Select Share save transition lock
+
+Polished the shared Create **Select Share** transition so share-card choices and
+the Back action lock while the local share selection is being saved. The primary
+action keeps its **Continuing...** loading state, and users can no longer switch
+which share stays local during the in-flight transition. Validation: `npm test
+-- --run test/CreateFlow.test.tsx -t "locks select-share choices"` and `npm
+test -- --run test/CreateFlow.test.tsx -t "select-share group public key|locks
+select-share choices|create-flow keyset|Paper four-step|locks create-flow
+keyset inputs"` from `repos/igloo-ui`, `npm --prefix repos/igloo-ui run
+build`, `npm --prefix test run test:typecheck:pwa`, `npm --prefix test run
+test:guards:docs`, `git -C repos/igloo-ui diff --check`, and `git diff
+--check`.
+
+## 2026-06-22 — Create Keyset generation input lock
+
+Polished the shared Create Keyset first-step transition so the form locks while
+keyset generation is running. The shared `igloo-ui` card now keeps the primary
+action in its **Generating...** loading state and disables the keyset name,
+threshold/total-share counters, optional private-key field, and back action
+until generation resolves. Validation: `npm test -- --run
+test/CreateFlow.test.tsx -t "locks create-flow keyset inputs"` and `npm test --
+--run test/CreateFlow.test.tsx -t "create-flow keyset|Paper four-step|locks
+create-flow keyset inputs|tooltip affordances"` from `repos/igloo-ui`, `npm
+--prefix repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`,
+`npm --prefix test run test:guards:docs`, `git -C repos/igloo-ui diff --check`,
+and `git diff --check`.
+
+## 2026-06-22 — Recover source remove action labels
+
+Polished the shared Recover **Collect Shares** panel so editable source-row
+remove actions keep the compact visible **Remove** text while exposing the
+specific share being removed, for example **Remove Share #2 source**. This makes
+multi-source recovery controls distinguishable without changing the Paper row
+layout. Validation: `npm test -- --run test/CreateFlow.test.tsx -t "locks
+recover source material"` and `npm test -- --run test/CreateFlow.test.tsx -t
+"recover collection|locks recover source material|which recovery source|fixed
+recovery|threshold-worthy"` from `repos/igloo-ui`, `npm --prefix
+repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`, `npm
+--prefix test run test:guards:docs`, `git -C repos/igloo-ui diff --check`, and
+`git diff --check`.
+
+## 2026-06-22 — Dashboard peer refresh loading labels
+
+Polished the shared signer dashboard peer refresh transition so both the
+attention retry action and the Peers section refresh action announce and display
+explicit in-flight copy while refresh is running: **Retrying...** /
+**Retrying connections** and **Refreshing...** / **Refreshing peers**. This
+keeps dashboard refresh controls consistent with the broader loading-feedback
+pass. Validation: `npm test -- --run test/OperatorPanels.test.tsx -t "marks
+dashboard peer refresh actions busy"` and `npm test -- --run
+test/OperatorPanels.test.tsx -t "peer refresh|per-peer ping|unavailable peer
+ping|All Relays Offline|Retry Connections|attention states"` from
+`repos/igloo-ui`, `npm --prefix repos/igloo-ui run build`, `npm --prefix test
+run test:typecheck:pwa`, `npm --prefix test run test:guards:docs`, `git -C
+repos/igloo-ui diff --check`, and `git diff --check`.
+
+## 2026-06-22 — Pending queue contextual open labels
+
+Polished the shared signer dashboard pending queue so approval and operation
+rows keep the compact visible **Open** action while exposing row-specific
+accessible labels such as **Open SIGN approval from Peer #2** and **Open ecdh
+operation for threshold 2**. This keeps repeated pending actions distinguishable
+for assistive navigation and future host wiring. Validation: `npm test --
+--run test/OperatorPanels.test.tsx -t "pending approval|Pending
+Approvals|empty pending queue|labels pending open actions|orders
+pending|dispatches pending"` from `repos/igloo-ui`, `npm --prefix
+repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`, `npm
+--prefix test run test:guards:docs`, `git -C repos/igloo-ui diff --check`, and
+`git diff --check`.
+
+## 2026-06-22 — Pending queue empty-state copy
+
+Aligned the shared signer dashboard pending queue empty state with the combined
+approvals/operations surface. When no approval prompts or pending operations
+exist, the section now says **No pending approvals or operations.** instead of
+only naming approvals. Validation: `npm test -- --run test/OperatorPanels.test.tsx
+-t "empty pending queue"` and `npm test -- --run test/OperatorPanels.test.tsx -t
+"empty pending queue|pending approval|Pending Approvals|Event Log|filters the
+diagnostics log"` from `repos/igloo-ui`, `npm --prefix repos/igloo-ui run build`,
+`npm --prefix test run test:typecheck:pwa`, `npm --prefix test run
+test:guards:docs`, `git -C repos/igloo-ui diff --check`, and `git diff --check`.
+
+## 2026-06-22 — Recover key copy transition lock
+
+Polished the recovered private-key export screen so Copy waits for the clipboard
+write before showing success. While copying is in flight, Save, QR, Reveal,
+Clear, Encrypt Key, and password edits are disabled to keep the exported value
+stable through the transition. The pass also refreshed stale PWA persistence
+test fixtures with the current `pendingLoadErrorKind` field so the PWA build
+can type-check the test surface. Validation: `npm test -- --run
+test/frontend/App.test.tsx -t "locks recovered key export controls"` from
+`repos/igloo-pwa` (repo script ran the full App test file), `npm --prefix
+repos/igloo-pwa run build`, `npm --prefix test run test:typecheck:pwa`, `npm
+--prefix test run test:guards:docs`, `git -C repos/igloo-pwa diff --check`, and
+`git diff --check`.
+
+## 2026-06-22 — Event Log clearing filter lock
+
+Polished the shared signer dashboard Event Log clearing transition. When the
+log is clearing, the Clear action keeps its busy state and any open Filter
+controls now lock until the clear operation resolves, preventing filter changes
+against an in-flight log mutation. Validation: `npm test -- --run
+test/OperatorPanels.test.tsx -t "locks Event Log filter"` and `npm test -- --run
+test/OperatorPanels.test.tsx -t "Event Log|filters the diagnostics log|pending
+approval|Pending Approvals|peer refresh|per-peer ping|unavailable peer ping"`
+from `repos/igloo-ui`, `npm --prefix repos/igloo-ui run build`, `npm --prefix
+test run test:typecheck:pwa`, and `npm --prefix test run test:guards:docs`.
+
+## 2026-06-22 — Peer ping unavailable-state labels
+
+Polished the shared signer dashboard peer rows so auto-filled local and missing
+member rows no longer expose a generic disabled **Ping** action. Unavailable
+peer actions now explain whether the row is local, missing, or lacks a valid
+public key while preserving real Ping behavior for reachable remote peers.
+Validation: `npm test -- --run test/OperatorPanels.test.tsx -t "unavailable
+peer ping"` and `npm test -- --run test/OperatorPanels.test.tsx -t "peer
+readiness|peer refresh|per-peer ping|unavailable peer ping|Peer #2"` from
+`repos/igloo-ui`, `npm --prefix repos/igloo-ui run build`, `npm --prefix test
+run test:typecheck:pwa`, and `npm --prefix test run test:guards:docs`.
+
+## 2026-06-22 — Settings Onboard handoff action lock
+
+Polished the Settings **Onboard a Device** package handoff state so Copy, Save,
+QR, Done, and Create Another behave as an exclusive transition. While one
+handoff action is running, sibling actions and modal dismiss are disabled until
+the current action resolves, preventing status races between package copy/save/QR
+operations. Validation: `npm test -- --run test/OperatorPanels.test.tsx -t
+"Settings Onboard Device|package handoff|locks Settings Onboard"` from
+`repos/igloo-ui`, `npm test -- --run test/frontend/App.test.tsx -t "Settings
+onboarding package from an explicit bfshare"` from `repos/igloo-pwa` (repo
+script ran the full App test file), `npm --prefix repos/igloo-ui run build`,
+`npm --prefix test run test:typecheck:pwa`, and `npm --prefix test run
+test:guards:docs`.
+
+## 2026-06-22 — Settings Onboard package creation lock
+
+Polished the Settings **Onboard a Device** sponsor package creation state. The
+shared dialog now announces package creation, disables sponsor inputs and
+password reveal toggles, blocks Cancel/backdrop/Escape dismiss while creation is
+in flight, and keeps the PWA modal frozen until the package helper resolves.
+Validation: `npm test -- --run test/OperatorPanels.test.tsx -t "Settings
+Onboard Device|package handoff|locks Settings Onboard"` from `repos/igloo-ui`,
+`npm test -- --run test/frontend/App.test.tsx -t "locks the Settings onboarding
+form"` from `repos/igloo-pwa` (repo script ran the full App test file), `npm
+--prefix repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`,
+and `npm --prefix test run test:guards:docs`.
+
+## 2026-06-22 — Recover collection in-flight lock
+
+Polished the outside-runtime Recover **Collect Shares** transition state. The
+shared panel now announces that recovery is running, disables source package
+and password edits, and locks add/remove controls while the recovery action is
+in flight; the PWA path passes through the same `recover.collect` busy state.
+Validation: `npm test -- --run test/CreateFlow.test.tsx -t "recover
+collection|locks recover source|which recovery source|fixed recovery"` from
+`repos/igloo-ui`, `npm test -- --run test/frontend/App.test.tsx -t "locks
+recover collection inputs"` from `repos/igloo-pwa` (repo script ran the full
+App test file), `npm --prefix repos/igloo-ui run build`, `npm --prefix test run
+test:typecheck:pwa`, and `npm --prefix test run test:guards:docs`.
+
+## 2026-06-22 — Dashboard action busy-state signals
+
+Added accessible busy-state feedback to the custom signer dashboard refresh
+and ping actions. Peer refresh, attention retry, and per-peer ping buttons now
+pair their visible loading/disabled state with `aria-busy`, keeping the
+hand-rolled dashboard actions aligned with the shared `Button` loading
+contract. Validation: `npm test -- --run test/OperatorPanels.test.tsx -t
+"pending approval|Pending Approvals|orders pending|Event Log controls|filters
+the diagnostics log|peer refresh actions busy|per-peer ping actions busy|peer
+refresh and per-peer ping"` from `repos/igloo-ui`, `npm --prefix
+repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`, and
+`npm --prefix test run test:guards:docs`.
+
+## 2026-06-22 — Pending Approvals open-action guard
+
+Polished the shared signer dashboard Pending Approvals section so `Open`
+actions are disabled until a host wires an opener callback, while preserving
+callback hooks for approval and pending-operation rows. This removes another
+dead dashboard action without blocking the future interactive approval queue.
+Validation: `npm test -- --run test/OperatorPanels.test.tsx -t "pending
+approval|Pending Approvals|orders pending|Event Log controls|filters the
+diagnostics log"` from `repos/igloo-ui`, `npm --prefix repos/igloo-ui run
+build`, `npm --prefix test run test:typecheck:pwa`, and `npm --prefix test run
+test:guards:docs`.
+
+## 2026-06-22 — Event Log empty-state clear guard
+
+Polished the shared signer dashboard Event Log empty state so an empty log
+keeps the **Clear** action disabled while still showing the Paper-style `0
+events` summary and no filter control. This prevents a dead action on fresh or
+cleared signer sessions and aligns the empty state with the broader button
+feedback pass. Validation: `npm test -- --run test/OperatorPanels.test.tsx -t
+"Event Log controls|filters the diagnostics log"` from `repos/igloo-ui`, `npm
+--prefix repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`,
+`npm --prefix test run test:guards:docs`, and `git diff --check`.
+
+## 2026-06-22 — Select Share key identity info
+
+Replaced the Select Share group-key copy action with an info-only identity
+section that shows both the keyset `npub` and raw hex group public key. The
+shared `igloo-ui` panel now accepts explicit npub/hex labels, wraps both values
+responsively, and the PWA derives the npub from the generated group hex before
+rendering the create flow. Validation: `npm test -- --run
+test/CreateFlow.test.tsx -t "select-share group public key"` from
+`repos/igloo-ui`, `npm test -- --run test/frontend/App.test.tsx -t "hard-cut
+create flow"` from `repos/igloo-pwa`, `npm --prefix repos/igloo-ui run build`,
+`npm --prefix test run test:typecheck:pwa`, `npm --prefix test run
+test:guards:docs`, and `git diff --check`.
+
+## 2026-06-21 — Settings Onboard handoff status tones
+
+Added explicit info/success/warning tones to the shared Settings **Onboard a
+Device** handoff status. PWA copy/save/QR handoff feedback now renders
+in-progress states as info, successful handoffs as success, and failed or
+canceled handoffs as warnings instead of showing every status in green.
+Validation: `npm test -- --run test/OperatorPanels.test.tsx -t "handoff
+failures with a warning|package handoff state"` from `repos/igloo-ui`, `npm
+test -- --run test/frontend/App.test.tsx -t "Settings onboarding package"`
+from `repos/igloo-pwa`, `npm --prefix repos/igloo-ui run build`, `npm --prefix
+test run test:typecheck:pwa`, `npm --prefix test run test:guards:docs`, and
+`git diff --check`.
+
+## 2026-06-21 — Settings Onboard sponsor missing-input status
+
+Added a form-local missing-input status to the shared Settings **Onboard a
+Device** sponsor dialog. When `Create Package` is disabled because required
+sponsor fields are incomplete, the modal now names the missing device/source
+or password fields instead of leaving the disabled state unexplained.
+Validation: `npm test -- --run test/OperatorPanels.test.tsx -t "explains
+missing Settings Onboard"`, `npm test -- --run test/OperatorPanels.test.tsx -t
+"Settings Onboard Device|missing Settings Onboard"` from `repos/igloo-ui`,
+`npm --prefix repos/igloo-ui run build`, `npm --prefix test run
+test:typecheck:pwa`, and `npm test -- --run test/frontend/App.test.tsx -t
+"Settings onboarding package"` from `repos/igloo-pwa`.
+
+## 2026-06-21 — Recover Collect Shares source-row guidance
+
+Added row-level readiness guidance to the shared outside-runtime **Collect
+Shares** panel. Each remote share now shows whether it is waiting, missing the
+source package, missing the package password, or ready to count toward the
+threshold. Validation: `npm test -- --run test/CreateFlow.test.tsx -t "which
+recovery source field is missing"`, `npm test -- --run test/CreateFlow.test.tsx
+-t "recover collection|fixed recovery|which recovery source"` from
+`repos/igloo-ui`, `npm --prefix repos/igloo-ui run build`, `npm --prefix test
+run test:typecheck:pwa`, and `npm test -- --run test/frontend/App.test.tsx -t
+"recover collection"` from `repos/igloo-pwa`.
+
+## 2026-06-21 — Recover Collect Shares inline failure state
+
+Added a form-local failure state to the outside-runtime **Collect Shares**
+recovery panel. Failed recovery attempts now show an inline error next to the
+source-package form, keep the user on the Collect Shares step, and clear the
+message as soon as source material changes. Validation: `npm test -- --run
+test/frontend/App.test.tsx -t "shows a local recovery error"` from
+`repos/igloo-pwa`, `npm test -- --run test/CreateFlow.test.tsx -t "recover
+collection|fixed recovery"` from `repos/igloo-ui`, `npm --prefix
+repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`, and
+`git diff --check`.
+
+## 2026-06-21 — Settings Onboard handoff display identity split
+
+Split the Settings **Onboard a Device** package handoff result so the modal can
+show a compact Paper-style `npub...` share label while Save still derives the
+`bfonboard` filename from the actual remote share public key. Validation:
+`npm test -- --run test/frontend/App.test.tsx -t "Settings onboarding package"`
+from `repos/igloo-pwa` and `npm test -- --run test/OperatorPanels.test.tsx -t
+"package handoff state|Create Another action"` from `repos/igloo-ui`.
+
+## 2026-06-21 — Settings Onboard handoff action guard
+
+Hardened the shared Settings **Onboard a Device** package handoff dialog so
+`Create Another` only renders when a host provides an action handler. This keeps
+non-PWA hosts from exposing a dead command while preserving the PWA sponsor
+flow. Validation: `npm test -- --run test/OperatorPanels.test.tsx -t "Create
+Another action"` from `repos/igloo-ui`.
+
+## 2026-06-21 — Settings Onboard handoff npub summary
+
+Aligned the Settings **Onboard a Device** package handoff summary with the
+Paper modal by showing the remote share public key as a compact `npub...`
+display label instead of raw hex. Validation: `npm test -- --run
+test/frontend/App.test.tsx -t "Settings onboarding package"` from
+`repos/igloo-pwa`.
+
+## 2026-06-21 — PWA dashboard route coherence
+
+Made the PWA dashboard URL agree with the rendered runtime state: locked
+reloads from `/dashboard/...` now replace back to `/`, and the dashboard
+Recover action owns `/dashboard/recover` instead of leaving the previous tab's
+URL behind. Browser back/forward between dashboard-launched Recover and
+dashboard tab URLs now swaps the rendered view with the URL instead of leaving
+Collect Shares or a dashboard tab under a stale path. Validation: `npm test --
+--run test/frontend/App.test.tsx -t "dashboard navigation|reloaded dashboard
+route"` from `repos/igloo-pwa`.
+
+## 2026-06-21 — Dashboard peer method badges from policy state
+
+Projected live runtime peer policy state into signer dashboard peer rows so the
+Paper SIGN/ECDH/PING/ONBOARD method badges appear from `effective_policy`
+instead of only when callers manually provide `permissionMethods`. Validation:
+`npm --prefix repos/igloo-ui test -- --run test/DesignAdapters.test.tsx` and
+`npm --prefix repos/igloo-ui test -- --run test/OperatorPanels.test.tsx -t
+"peer"`.
+
+## 2026-06-21 — Recover success save feedback
+
+Added visible Save feedback to the outside-runtime Recover private-key success
+screen: saving the recovered `nsec` or encrypted `ncryptsec` export now changes
+the action label to **Saved!**, matching the existing Copy acknowledgment and
+the broader button-feedback pass. Validation: `npm --prefix repos/igloo-pwa run
+test:unit:raw -- test/frontend/App.test.tsx -t "recovered private key"`.
+
+## 2026-06-21 — Settings Onboard handoff loading states
+
+Added loading-button feedback to the Settings **Onboard a Device** package
+handoff actions. The shared sponsor dialog now accepts the active handoff
+action and renders Copy/Save/QR with the standard `igloo-ui` loading labels,
+while PWA keeps Copy and Save in loading state until the clipboard/file writes
+actually settle. Validation: `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx -t "package handoff state"` and `npm --prefix
+repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx -t "Settings
+onboarding package"`.
+
+## 2026-06-21 — Recover Collect Shares guidance status
+
+Aligned Recover **Collect Shares** copy with the Paper reference by keeping the
+"Old devices do not need to be online..." guidance visible in all collection
+states and moving the threshold-blocked/ready message into a separate
+aria-live status line. The remote source password field also now uses the Paper
+"Enter password to decrypt" placeholder. Validation: `npm --prefix
+repos/igloo-ui test -- --run test/CreateFlow.test.tsx -t "recover collection"`
+and `npm --prefix repos/igloo-pwa run test:unit:raw --
+test/frontend/App.test.tsx -t "recover collection blocked"`.
+
+## 2026-06-21 — Settings Onboard handoff feedback
+
+Finished the Settings **Onboard a Device** package handoff action feedback:
+the shared `igloo-ui` sponsor dialog now accepts an aria-live handoff status,
+and `igloo-pwa` announces copy, save, and QR-code outcomes for the generated
+`bfonboard` package while clearing stale messages on new package work.
+Validation: `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx -t "package handoff state"` and `npm --prefix
+repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx -t "Settings
+onboarding package"`.
+
+## 2026-06-21 — Recover fixed source-count collection
+
+Aligned the outside-runtime Recover **Collect Shares** screen with the Paper
+reference: shared `igloo-ui` recovery collection can render a fixed source set
+without add/remove controls, and PWA recovery now initializes exactly
+`threshold - 1` remote source slots from the selected profile. A 3-of-5 keyset
+therefore opens with two remote source cards and `1 of 3 required` progress
+instead of a single editable source list. Validation: `npm --prefix
+repos/igloo-ui test -- --run test/CreateFlow.test.tsx` and `npm --prefix
+repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx`.
+
+## 2026-06-21 — Pending Operations Paper row projection
+
+Aligned pending runtime operations with the shared Paper dashboard row model:
+`runtimeStatusToSignerDashboardView` now projects operations into
+`pendingApprovalRows` with method, peer, detail, and expiry labels while keeping
+the legacy operation rows available for compatibility. The dashboard de-dupes
+matching operation ids so the PWA and direct adapter consumers render one
+Paper-style pending row instead of a duplicate legacy row. Validation: `npm
+--prefix repos/igloo-ui test -- --run test/OperatorPanels.test.tsx
+test/DesignAdapters.test.tsx`.
+
+## 2026-06-21 — Event Log filter summary parity
+
+Aligned the shared dashboard Event Log filter summary with the Paper dashboard
+reference: the closed filter control now reports the four primary active
+runtime lanes while preserving sync/echo diagnostic rows and the expanded
+filter affordance. Validation: `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx`.
+
+## 2026-06-21 — Pending Approvals nearest ordering
+
+Aligned the shared dashboard Pending Approvals section with the live Paper
+dashboard reference: approvals and pending runtime operations now render in
+nearest-expiry order, and the section header's **Nearest** label is derived
+from the same sorted list rather than trusting caller order. This keeps the
+urgent approval row first when runtime data arrives out of order. Validation:
+`npm --prefix repos/igloo-ui test -- --run test/OperatorPanels.test.tsx` and
+`npm --prefix repos/igloo-ui run build`.
+
+## 2026-06-21 — Settings Onboard signer-active gate
+
+Tightened the Settings **Onboard a Device** sponsor dialog now that the
+explicit `bfshare` producer path exists. The shared dialog honors its
+`signerActive` prop, shows inline guidance when the signer is stopped, keeps
+**Create Package** disabled until the signer is active and the package form is
+complete, and uses the shared loading button state while packaging. PWA Settings
+tests now cover both stopped-signer gating and the running-signer package
+creation path. Validation: `npm --prefix repos/igloo-ui test -- --run
+test/OperatorPanels.test.tsx -t "package creation while the signer is stopped"`,
+`npm --prefix repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx
+-t "unified settings actions"`, and `npm --prefix repos/igloo-pwa run
+test:unit:raw -- test/frontend/App.test.tsx -t "creates a Settings onboarding
+package"`.
+
+## 2026-06-21 — Recover collection readiness gate
+
+Aligned the Recover **Collect Shares** action with the Paper share-collection
+state: the shared `igloo-ui` panel now keeps **Next Step** disabled until the
+threshold is met, shows explicit blocked-state guidance, and the PWA counts
+only remote source entries that include both package text and password. This
+prevents empty or half-filled recovery submissions from falling through to the
+generic adapter error. Validation: `npm --prefix repos/igloo-ui test -- --run
+test/CreateFlow.test.tsx`, `npm --prefix repos/igloo-pwa run test:unit:raw --
+test/frontend/App.test.tsx`, `npm --prefix repos/igloo-ui run build`, and `npm
+--prefix test run test:typecheck:pwa`.
+
+## 2026-06-21 — RelayList inline validation
+
+Added inline validation to the shared `igloo-ui` `RelayList` primitive so
+invalid relay text is rejected at entry time instead of surfacing later during
+profile creation. PWA now passes `igloo-shared`'s `normalizeRelays` through the
+create/import/onboard save-profile relay editors, and the create flow shows the
+specific invalid relay message while leaving the saved relay list unchanged.
+Validation: `npm --prefix repos/igloo-ui test -- --run
+test/ui/misc-primitives.test.tsx -t "RelayList"` and `npm --prefix
+repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx -t "validates
+relays"`.
+
+## 2026-06-21 — Shared RelayList primitive
+
+Resolved the redundant relay-control follow-up by extracting the richer
+create-flow relay editor into a public `igloo-ui` `RelayList` primitive while
+leaving the older `RelayInput` export intact for compatibility. Create/save
+profile flows now consume the shared primitive directly, and primitive tests
+cover add, remove, read-only, and ping states. Validation: `npm --prefix
+repos/igloo-ui test -- --run test/ui/misc-primitives.test.tsx -t "Relay"` and
+`npm --prefix repos/igloo-ui test -- --run test/CreateFlow.test.tsx`.
+
+## 2026-06-21 — Structural Settings dirty check
+
+Replaced the PWA Settings dirty check's `JSON.stringify` comparison with an
+explicit structural comparator for signer name, relay order, and signer setting
+fields. This keeps transient relay input out of dirty state and avoids false
+dirty states from harmless object key-order differences in persisted or
+migrated signer settings. Validation: `npm --prefix repos/igloo-pwa run
+test:unit:raw -- test/frontend/operator-settings.test.ts` and `npm --prefix
+repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx -t "settings"`.
+
+## 2026-06-21 — Stale load-recover reload cleanup
+
+Closed the orphaned `load-recover` follow-up. The view is no longer part of the
+PWA surface, and old persisted blobs with `activeView: "load-recover"` now
+normalize to the resumable import entry screen instead of rendering an
+Import-labeled shell with no body. Validation: `npm --prefix repos/igloo-pwa run
+test:unit:raw -- test/frontend/App.test.tsx -t "stale load-recover"`.
+
+## 2026-06-21 — Event Log fallback domain filtering
+
+Resolved the Event Log fallback-filter open question. PWA fallback runtime log
+lines now strip leading level/domain bracket tokens from their rendered message
+while still inferring canonical domains such as `sync`, `sign`, `ecdh`, `ping`,
+`echo`, and `signer policy` for badges and filters. Level-only fallback lines
+remain visible without creating level filter chips. Validation: `npm --prefix
+repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx -t "fallback
+runtime log"`.
+
+## 2026-06-21 — Runtime failure metadata pass-through
+
+Preserved safe scalar failure metadata from WASM bridge failures through
+`igloo-shared` observability: `parseOperationFailure` now retains the bridge
+failure `code` as `reasonCode` plus `failed_peer`, the runtime failure schema
+allows `failed_peer`, and the browser bridge emits `reason_code`/`failed_peer`
+with runtime failure events. This supports richer Dashboard **Signing Failed**
+details without loosening the observability redactor. Validation: `npm --prefix
+repos/igloo-shared run test:unit -- src/runtime-pump.test.ts` and `npm
+--prefix repos/igloo-shared run test:unit -- src/observability-schema.test.ts`.
+
+## 2026-06-21 — Dashboard signing-failed state
+
+Added the Paper **Signing Failed** dashboard modal for structured runtime sign
+failures. `igloo-ui` now exports a shared `DashboardSigningFailedDialog`, and
+`igloo-pwa` derives it from `runtime.failure` events with `op_type="sign"`,
+showing the round id/error detail and routing **Retry** through the existing
+signer refresh path. The PWA adapter also accepts richer future event metadata
+for exact Paper copy when the runtime emits event kind, retry count, and peer
+response counts. Validation: `npm --prefix repos/igloo-pwa run test:unit:raw --
+test/frontend/App.test.tsx -t "signing-failed"`, `npm --prefix repos/igloo-ui
+test -- --run test/OperatorPanels.test.tsx`, `npm --prefix repos/igloo-pwa run
+test:unit:raw -- test/frontend/App.test.tsx`, `npm --prefix repos/igloo-ui run
+build`, and `npm --prefix test run test:typecheck:pwa`.
+
+## 2026-06-21 — Dashboard loading-profile state
+
+Added the Paper **Loading profile...** transition for saved-profile unlocks
+while the browser signer session is starting. `igloo-ui` now exports a shared
+`DashboardLoadingState` with the dashboard profile strip and centered spinner,
+and `igloo-pwa` renders it in-memory during the pending `startSession` call
+while keeping incorrect-passphrase errors able to reopen the unlock modal.
+Validation: `npm --prefix repos/igloo-pwa run test:unit:raw --
+test/frontend/App.test.tsx -t "loading-profile"`, `npm --prefix repos/igloo-ui
+test -- --run test/OperatorPanels.test.tsx`, `npm --prefix repos/igloo-pwa run
+test:unit:raw -- test/frontend/App.test.tsx`, `npm --prefix repos/igloo-ui run
+build`, `npm --prefix test run test:typecheck:pwa`, and `npm --prefix test run
+test:guards`.
+
+## 2026-06-21 — Dashboard all-relays-offline state
+
+Mapped relay-specific runtime degradation onto the Paper **All Relays Offline**
+state instead of collapsing it into generic signing-blocked copy. The shared
+`igloo-ui` dashboard attention model now supports compact detail cards and a
+contextual retry action, while `igloo-pwa` derives the relay outage from
+runtime readiness `degraded_reasons`, shows `All relays unreachable · signing
+degraded.`, and routes **Retry Connections** through the existing signer refresh
+path. Validation: `npm --prefix repos/igloo-pwa run test:unit:raw --
+test/frontend/App.test.tsx -t "all-relays-offline"`, `npm --prefix
+repos/igloo-ui test -- --run test/OperatorPanels.test.tsx`, `npm --prefix
+repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx`, `npm
+--prefix repos/igloo-ui run build`, `npm --prefix test run test:typecheck:pwa`,
+and `npm --prefix test run test:guards`.
+
+## 2026-06-21 — Dashboard profile-load-failed state
+
+Mapped saved-profile unlock/runtime startup failures onto the Paper
+**Couldn't load profile** state instead of leaving every `startSession` failure
+inside the password modal. Incorrect passphrases still remain inline in the
+unlock modal, while non-passphrase profile load failures close the modal, show
+Paper copy/actions (`Try Again`, `Back to Profiles`), and keep the error
+in-memory only. Validation: `npm --prefix repos/igloo-pwa run test:unit:raw --
+test/frontend/App.test.tsx -t "profile-load-failed"` and `npm --prefix
+repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx`.
+
+## 2026-06-21 — Dashboard signing-blocked attention state
+
+Extended the PWA dashboard attention derivation to surface runtime readiness
+blocks: when a running signer has relays configured but `sign_ready=false`, the
+shared dashboard banner now shows **Signing is blocked** with the current
+signing-peer count versus threshold and guidance to bring another signing peer
+online. Validation: `npm --prefix repos/igloo-pwa run test:unit:raw --
+test/frontend/App.test.tsx -t "no relays|signing-blocked"`.
+
+## 2026-06-21 — Dashboard no-relays attention state
+
+Added a shared `igloo-ui` dashboard attention model and warning banner for
+actionable signer-level states, then wired `igloo-pwa` to surface it when an
+unlocked profile has no configured relays. The runtime card no longer labels an
+active zero-relay signer as `Connected`; it shows `No relays configured` plus
+guidance to add a relay in Settings. Validation: `npm --prefix repos/igloo-ui
+test -- --run test/OperatorPanels.test.tsx -t "attention states"` and `npm
+--prefix repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx -t "no
+relays"`.
+
+## 2026-06-21 — Rotate collect-share local validation
+
+Aligned the older Rotate Existing collect-shares path with the Recover flow:
+when the selected source profile is the currently unlocked local device,
+`igloo-ui` renders a **Share #N (this device)** validated row and `igloo-pwa`
+auto-includes that encrypted local `bfshare` with the in-memory passphrase
+before any pasted remote sources. Locked profiles still require pasted
+`bfshare` packages. Validation: `npm --prefix repos/igloo-ui test -- --run
+test/CreateFlow.test.tsx`, `npm --prefix repos/igloo-pwa test -- --run
+test/frontend/App.test.tsx -t "auto-includes the unlocked local share"`,
+`npm --prefix repos/igloo-ui run build`, and `npm --prefix test run
+test:typecheck:pwa`.
+
+## 2026-06-21 — Dashboard routes and deep links
+
+Added URL-backed dashboard tab routing in `igloo-pwa` without persisting
+runtime secrets: `/dashboard`, `/dashboard/permissions`, and
+`/dashboard/settings` now deep-link into the unlocked dashboard, while locked
+loads still render the Welcome/profile unlock surface until the user enters the
+device passphrase. Dashboard tab clicks push browser history, Back restores the
+previous dashboard tab, and dirty Settings browser navigation now opens the
+unsaved-changes guard and restores `/dashboard/settings` when the user keeps
+editing. Validation: `npx playwright test -c ./igloo-pwa/playwright.config.ts
+./igloo-pwa/specs/app-shell.spec.ts`, `npm --prefix repos/igloo-pwa test --
+--run test/frontend/App.test.tsx`, `npm --prefix test run test:typecheck:pwa`,
+and `npm --prefix test run test:guards:selectors`.
+
+## 2026-06-21 — Smoke UI polish backlog reconciliation
+
+Reconciled the Igloo UI/PWA smoke-feedback backlog against the current branch.
+Settings **Onboard a Device** now uses the shared explicit `bfshare` sponsor
+dialog to produce post-setup `bfonboard` packages, Recover **Collect Shares**
+uses its tailored panel with the local share validated, and Recover private-key
+export now has a focused test asserting the encrypted `ncryptsec1` path. The
+remaining Peer Telemetry item was narrowed to live bifrost-rs/igloo-shared
+instrumentation because the shared dashboard UI and visual projection are
+already aligned, while router and Paper source-of-truth cleanup remain open.
+Validation: `npm --prefix repos/igloo-pwa test -- --run test/frontend/App.test.tsx`.
+
 ## 2026-06-20 — Settings sponsor producer clarified
 
 Searched `igloo-pwa`, `igloo-home`, `igloo-ui`, `igloo-shared`, and

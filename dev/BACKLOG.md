@@ -14,53 +14,8 @@ Group by area. When an item is finished, move a one-line summary to
 > the codebase before picking one up. Trivial test-refactor micro-items from the
 > 2026-05 sessions were left in the `HISTORY.md` archive rather than carried here.
 
-## Design (Paper ↔ runtime)
-
-- [ ] (effort: M) Add a **Browser Settings** group to the Paper `502-0` Settings
-  artboard so the PWA-only toggles (Remember browser state / Open signer after
-  import / Prefer install prompt) are reflected in the design — `igloo-paper` ·
-  surfaced 2026-06-09, the only PWA-only Settings section without a Paper counterpart.
-- [ ] (effort: S) Edit Paper so the merged **identity/runtime card is
-  dashboard-only** — drop the repeated header from the Permissions/Settings
-  artboards (`1c-permissions`, `502-0`) to match the runtime (decided 2026-06-09).
-- [ ] (effort: M) Add a **Pending Operations** component to the Paper design
-  system, then align the runtime `OperatorSignerPanel` card to it; rename the
-  runtime "Diagnostics" card → **Event Log** to match Paper at the same time —
-  `igloo-paper` + `igloo-ui`.
-- [ ] (effort: S) Confirm whether `Export Profile`/`Export Share` should keep a
-  quick unencrypted copy-to-clipboard alongside the password modal — product call.
-- [ ] (effort: L) Define and implement post-setup **Onboard a Device** sponsorship
-  from Settings — the current sidebar action can only show an explanatory modal
-  because stored browser profiles do not retain undistributed remote share secrets.
-  `igloo-shared` now exposes the readiness/status helper used by PWA and a
-  source-share package builder for callers that already hold the correct remote
-  member source material. The `bfonboard` producer itself is already defined:
-  `igloo-pwa` uses `createOnboardingPackageForShare` during create/distribute,
-  `igloo-home` exposes `createGeneratedOnboardingPackage`, and `bifrost-rs`
-  owns `encode_bfonboard_package`. The missing work is the Paper sponsor flow
-  and a Settings-time way to obtain explicit target-member source material after
-  setup.
-  Restore/create/export the Paper sponsor screens first; current `igloo-paper`
-  metadata includes recipient Onboard screens only. `igloo-paper`'s AppHeader
-  component doc records sponsor artboards `1B3Q-0`, `1B5X-0`, `1B84-0`,
-  `1BAB-0`, and `1BCI-0`, but a live Paper MCP inspection on 2026-06-20 found
-  those IDs are stale references absent from the current `igloo-ui-shared` file.
-  Then add a shared/app capability that can drive the existing builder from
-  explicit source material without persisting raw remote shares.
-  Preserve the secret boundary; do not fake this by cloning the local share. Audit:
-  [`settings-sidebar-alignment-audit-2026-06-19.md`](./reports/settings-sidebar-alignment-audit-2026-06-19.md).
-  Unblock plan:
-  [`settings-onboard-sponsor-unblock-plan-2026-06-19.md`](./plans/settings-onboard-sponsor-unblock-plan-2026-06-19.md).
-  — `igloo-paper` + `igloo-ui` + `igloo-shared` +
-  `igloo-pwa` · surfaced 2026-06-19 during Settings sidebar alignment.
-
 ## bifrost-rs / igloo-shared runtime
 
-- [ ] (effort: L) **Peer telemetry**: per-peer latency, "Avg" latency, nonce
-  sparkline, and per-method SIGN/ECDH/PING capability badges — requires
-  bifrost-rs + igloo-shared instrumentation; the trigger to promote the
-  `dashboard-signer` visual entry to `aligned`. Spec:
-  [`plans/bifrost-rs-peer-telemetry-and-approval-spec-2026-06-10.md`](./plans/bifrost-rs-peer-telemetry-and-approval-spec-2026-06-10.md).
 - [ ] (effort: L) **Interactive signing-approval queue** (Deny / Allow once /
   Always allow) behind the shipped Pending-Approvals shell — per-method allow/deny
   policy already exists; this adds a wait-for-approval queue. Same spec as above.
@@ -78,36 +33,17 @@ Group by area. When an item is finished, move a one-line summary to
   the cleaner architecture is for the onboard runtime to *be* the durable signer (no
   capture/relaunch seam to lose state). Would also simplify the snapshot plumbing
   threaded through store → finalize → startSession. — igloo-shared + igloo-pwa.
-- [ ] (effort: S) **Sign-miss op is mislabeled `ping` in runtime failures.** A failed
-  inbound *sign* request surfaces as `failure op_type="ping" message="nonce unavailable"`
-  in the runtime log (cost us real diagnosis time). Fix the host-side op-type classification
-  so sign/ecdh misses aren't reported as pings — bifrost-rs (host).
+- [ ] (effort: S) Enrich runtime signing-failure observability with signed
+  event kind, retry-attempt count, and peer-response counts so the shipped
+  Dashboard **Signing Failed** dialog can show exact Paper metadata for live
+  failures. Failure `code`/`failed_peer` now flows through `igloo-shared`; the
+  remaining fields require deeper round context — bifrost-rs + igloo-shared.
 - [ ] (effort: S) Pre-existing clippy nits surfaced near the nonce code: "very complex
   type" on `NoncePool`'s `HashMap<u16, HashMap<..>>` fields (factor a type alias),
   `sort_by` → `sort_by_key` in `outgoing_public_nonces`, and `&[x.clone()]` →
   `slice::from_ref` in the onboard handler — bifrost-core / bifrost-signer.
 
 ## igloo-pwa
-
-- [ ] (effort: L) Adopt a real router for the dashboard pages — header nav still
-  drives `store.activeDashboardTab`; URL deep-linking / back-button is a separate
-  refactor with route-guard considerations for sensitive unlocked states.
-- [ ] (effort: L) Deferred dashboard screens: error/empty states (loading,
-  load-failed, all-relays-offline, signing-blocked, signing-failed).
-- [ ] (effort: M) Tailored Recover "Collect Shares" panel (Paper `49W`) instead of
-  reusing `RotateKeysetPanel` with an inert Source-Profile dropdown; until then
-  `recover-collect-shares` stays `needs-work`.
-- [ ] (effort: M) Wire encrypted export on the Recover Private Key screen — the
-  Encrypt-Key checkbox/password fields render but `RecoverPrivateKeyView` saves
-  plaintext nsec.
-- [ ] (effort: M) Auto-include the unlocked device's own share in recover/rotate
-  Collect Shares (both are paste-only today; matches Paper's "Share #1 validated").
-- [ ] (effort: S) Remove or re-entry the now-orphaned `load-recover` view (dropping
-  the import `load-choice` screen removed its only entry point in `App.tsx`).
-- [ ] (effort: S, unsure) Make the Settings dirty-check structural rather than
-  `JSON.stringify` of relays/signerSettings, if those shapes grow.
-- [ ] (effort: S) Decide the fate of the redundant `RelayInput`
-  (`igloo-ui/src/components/ui/relay-input.tsx`) vs the newer `RelayList`.
 
 ### igloo-pwa per-tab isolation — deferred sub-items (see 2026-06-10 plan)
 
@@ -167,19 +103,6 @@ Group by area. When an item is finished, move a one-line summary to
   still prints.
 - [ ] (effort: S) Add a small regression test for
   `repos/igloo-paper/scripts/update_usage_coverage.py`.
-- [ ] (effort: M) **P1** Add `@live` behavioral spec: welcome **Unlock → running,
-  sign-ready** signer — unlock is only screenshotted today (`welcome-visual`) —
-  Test harness · needs a cooperating peer online to reach `sign_ready`.
-- [ ] (effort: M) **P1** Add `@live` behavioral spec: **Permissions** toggle
-  round-trip — toggle a peer send/receive policy and assert it persists and is
-  reflected in runtime peer state (`permissions-visual` only screenshots) — Test harness.
-- [ ] (effort: M) **P1** Add `@live` behavioral spec: **Settings save** round-trip
-  — edit signer name/relays/settings, save, reload, assert persistence through the
-  real store (`settings-visual` only screenshots) — Test harness.
-- [ ] (effort: M) **P2** Add `@live` behavioral spec: **Recover execution** —
-  reconstruct the nsec from threshold shares; `recover-visual` injects a fake key
-  via `window.__IGLOO_TEST_RECOVERED_KEY__` and only screenshots the success
-  screen — Test harness.
 - [ ] (effort: M) **`pwa-home-pairing` is effectively dead** — it's `@cross-client`
   (runs in NO CI lane), DISPLAY-gated, and until 2026-06-11 read the runtime
   snapshot from localStorage where it is never persisted. It now uses the corrected
@@ -212,8 +135,5 @@ Group by area. When an item is finished, move a one-line summary to
 
 ## Open questions
 
-- [ ] (effort: S) Event Log Filter chips key off `badgeLabel` = domain for structured
-  events but = level for the string fallback — decide whether the fallback should be
-  filterable or the chips hidden when unstructured.
 - [ ] (effort: S) Confirm default peer permissions for new remote shares — the store
   initializes `sign`/`ecdh`/`ping`/`onboard` all enabled (permissive); product call.

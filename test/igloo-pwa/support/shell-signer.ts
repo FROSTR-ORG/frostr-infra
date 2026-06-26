@@ -1,8 +1,7 @@
-import os from 'node:os';
 import path from 'node:path';
 import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 
 const execFileAsync = promisify(execFile);
 
@@ -100,9 +99,13 @@ export async function startShellSigner(input: {
   packageSecret: string;
   relayUrl: string;
   label?: string;
+  runtimeOptions?: Record<string, unknown>;
 }): Promise<ShellSigner> {
   const binary = ensureIglooShellBinary();
-  const root = await mkdtemp(path.join(os.tmpdir(), 'igloo-pwa-shell-signer-'));
+  // Keep the literal runtime path short enough for Unix-domain socket limits.
+  // macOS `os.tmpdir()` expands under /var/folders/... and can exceed sun_path
+  // before igloo-shell gets a chance to use XDG_RUNTIME_DIR fallback sockets.
+  const root = await mkdtemp(path.join('/tmp', 'igloo-pwa-shell-'));
   const env = shellEnv(root);
 
   // For a bfprofile import, igloo-shell honors --relay-profile but ignores bare
@@ -129,6 +132,13 @@ export async function startShellSigner(input: {
   const profileId = extractProfileId(importResult);
   if (!profileId) {
     throw new Error(`igloo-shell import did not return a profile id: ${JSON.stringify(importResult)}`);
+  }
+
+  if (input.runtimeOptions) {
+    const profilePath = path.join(root, 'xdg', 'config', 'igloo-shell', 'profiles', `${profileId}.json`);
+    const profile = JSON.parse(await readFile(profilePath, 'utf8')) as Record<string, unknown>;
+    profile.runtime_options = input.runtimeOptions;
+    await writeFile(profilePath, `${JSON.stringify(profile, null, 2)}\n`);
   }
 
   runShellJson(binary, ['daemon', 'start', '--profile', profileId, '--passphrase', SHELL_LOCAL_PASSPHRASE], env);

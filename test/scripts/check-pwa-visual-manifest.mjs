@@ -9,6 +9,12 @@ const MANIFEST_PATH = process.env.FROSTR_PWA_VISUAL_MANIFEST_PATH
   : path.join(ROOT_DIR, 'test', 'igloo-pwa', 'visual-manifest.json');
 const PAPER_DIR = path.join(ROOT_DIR, 'repos', 'igloo-paper');
 const ALLOWED_STATUSES = new Set(['aligned', 'needs-work']);
+const ALIGNED_UNCERTAINTY_PATTERNS = [
+  /open product question/i,
+  /not a defect/i,
+  /deferred/i,
+  /Browser Settings are no longer rendered/i,
+];
 
 function pathExists(filePath) {
   return fs.existsSync(filePath);
@@ -96,6 +102,14 @@ for (const [index, screen] of screens.entries()) {
     && !pathExists(path.join(ROOT_DIR, output))
   ) {
     fail(`${label}.output does not exist for aligned screen ${name}: ${output}`);
+  }
+
+  if (
+    status === 'aligned'
+    && typeof screen.notes === 'string'
+    && ALIGNED_UNCERTAINTY_PATTERNS.some((pattern) => pattern.test(screen.notes))
+  ) {
+    fail(`${label}.notes carries unresolved uncertainty while marked aligned: ${name}`);
   }
 }
 
