@@ -203,7 +203,9 @@ Cloudflare-fronted deploy, user docs published.
 
 ## Phase 2 — `igloo-chrome` to Web Store beta (scoped map)
 
-Gets its own spec/plan cycle.
+Gets its own spec/plan cycle. The current agent-doable implementation unit is
+`dev/plans/igloo-chrome-production-package-hardening-2026-06-27.md`; it
+deliberately defers Web Store operations and `frost2x` deprecation.
 
 **Distribution channel: fresh Web Store listing; deprecate `frost2x`.**
 igloo-chrome is effectively a rewrite of the signer internals, so it launches as
@@ -224,29 +226,36 @@ published signing extension is itself a liability:
   then remove).
 - igloo-chrome versions per the Phase 0 scheme — no forced jump.
 
-Scope:
+Agent-doable scope:
 
-1. **C2 — profile cipher.** Write `profile-blob.test.ts` (round-trip,
-   wrong-password, GCM-tag-flip, known-answer vector), unwrap the mocks, make the
-   master key **non-extractable** (stop exporting it as base64). Already a
-   BACKLOG item.
+1. **C2 — profile cipher.** Closed at current `HEAD`: `profile-blob.test.ts`
+   covers round-trip, wrong-password, GCM-tag-flip, independent WebCrypto KAT,
+   and wrong session key; unlock keys are non-extractable (`054026e`).
 2. **Strip dev-only surface from the production build** — gate/remove the
-   `DEBUG_COMMAND_TYPE` handlers (RELOAD, CLEAR_PROFILE_UNLOCKS) and the
-   `localhost`/`127.0.0.1` dev-relay CSP rules.
-3. **Scope or justify host permissions** — narrow the broad `*://*/*` set or
-   document the rationale in the store listing.
-4. **frost2x deprecation** — final pointer release with key/seed export; unpublish
+   `DEBUG_COMMAND_TYPE` handlers (RELOAD, CLEAR_PROFILE_UNLOCKS,
+   SEED_PROFILE_UNLOCK) and the `localhost`/`127.0.0.1` dev-relay CSP rules from
+   release-mode output.
+3. **Scope or justify host permissions** — document the rationale for broad
+   content-script/provider injection and profile-configured relay connectivity.
+   Narrowing the architecture is out of this implementation unit.
+4. **Add release-shape verification** — make the release candidate flow prove
+   the production package is free of debug commands and local-relay CSP entries.
+
+Maintainer/deferred launch operations:
+
+1. **frost2x deprecation** — final pointer release with key/seed export; unpublish
    on a grace timeline.
-5. **Privacy policy** (required by the Web Store) — host on the Phase 1 domain.
-6. **Store assets** — new listing: name, screenshots, description, category,
+2. **Privacy policy** (required by the Web Store) — host on the Phase 1 domain.
+3. **Store assets** — new listing: name, screenshots, description, category,
    support contact.
-7. **Submit** — budget for multi-day review latency.
+4. **Submit** — budget for multi-day review latency.
 
 ### Phase 2 gate
 
 Chrome fast E2E green, cipher tests green (un-mocked), production build verified
-free of debug commands + localhost CSP, `frost2x` deprecation release shipped,
-privacy policy live.
+free of debug commands + localhost CSP. Web Store submission, privacy-policy
+hosting, and `frost2x` deprecation are separate maintainer launch gates before
+the public listing is announced.
 
 ---
 

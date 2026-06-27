@@ -39,6 +39,16 @@ there.
 - **`.env` is optional, not required.** `make repo-check` only warns if it is
   missing; the demo runs without it.
 
+## Release Packaging
+
+- **Chrome dev/test builds are not release-shape proof.** `igloo-chrome` keeps
+  local relay CSP entries and debug command seams in normal builds so the
+  workspace harness and manual demo relays work. Public release candidates must
+  use the repo-local release path (`npm --prefix repos/igloo-chrome run
+  build:release` or `release:candidate`), which runs
+  `check:production-package` and fails if local relay CSP entries or
+  `ext.debug.*` command strings remain in the production output.
+
 ## Scratch & State
 
 - **Generated output belongs under `./.tmp/`,** not tracked-looking paths like

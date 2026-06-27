@@ -72,16 +72,18 @@ public package only needs them absent or inert.
 
 In scope:
 
-1. Production-build gating for `DEBUG_COMMAND_TYPE` routing in
+1. Workspace docs updates that keep the release roadmap and release process in
+   sync with the narrowed agent-doable Phase 2 scope.
+2. Production-build gating for `DEBUG_COMMAND_TYPE` routing in
    `repos/igloo-chrome/src/background/router-state.ts` and any protocol/client
    types needed to keep TypeScript honest.
-2. Production manifest mutation in `repos/igloo-chrome/scripts/build.mjs` so
+3. Production manifest mutation in `repos/igloo-chrome/scripts/build.mjs` so
    `dist/manifest.json` omits local relay CSP entries.
-3. A release-shape verification script under `repos/igloo-chrome/scripts/`,
+4. A release-shape verification script under `repos/igloo-chrome/scripts/`,
    wired into package/release commands where appropriate.
-4. Repo docs updates explaining host permissions and the production/dev build
+5. Repo docs updates explaining host permissions and the production/dev build
    distinction.
-5. Focused unit tests around debug routing and manifest/package verification.
+6. Focused unit tests around debug routing and manifest/package verification.
 
 Out of scope:
 
@@ -93,86 +95,111 @@ Out of scope:
 
 ## Implementation Tasks
 
+### Task 0: Update workspace release docs before code
+
+- [x] Update `dev/docs/2026-06-26-public-beta-release-plan.md` so Phase 2 no
+  longer presents C2 as open work. It should name C2 as closed, split Phase 2
+  into agent-doable production-package hardening and maintainer/deferred launch
+  operations, and link this plan.
+- [x] Update `dev/docs/RELEASE.md` with a short client package-shape check note:
+  repo-local release candidate flows must prove production output, not only
+  dev/test build output. Mention `igloo-chrome` as the immediate example and
+  point to its repo-local `RELEASE.md` for the exact command.
+- [x] Keep `dev/docs/GOTCHAS.md` unchanged until after the code lands; the gotcha
+  should name the actual release-mode verifier command added below.
+
 ### Task 1: Ground the current production surface
 
-- [ ] Confirm C2 remains closed by reading
+- [x] Confirm C2 remains closed by reading
   `repos/igloo-chrome/src/lib/profile-blob.ts` and
   `repos/igloo-chrome/tests/unit/lib/profile-blob.test.ts`; no changes unless a
   regression is found.
-- [ ] Read the current debug routing path:
+- [x] Read the current debug routing path:
   `repos/igloo-chrome/src/extension/messages.ts`,
   `repos/igloo-chrome/src/background/router-state.ts`,
   `repos/igloo-chrome/src/background/router.ts`, and
   `repos/igloo-chrome/tests/unit/background/router.test.ts`.
-- [ ] Build once with the current path (`npm --prefix repos/igloo-chrome run
+- [x] Build once with the current path (`npm --prefix repos/igloo-chrome run
   build:app`) and inspect `repos/igloo-chrome/dist/manifest.json` plus
   `dist/background.js` to establish the pre-change failure shape.
 
 ### Task 2: Add explicit release-mode build plumbing
 
-- [ ] In `repos/igloo-chrome/scripts/build.mjs`, introduce a small build-mode
+- [x] In `repos/igloo-chrome/scripts/build.mjs`, introduce a small build-mode
   helper, for example `const isReleaseBuild = process.env.IGLOO_CHROME_RELEASE
   === '1';`.
-- [ ] Replace raw `copyPublic()` manifest copying with a manifest writer that
+- [x] Replace raw `copyPublic()` manifest copying with a manifest writer that
   reads `public/manifest.json`, mutates only the CSP connect-src value for
   release builds, and writes the result to `dist/manifest.json`.
-- [ ] In release mode, remove these CSP fragments from `extension_pages`:
+- [x] In release mode, remove these CSP fragments from `extension_pages`:
   `ws://localhost:*`, `ws://127.0.0.1:*`, `http://localhost:*`, and
   `http://127.0.0.1:*`.
-- [ ] Preserve local CSP entries for normal dev/test builds, because the harness
+- [x] Preserve local CSP entries for normal dev/test builds, because the harness
   and manual demo relays use local browser-facing URLs.
-- [ ] Add an esbuild define such as
+- [x] Add an esbuild define such as
   `import.meta.env.IGLOO_CHROME_RELEASE` so code can branch on the same mode.
 
 ### Task 3: Gate debug commands out of release routing
 
-- [ ] Refactor `createStateRouter()` so the three `DEBUG_COMMAND_TYPE` handlers
+- [x] Refactor `createStateRouter()` so the three `DEBUG_COMMAND_TYPE` handlers
   are added only when the release define is false.
-- [ ] Keep normal command routing unchanged.
-- [ ] Update `repos/igloo-chrome/tests/unit/background/router.test.ts` or add a
+- [x] Keep normal command routing unchanged.
+- [x] Update `repos/igloo-chrome/tests/unit/background/router.test.ts` or add a
   focused state-router test that proves debug commands route in normal test mode.
-- [ ] Add a release-mode unit test if practical by extracting the debug handler
+- [x] Add a release-mode unit test if practical by extracting the debug handler
   map behind a pure function; otherwise rely on the artifact verifier in Task 4
   for release-mode proof.
 
 ### Task 4: Add a production-package verifier
 
-- [ ] Create `repos/igloo-chrome/scripts/check-production-package.mjs`.
-- [ ] The script reads `dist/manifest.json` and fails if the CSP contains
+- [x] Create `repos/igloo-chrome/scripts/check-production-package.mjs`.
+- [x] The script reads `dist/manifest.json` and fails if the CSP contains
   `localhost` or `127.0.0.1`.
-- [ ] The script reads `dist/background.js` and fails if it contains the debug
+- [x] The script reads `dist/background.js` and fails if it contains the debug
   command string literals:
   `ext.debug.reload`, `ext.debug.clearProfileUnlocks`, or
   `ext.debug.seedProfileUnlock`.
-- [ ] Wire a package/release script so release candidates run:
+- [x] Wire a package/release script so release candidates run:
   `IGLOO_CHROME_RELEASE=1 npm run build:app` followed by the verifier before
   packaging.
-- [ ] Keep default `npm run build` behavior compatible with current dev/test
+- [x] Keep default `npm run build` behavior compatible with current dev/test
   lanes unless the release candidate script is explicitly used.
 
 ### Task 5: Document host permissions and release shape
 
-- [ ] Update `repos/igloo-chrome/README.md` or `RELEASE.md` with a short
+- [x] Update `repos/igloo-chrome/README.md` or `RELEASE.md` with a short
   production package note: release builds strip debug handlers and local relay
   CSP entries.
-- [ ] Document the current broad host permissions rationale: the provider bridge
+- [x] Document the current broad host permissions rationale: the provider bridge
   must be injectable on arbitrary `http`/`https` sites that request Nostr
   signing, and relay connectivity needs `ws`/`wss` hosts configured by the
   signer profile. If a narrower architecture is later desired, it is a separate
   product/design change.
-- [ ] Add a changelog `[Unreleased]` entry for the production-package hardening.
+- [x] Add a changelog `[Unreleased]` entry for the production-package hardening.
 
-### Task 6: Verify and commit
+### Task 6: Update the workspace gotcha after implementation
 
-- [ ] Run focused checks:
+- [x] Update `dev/docs/GOTCHAS.md` with the concrete Chrome release gotcha:
+  dev/test builds intentionally retain local relay CSP/debug seams; release
+  candidates must run the release-mode verifier added by this plan.
+
+### Task 7: Verify and commit
+
+- [x] Run focused checks:
   `npm --prefix repos/igloo-chrome run test:unit:raw` and the new release-shape
   script through its wired package command.
-- [ ] Run the smallest workspace proof for Chrome:
+- [x] Run the smallest workspace proof for Chrome:
   `make igloo-chrome-build` and, if the code touches router behavior materially,
   `npm --prefix test run test:e2e:igloo-chrome:fast`.
-- [ ] Commit inside `repos/igloo-chrome`.
-- [ ] From the parent, stage only `repos/igloo-chrome` and commit the pointer
-  bump. Do not push.
+  - `make igloo-chrome-build` passed.
+  - `npm --prefix test run test:e2e:igloo-chrome:fast` passed on 2026-06-27
+    when run outside the filesystem sandbox (`15 passed`). Earlier sandboxed
+    attempts aborted `Google Chrome for Testing` in macOS `HIServices` before
+    Playwright reached app assertions, so browser lanes that launch Chrome for
+    Testing should run with the normal unsandboxed/escalated harness on macOS.
+- [x] Commit inside `repos/igloo-chrome`.
+- [x] From the parent, stage only `repos/igloo-chrome` plus the workspace doc
+  files changed by this plan and commit the pointer bump. Do not push.
 
 ## Verification Gate
 
@@ -186,6 +213,8 @@ The implementation is done when:
 - `repos/igloo-chrome/dist/background.js` in release mode contains no
   `ext.debug.*` command strings.
 - Host-permission rationale is documented in tracked Chrome docs.
+- `dev/docs/RELEASE.md`, `dev/docs/GOTCHAS.md`, and the public-beta release
+  plan reflect the release-pipeline lesson exercised here.
 
 ## Critical Considerations
 
@@ -194,5 +223,5 @@ The implementation is done when:
 - Do not remove local relay support from dev/test builds; the workspace harness
   depends on browser-facing local relay URLs.
 - Do not use `git add -A`. Commit in the submodule first, then explicitly stage
-  the parent pointer.
+  the parent pointer and workspace docs.
 - Do not push; the maintainer owns integration and remote updates.

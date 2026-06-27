@@ -51,13 +51,17 @@ Inside each changed submodule:
 - update `CHANGELOG.md` if the repo carries one
 - update repo-local docs if release-facing behavior changed
 - run the repo’s required checks
+- run any repo-local package-shape checks for production/release artifacts, not
+  only the default dev or test build
 - commit the release-prep state
 
 Typical release-facing repos and checks:
 - `repos/bifrost-rs`
   - follow repo-local `RELEASE.md`
 - `repos/igloo-chrome`
-  - follow repo-local `RELEASE.md`
+  - follow repo-local `RELEASE.md`; its release-candidate flow must prove the
+    production extension package shape, including release-only manifest/CSP and
+    debug-surface checks
 - `repos/igloo-shell`
   - run its root testing/manual flows
 - `repos/igloo-home`, `repos/igloo-pwa`, `repos/igloo-shared`, `repos/igloo-ui`
