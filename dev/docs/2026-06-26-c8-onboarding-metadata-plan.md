@@ -2,6 +2,14 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Status:** Completed at the current submodule pointers (`igloo-shared` `4b95c4a`, `igloo-ui` `e8aa760`, `igloo-pwa` `afab144`). Re-grounded on 2026-06-27; no additional implementation work remains for C8.
+
+**Verification (2026-06-27):**
+
+- `npm --prefix repos/igloo-shared run test:unit -- src/browser-profile/core/preview.test.ts`
+- `npm --prefix repos/igloo-ui test -- test/onboard-handshake.test.tsx`
+- `npm --prefix repos/igloo-pwa run test:unit:raw -- test/frontend/onboard-metadata.test.tsx`
+
 **Goal:** Replace the hardcoded `"My Signing Key"` / `"2/3"` / `"Share #0"` shown during the live igloo-pwa onboarding handshake with the real keyset name, threshold, and share index parsed from the connected package.
 
 **Architecture:** Add one pure helper in `igloo-shared` that derives display metadata from the `BrowserProfilePreview` the store already holds (reusing the existing `groupPackageFromWireJson` / `groupNameFromPackage` / `totalCountFromGroupPackage` parsers). Add a `shareLabel` prop to the shared `OnboardHandshakePanel`. Wire both into the igloo-pwa `OnboardHandshakeView` / `OnboardFailedView`. The share index is derived secret-free by matching the share public key against the parsed group members — the seckey-bearing `share_package_json` is never touched.

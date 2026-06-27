@@ -96,7 +96,7 @@ code. Three are already closed; the real remaining scope is small:
 | **C2** Chrome profile cipher | ✅ FIXED | None — `profile-blob.ts:91` non-extractable `CryptoKey`, no base64 export, full `tests/unit/lib/profile-blob.test.ts` (round-trip, wrong-pw, GCM flip, KAT). |
 | **C4** adversarial decrypt tests | 🟡 PARTIAL | Test-depth tail only: NIP-44 encrypt/decrypt orchestration failure tests (`igloo-shared wasm-bridge-node.ts:828-859`), TS-side handler tests (`igloo-home`), real-WASM adversarial path (`igloo-pwa`). Error handling already exists. Fast-follow candidate, not a hard blocker. |
 | **C5** `Secret<T>` discipline | 🔴 OPEN | Thread `Secret<T>` through rotation/recovery (`igloo-shared/src/rotation.ts:78,89,139-142,152`); **resolve snapshot-wire `seckey` policy** (`wire/runtime.ts:240,262`; consumed bare at `wasm-bridge-node.ts:1021`). Embedded design decision — see 0.2a. |
-| **C8** fabricated onboarding metadata | 🔴 OPEN | Parse real `pendingOnboardConnection.preview` (group label, threshold, share idx) into the live onboarding view instead of hardcoded `"My Signing Key"`/`"2/3"`/`"Share #0"` (`igloo-pwa/src/views/onboard.tsx:63-64,92-93`; `igloo-ui/.../create/onboard-handshake.tsx:86`). |
+| **C8** fabricated onboarding metadata | ✅ FIXED | None — current pointers derive keyset name, threshold, and share label from `pendingOnboardConnection.preview` via `onboardPreviewDisplayMeta`; covered by shared helper, UI panel, and PWA view tests. |
 | **C9** Rust IPC/panic discipline | ✅ FIXED | None — test-dispatch mirror + drift guard (`test_dispatch.rs:470`); `LockExt` poison-tolerance (`util.rs:14`) on all IPC paths. |
 
 **Client-local note:** C2 and C9 lived in igloo-chrome / igloo-home respectively
@@ -326,6 +326,6 @@ audit cycle:
 |-------|--------|-----------|
 | Phase 0 — shared gate | **Plan-ready** | Implementation plan (this spec) |
 | Phase 1 — PWA ship | **Plan-ready** | Implementation plan (this spec) |
-| Phase 2 — Chrome ship | Scoped map | Own brainstorm/spec when reached |
-| Phase 3 — Home ship | Scoped map | Own brainstorm/spec when reached |
+| Phase 2 — Chrome ship | Agent-doable hardening complete | Maintainer-owned Web Store publication remains deferred/backlogged |
+| Phase 3 — Home ship | Unsigned artifact primitive complete | Signed DMG and GitHub Actions release workflow remain deferred/backlogged |
 | Passkey unlock | Deferred | Own cycle post-beta; starts with feasibility spike |
