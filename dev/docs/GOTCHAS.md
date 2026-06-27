@@ -48,6 +48,12 @@ there.
   build:release` or `release:candidate`), which runs
   `check:production-package` and fails if local relay CSP entries or
   `ext.debug.*` command strings remain in the production output.
+- **Home beta artifacts are unsigned by design.** `make
+  igloo-home-package-release` stages the current host's unsigned Tauri artifact
+  plus `SHA256SUMS` and `manifest.json` under `./.tmp/release/igloo-home/`.
+  macOS Developer ID signing/notarization, Linux deb/rpm packages, and GitHub
+  Actions release upload are post-beta follow-ups, not prerequisites for this
+  primitive.
 
 ## Scratch & State
 

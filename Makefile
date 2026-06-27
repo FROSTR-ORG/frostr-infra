@@ -25,7 +25,7 @@ CLIENT ?= pwa
 	igloo-paper-sync igloo-paper-verify igloo-paper-usage-coverage-sync igloo-ui-paper-token-sync igloo-ui-paper-token-check \
 	igloo-chrome-dev igloo-chrome-build igloo-chrome-test-unit igloo-chrome-test-e2e \
 	igloo-pwa-dev igloo-pwa-build igloo-pwa-test-unit igloo-pwa-test-e2e \
-	igloo-home-dev igloo-home-tauri-dev igloo-home-build igloo-home-typecheck igloo-home-test-unit \
+	igloo-home-dev igloo-home-tauri-dev igloo-home-build igloo-home-package-release igloo-home-typecheck igloo-home-test-unit \
 	igloo-home-test-visual igloo-home-test-desktop igloo-home-test-desktop-xvfb igloo-home-test-e2e
 
 help:
@@ -78,6 +78,7 @@ help:
 		'  make igloo-home-dev' \
 		'  make igloo-home-tauri-dev' \
 		'  make igloo-home-build' \
+		'  make igloo-home-package-release' \
 		'  make igloo-home-typecheck' \
 		'  make igloo-home-test-unit' \
 		'  make igloo-home-test-visual' \
@@ -299,6 +300,9 @@ igloo-home-tauri-dev:
 
 igloo-home-build:
 	@npm --prefix "$(IGLOO_HOME_DIR)" run build
+
+igloo-home-package-release:
+	@"$(ROOT_DIR)/scripts/igloo-home-package-release.sh"
 
 igloo-home-typecheck:
 	@npm --prefix "$(IGLOO_HOME_DIR)" run typecheck

@@ -270,19 +270,21 @@ Heaviest vertical; its own spec/plan cycle. **macOS first.** Scope:
 3. **`Cargo.toml edition = "2024"`** — *verify* against the pinned
    `rust-toolchain.toml`, don't blindly downgrade (edition 2024 is valid on
    recent toolchains).
-4. **Code signing + notarization (macOS)** — Apple Developer ID + notarization
-   via `tauri-action`. Unsigned installers throwing Gatekeeper warnings would
-   undermine trust for a security tool, so signing is required even for beta.
-   Windows Authenticode **deferred**; Linux AppImage may ship unsigned.
-5. **Auto-update — deferred.** Manual updates via GitHub Releases are acceptable
-   for a labeled beta; document the path.
-6. **Installer distribution** — GitHub Releases with signed DMG (+ unsigned
-   AppImage) + checksums, plus the Makefile/CI target to build-sign-publish.
+4. **Unsigned artifact primitive (beta gate).** `make igloo-home-package-release`
+   stages the current host's unsigned desktop artifact under
+   `./.tmp/release/igloo-home/<version>/` with `SHA256SUMS` and
+   `manifest.json`. macOS stages the unsigned DMG; Linux stages AppImage only.
+5. **Code signing + notarization — deferred.** Developer ID signing,
+   notarization, staple validation, and certificate handling move to the
+   post-beta backlog.
+6. **Installer distribution — manual for beta.** Maintainers may upload the
+   staged artifact/checksum directory manually. A GitHub Actions release
+   workflow is deferred until after the primitive is proven.
 
 ### Phase 3 gate
 
-Home Rust + frontend tests green, signed macOS installer verified (notarization
-staple check), checksums published.
+Home Rust + frontend tests green, unsigned artifact/checksum primitive verified
+on the current host, and manual release artifacts staged under `./.tmp/release/`.
 
 ---
 

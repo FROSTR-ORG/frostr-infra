@@ -64,6 +64,7 @@ root_commands=(
   "make wasm-toolchain-check"
   "make igloo-chrome-build"
   "make igloo-pwa-dev"
+  "make igloo-home-package-release"
   "make igloo-home-tauri-dev"
   "make igloo-paper-sync"
   "make igloo-paper-verify"
@@ -96,7 +97,8 @@ for command in \
   "make igloo-paper-verify" \
   "make igloo-ui-paper-token-sync" \
   "make igloo-ui-paper-token-check" \
-  "make igloo-chrome-build"; do
+  "make igloo-chrome-build" \
+  "make igloo-home-package-release"; do
   assert_file_contains "${README_FILE}" "${command}"
 done
 

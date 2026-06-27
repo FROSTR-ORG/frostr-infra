@@ -62,6 +62,9 @@ low-benefit optional tasks.
 
 ## Test Harness And CI
 
+- (effort: M) Add signed macOS DMG release flow for `igloo-home` — `igloo-home` + release tooling · Developer ID signing, notarization, staple validation, and credential documentation are deferred until after the unsigned beta artifact primitive ships.
+- (effort: M) Add Linux deb/rpm packages for `igloo-home` — `igloo-home` + release tooling · beta release only requires AppImage; distro-specific packages are post-beta packaging polish.
+- (effort: M) Add GitHub Actions release workflow for `igloo-home` artifacts — release tooling · run the root package primitive and upload the staged directory to a draft release once local artifact/checksum staging is proven.
 - (effort: M) Finish the test-secrets/seed-builder consolidation — `test/` · replace remaining inline canonical password literals, add a guard banning reintroduction, and converge Chrome/Home seed builders on one input model where practical.
 - (effort: M) Finish the cross-client visual manifest/guard — `test/` + home/chrome · shared capture helper exists, but only PWA has a manifest-level visual inventory.
 - (effort: S) Fix or explicitly exempt `@agent` screenshot specs from selector-contract guards — `test/` · this is the live blocker for making `test:guards:full` green without demoting it to advisory.

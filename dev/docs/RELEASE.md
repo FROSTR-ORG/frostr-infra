@@ -64,7 +64,13 @@ Typical release-facing repos and checks:
     debug-surface checks
 - `repos/igloo-shell`
   - run its root testing/manual flows
-- `repos/igloo-home`, `repos/igloo-pwa`, `repos/igloo-shared`, `repos/igloo-ui`
+- `repos/igloo-home`
+  - run the checks documented in its root docs
+  - for unsigned beta desktop artifacts, run
+    `make igloo-home-package-release`; it stages the current host artifact under
+    `./.tmp/release/igloo-home/<version>/` with `SHA256SUMS` and
+    `manifest.json`
+- `repos/igloo-pwa`, `repos/igloo-shared`, `repos/igloo-ui`
   - run the checks documented in their root docs
 - `repos/igloo-paper`
   - no version bump or product release tag is required

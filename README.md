@@ -83,6 +83,7 @@ make igloo-ui-paper-token-sync
 make igloo-ui-paper-token-check
 make igloo-chrome-build
 make igloo-pwa-dev
+make igloo-home-package-release
 make igloo-home-tauri-dev
 ```
 

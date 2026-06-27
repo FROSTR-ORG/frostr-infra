@@ -215,6 +215,7 @@ assert_contains "${HELP_OUTPUT}" "make igloo-ui-paper-token-check"
 assert_contains "${HELP_OUTPUT}" "make compose-logs SERVICES=\"<service> [service...]\""
 assert_contains "${HELP_OUTPUT}" "make igloo-chrome-build"
 assert_contains "${HELP_OUTPUT}" "make igloo-pwa-dev"
+assert_contains "${HELP_OUTPUT}" "make igloo-home-package-release"
 assert_contains "${HELP_OUTPUT}" "make igloo-home-tauri-dev"
 
 expect_fail_contains "compose-start requires SERVICES" make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" compose-start
@@ -288,6 +289,31 @@ assert_trace_not_contains "npm|"
 reset_trace
 run_with_trace igloo-home-test-unit
 assert_trace_contains "npm|cwd=${ROOT_DIR}|args=--prefix ${ROOT_DIR}/repos/igloo-home run test:unit"
+
+HOME_PACKAGE_FIXTURE="${TRACE_DIR}/home-package"
+mkdir -p \
+  "${HOME_PACKAGE_FIXTURE}/home/src-tauri" \
+  "${HOME_PACKAGE_FIXTURE}/bundle/appimage" \
+  "${HOME_PACKAGE_FIXTURE}/stage"
+printf '{"name":"igloo-home","version":"0.2.0"}\n' >"${HOME_PACKAGE_FIXTURE}/home/package.json"
+printf '{"productName":"Igloo Home","version":"0.2.0"}\n' >"${HOME_PACKAGE_FIXTURE}/home/src-tauri/tauri.conf.json"
+printf 'fixture-appimage' >"${HOME_PACKAGE_FIXTURE}/bundle/appimage/Igloo Home_0.2.0_amd64.AppImage"
+
+TRACE_FILE="${TRACE_FILE}" \
+  TRACE_DIR="${TRACE_DIR}" \
+  ROOT_DIR="${ROOT_DIR}" \
+  PATH="${TRACE_BIN_DIR}:${PATH}" \
+  IGLOO_HOME_PACKAGE_HOME_DIR="${HOME_PACKAGE_FIXTURE}/home" \
+  IGLOO_HOME_PACKAGE_BUNDLE_DIR="${HOME_PACKAGE_FIXTURE}/bundle" \
+  IGLOO_HOME_PACKAGE_STAGE_ROOT="${HOME_PACKAGE_FIXTURE}/stage" \
+  IGLOO_HOME_PACKAGE_OS="Linux" \
+  IGLOO_HOME_PACKAGE_SKIP_BUILD=1 \
+  IGLOO_HOME_PACKAGE_TIMESTAMP="2026-06-27T00:00:00Z" \
+  IGLOO_HOME_PACKAGE_PARENT_COMMIT="parent-fixture" \
+  IGLOO_HOME_PACKAGE_HOME_COMMIT="home-fixture" \
+  make -s -C "${ROOT_DIR}" -f "${MAKEFILE}" igloo-home-package-release >/dev/null
+
+assert_contains "$(cat "${HOME_PACKAGE_FIXTURE}/stage/0.2.0/SHA256SUMS")" "Igloo Home_0.2.0_amd64.AppImage"
 
 reset_trace
 run_with_trace browser-wasm-refresh
