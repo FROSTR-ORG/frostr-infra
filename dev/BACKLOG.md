@@ -19,7 +19,7 @@ low-benefit optional tasks.
 - (effort: M) Fix create-flow Select Share layout and group-key presentation — `igloo-ui` + `igloo-pwa` · `UX-004`/`UX-005`: half-screen overflow is user-visible, and the group key panel should be info-only with `npub` plus hex.
 - (effort: M) Standardize permission chip/toggle colors across create distribution and runtime permissions — `igloo-ui` · `UX-008`/`UX-011`: permission color vocabulary should be shared and visible in active/inactive states.
 - (effort: M) Guard the shared-UI consumption contract — `test/` · prevent `igloo-ui/dist`, old `build:ui` paths, local client `theme.extend`, or divergent CSS entrypoints from reappearing after ADR-014.
-- (effort: M) Keep chrome's derived profile unlock key non-extractable — `igloo-chrome` · replace the persisted `sessionKeyB64` string path with a `CryptoKey` handle and avoid snapshot ticks decrypting/re-encrypting share plaintext.
+- (effort: S) Avoid Chrome snapshot ticks decrypting/re-encrypting share plaintext — `igloo-chrome` · the unlock key is now a non-extractable `CryptoKey` with no `sessionKeyB64` (verified 2026-06-26); the remaining concern is that periodic snapshot persistence should not round-trip share plaintext through decrypt/re-encrypt.
 - (effort: M) Unify and harden dev-scenario seams — `igloo-shared` + pwa/chrome/home + `test/` · one scenario registry/param, shared fixture coverage beyond `dashboard-running`, reviewer nits, and no production-bundle fixture drift.
 - (effort: M) Finish Paper dashboard/runtime settings alignment — `igloo-ui` + pwa/home/chrome + `igloo-paper` · signer dashboard foundation is correct, but permissions/settings should converge on the Paper settings/sidebar model (`UX-010`/`UX-012`).
 
