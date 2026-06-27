@@ -302,6 +302,40 @@ export class DashboardPage extends BasePage {
   async expectNoConditionBanner(kind: DashboardBannerKind): Promise<void> {
     await expect(this.conditionBanner(kind)).toHaveCount(0);
   }
+  async expectRecoverCollect(returnTarget: 'dashboard' | 'welcome' = 'dashboard'): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Collect Shares' })).toBeVisible();
+    await expect(
+      this.page.getByText(returnTarget === 'dashboard' ? 'Back to Dashboard' : 'Back to Welcome'),
+    ).toBeVisible();
+    if (returnTarget === 'dashboard') {
+      await this.expectNavLinks();
+    }
+  }
+  async fillRecoverSource(index: number, opts: { sourcePackage: string; password: string }): Promise<void> {
+    await this.page.getByLabel('Source Package').nth(index).fill(opts.sourcePackage);
+    await this.page.getByLabel('Package Password').nth(index).fill(opts.password);
+  }
+  async recoverNext(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Next Step' }).click();
+  }
+  async expectRecoveredPrivateKey(nsec: string): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Recover Private Key' })).toBeVisible({ timeout: 30_000 });
+    await this.page.getByRole('button', { name: 'Reveal' }).click();
+    await expect(this.page.getByText(nsec, { exact: true })).toBeVisible();
+  }
+  async encryptRecoveredPrivateKey(password: string): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Recover Private Key' })).toBeVisible({ timeout: 30_000 });
+    await this.page.getByLabel(/Encrypt Key/i).check();
+    await this.page.getByRole('textbox', { name: 'Password Show password', exact: true }).fill(password);
+    await this.page.getByRole('textbox', { name: 'Confirm Password Show password' }).fill(password);
+    await expect(this.page.getByText(/^ncryptsec1/)).toBeVisible();
+  }
+  async backFromRecover(returnTarget: 'dashboard' | 'welcome' = 'dashboard'): Promise<void> {
+    await this.page.getByText(returnTarget === 'dashboard' ? 'Back to Dashboard' : 'Back to Welcome').click();
+  }
+  async expectNoRecoverSuccess(): Promise<void> {
+    await expect(this.page.getByRole('heading', { name: 'Recover Private Key' })).toHaveCount(0);
+  }
   get autoOpenToggle(): Locator {
     return this.tid(TID.settingsAutoOpenToggle);
   }

@@ -93,6 +93,7 @@ test.describe('igloo-pwa Paper Recover visual harness @visual', () => {
     }, FAKE_RECOVERED_KEY);
     await seedState(page, buildPwaPersistedState({ activeView: 'recover-key' }));
     await expect(page.getByRole('heading', { name: 'Recover Private Key' })).toBeVisible();
+    await pages(page).dashboard.encryptRecoveredPrivateKey('paper-pass');
     await capture(page, '02-recover-success.png');
   });
 });
