@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { PwaStoredProfileSeed } from '../../shared/browser-artifacts';
 import { captureVisual } from '../../shared/visual-harness';
+import { pages } from '../support/pages';
 import { applyPwaSeed, buildPwaPersistedState, pwaSeedPayload } from '../support/state';
 
 const capture = (page: Page, name: string) =>
