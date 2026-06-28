@@ -44,7 +44,7 @@
     "test:e2e:igloo-chrome:demo": "IGLOO_DEMO_LIVE_REPRO=1 playwright test -c ./igloo-chrome/playwright.config.ts --grep @demo",
     "test:e2e:igloo-chrome:fast": "FROSTR_TEST_LANE=fast playwright test -c ./igloo-chrome/playwright.config.ts --grep-invert \"@live|@cross-client|@demo|@agent\"",
     "test:e2e:igloo-chrome:live": "playwright test -c ./igloo-chrome/playwright.config.ts --grep @live",
-    "test:e2e:igloo-chrome:smoke": "playwright test -c ./igloo-chrome/playwright.config.ts --grep @smoke",
+    "test:e2e:igloo-chrome:smoke": "FROSTR_TEST_LANE=fast playwright test -c ./igloo-chrome/playwright.config.ts --grep @smoke",
     "test:typecheck": "npm run test:typecheck:pwa && npm run test:typecheck:chrome && npm run test:typecheck:home && npm run test:typecheck:strict-support",
     "test:typecheck:pwa": "tsc --noEmit -p tsconfig.pwa.json",
     "test:typecheck:chrome": "tsc --noEmit -p tsconfig.chrome.json",

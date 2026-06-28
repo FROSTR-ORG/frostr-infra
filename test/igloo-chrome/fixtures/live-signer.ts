@@ -2,7 +2,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 
@@ -140,6 +140,8 @@ async function ensureIglooShellBinary() {
 
 function managedShellEnv(root: string): NodeJS.ProcessEnv {
   const xdgRoot = path.join(root, 'xdg');
+  const runtimeRoot = path.join('/tmp', `igsr-${path.basename(root)}`);
+  mkdirSync(runtimeRoot, { recursive: true, mode: 0o700 });
   return {
     ...process.env,
     CARGO_TARGET_DIR: IGLOO_SHELL_TARGET_DIR,
@@ -150,10 +152,9 @@ function managedShellEnv(root: string): NodeJS.ProcessEnv {
     // daemon.sock) blows past the 104-byte sun_path limit on macOS. The daemon
     // falls back to `$XDG_RUNTIME_DIR/igloo-shell-<hash>.sock` only when
     // XDG_RUNTIME_DIR is set and exists (igloo-shell SECURITY.md / shared.rs).
-    // `root` is the mkdtemp temp dir (exists, short), keeping the fallback
-    // socket well under the limit. Without this, chrome @live can't start the
-    // native signer daemon on macOS.
-    XDG_RUNTIME_DIR: root,
+    // Use a deliberately short, 0700 test runtime dir. macOS `$TMPDIR` lives
+    // under /var/folders and can still make the fallback socket exceed sun_path.
+    XDG_RUNTIME_DIR: runtimeRoot,
     IGLOO_SHELL_TEST_PASSPHRASE: LIVE_SIGNER_PASSWORD
   };
 }
@@ -629,6 +630,9 @@ class SharedLiveSignerController implements LiveSignerController {
   async close(): Promise<void> {
     await this.stopResponderProcess();
     await this.relay.stop();
+    if (this.shellEnv?.XDG_RUNTIME_DIR) {
+      await rm(this.shellEnv.XDG_RUNTIME_DIR, { recursive: true, force: true });
+    }
     const tempRoot = await this.tempRootPromise;
     await rm(tempRoot, { recursive: true, force: true });
   }
