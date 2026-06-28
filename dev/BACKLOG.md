@@ -44,7 +44,7 @@ low-benefit optional tasks.
 
 ## Security And Secret Hygiene
 
-- (effort: M) Complete the remaining `Secret<T>`/secret-wrapper sweep — `igloo-shared` + consumers · snapshot `seckey` is now wiped on restore via `sharePubkeyFromSeckeyHex` (2026-06-26, C5 light pass); still open: wrap `recoverSecretKeyFromShares`/`BrowserRecoveredKey` + rotation-draft `shareSecret` (the pwa recovery + rotation `.expose()` threading), Chrome message types, and PWA session-controller bare-string paths.
+- (effort: M) Complete the remaining post-beta `Secret<T>`/secret-wrapper sweep — C5 beta scope is closed for snapshot restore plus shared rotation/recovery; still open: Chrome message types, PWA session-controller bare-string paths, and any broader frontend transient-secret helper work that is not required for the beta gate.
 - (effort: S) Add a browser/Tauri transient-secret convention — pwa/home/shared · passphrases, nsec values, and share passwords need a common lifetime/scrub discipline where JS can actually wipe bytes.
 - (effort: S) Factor sensitive reveal/copy behavior — `igloo-ui` · share the auto-remask timer, remove duplicate copy/remask blocks, and either best-effort clear clipboard secrets or explicitly document why not.
 - (effort: S) Add the remaining create-flow generated-share mask assertion — `igloo-ui` · recovery-view nsec masking is covered; the generated-share flow-level assertion is still the open part of the R6.1 safety net.

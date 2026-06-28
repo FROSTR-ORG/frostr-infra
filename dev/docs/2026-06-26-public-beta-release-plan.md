@@ -95,22 +95,24 @@ code. Three are already closed; the real remaining scope is small:
 | **C1** recovered-nsec plaintext | ✅ FIXED | Stale copy in `igloo-home src/App.tsx:1065` ("shown in plaintext" — value is masked via `SensitiveTextarea`); + masking regression tests per host recovery view. |
 | **C2** Chrome profile cipher | ✅ FIXED | None — `profile-blob.ts:91` non-extractable `CryptoKey`, no base64 export, full `tests/unit/lib/profile-blob.test.ts` (round-trip, wrong-pw, GCM flip, KAT). |
 | **C4** adversarial decrypt tests | 🟡 PARTIAL | Test-depth tail only: NIP-44 encrypt/decrypt orchestration failure tests (`igloo-shared wasm-bridge-node.ts:828-859`), TS-side handler tests (`igloo-home`), real-WASM adversarial path (`igloo-pwa`). Error handling already exists. Fast-follow candidate, not a hard blocker. |
-| **C5** `Secret<T>` discipline | 🔴 OPEN | Thread `Secret<T>` through rotation/recovery (`igloo-shared/src/rotation.ts:78,89,139-142,152`); **resolve snapshot-wire `seckey` policy** (`wire/runtime.ts:240,262`; consumed bare at `wasm-bridge-node.ts:1021`). Embedded design decision — see 0.2a. |
+| **C5** `Secret<T>` discipline | ✅ FIXED | Beta scope closed — snapshot-wire `seckey` remains a documented bare JSON exception; rotation/recovery in `igloo-shared` now use `Secret<T>` wrappers and PWA exposes only at JSON/UI boundaries. Remaining Chrome/PWA controller cleanup is deferred backlog work. |
 | **C8** fabricated onboarding metadata | ✅ FIXED | None — current pointers derive keyset name, threshold, and share label from `pendingOnboardConnection.preview` via `onboardPreviewDisplayMeta`; covered by shared helper, UI panel, and PWA view tests. |
 | **C9** Rust IPC/panic discipline | ✅ FIXED | None — test-dispatch mirror + drift guard (`test_dispatch.rs:470`); `LockExt` poison-tolerance (`util.rs:14`) on all IPC paths. |
 
 **Client-local note:** C2 and C9 lived in igloo-chrome / igloo-home respectively
 and are now closed; nothing to push down to Phases 2/3 for them.
 
-### 0.2a C5 design decision (resolve before C5 plan)
+### 0.2a C5 design decision (resolved)
 
 The snapshot wire carries `bootstrap.share.seckey` as a bare string because the
 snapshot reconstructs runtime signer state. `Secret<T>` is a runtime wrapper; the
-wire is serialized JSON. Two options: (a) wrap across the wire boundary
-(invasive — Secret doesn't serialize cleanly); (b) keep the wire field bare but
-record a rationale and have the consumer wrap-and-zeroize immediately on read
-(`wasm-bridge-node.ts:1021`), matching the observability schema that already
-forbids logging it. Decide before writing the C5 plan.
+wire is serialized JSON. Decision: keep the wire field bare, record the
+rationale at the wire type, and handle read-side exposure explicitly. Snapshot
+restore derives the local share pubkey through `sharePubkeyFromSeckeyHex()`,
+which wipes the transient byte copy; rotation/recovery APIs now use `Secret<T>`
+wrappers until PWA deliberately exposes at JSON/UI boundaries. This keeps
+serialized runtime/package compatibility while making in-process secret
+movement reviewable.
 
 ### 0.3 Drain the audit record
 

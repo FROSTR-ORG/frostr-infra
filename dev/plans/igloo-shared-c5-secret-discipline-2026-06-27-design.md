@@ -1,6 +1,6 @@
 # igloo-shared C5 Secret Discipline Design
 
-_Status: Approach approved 2026-06-27 - pending implementation plan._
+_Status: Implemented 2026-06-27._
 _Relates to: `dev/docs/2026-06-26-public-beta-release-plan.md` C5._
 _Builds on: `dev/docs/2026-06-26-c5-snapshot-seckey-wipe-plan.md`._
 

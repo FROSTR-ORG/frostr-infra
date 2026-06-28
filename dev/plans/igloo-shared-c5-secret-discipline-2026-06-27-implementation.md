@@ -60,7 +60,7 @@ Result: `checked=6`, `unresolved_count=0`.
 - Modify: `repos/igloo-shared/src/rotation.test.ts`
 - Modify: `repos/igloo-shared/src/rotation.ts`
 
-- [ ] **Step 1: Write the failing shared tests**
+- [x] **Step 1: Write the failing shared tests**
 
 Replace `repos/igloo-shared/src/rotation.test.ts` with:
 
@@ -170,7 +170,7 @@ describe('recoverSecretKeyFromShares validation guards', () => {
 });
 ```
 
-- [ ] **Step 2: Run the shared test to verify it fails**
+- [x] **Step 2: Run the shared test to verify it fails**
 
 Run:
 
@@ -180,7 +180,7 @@ npm --prefix repos/igloo-shared run test:unit -- src/rotation.test.ts
 
 Expected: FAIL with TypeScript/runtime errors because `buildRotationDraft()` and `recoverSecretKeyFromShares()` still accept `string[]` and return raw string secrets.
 
-- [ ] **Step 3: Implement wrapped rotation/recovery types**
+- [x] **Step 3: Implement wrapped rotation/recovery types**
 
 In `repos/igloo-shared/src/rotation.ts`, change the import from `./secret`:
 
@@ -285,7 +285,7 @@ Change `buildRotationProfilePayload()` to expose at the profile payload JSON bou
     },
 ```
 
-- [ ] **Step 4: Run the shared test to verify it passes**
+- [x] **Step 4: Run the shared test to verify it passes**
 
 Run:
 
@@ -295,7 +295,7 @@ npm --prefix repos/igloo-shared run test:unit -- src/rotation.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Run shared secret regression tests**
+- [x] **Step 5: Run shared secret regression tests**
 
 Run:
 
@@ -305,7 +305,7 @@ npm --prefix repos/igloo-shared run test:unit -- src/secret.test.ts src/rotation
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit inside `igloo-shared`**
+- [x] **Step 6: Commit inside `igloo-shared`**
 
 Run:
 
@@ -322,7 +322,7 @@ git -C repos/igloo-shared commit -m "Thread Secret wrappers through rotation rec
 
 - Modify: `repos/igloo-pwa/src/lib/local-adapter/profile-generate.ts`
 
-- [ ] **Step 1: Run PWA typecheck to confirm the consumer break**
+- [x] **Step 1: Run PWA typecheck to confirm the consumer break**
 
 Run:
 
@@ -332,7 +332,7 @@ npm --prefix test run test:typecheck:pwa
 
 Expected: FAIL with errors in `repos/igloo-pwa/src/lib/local-adapter/profile-generate.ts` where `string[]` is passed to shared rotation/recovery APIs and where `share.shareSecret` is passed to `sharePackageToWireJson()`.
 
-- [ ] **Step 2: Update imports in `profile-generate.ts`**
+- [x] **Step 2: Update imports in `profile-generate.ts`**
 
 In `repos/igloo-pwa/src/lib/local-adapter/profile-generate.ts`, add `ShareSecretHex` to the existing `igloo-shared` type imports:
 
@@ -343,7 +343,7 @@ In `repos/igloo-pwa/src/lib/local-adapter/profile-generate.ts`, add `ShareSecret
 } from 'igloo-shared';
 ```
 
-- [ ] **Step 3: Wrap decoded share secrets**
+- [x] **Step 3: Wrap decoded share secrets**
 
 Change `decodeShareSecrets()` from `Promise<string[]>` to `Promise<ShareSecretHex[]>`:
 
@@ -359,7 +359,7 @@ async function decodeShareSecrets(
 }
 ```
 
-- [ ] **Step 4: Wrap the current device share in rotation**
+- [x] **Step 4: Wrap the current device share in rotation**
 
 In `createRotatedKeyset()`, change the device-share local:
 
@@ -374,7 +374,7 @@ In `createRotatedKeyset()`, change the device-share local:
     shareSecrets.unshift(deviceShareSecret);
 ```
 
-- [ ] **Step 5: Expose rotated share secrets only while writing share-package JSON**
+- [x] **Step 5: Expose rotated share secrets only while writing share-package JSON**
 
 In `createRotatedKeyset()`, change the rotated share mapping:
 
@@ -387,7 +387,7 @@ In `createRotatedKeyset()`, change the rotated share mapping:
   }));
 ```
 
-- [ ] **Step 6: Wrap the current device share in recovery**
+- [x] **Step 6: Wrap the current device share in recovery**
 
 In `recoverNsecFromShares()`, change the device-share local:
 
@@ -402,7 +402,7 @@ In `recoverNsecFromShares()`, change the device-share local:
     shareSecrets.unshift(deviceShareSecret);
 ```
 
-- [ ] **Step 7: Expose recovered key material at the adapter-to-UI boundary**
+- [x] **Step 7: Expose recovered key material at the adapter-to-UI boundary**
 
 Change the return at the end of `recoverNsecFromShares()`:
 
@@ -417,7 +417,7 @@ Change the return at the end of `recoverNsecFromShares()`:
   };
 ```
 
-- [ ] **Step 8: Run PWA typecheck to verify it passes**
+- [x] **Step 8: Run PWA typecheck to verify it passes**
 
 Run:
 
@@ -427,7 +427,7 @@ npm --prefix test run test:typecheck:pwa
 
 Expected: PASS.
 
-- [ ] **Step 9: Run focused PWA tests**
+- [x] **Step 9: Run focused PWA tests**
 
 Run:
 
@@ -437,7 +437,7 @@ npm --prefix repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 10: Commit inside `igloo-pwa`**
+- [x] **Step 10: Commit inside `igloo-pwa`**
 
 Run:
 
@@ -458,7 +458,7 @@ git -C repos/igloo-pwa commit -m "Expose C5 rotation secrets at adapter boundary
 - Modify: `dev/plans/igloo-shared-c5-secret-discipline-2026-06-27-implementation.md`
 - Modify: submodule pointers for `repos/igloo-shared` and `repos/igloo-pwa`
 
-- [ ] **Step 1: Bump submodule pointers**
+- [x] **Step 1: Bump submodule pointers**
 
 Run:
 
@@ -468,7 +468,7 @@ make bump-pointers MSG="Bump shared and PWA C5 secret discipline"
 
 Expected: parent commit records the moved `igloo-shared` and `igloo-pwa` pointers, unless later doc edits are intentionally folded into the same parent commit by editing before commit. If `make bump-pointers` commits immediately, use a second parent docs commit in Step 6.
 
-- [ ] **Step 2: Update the beta release plan C5 row**
+- [x] **Step 2: Update the beta release plan C5 row**
 
 In `dev/docs/2026-06-26-public-beta-release-plan.md`, change the C5 row to:
 
@@ -476,7 +476,7 @@ In `dev/docs/2026-06-26-public-beta-release-plan.md`, change the C5 row to:
 | **C5** `Secret<T>` discipline | ✅ FIXED | Beta scope closed — snapshot-wire `seckey` remains a documented bare JSON exception; rotation/recovery in `igloo-shared` now use `Secret<T>` wrappers and PWA exposes only at JSON/UI boundaries. Remaining Chrome/PWA controller cleanup is deferred backlog work. |
 ```
 
-- [ ] **Step 3: Update the backlog C5 follow-up**
+- [x] **Step 3: Update the backlog C5 follow-up**
 
 In `dev/BACKLOG.md`, replace the current C5 sweep item:
 
@@ -490,7 +490,7 @@ with:
 - (effort: M) Complete the remaining post-beta `Secret<T>`/secret-wrapper sweep — C5 beta scope is closed for snapshot restore plus shared rotation/recovery; still open: Chrome message types, PWA session-controller bare-string paths, and any broader frontend transient-secret helper work that is not required for the beta gate.
 ```
 
-- [ ] **Step 4: Update design status**
+- [x] **Step 4: Update design status**
 
 In `dev/plans/igloo-shared-c5-secret-discipline-2026-06-27-design.md`, change:
 
@@ -504,11 +504,11 @@ to:
 _Status: Implemented 2026-06-27._
 ```
 
-- [ ] **Step 5: Check off this implementation plan as tasks complete**
+- [x] **Step 5: Check off this implementation plan as tasks complete**
 
 In this file, change completed task checkboxes from `- [ ]` to `- [x]` as each task lands. Do not check future tasks early.
 
-- [ ] **Step 6: Run docs guard**
+- [x] **Step 6: Run docs guard**
 
 Run:
 
@@ -518,7 +518,7 @@ npm --prefix test run test:guards:docs
 
 Expected: PASS.
 
-- [ ] **Step 7: Run integration gate for changed surfaces**
+- [x] **Step 7: Run integration gate for changed surfaces**
 
 Run:
 
@@ -530,7 +530,7 @@ npm --prefix repos/igloo-pwa run test:unit:raw -- test/frontend/App.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit parent docs if not already included**
+- [x] **Step 8: Commit parent docs if not already included**
 
 If Step 1 already committed only submodule pointers, run:
 
@@ -546,7 +546,7 @@ git add dev/docs/2026-06-26-public-beta-release-plan.md dev/BACKLOG.md dev/plans
 git commit -m "Close C5 secret discipline beta gate"
 ```
 
-- [ ] **Step 9: Push all touched branches**
+- [x] **Step 9: Push all touched branches**
 
 Run:
 
