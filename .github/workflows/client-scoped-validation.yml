@@ -28,6 +28,7 @@ on:
       - "repos/igloo-shared"
       - "repos/igloo-ui"
       - "repos/bifrost-rs"
+      - "repos/igloo-shell"
 
 jobs:
   pwa:
@@ -87,7 +88,7 @@ jobs:
       - name: Initialize Chrome submodules
         run: |
           git config --global url."https://github.com/".insteadOf git@github.com:
-          git submodule update --init repos/bifrost-rs repos/igloo-shared repos/igloo-ui repos/igloo-chrome
+          git submodule update --init repos/bifrost-rs repos/igloo-shared repos/igloo-ui repos/igloo-chrome repos/igloo-shell
 
       - uses: actions/setup-node@v5
         with:
@@ -117,6 +118,7 @@ jobs:
           npx --prefix test playwright install chromium --with-deps
           npm audit --prefix repos/igloo-chrome --audit-level=moderate
           cargo fetch --manifest-path repos/bifrost-rs/Cargo.toml --locked --target wasm32-unknown-unknown
+          cargo fetch --manifest-path repos/igloo-shell/Cargo.toml --locked
 
       - name: Run Chrome scoped validation
         run: |

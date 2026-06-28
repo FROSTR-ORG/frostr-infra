@@ -15,7 +15,7 @@ require_line() {
 }
 
 require_line "git submodule update --init repos/bifrost-rs repos/igloo-shared repos/igloo-ui repos/igloo-pwa"
-require_line "git submodule update --init repos/bifrost-rs repos/igloo-shared repos/igloo-ui repos/igloo-chrome"
+require_line "git submodule update --init repos/bifrost-rs repos/igloo-shared repos/igloo-ui repos/igloo-chrome repos/igloo-shell"
 require_line "git submodule update --init repos/igloo-shared repos/igloo-ui repos/igloo-home"
 
 echo "ok: client-scoped workflow initializes only lane dependencies"
