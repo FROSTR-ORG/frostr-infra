@@ -48,7 +48,6 @@ low-benefit optional tasks.
 - (effort: S) Add a browser/Tauri transient-secret convention — pwa/home/shared · passphrases, nsec values, and share passwords need a common lifetime/scrub discipline where JS can actually wipe bytes.
 - (effort: S) Factor sensitive reveal/copy behavior — `igloo-ui` · share the auto-remask timer, remove duplicate copy/remask blocks, and either best-effort clear clipboard secrets or explicitly document why not.
 - (effort: S) Add the remaining create-flow generated-share mask assertion — `igloo-ui` · recovery-view nsec masking is covered; the generated-share flow-level assertion is still the open part of the R6.1 safety net.
-- (effort: M) Add the remaining adversarial decrypt-path tests (C4 tail) — `igloo-pwa` · shared NIP-44 wrapper and Home unlock/rotate/recover handler coverage are in place; remaining tail is a real-WASM (un-mocked) wrong-password/corrupted-package test in PWA.
 - (effort: M) Add explicit single-active-signer locking across PWA tabs — `igloo-pwa` · global profile storage removed the implicit same-device isolation; acquire a per-profile lock before starting signer sessions.
 - (effort: S) Provide per-repo or org-level community-health files — `FROSTR-ORG` · Phase 0 added `SECURITY.md` + `CODE_OF_CONDUCT.md` only at the workspace root, but the launch clients go public as separate repos; add an org `.github` repo (or per-repo copies) and enable **GitHub Private Vulnerability Reporting** on every repo before the public flip.
 
