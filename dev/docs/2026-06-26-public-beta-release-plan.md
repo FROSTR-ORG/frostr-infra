@@ -186,10 +186,12 @@ mostly distribution + docs.
    full cross-origin isolation as designed.) Soften the README's "MUST" framing
    to reflect that the isolation is delivered by the front layer.
 4. **End-user docs** — install / first-run walkthrough / troubleshooting /
-   "what if I lost a share" recovery guidance. The app is solid but currently has
-   zero user-facing docs.
-5. **npm audit** — clear the 4 dev-dependency advisories (esbuild/undici);
-   confirm zero production-dep vulns.
+   "what if I lost a share" recovery guidance live in
+   `repos/igloo-pwa/docs/USER_GUIDE.md`; publish them on the beta domain.
+5. **npm audit** — production dependencies are clean (`npm audit --omit=dev`:
+   0 vulnerabilities). Full audit still reports Vite/esbuild dev-server-only
+   advisories whose fix is a breaking Vite 8 upgrade; that upgrade is deferred
+   in backlog because the shipped static bundle does not expose the dev server.
 6. **Ship** — tag, deploy to Pages, point the Cloudflare domain at it, validate
    headers on the live deploy, announce as beta.
 
@@ -199,7 +201,7 @@ The custom domain provisioned here also hosts the **privacy policy** and
 ### Phase 1 gate
 
 `make verify` + the PWA fast E2E lane green, COOP/COEP/CORP validated on the live
-Cloudflare-fronted deploy, user docs published.
+Cloudflare-fronted deploy, user docs published from the beta domain.
 
 ---
 
