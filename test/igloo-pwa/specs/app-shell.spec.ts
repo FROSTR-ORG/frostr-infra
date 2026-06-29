@@ -162,16 +162,18 @@ test.describe('igloo-pwa ui-first shell @fast', () => {
     await dashboard.expectDashboard();
     await dashboard.editSignerName('Edited Name');
 
-    // Leaving Settings with unsaved edits opens the guard; Keep editing stays put.
-    await dashboard.openTab('permissions');
+    // Closing Settings with unsaved edits opens the guard; Keep editing stays put.
+    await dashboard.closeSettings();
     await dashboard.expectUnsavedGuard();
     await dashboard.keepEditing();
     await dashboard.expectSettingsSections();
 
-    // Discard navigates away and resets the draft.
-    await dashboard.openTab('permissions');
+    // Discard closes Settings and resets the draft; another tab can be opened after
+    // the modal drawer is gone.
+    await dashboard.closeSettings();
     await dashboard.expectUnsavedGuard();
     await dashboard.discardChanges();
+    await dashboard.openTab('permissions');
     await dashboard.expectPeerPermissions();
   });
 });

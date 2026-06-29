@@ -91,7 +91,7 @@ export class CreateFlowPage extends BasePage {
     await this.tid(TID.rotateLocalPassphrase).fill(password);
     await expect(this.tid(TID.rotateLocalPassphraseSubmit)).toBeEnabled();
     await this.tid(TID.rotateLocalPassphraseSubmit).click();
-    await expect(this.page.getByText('This device share is unlocked and counts toward the rotation threshold.')).toBeVisible();
+    await expect(this.page.getByRole('group', { name: /this device.*Ready/i })).toBeVisible();
   }
   // Per-source rows are dynamic; labels are stable while placeholder copy can
   // change as the accepted package formats evolve.
@@ -252,7 +252,7 @@ export class RecoverPage extends BasePage {
   // locators are allowed inside support, not in specs).
   async fillSource(index: number, opts: { packageText: string; password: string }): Promise<void> {
     await this.page
-      .getByPlaceholder('Paste a bfshare from another device...')
+      .getByPlaceholder('Paste bfprofile or bfshare from another device or backup...')
       .nth(index)
       .fill(opts.packageText);
     await this.page.getByLabel('Package Password').nth(index).fill(opts.password);
@@ -293,7 +293,12 @@ export class DashboardPage extends BasePage {
         : tab === 'permissions'
           ? TID.dashboardTabPermissions
           : TID.dashboardTabSettings;
-    await this.tid(id).click();
+    const tabButton = this.tid(id);
+    if ((await tabButton.getAttribute('aria-pressed')) === 'true') return;
+    await tabButton.click();
+  }
+  async closeSettings(): Promise<void> {
+    await this.tid(TID.dashboardSettingsSidebarClose).click();
   }
   // Dashboard condition banners (`DashboardConditionBanner`) render with a
   // `dashboard-banner-<kind>` test id built from the runtime condition. The id is
@@ -409,10 +414,10 @@ export class DashboardPage extends BasePage {
   // Settings page (Paper-aligned section layout).
   async expectSettingsSections(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'Device Profile', exact: true })).toBeVisible();
-    await expect(this.page.getByRole('heading', { name: 'Replace Share', exact: true })).toBeVisible();
-    await expect(this.page.getByRole('heading', { name: 'Export Profile', exact: true })).toBeVisible();
-    await expect(this.page.getByRole('heading', { name: 'Export Share', exact: true })).toBeVisible();
-    await expect(this.page.getByRole('heading', { name: 'Logout', exact: true })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Replace Share', exact: true }).first()).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Export Profile', exact: true }).first()).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Export Share', exact: true }).first()).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'Logout', exact: true }).first()).toBeVisible();
   }
   // Export package modal (Phase B step 4).
   async openExportProfile(): Promise<void> {
@@ -422,6 +427,10 @@ export class DashboardPage extends BasePage {
     await expect(this.tid(TID.exportPassword)).toBeVisible();
     await expect(this.tid(TID.exportConfirm)).toBeVisible();
     await expect(this.tid(TID.exportSubmit)).toBeVisible();
+  }
+  async closeExportModalEntry(): Promise<void> {
+    await this.page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+    await expect(this.tid(TID.exportPassword)).toHaveCount(0);
   }
   // Makes the Settings form dirty by editing the signer name (Device Profile).
   async editSignerName(value: string): Promise<void> {
@@ -436,6 +445,14 @@ export class DashboardPage extends BasePage {
   }
   async discardChanges(): Promise<void> {
     await this.page.getByRole('button', { name: 'Discard' }).click();
+  }
+  async openClearCredentialsDialog(): Promise<void> {
+    const clearButton = this.tid(TID.settingsClearCredentials);
+    await clearButton.scrollIntoViewIfNeeded();
+    await clearButton.click();
+  }
+  async expectClearCredentialsDialog(): Promise<void> {
+    await expect(this.page.getByRole('dialog', { name: 'Clear Credentials' })).toBeVisible();
   }
   // Drives the export modal to completion and returns the re-encrypted package text.
   async exportProfileWithPassword(password: string): Promise<string> {

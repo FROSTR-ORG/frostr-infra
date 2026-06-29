@@ -23,7 +23,7 @@
       "output": ".tmp/visual/igloo-pwa/dashboard/03-settings.png",
       "paperReference": "repos/igloo-paper/screens/dashboard/3-settings-lock-profile/screenshot.png",
       "status": "aligned",
-      "notes": "Aligned to the plan-revised design: a routed page (Paper's slide-over is a prototype affordance, not adopted), the Advanced numeric section expanded by default, 'Logout' instead of 'Lock Profile', and the Replace Share / Export Profile / Export Share sections; the Group Profile read-only card and the 'Onboard a Device' entry are intentionally dropped from PWA scope. Open product question, not a defect: the PWA-only 'Browser Settings' toggles (Remember browser state / Open signer after import / Prefer install prompt) have no Paper counterpart (dev/plans/dashboard-settings-export-paper-redesign-2026-06-01.md)."
+      "notes": "Aligned to Paper's right-side Settings drawer over the running dashboard via the dev-scenario runtime seam. The drawer includes Device Profile, Group Profile, Onboard Device, Replace Share, Export & Backup, Browser Settings, and Profile Security. The profile-password Change action is present but disabled until PWA owns password rotation; Onboard Device opens the existing source-boundary dialog rather than minting a remote member from this saved local share."
     },
     {
       "name": "dashboard-export-profile",
@@ -31,7 +31,23 @@
       "output": ".tmp/visual/igloo-pwa/dashboard/04-export-profile-modal.png",
       "paperReference": "repos/igloo-paper/screens/dashboard/4-export-profile/screenshot.png",
       "status": "aligned",
-      "notes": "The Export Profile password modal matches Paper: title, the 'Share #N (Index N) · Keyset · N relays · N peers' summary line, Export Password + Confirm Password with strength meter, and Cancel/Export. The only difference is the backdrop (the Settings routed page vs Paper's slide-over), which is an intentional surface decision."
+      "notes": "The Export Profile password modal opens from the Settings drawer and matches Paper's password entry structure: title, keyset/share summary, Export Password + Confirm Password with strength meter, and Cancel/Export."
+    },
+    {
+      "name": "dashboard-unsaved-changes",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/dashboard/05-unsaved-changes-modal.png",
+      "paperReference": "repos/igloo-paper/screens/dashboard/3c-unsaved-changes-modal/screenshot.png",
+      "status": "aligned",
+      "notes": "The Settings close guard uses the shared Paper-aligned dialog over the drawer backdrop when the device-profile form has unsaved edits."
+    },
+    {
+      "name": "dashboard-clear-credentials",
+      "viewport": "1440x1080",
+      "output": ".tmp/visual/igloo-pwa/dashboard/06-clear-credentials-modal.png",
+      "paperReference": "repos/igloo-paper/screens/dashboard/3b-clear-credentials-modal/screenshot.png",
+      "status": "aligned",
+      "notes": "The Profile Security clear action opens the shared Paper-aligned Clear Credentials dialog with the current profile summary and destructive confirmation."
     },
     {
       "name": "welcome-first-launch",
@@ -114,7 +130,7 @@
       "name": "import-device-profile",
       "viewport": "1440x1080",
       "output": ".tmp/visual/igloo-pwa/import/01-import-device-profile.png",
-      "paperReference": "repos/igloo-paper/screens/import/1-import-device-profile/screenshot.png",
+      "paperReference": "repos/igloo-paper/screens/import/1-import-existing-device/screenshot.png",
       "status": "aligned"
     },
     {
@@ -158,6 +174,14 @@
       "output": ".tmp/visual/igloo-pwa/onboard/04-save-profile.png",
       "paperReference": "repos/igloo-paper/screens/onboard/3-save-profile/screenshot.png",
       "status": "aligned"
+    },
+    {
+      "name": "rotate-keyset-collect-shares",
+      "viewport": "1440x1306",
+      "output": ".tmp/visual/igloo-pwa/rotate/01-collect-shares.png",
+      "paperReference": "repos/igloo-paper/screens/rotate-keyset/1-collect-shares/screenshot.png",
+      "status": "aligned",
+      "notes": "Tracks the Paper rotate-keyset path reached from the Welcome profile menu. The separate dashboard Replace Share path remains the bfonboard local-share replacement flow."
     },
     {
       "name": "recover-collect-shares",
