@@ -300,10 +300,10 @@ export class DashboardPage extends BasePage {
   async closeSettings(): Promise<void> {
     await this.tid(TID.dashboardSettingsSidebarClose).click();
   }
-  // Dashboard condition banners (`DashboardConditionBanner`) render with a
-  // `dashboard-banner-<kind>` test id built from the runtime condition. The id is
-  // composed dynamically, so it isn't a static TID-registry entry; the locator lives
-  // here in the page object (specs route through these helpers).
+  // Dashboard conditions render with a `dashboard-banner-<kind>` test id, even
+  // when a severe condition is promoted into the Paper-style unavailable panel.
+  // The id is composed dynamically, so it isn't a static TID-registry entry; the
+  // locator lives here in the page object (specs route through these helpers).
   conditionBanner(kind: DashboardBannerKind): Locator {
     return this.page.getByTestId(`dashboard-banner-${kind}`);
   }
