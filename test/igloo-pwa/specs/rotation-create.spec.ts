@@ -43,9 +43,8 @@ test.describe('igloo-pwa rotation operator flow @live', () => {
       await p.welcome.startGenerate();
       await p.create.selectMode('rotate');
       await p.create.selectRotateSource(sourceSeed.id);
-      await p.create.fillRotateSource(0, { bfshare: source.shares[0].bfshare, password: 'playwright-passphrase' });
-      await p.create.addRotateSource();
-      await p.create.fillRotateSource(1, { bfshare: source.shares[1].bfshare, password: 'playwright-passphrase' });
+      await p.create.unlockRotateLocalShare('playwright-passphrase');
+      await p.create.fillRotateSource(0, { bfshare: source.shares[1].bfshare, password: 'playwright-passphrase' });
       await p.create.rotateSubmit();
 
       await expect(page.getByRole('heading', { name: 'Select Share' })).toBeVisible();

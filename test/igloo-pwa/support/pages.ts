@@ -87,10 +87,16 @@ export class CreateFlowPage extends BasePage {
   async selectRotateSource(profileId: string): Promise<void> {
     await this.tid(TID.rotateSourceProfile).selectOption(profileId);
   }
-  // Per-source rows are dynamic; located by placeholder/label within the rotate
-  // panel (raw locators are allowed inside support, not in specs).
+  async unlockRotateLocalShare(password: string): Promise<void> {
+    await this.tid(TID.rotateLocalPassphrase).fill(password);
+    await expect(this.tid(TID.rotateLocalPassphraseSubmit)).toBeEnabled();
+    await this.tid(TID.rotateLocalPassphraseSubmit).click();
+    await expect(this.page.getByText('This device share is unlocked and counts toward the rotation threshold.')).toBeVisible();
+  }
+  // Per-source rows are dynamic; labels are stable while placeholder copy can
+  // change as the accepted package formats evolve.
   async fillRotateSource(index: number, opts: { bfshare: string; password: string }): Promise<void> {
-    await this.page.getByPlaceholder('Paste bfshare1...').nth(index).fill(opts.bfshare);
+    await this.page.getByLabel('Source Package').nth(index).fill(opts.bfshare);
     await this.page.getByLabel('Package Password').nth(index).fill(opts.password);
   }
   async addRotateSource(): Promise<void> {

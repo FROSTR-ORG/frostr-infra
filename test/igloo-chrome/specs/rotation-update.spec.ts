@@ -16,6 +16,7 @@ import {
   confirmChromeRotationPackage,
   connectChromeRotationPackage,
   getChromeRotationConfirmButton,
+  getChromeStoredProfileRow,
 } from '../support/ui';
 
 function shortId(value: string) {
@@ -91,17 +92,8 @@ test.describe('extension rotate key @live', () => {
       await expect(getChromeRotationConfirmButton(page)).toHaveCount(0);
       await expect(page.getByText(`${shortId(rotated.shares[0].profileId)})`)).toBeVisible();
       await page.getByRole('button', { name: 'Logout' }).click();
-      const storedProfilesCard = page
-        .getByRole('heading', { name: 'Stored Profiles' })
-        .locator('xpath=ancestor::div[contains(@class, "igloo-card")]')
-        .first();
-      await expect(storedProfilesCard).toBeVisible();
-      await expect(
-        storedProfilesCard.getByRole('button', { name: new RegExp(shortId(rotated.shares[0].profileId)) }),
-      ).toBeVisible();
-      await expect(
-        storedProfilesCard.getByRole('button', { name: new RegExp(shortId(current.shares[0].profileId)) }),
-      ).toHaveCount(0);
+      await expect(await getChromeStoredProfileRow(page, rotated.shares[0].profileId)).toBeVisible();
+      await expect(await getChromeStoredProfileRow(page, current.shares[0].profileId)).toHaveCount(0);
       await page.close();
     } finally {
       inviterSession?.stop();

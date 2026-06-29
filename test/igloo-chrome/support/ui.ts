@@ -21,6 +21,13 @@ export async function selectChromeStoredProfile(page: Page, label: string) {
     .first();
 }
 
+export async function getChromeStoredProfileRow(page: Page, profileId: string) {
+  const hero = await getChromeStoredProfilesCard(page);
+  return hero
+    .locator(`[data-testid="${CRITICAL_E2E_TEST_IDS.welcomeProfileRow}"][data-profile-id="${profileId}"]`)
+    .first();
+}
+
 /**
  * Clicks the "Unlock" button on the first profile row in the returning hero,
  * opening the WelcomeUnlockModal.
