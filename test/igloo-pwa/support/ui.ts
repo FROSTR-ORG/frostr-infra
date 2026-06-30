@@ -139,10 +139,12 @@ export async function expectPwaDashboard(page: Page, _profileLabel?: string) {
 }
 
 export async function expectPwaRuntimeConnected(page: Page) {
-  // The dashboard reports the live browser signer runtime once it has connected to
-  // its relays; gate cross-device flows on this so a peer can't race an unsubscribed
-  // inviter. (Deliberate copy assertion — the runtime-status line has no test-id.)
-  await expect(page.getByText('Browser runtime connected')).toBeVisible({ timeout: 30_000 });
+  // The Paper dashboard replaces relay copy with an availability detail while a
+  // solo signer is degraded, so gate on the stable active-runtime surface. Flows
+  // that need a cooperating peer should follow with expectPwaSignerSignReady.
+  const dashboard = page.getByTestId(CRITICAL_E2E_TEST_IDS.dashboardRoot);
+  await expect(dashboard.getByText(/Signer Running/)).toBeVisible({ timeout: 30_000 });
+  await expect(dashboard.getByRole('button', { name: 'Stop Signer' })).toBeVisible();
 }
 
 export async function openFreshPwaPage(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {

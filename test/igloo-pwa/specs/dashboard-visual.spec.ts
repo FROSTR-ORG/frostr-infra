@@ -81,7 +81,7 @@ test.describe('igloo-pwa Paper Dashboard visual harness @visual', () => {
     const dashboard = pages(page).dashboard;
     // Header nav: Dashboard active (pill), Permissions, Settings.
     await dashboard.expectNavLinks();
-    await expect(page.locator('header').getByTestId('dashboard-tab-signer')).toBeVisible();
+    await dashboard.expectNavLink('signer');
     await expect(page.getByRole('tablist', { name: 'Operator dashboard sections' })).toHaveCount(0);
     // Merged status card: both keys shown as deterministic npub displays, split copy present.
     await dashboard.expectKeyDisplays(

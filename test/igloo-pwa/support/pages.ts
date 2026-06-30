@@ -361,9 +361,18 @@ export class DashboardPage extends BasePage {
   }
   // Merged identity/runtime card (Phase B dashboard redesign).
   async expectNavLinks(): Promise<void> {
-    await expect(this.tid(TID.dashboardTabSigner)).toBeVisible();
-    await expect(this.tid(TID.dashboardTabPermissions)).toBeVisible();
-    await expect(this.tid(TID.dashboardTabSettings)).toBeVisible();
+    await this.expectNavLink('signer');
+    await this.expectNavLink('permissions');
+    await this.expectNavLink('settings');
+  }
+  async expectNavLink(tab: 'signer' | 'permissions' | 'settings'): Promise<void> {
+    const id =
+      tab === 'signer'
+        ? TID.dashboardTabSigner
+        : tab === 'permissions'
+          ? TID.dashboardTabPermissions
+          : TID.dashboardTabSettings;
+    await expect(this.tid(id)).toBeVisible();
   }
   async expectKeyDisplays(groupDisplay: string, shareDisplay: string): Promise<void> {
     await expect(this.page.getByText(groupDisplay)).toBeVisible();
