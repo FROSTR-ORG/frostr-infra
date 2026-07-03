@@ -1,42 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-import type { PwaStoredProfileSeed } from '../../shared/browser-artifacts';
 import { gotoCreateDistribute } from '../support/flows';
 import { pages } from '../support/pages';
-import {
-  applyPwaSeed,
-  buildPwaPersistedState,
-  PWA_GLOBAL_STORE_KEY,
-  pwaSeedPayload,
-} from '../support/state';
-
-function seededDashboardProfile(): PwaStoredProfileSeed {
-  return {
-    id: 'guard-profile',
-    label: 'Guard Device',
-    share_public_key: '33'.repeat(32),
-    group_public_key: '22'.repeat(32),
-    relays: ['wss://relay.primal.net'],
-    group_package_json: '{"group_name":"Guard Group","group_pk":"22","threshold":2,"members":[]}',
-    encrypted_bfshare_artifact: 'bfshare1seed',
-    member_idx: 1,
-    source: 'bfprofile',
-    relay_profile: 'wss://relay.primal.net',
-    group_ref: 'g',
-    encrypted_profile_ref: 'e',
-    state_path: '/tmp/guard',
-    created_at: 1_700_000_000_000,
-    signer_settings: {
-      sign_timeout_secs: 30,
-      ping_timeout_secs: 15,
-      request_ttl_secs: 300,
-      state_save_interval_secs: 30,
-      peer_selection_strategy: 'deterministic_sorted',
-    },
-    manual_peer_policy_overrides: [],
-    peer_pubkey: null,
-  };
-}
+import { PWA_GLOBAL_STORE_KEY } from '../support/state';
 
 test.describe('igloo-pwa ui-first shell @fast', () => {
   test('creates a generated profile, distributes shares, and finishes setup to the locked welcome', async ({ page }) => {
@@ -76,22 +42,7 @@ test.describe('igloo-pwa ui-first shell @fast', () => {
   });
 
   test('persists settings across reloads', async ({ page }) => {
-    const profile = seededDashboardProfile();
-    // ifAbsent: this spec reloads, and addInitScript re-runs on every load — only
-    // seed when the store is absent so the reload keeps the toggle this test
-    // persists, instead of clobbering it back to the seed default.
-    const seed = pwaSeedPayload(
-      buildPwaPersistedState({
-        profiles: [profile],
-        selectedProfileId: profile.id,
-        activeView: 'dashboard',
-        activeDashboardTab: 'settings',
-      }),
-    );
-    seed.ifAbsent = true;
-    await page.addInitScript(applyPwaSeed, seed);
-
-    await page.goto('/');
+    await page.goto('/?__frostr_dev=dashboard-settings');
     const dashboard = pages(page).dashboard;
     await dashboard.expectDashboard();
     await dashboard.openTab('settings');
@@ -109,55 +60,30 @@ test.describe('igloo-pwa ui-first shell @fast', () => {
           const raw = window.localStorage.getItem(key);
           return raw ? (JSON.parse(raw).settings?.auto_open_signer ?? null) : null;
         }, PWA_GLOBAL_STORE_KEY),
-      )
+    )
       .toBe(false);
     await page.reload();
     await dashboard.expectDashboard();
+    await dashboard.openTab('settings');
     await expect(dashboard.autoOpenToggle).not.toBeChecked();
   });
 
   test('settings expose the unified actions and logout returns to landing while preserving saved profiles', async ({ page }) => {
-    const profile = { ...seededDashboardProfile(), id: 'profile-1', label: 'Primary Browser Device' };
-    await page.addInitScript(
-      applyPwaSeed,
-      pwaSeedPayload(
-        buildPwaPersistedState({
-          profiles: [profile],
-          selectedProfileId: profile.id,
-          activeView: 'dashboard',
-        }),
-      ),
-    );
-
-    await page.goto('/');
+    await page.goto('/?__frostr_dev=dashboard-settings');
     const p = pages(page);
     await p.dashboard.expectDashboard();
     await expect(page.getByText('Choose one path to initialize this browser workspace.')).toHaveCount(0);
 
-    await p.dashboard.openTab('settings');
     await p.dashboard.expectSettingsActions();
     await expect(page.getByText(/reset browser workspace/i)).toHaveCount(0);
     await p.dashboard.logout();
     await expect(page.getByText('Welcome back.')).toBeVisible();
     await p.welcome.expectReturning();
-    await expect(p.welcome.row('profile-1').getByText('Primary Browser Device')).toBeVisible();
+    await expect(page.getByText('Dev Signing Key')).toBeVisible();
   });
 
   test('guards unsaved Settings edits when navigating away', async ({ page }) => {
-    const profile = seededDashboardProfile();
-    await page.addInitScript(
-      applyPwaSeed,
-      pwaSeedPayload(
-        buildPwaPersistedState({
-          profiles: [profile],
-          selectedProfileId: profile.id,
-          activeView: 'dashboard',
-          activeDashboardTab: 'settings',
-        }),
-      ),
-    );
-
-    await page.goto('/');
+    await page.goto('/?__frostr_dev=dashboard-settings');
     const dashboard = pages(page).dashboard;
     await dashboard.expectDashboard();
     await dashboard.editSignerName('Edited Name');
